@@ -47,16 +47,41 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
+        // 3ds Max specific colors
+        viewport: {
+          DEFAULT: "hsl(var(--viewport-bg))",
+          border: "hsl(var(--viewport-border))",
+          active: "hsl(var(--viewport-active))",
         },
+        menu: {
+          DEFAULT: "hsl(var(--menu-bg))",
+          hover: "hsl(var(--menu-hover))",
+          active: "hsl(var(--menu-active))",
+        },
+        panel: {
+          DEFAULT: "hsl(var(--panel-bg))",
+          header: "hsl(var(--panel-header))",
+          border: "hsl(var(--panel-border))",
+        },
+        timeline: {
+          DEFAULT: "hsl(var(--timeline-bg))",
+          track: "hsl(var(--timeline-track))",
+          keyframe: "hsl(var(--timeline-keyframe))",
+        },
+        gizmo: {
+          x: "hsl(var(--gizmo-x))",
+          y: "hsl(var(--gizmo-y))",
+          z: "hsl(var(--gizmo-z))",
+        },
+        grid: {
+          primary: "hsl(var(--grid-primary))",
+          secondary: "hsl(var(--grid-secondary))",
+        },
+      },
+      backgroundImage: {
+        'gradient-panel': 'var(--gradient-panel)',
+        'gradient-button': 'var(--gradient-button)',
+        'gradient-viewport': 'var(--gradient-viewport)',
       },
       borderRadius: {
         lg: "var(--radius)",
