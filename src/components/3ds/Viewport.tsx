@@ -12,6 +12,7 @@ interface ViewportProps {
   selectedObject: string | null;
   onSelectObject: (id: string | null) => void;
   onTransformObject: (id: string, transform: any) => void;
+  transformMode: 'translate' | 'rotate' | 'scale';
 }
 
 export const Viewport = ({ 
@@ -21,7 +22,8 @@ export const Viewport = ({
   objects, 
   selectedObject, 
   onSelectObject,
-  onTransformObject 
+  onTransformObject,
+  transformMode 
 }: ViewportProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -115,6 +117,7 @@ export const Viewport = ({
           onSelectObject={onSelectObject}
           onTransformObject={onTransformObject}
           viewportType={type}
+          transformMode={transformMode}
         />
 
         {/* Controls */}

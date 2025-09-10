@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { TransformControls } from '@react-three/drei';
 import { Object3D } from './Object3D';
@@ -9,6 +9,7 @@ interface Scene3DProps {
   onSelectObject: (id: string | null) => void;
   onTransformObject: (id: string, transform: any) => void;
   viewportType: string;
+  transformMode: 'translate' | 'rotate' | 'scale';
 }
 
 export const Scene3D = ({
@@ -16,7 +17,8 @@ export const Scene3D = ({
   selectedObject,
   onSelectObject,
   onTransformObject,
-  viewportType
+  viewportType,
+  transformMode
 }: Scene3DProps) => {
   const transformControlsRef = useRef<any>(null);
 
@@ -39,7 +41,11 @@ export const Scene3D = ({
         <TransformControls
           ref={transformControlsRef}
           object={selectedObjectData.ref?.current}
-          mode="translate"
+          mode={transformMode}
+          size={0.8}
+          showX={true}
+          showY={true}
+          showZ={true}
           onObjectChange={(e: any) => {
             if (e?.target?.object) {
               const obj = e.target.object;

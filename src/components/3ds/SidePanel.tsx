@@ -14,7 +14,8 @@ import {
   Settings,
   Move,
   RotateCw,
-  Scale
+  Scale,
+  Palette
 } from 'lucide-react';
 
 interface SidePanelProps {
@@ -22,13 +23,15 @@ interface SidePanelProps {
   selectedObject: any;
   onTransformMode: (mode: 'translate' | 'rotate' | 'scale') => void;
   transformMode: string;
+  onOpenMaterialEditor?: () => void;
 }
 
 export const SidePanel = ({ 
   onCreateObject, 
   selectedObject, 
   onTransformMode, 
-  transformMode 
+  transformMode,
+  onOpenMaterialEditor 
 }: SidePanelProps) => {
   const [activeTab, setActiveTab] = useState('create');
 
@@ -142,7 +145,9 @@ export const SidePanel = ({
                 <CardContent className="space-y-3">
                   <div>
                     <label className="text-xs text-muted-foreground">Name</label>
-                    <div className="text-sm font-mono">{selectedObject.type}_{selectedObject.id.slice(0, 8)}</div>
+                    <div className="text-sm font-mono">
+                      {selectedObject.name || `${selectedObject.type}_${selectedObject.id.slice(0, 8)}`}
+                    </div>
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Position</label>
@@ -151,6 +156,18 @@ export const SidePanel = ({
                       <div>Y: {selectedObject.position[1].toFixed(2)}</div>
                       <div>Z: {selectedObject.position[2].toFixed(2)}</div>
                     </div>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Material</label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-1 gap-2 border-panel-border hover:bg-menu-hover"
+                      onClick={onOpenMaterialEditor}
+                    >
+                      <Palette className="w-4 h-4" />
+                      Edit Material
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

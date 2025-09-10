@@ -7,6 +7,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+interface MenuBarProps {
+  onOpenMaterialEditor: () => void;
+  onFileOperation: (type: 'save' | 'open' | 'export' | 'import') => void;
+}
+
 const menuItems = [
   {
     label: 'File',
@@ -42,7 +47,7 @@ const menuItems = [
   }
 ];
 
-export const MenuBar = () => {
+export const MenuBar = ({ onOpenMaterialEditor, onFileOperation }: MenuBarProps) => {
   return (
     <div className="h-8 bg-menu border-b border-panel-border flex items-center px-2 gap-1">
       {menuItems.map((menu) => (
@@ -62,7 +67,16 @@ export const MenuBar = () => {
           >
             {menu.items.map((item, index) => (
               <div key={item}>
-                <DropdownMenuItem className="text-xs hover:bg-menu-hover">
+                <DropdownMenuItem 
+                  className="text-xs hover:bg-menu-hover cursor-pointer"
+                  onClick={() => {
+                    if (item === 'Material Editor') onOpenMaterialEditor();
+                    if (item === 'Save' || item === 'Save As') onFileOperation('save');
+                    if (item === 'Open') onFileOperation('open');
+                    if (item === 'Export') onFileOperation('export');
+                    if (item === 'Import') onFileOperation('import');
+                  }}
+                >
                   {item}
                 </DropdownMenuItem>
                 {(item === 'Exit' || item === 'Select All' || item === 'Snap Settings' || 
