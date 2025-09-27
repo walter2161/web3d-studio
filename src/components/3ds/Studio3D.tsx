@@ -290,7 +290,7 @@ export const Studio3D = () => {
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
   return (
-    <div className="h-screen bg-background text-foreground overflow-hidden">
+    <div className="h-screen bg-background text-foreground overflow-hidden flex flex-col">
       {/* Keyboard Shortcuts */}
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
@@ -321,7 +321,7 @@ export const Studio3D = () => {
       />
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-2rem)]">
+      <div className="flex flex-1 min-h-0">
         {/* Left Sidebar - Scene Hierarchy */}
         <div className="w-64 bg-panel border-r border-panel-border">
           <SceneHierarchy
@@ -397,7 +397,7 @@ export const Studio3D = () => {
       </div>
 
       {/* Timeline */}
-      <div className="h-16 bg-panel border-t border-panel-border">
+      <div className="h-16 bg-panel border-t border-panel-border flex-shrink-0">
         <Timeline
         currentFrame={currentFrame}
         totalFrames={totalFrames}
