@@ -58,7 +58,7 @@ export const Viewport = ({
   return (
     <div 
       className={cn(
-        "relative border bg-gradient-viewport",
+        "relative border bg-gradient-viewport h-[600px] min-h-[600px] w-full",
         isActive ? "border-viewport-active" : "border-viewport-border"
       )}
       onClick={onActivate}
