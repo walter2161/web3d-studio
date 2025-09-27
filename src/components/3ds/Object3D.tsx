@@ -11,6 +11,7 @@ interface Object3DProps {
     rotation: [number, number, number];
     scale: [number, number, number];
     color: string;
+    geometry?: any;
     modifiers?: Array<{
       id: string;
       type: string;
@@ -35,7 +36,7 @@ export const Object3D = ({ object, isSelected, onSelect }: Object3DProps) => {
 
   // Apply modifiers to geometry
   const modifiedGeometry = useMemo(() => {
-    let geometry = createBaseGeometry(object.type);
+    let geometry = createBaseGeometry(object.type, object.geometry);
     
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
@@ -46,24 +47,58 @@ export const Object3D = ({ object, isSelected, onSelect }: Object3DProps) => {
     }
     
     return geometry;
-  }, [object.type, object.modifiers]);
+  }, [object.type, object.geometry, object.modifiers]);
 
-  function createBaseGeometry(type: string): BufferGeometry {
+  function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
+    const geom = geometry || {};
+    
     switch (type) {
       case 'box':
-        return new THREE.BoxGeometry(1, 1, 1, 10, 10, 10);
+        return new THREE.BoxGeometry(
+          geom.width || 1,
+          geom.height || 1,
+          geom.depth || 1,
+          geom.widthSegments || 1,
+          geom.heightSegments || 1,
+          geom.depthSegments || 1
+        );
       case 'sphere':
-        return new THREE.SphereGeometry(0.5, 32, 32);
+        return new THREE.SphereGeometry(
+          geom.radius || 0.5,
+          geom.widthSegments || 32,
+          geom.heightSegments || 32
+        );
       case 'cylinder':
-        return new THREE.CylinderGeometry(0.5, 0.5, 1, 32, 10);
+        return new THREE.CylinderGeometry(
+          geom.radiusTop || 0.5,
+          geom.radiusBottom || 0.5,
+          geom.height || 1,
+          geom.radialSegments || 32,
+          geom.heightSegments || 1
+        );
       case 'cone':
-        return new THREE.ConeGeometry(0.5, 1, 32, 10);
+        return new THREE.ConeGeometry(
+          geom.radius || 0.5,
+          geom.height || 1,
+          geom.radialSegments || 32,
+          geom.heightSegments || 1
+        );
       case 'torus':
-        return new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+        return new THREE.TorusGeometry(
+          geom.radius || 0.5,
+          geom.tube || 0.2,
+          geom.radialSegments || 16,
+          geom.tubularSegments || 100
+        );
       case 'plane':
-        return new THREE.PlaneGeometry(1, 1, 10, 10);
+        return new THREE.PlaneGeometry(
+          geom.width || 1,
+          geom.height || 1,
+          geom.widthSegments || 1,
+          geom.heightSegments || 1
+        );
       default:
-        return new THREE.BoxGeometry(1, 1, 1, 10, 10, 10);
+        return new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
     }
   }
 

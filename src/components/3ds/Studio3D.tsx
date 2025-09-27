@@ -21,6 +21,7 @@ interface Object3DData {
   material?: any;
   visible?: boolean;
   locked?: boolean;
+  geometry?: any;
   modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
 }
@@ -117,6 +118,14 @@ export const Studio3D = () => {
     ));
     
     toast.success('Modifier removed');
+  }, []);
+
+  const updateObjectGeometry = useCallback((objectId: string, params: any) => {
+    setObjects(prev => prev.map(obj => 
+      obj.id === objectId 
+        ? { ...obj, geometry: { ...(obj.geometry || {}), ...params } }
+        : obj
+    ));
   }, []);
 
   const handleSelectObject = useCallback((id: string | null) => {
@@ -393,6 +402,7 @@ export const Studio3D = () => {
           onAddModifier={addModifier}
           onUpdateModifier={updateModifier}
           onRemoveModifier={removeModifier}
+          onUpdateObjectGeometry={updateObjectGeometry}
         />
       </div>
 
