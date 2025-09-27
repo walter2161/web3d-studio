@@ -268,7 +268,7 @@ export const Studio3D = () => {
       />
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-2rem)]">
         {/* Left Sidebar - Scene Hierarchy */}
         <div className="w-64 bg-panel border-r border-panel-border">
           <SceneHierarchy
@@ -283,39 +283,42 @@ export const Studio3D = () => {
           />
         </div>
 
-        {/* Transform Toolbar */}
-        <div className="absolute top-4 left-4 z-20 bg-panel border border-panel-border rounded-lg shadow-lg p-2 flex gap-2">
-          <Button
-            variant={transformMode === 'translate' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTransformMode('translate')}
-            className="h-8 w-8 p-0"
-            title="Move Tool (W)"
-          >
-            ⌖
-          </Button>
-          <Button
-            variant={transformMode === 'rotate' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTransformMode('rotate')}
-            className="h-8 w-8 p-0"
-            title="Rotate Tool (E)"
-          >
-            ↻
-          </Button>
-          <Button
-            variant={transformMode === 'scale' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setTransformMode('scale')}
-            className="h-8 w-8 p-0"
-            title="Scale Tool (R)"
-          >
-            ⚏
-          </Button>
-        </div>
+        {/* Viewport Area with Toolbar */}
+        <div className="flex-1 flex flex-col">
+          {/* Transform Toolbar */}
+          <div className="h-12 bg-panel border-b border-panel-border flex items-center px-4 gap-2">
+            <span className="text-xs text-muted-foreground mr-4">Transform:</span>
+            <Button
+              variant={transformMode === 'translate' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTransformMode('translate')}
+              className="h-8 gap-2"
+              title="Move Tool (W)"
+            >
+              ⌖ Move
+            </Button>
+            <Button
+              variant={transformMode === 'rotate' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTransformMode('rotate')}
+              className="h-8 gap-2"
+              title="Rotate Tool (E)"
+            >
+              ↻ Rotate
+            </Button>
+            <Button
+              variant={transformMode === 'scale' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTransformMode('scale')}
+              className="h-8 gap-2"
+              title="Scale Tool (R)"
+            >
+              ⚏ Scale
+            </Button>
+          </div>
 
-        {/* Single Viewport */}
-        <div className="flex-1 p-1 relative">
+          {/* Viewport */}
+          <div className="flex-1 p-1">
           <Viewport
             type={activeViewport}
             isActive={true}
@@ -325,7 +328,8 @@ export const Studio3D = () => {
             onSelectObject={handleSelectObject}
             onTransformObject={handleTransformObject}
             transformMode={transformMode}
-          />
+            />
+          </div>
         </div>
 
         {/* Right Side Panel */}
@@ -337,7 +341,7 @@ export const Studio3D = () => {
       </div>
 
       {/* Timeline */}
-      <div className="h-20">
+      <div className="h-16 bg-panel border-t border-panel-border">
         <Timeline
         currentFrame={currentFrame}
         totalFrames={totalFrames}

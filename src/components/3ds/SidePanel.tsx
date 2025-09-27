@@ -38,9 +38,26 @@ export const SidePanel = ({
   ];
 
   const modifiers = [
-    'Bend', 'Twist', 'Taper', 'Stretch', 'Skew', 'Noise', 'FFD', 'Shell',
-    'Edit Poly', 'Edit Mesh', 'TurboSmooth', 'MeshSmooth', 'Symmetry', 'Mirror',
-    'UVW Map', 'Unwrap UVW', 'Lathe', 'Extrude', 'Bevel', 'Slice'
+    { name: 'Bend', description: 'Entorta o objeto em torno de um eixo' },
+    { name: 'Twist', description: 'Torce o objeto em torno de um eixo' },
+    { name: 'Taper', description: 'Afunila a forma, estreitando ou expandindo' },
+    { name: 'Stretch', description: 'Estica ou comprime o objeto' },
+    { name: 'Skew', description: 'Inclina a geometria' },
+    { name: 'Noise', description: 'Adiciona irregularidades aleatórias na malha' },
+    { name: 'FFD', description: 'Deforma o objeto usando caixas de controle' },
+    { name: 'Shell', description: 'Adiciona espessura a superfícies planas' },
+    { name: 'Edit Poly', description: 'Permite editar vértices, arestas, polígonos' },
+    { name: 'Edit Mesh', description: 'Edição direta de malhas triangulares' },
+    { name: 'TurboSmooth', description: 'Suaviza e aumenta o número de polígonos' },
+    { name: 'MeshSmooth', description: 'Subdivide suavizando a malha' },
+    { name: 'Symmetry', description: 'Espelha o objeto em um eixo' },
+    { name: 'Mirror', description: 'Reflete a geometria' },
+    { name: 'UVW Map', description: 'Mapeamento simples de coordenadas de textura' },
+    { name: 'Unwrap UVW', description: 'Controle avançado de mapeamento UV' },
+    { name: 'Lathe', description: 'Revolve uma spline para criar formas cilíndricas' },
+    { name: 'Extrude', description: 'Extruda uma spline para gerar volume' },
+    { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados' },
+    { name: 'Slice', description: 'Corta o objeto em partes' }
   ];
 
   return (
@@ -112,20 +129,24 @@ export const SidePanel = ({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Modifiers</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                <CardContent className="space-y-2 max-h-80 overflow-y-auto">
                   {modifiers.map((modifier) => (
-                    <Button
-                      key={modifier}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => {
-                        // TODO: Apply modifier to selected object
-                        console.log(`Applying ${modifier} modifier to ${selectedObject.name}`);
-                      }}
-                    >
-                      {modifier}
-                    </Button>
+                    <div key={modifier.name} className="space-y-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
+                        onClick={() => {
+                          // TODO: Apply modifier to selected object
+                          console.log(`Applying ${modifier.name} modifier to ${selectedObject.name}`);
+                        }}
+                      >
+                        {modifier.name}
+                      </Button>
+                      <p className="text-xs text-muted-foreground px-2 pb-1">
+                        {modifier.description}
+                      </p>
+                    </div>
                   ))}
                 </CardContent>
               </Card>
