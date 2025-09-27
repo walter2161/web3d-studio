@@ -124,42 +124,35 @@ export const SidePanel = ({
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0">
-            {selectedObject ? (
-              <Card className="bg-card border-panel-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Modifiers</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 max-h-80 overflow-y-auto">
-                  {modifiers.map((modifier) => (
-                    <div key={modifier.name} className="space-y-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
-                        onClick={() => {
-                          // TODO: Apply modifier to selected object
+            <Card className="bg-card border-panel-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">Modifiers</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 max-h-80 overflow-y-auto">
+                {modifiers.map((modifier) => (
+                  <div key={modifier.name} className="space-y-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
+                      onClick={() => {
+                        if (selectedObject) {
                           console.log(`Applying ${modifier.name} modifier to ${selectedObject.name}`);
-                        }}
-                      >
-                        {modifier.name}
-                      </Button>
-                      <p className="text-xs text-muted-foreground px-2 pb-1">
-                        {modifier.description}
-                      </p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="bg-card border-panel-border">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Modifiers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-xs text-muted-foreground">Select an object to see available modifiers</p>
-                </CardContent>
-              </Card>
-            )}
+                        } else {
+                          console.log(`Select an object to apply ${modifier.name} modifier`);
+                        }
+                      }}
+                      disabled={!selectedObject}
+                    >
+                      {modifier.name}
+                    </Button>
+                    <p className="text-xs text-muted-foreground px-2 pb-1">
+                      {modifier.description}
+                    </p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
             {selectedObject && (
               <Card className="bg-card border-panel-border mt-4">
