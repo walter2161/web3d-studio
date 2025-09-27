@@ -26,7 +26,7 @@ interface Object3DData {
 export const Studio3D = () => {
   const [objects, setObjects] = useState<Object3DData[]>([]);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
-  const [activeViewport, setActiveViewport] = useState<string>('perspective');
+  const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -255,12 +255,15 @@ export const Studio3D = () => {
           setCurrentFrame(0);
           toast.success('New scene created');
         }}
+        onViewportChange={setActiveViewport}
       />
 
       {/* Menu Bar */}
       <MenuBar 
         onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
         onFileOperation={openFileDialog}
+        onViewportChange={setActiveViewport}
+        activeViewport={activeViewport}
       />
 
       {/* Main Content */}
@@ -279,42 +282,12 @@ export const Studio3D = () => {
           />
         </div>
 
-        {/* Viewport Grid */}
-        <div className="flex-1 grid grid-cols-2 grid-rows-2 gap-1 p-1">
+        {/* Single Viewport */}
+        <div className="flex-1 p-1">
           <Viewport
-            type="perspective"
-            isActive={activeViewport === 'perspective'}
-            onActivate={() => setActiveViewport('perspective')}
-            objects={objects.filter(obj => obj.visible !== false)}
-            selectedObject={selectedObject}
-            onSelectObject={handleSelectObject}
-            onTransformObject={handleTransformObject}
-            transformMode={transformMode}
-          />
-          <Viewport
-            type="top"
-            isActive={activeViewport === 'top'}
-            onActivate={() => setActiveViewport('top')}
-            objects={objects.filter(obj => obj.visible !== false)}
-            selectedObject={selectedObject}
-            onSelectObject={handleSelectObject}
-            onTransformObject={handleTransformObject}
-            transformMode={transformMode}
-          />
-          <Viewport
-            type="front"
-            isActive={activeViewport === 'front'}
-            onActivate={() => setActiveViewport('front')}
-            objects={objects.filter(obj => obj.visible !== false)}
-            selectedObject={selectedObject}
-            onSelectObject={handleSelectObject}
-            onTransformObject={handleTransformObject}
-            transformMode={transformMode}
-          />
-          <Viewport
-            type="left"
-            isActive={activeViewport === 'left'}
-            onActivate={() => setActiveViewport('left')}
+            type={activeViewport}
+            isActive={true}
+            onActivate={() => {}}
             objects={objects.filter(obj => obj.visible !== false)}
             selectedObject={selectedObject}
             onSelectObject={handleSelectObject}

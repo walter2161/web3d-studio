@@ -11,6 +11,7 @@ interface KeyboardShortcutsProps {
   onSave: () => void;
   onOpen: () => void;
   onNew: () => void;
+  onViewportChange: (viewport: 'perspective' | 'top' | 'front' | 'left') => void;
 }
 
 export const KeyboardShortcuts = ({
@@ -23,7 +24,8 @@ export const KeyboardShortcuts = ({
   onRedo,
   onSave,
   onOpen,
-  onNew
+  onNew,
+  onViewportChange
 }: KeyboardShortcutsProps) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -96,7 +98,25 @@ export const KeyboardShortcuts = ({
             event.preventDefault();
             onRedo();
             break;
+          case 'p':
+            event.preventDefault();
+            onViewportChange('perspective');
+            break;
+          case 't':
+            event.preventDefault();
+            onViewportChange('top');
+            break;
+          case 'l':
+            event.preventDefault();
+            onViewportChange('left');
+            break;
         }
+      }
+
+      // Special case for Ctrl+F (front view) since 'f' is used for focus without Ctrl
+      if (ctrlKey && !shiftKey && !altKey && key.toLowerCase() === 'f') {
+        event.preventDefault();
+        onViewportChange('front');
       }
 
       // Redo with Ctrl+Shift+Z
@@ -118,7 +138,8 @@ export const KeyboardShortcuts = ({
     onRedo,
     onSave,
     onOpen,
-    onNew
+    onNew,
+    onViewportChange
   ]);
 
   return null;
