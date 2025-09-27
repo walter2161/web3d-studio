@@ -7,6 +7,7 @@ import { MaterialEditor } from './MaterialEditor';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 interface Object3DData {
@@ -267,7 +268,7 @@ export const Studio3D = () => {
       />
 
       {/* Main Content */}
-      <div className="flex h-[calc(100vh-8rem)]">
+      <div className="flex h-[calc(100vh-4rem)]">
         {/* Left Sidebar - Scene Hierarchy */}
         <div className="w-64 bg-panel border-r border-panel-border">
           <SceneHierarchy
@@ -282,8 +283,39 @@ export const Studio3D = () => {
           />
         </div>
 
+        {/* Transform Toolbar */}
+        <div className="absolute top-4 left-4 z-20 bg-panel border border-panel-border rounded-lg shadow-lg p-2 flex gap-2">
+          <Button
+            variant={transformMode === 'translate' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setTransformMode('translate')}
+            className="h-8 w-8 p-0"
+            title="Move Tool (W)"
+          >
+            ⌖
+          </Button>
+          <Button
+            variant={transformMode === 'rotate' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setTransformMode('rotate')}
+            className="h-8 w-8 p-0"
+            title="Rotate Tool (E)"
+          >
+            ↻
+          </Button>
+          <Button
+            variant={transformMode === 'scale' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setTransformMode('scale')}
+            className="h-8 w-8 p-0"
+            title="Scale Tool (R)"
+          >
+            ⚏
+          </Button>
+        </div>
+
         {/* Single Viewport */}
-        <div className="flex-1 p-1">
+        <div className="flex-1 p-1 relative">
           <Viewport
             type={activeViewport}
             isActive={true}
@@ -300,14 +332,13 @@ export const Studio3D = () => {
         <SidePanel
           onCreateObject={createObject}
           selectedObject={selectedObjectData}
-          onTransformMode={setTransformMode}
-          transformMode={transformMode}
           onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
         />
       </div>
 
       {/* Timeline */}
-      <Timeline
+      <div className="h-20">
+        <Timeline
         currentFrame={currentFrame}
         totalFrames={totalFrames}
         isPlaying={isPlaying}
@@ -341,7 +372,8 @@ export const Studio3D = () => {
         onLoadProject={loadProject}
         onExportScene={exportScene}
         onImportModel={importModel}
-      />
+        />
+      </div>
     </div>
   );
 };

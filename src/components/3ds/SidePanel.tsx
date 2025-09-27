@@ -12,25 +12,18 @@ import {
   Lightbulb,
   Camera,
   Settings,
-  Move,
-  RotateCw,
-  Scale,
   Palette
 } from 'lucide-react';
 
 interface SidePanelProps {
   onCreateObject: (type: string) => void;
   selectedObject: any;
-  onTransformMode: (mode: 'translate' | 'rotate' | 'scale') => void;
-  transformMode: string;
   onOpenMaterialEditor?: () => void;
 }
 
 export const SidePanel = ({ 
   onCreateObject, 
   selectedObject, 
-  onTransformMode, 
-  transformMode,
   onOpenMaterialEditor 
 }: SidePanelProps) => {
   const [activeTab, setActiveTab] = useState('create');
@@ -44,10 +37,10 @@ export const SidePanel = ({
     { type: 'plane', icon: Square, label: 'Plane' },
   ];
 
-  const tools = [
-    { mode: 'translate', icon: Move, label: 'Move (W)', key: 'W' },
-    { mode: 'rotate', icon: RotateCw, label: 'Rotate (E)', key: 'E' },
-    { mode: 'scale', icon: Scale, label: 'Scale (R)', key: 'R' },
+  const modifiers = [
+    'Bend', 'Twist', 'Taper', 'Stretch', 'Skew', 'Noise', 'FFD', 'Shell',
+    'Edit Poly', 'Edit Mesh', 'TurboSmooth', 'MeshSmooth', 'Symmetry', 'Mirror',
+    'UVW Map', 'Unwrap UVW', 'Lathe', 'Extrude', 'Bevel', 'Slice'
   ];
 
   return (
@@ -114,31 +107,41 @@ export const SidePanel = ({
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0">
-            <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Transform Tools</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {tools.map((tool) => {
-                  const IconComponent = tool.icon;
-                  return (
+            {selectedObject ? (
+              <Card className="bg-card border-panel-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Modifiers</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-96 overflow-y-auto">
+                  {modifiers.map((modifier) => (
                     <Button
-                      key={tool.mode}
-                      variant={transformMode === tool.mode ? "default" : "outline"}
+                      key={modifier}
+                      variant="outline"
                       size="sm"
-                      className="w-full justify-start gap-2 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => onTransformMode(tool.mode as any)}
+                      className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
+                      onClick={() => {
+                        // TODO: Apply modifier to selected object
+                        console.log(`Applying ${modifier} modifier to ${selectedObject.name}`);
+                      }}
                     >
-                      <IconComponent className="w-4 h-4" />
-                      {tool.label}
+                      {modifier}
                     </Button>
-                  );
-                })}
-              </CardContent>
-            </Card>
+                  ))}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="bg-card border-panel-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Modifiers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">Select an object to see available modifiers</p>
+                </CardContent>
+              </Card>
+            )}
 
             {selectedObject && (
-              <Card className="bg-card border-panel-border">
+              <Card className="bg-card border-panel-border mt-4">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">Object Properties</CardTitle>
                 </CardHeader>
