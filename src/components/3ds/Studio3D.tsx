@@ -21,7 +21,15 @@ interface Object3DData {
   material?: any;
   visible?: boolean;
   locked?: boolean;
+  modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
+}
+
+interface Modifier {
+  id: string;
+  type: string;
+  params: any;
+  active: boolean;
 }
 
 export const Studio3D = () => {
@@ -57,6 +65,7 @@ export const Studio3D = () => {
         color: '#3b82f6',
         visible: true,
         locked: false,
+        modifiers: [],
         ref: { current: null } as any,
       };
       
@@ -65,6 +74,50 @@ export const Studio3D = () => {
       toast.success(`${type} created`);
     }
   }, [saveState]);
+
+  // Modifier operations
+  const addModifier = useCallback((objectId: string, modifierType: string) => {
+    const newModifier: Modifier = {
+      id: `${modifierType}_${Date.now()}`,
+      type: modifierType,
+      params: {},
+      active: true
+    };
+    
+    setObjects(prev => prev.map(obj => 
+      obj.id === objectId 
+        ? { ...obj, modifiers: [...(obj.modifiers || []), newModifier] }
+        : obj
+    ));
+    
+    toast.success(`${modifierType} modifier added`);
+  }, []);
+
+  const updateModifier = useCallback((objectId: string, modifierId: string, params: any) => {
+    setObjects(prev => prev.map(obj => 
+      obj.id === objectId 
+        ? { 
+            ...obj, 
+            modifiers: obj.modifiers?.map(mod => 
+              mod.id === modifierId ? { ...mod, params } : mod
+            ) || []
+          }
+        : obj
+    ));
+  }, []);
+
+  const removeModifier = useCallback((objectId: string, modifierId: string) => {
+    setObjects(prev => prev.map(obj => 
+      obj.id === objectId 
+        ? { 
+            ...obj, 
+            modifiers: obj.modifiers?.filter(mod => mod.id !== modifierId) || []
+          }
+        : obj
+    ));
+    
+    toast.success('Modifier removed');
+  }, []);
 
   const handleSelectObject = useCallback((id: string | null) => {
     setSelectedObject(id);
@@ -337,6 +390,9 @@ export const Studio3D = () => {
           onCreateObject={createObject}
           selectedObject={selectedObjectData}
           onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
+          onAddModifier={addModifier}
+          onUpdateModifier={updateModifier}
+          onRemoveModifier={removeModifier}
         />
       </div>
 

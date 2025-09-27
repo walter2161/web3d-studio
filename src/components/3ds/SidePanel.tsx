@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ModifierControls } from './ModifierControls';
 import { 
   Box, 
   Circle, 
@@ -19,12 +20,18 @@ interface SidePanelProps {
   onCreateObject: (type: string) => void;
   selectedObject: any;
   onOpenMaterialEditor?: () => void;
+  onAddModifier: (objectId: string, modifierType: string) => void;
+  onUpdateModifier: (objectId: string, modifierId: string, params: any) => void;
+  onRemoveModifier: (objectId: string, modifierId: string) => void;
 }
 
 export const SidePanel = ({ 
   onCreateObject, 
   selectedObject, 
-  onOpenMaterialEditor 
+  onOpenMaterialEditor,
+  onAddModifier,
+  onUpdateModifier,
+  onRemoveModifier
 }: SidePanelProps) => {
   const [activeTab, setActiveTab] = useState('create');
 
@@ -126,33 +133,43 @@ export const SidePanel = ({
           <TabsContent value="modify" className="mt-0">
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Modifiers</CardTitle>
+                <CardTitle className="text-sm">Add Modifiers</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 max-h-80 overflow-y-auto">
+              <CardContent className="space-y-2 max-h-60 overflow-y-auto">
                 {modifiers.map((modifier) => (
-                  <div key={modifier.name} className="space-y-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => {
-                        if (selectedObject) {
-                          console.log(`Applying ${modifier.name} modifier to ${selectedObject.name}`);
-                        } else {
-                          console.log(`Select an object to apply ${modifier.name} modifier`);
-                        }
-                      }}
-                      disabled={!selectedObject}
-                    >
-                      {modifier.name}
-                    </Button>
-                    <p className="text-xs text-muted-foreground px-2 pb-1">
-                      {modifier.description}
-                    </p>
-                  </div>
+                  <Button
+                    key={modifier.name}
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
+                    onClick={() => {
+                      if (selectedObject) {
+                        onAddModifier(selectedObject.id, modifier.name);
+                      }
+                    }}
+                    disabled={!selectedObject}
+                    title={modifier.description}
+                  >
+                    {modifier.name}
+                  </Button>
                 ))}
               </CardContent>
             </Card>
+
+            {/* Applied Modifiers */}
+            {selectedObject && selectedObject.modifiers && selectedObject.modifiers.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <h3 className="text-sm font-medium">Applied Modifiers</h3>
+                {selectedObject.modifiers.map((modifier: any) => (
+                  <ModifierControls
+                    key={modifier.id}
+                    modifier={modifier}
+                    onUpdateModifier={(params) => onUpdateModifier(selectedObject.id, modifier.id, params)}
+                    onRemoveModifier={() => onRemoveModifier(selectedObject.id, modifier.id)}
+                  />
+                ))}
+              </div>
+            )}
 
             {selectedObject && (
               <Card className="bg-card border-panel-border mt-4">
