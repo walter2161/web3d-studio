@@ -2,6 +2,8 @@ import { useRef, useState, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import { Scene3D } from './Scene3D';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 interface ViewportProps {
@@ -26,6 +28,7 @@ export const Viewport = ({
   transformMode 
 }: ViewportProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [renderMode, setRenderMode] = useState<'solid' | 'wireframe' | 'semi-transparent'>('solid');
 
   const cameraPosition = useMemo(() => {
     switch (type) {
@@ -58,7 +61,7 @@ export const Viewport = ({
   return (
     <div 
       className={cn(
-        "relative border bg-gradient-viewport h-[400px] min-h-[500px] w-full",
+        "relative border bg-gradient-viewport h-[600px] min-h-[600px] w-full",
         isActive ? "border-viewport-active" : "border-viewport-border"
       )}
       onClick={onActivate}
@@ -66,6 +69,20 @@ export const Viewport = ({
       {/* Viewport Label */}
       <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-panel text-xs font-mono text-muted-foreground uppercase tracking-wider">
         {type}
+      </div>
+
+      {/* Render Mode Controls */}
+      <div className="absolute top-2 right-2 z-10">
+        <Select value={renderMode} onValueChange={(value: any) => setRenderMode(value)}>
+          <SelectTrigger className="h-7 w-32 text-xs bg-background/80 backdrop-blur-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="solid">Solid</SelectItem>
+            <SelectItem value="wireframe">Wireframe</SelectItem>
+            <SelectItem value="semi-transparent">Semi-Render</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* 3D Canvas */}
@@ -118,6 +135,7 @@ export const Viewport = ({
           onTransformObject={onTransformObject}
           viewportType={type}
           transformMode={transformMode}
+          renderMode={renderMode}
         />
 
         {/* Controls */}

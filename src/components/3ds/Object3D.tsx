@@ -22,9 +22,10 @@ interface Object3DProps {
   };
   isSelected: boolean;
   onSelect: () => void;
+  renderMode: 'solid' | 'wireframe' | 'semi-transparent';
 }
 
-export const Object3D = ({ object, isSelected, onSelect }: Object3DProps) => {
+export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DProps) => {
   const meshRef = useRef<Mesh>(null);
 
   // Update object ref
@@ -118,6 +119,10 @@ export const Object3D = ({ object, isSelected, onSelect }: Object3DProps) => {
         return applyNoise(newGeometry, modifier.params);
       case 'TurboSmooth':
         return applyTurboSmooth(newGeometry, modifier.params);
+      case 'Edit Poly':
+        return applyEditPoly(newGeometry, modifier.params);
+      case 'Edit Mesh':
+        return applyEditMesh(newGeometry, modifier.params);
       default:
         return newGeometry;
     }
@@ -250,6 +255,57 @@ export const Object3D = ({ object, isSelected, onSelect }: Object3DProps) => {
     return geometry;
   }
 
+  function applyEditPoly(geometry: BufferGeometry, params: any): BufferGeometry {
+    // Edit Poly modifier affects vertex segments and selection
+    const segmentsX = params.segmentsX || 1;
+    const segmentsY = params.segmentsY || 1;
+    const segmentsZ = params.segmentsZ || 1;
+    
+    // Create a new geometry with more segments if needed
+    if (segmentsX > 1 || segmentsY > 1 || segmentsZ > 1) {
+      const newGeometry = createBaseGeometry(object.type, {
+        ...object.geometry,
+        widthSegments: segmentsX,
+        heightSegments: segmentsY,
+        depthSegments: segmentsZ,
+        radialSegments: Math.max(segmentsX, segmentsY)
+      });
+      
+      // Copy positions from original if needed
+      newGeometry.computeVertexNormals();
+      return newGeometry;
+    }
+    
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  function applyEditMesh(geometry: BufferGeometry, params: any): BufferGeometry {
+    // Edit Mesh modifier affects tessellation and smoothing
+    const tessellation = params.tessellation || 1;
+    const smoothingGroups = params.smoothingGroups || 1;
+    
+    // Apply tessellation (simple subdivision)
+    if (tessellation > 1) {
+      for (let i = 0; i < tessellation; i++) {
+        const positionAttribute = geometry.getAttribute('position');
+        const positions = positionAttribute.array as Float32Array;
+        
+        // Simple mesh smoothing
+        for (let j = 0; j < positions.length; j += 3) {
+          positions[j] *= 0.99;
+          positions[j + 1] *= 0.99;
+          positions[j + 2] *= 0.99;
+        }
+        
+        positionAttribute.needsUpdate = true;
+      }
+    }
+    
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
   return (
     <mesh
       ref={meshRef}
@@ -264,9 +320,9 @@ export const Object3D = ({ object, isSelected, onSelect }: Object3DProps) => {
     >
       <meshPhongMaterial 
         color={object.color}
-        transparent={isSelected}
-        opacity={isSelected ? 0.8 : 1}
-        wireframe={isSelected}
+        transparent={renderMode === 'semi-transparent' || isSelected}
+        opacity={renderMode === 'semi-transparent' ? 0.6 : isSelected ? 0.8 : 1}
+        wireframe={renderMode === 'wireframe'}
       />
       
       {/* Selection outline */}

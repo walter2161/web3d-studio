@@ -10,6 +10,7 @@ interface Scene3DProps {
   onTransformObject: (id: string, transform: any) => void;
   viewportType: string;
   transformMode: 'translate' | 'rotate' | 'scale';
+  renderMode: 'solid' | 'wireframe' | 'semi-transparent';
 }
 
 export const Scene3D = ({
@@ -18,7 +19,8 @@ export const Scene3D = ({
   onSelectObject,
   onTransformObject,
   viewportType,
-  transformMode
+  transformMode,
+  renderMode
 }: Scene3DProps) => {
   const transformControlsRef = useRef<any>(null);
 
@@ -33,6 +35,7 @@ export const Scene3D = ({
           object={object}
           isSelected={object.id === selectedObject}
           onSelect={() => onSelectObject(object.id)}
+          renderMode={renderMode}
         />
       ))}
 

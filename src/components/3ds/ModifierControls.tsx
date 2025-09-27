@@ -316,6 +316,148 @@ export const ModifierControls = ({ modifier, onUpdateModifier, onRemoveModifier 
     </div>
   );
 
+  const renderEditPolyControls = () => (
+    <div className="space-y-4">
+      <div>
+        <Label className="text-xs">Selection Level</Label>
+        <Select value={params.selectionLevel || 'vertex'} onValueChange={(value) => updateParam('selectionLevel', value)}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="vertex">Vertex</SelectItem>
+            <SelectItem value="edge">Edge</SelectItem>
+            <SelectItem value="face">Face</SelectItem>
+            <SelectItem value="element">Element</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-xs">Segments X</Label>
+        <Slider
+          value={[params.segmentsX || 1]}
+          onValueChange={(value) => updateParam('segmentsX', value[0])}
+          min={1}
+          max={20}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.segmentsX || 1}</div>
+      </div>
+      <div>
+        <Label className="text-xs">Segments Y</Label>
+        <Slider
+          value={[params.segmentsY || 1]}
+          onValueChange={(value) => updateParam('segmentsY', value[0])}
+          min={1}
+          max={20}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.segmentsY || 1}</div>
+      </div>
+      <div>
+        <Label className="text-xs">Segments Z</Label>
+        <Slider
+          value={[params.segmentsZ || 1]}
+          onValueChange={(value) => updateParam('segmentsZ', value[0])}
+          min={1}
+          max={20}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.segmentsZ || 1}</div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox 
+          id="showVertices" 
+          checked={params.showVertices || false}
+          onCheckedChange={(checked) => updateParam('showVertices', checked)}
+        />
+        <Label htmlFor="showVertices" className="text-xs">Show Vertices</Label>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox 
+          id="showEdges" 
+          checked={params.showEdges || false}
+          onCheckedChange={(checked) => updateParam('showEdges', checked)}
+        />
+        <Label htmlFor="showEdges" className="text-xs">Show Edges</Label>
+      </div>
+    </div>
+  );
+
+  const renderEditMeshControls = () => (
+    <div className="space-y-4">
+      <div>
+        <Label className="text-xs">Selection Level</Label>
+        <Select value={params.selectionLevel || 'vertex'} onValueChange={(value) => updateParam('selectionLevel', value)}>
+          <SelectTrigger className="h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="vertex">Vertex</SelectItem>
+            <SelectItem value="face">Face</SelectItem>
+            <SelectItem value="polygon">Polygon</SelectItem>
+            <SelectItem value="element">Element</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-xs">Tessellation</Label>
+        <Slider
+          value={[params.tessellation || 1]}
+          onValueChange={(value) => updateParam('tessellation', value[0])}
+          min={1}
+          max={10}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.tessellation || 1}</div>
+      </div>
+      <div>
+        <Label className="text-xs">Smoothing Groups</Label>
+        <Slider
+          value={[params.smoothingGroups || 1]}
+          onValueChange={(value) => updateParam('smoothingGroups', value[0])}
+          min={1}
+          max={32}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.smoothingGroups || 1}</div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox 
+          id="autoSmooth" 
+          checked={params.autoSmooth || false}
+          onCheckedChange={(checked) => updateParam('autoSmooth', checked)}
+        />
+        <Label htmlFor="autoSmooth" className="text-xs">Auto Smooth</Label>
+      </div>
+      <div>
+        <Label className="text-xs">Crease Threshold</Label>
+        <Slider
+          value={[params.creaseThreshold || 30]}
+          onValueChange={(value) => updateParam('creaseThreshold', value[0])}
+          min={0}
+          max={180}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.creaseThreshold || 30}°</div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox 
+          id="showNormals" 
+          checked={params.showNormals || false}
+          onCheckedChange={(checked) => updateParam('showNormals', checked)}
+        />
+        <Label htmlFor="showNormals" className="text-xs">Show Normals</Label>
+      </div>
+    </div>
+  );
+
   const renderDefaultControls = () => (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground">
@@ -332,6 +474,8 @@ export const ModifierControls = ({ modifier, onUpdateModifier, onRemoveModifier 
       case 'Noise': return renderNoiseControls();
       case 'TurboSmooth': return renderTurboSmoothControls();
       case 'Symmetry': return renderSymmetryControls();
+      case 'Edit Poly': return renderEditPolyControls();
+      case 'Edit Mesh': return renderEditMeshControls();
       default: return renderDefaultControls();
     }
   };
