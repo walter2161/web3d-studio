@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { MenuBar } from './MenuBar';
 import { Viewport } from './Viewport';
 import { SidePanel } from './SidePanel';
-import { Timeline } from './Timeline';
+import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
 import { MaterialEditor } from './MaterialEditor';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
@@ -45,7 +45,109 @@ export const Studio3D = () => {
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
+  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>([]);
+  const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const totalFrames = 100;
+  const playRef = useRef<number | null>(null);
+
+  // Playback loop
+  useEffect(() => {
+    if (isPlaying) {
+      const startTime = performance.now();
+      const startFrame = currentFrame;
+      const duration = 4000; // 4 seconds for full timeline
+      
+      const animate = (time: number) => {
+        const elapsed = time - startTime;
+        const t = elapsed / duration;
+        const frame = Math.round(startFrame + t * (totalFrames - startFrame));
+        
+        if (frame >= totalFrames) {
+          setCurrentFrame(totalFrames);
+          setIsPlaying(false);
+          return;
+        }
+        
+        setCurrentFrame(frame);
+        playRef.current = requestAnimationFrame(animate);
+      };
+      
+      playRef.current = requestAnimationFrame(animate);
+      return () => {
+        if (playRef.current) cancelAnimationFrame(playRef.current);
+      };
+    }
+  }, [isPlaying]);
+
+  // Apply animation at current frame
+  useEffect(() => {
+    animationTracks.forEach(track => {
+      if (track.keyframes.length < 2) return;
+      
+      const kfs = track.keyframes;
+      let prev = kfs[0];
+      let next = kfs[kfs.length - 1];
+      
+      if (currentFrame <= prev.frame) {
+        applyKeyframeToObject(track.objectId, prev);
+        return;
+      }
+      if (currentFrame >= next.frame) {
+        applyKeyframeToObject(track.objectId, next);
+        return;
+      }
+      
+      for (let i = 0; i < kfs.length - 1; i++) {
+        if (currentFrame >= kfs[i].frame && currentFrame <= kfs[i + 1].frame) {
+          prev = kfs[i];
+          next = kfs[i + 1];
+          break;
+        }
+      }
+      
+      const t = (currentFrame - prev.frame) / (next.frame - prev.frame);
+      const interpolated = bezierInterpolate(prev, next, t);
+      
+      setObjects(prevObjs => prevObjs.map(obj => 
+        obj.id === track.objectId 
+          ? { ...obj, position: interpolated.position, rotation: interpolated.rotation, scale: interpolated.scale }
+          : obj
+      ));
+    });
+  }, [currentFrame, animationTracks]);
+
+  function bezierInterpolate(a: Keyframe, b: Keyframe, t: number) {
+    const cubicBezier = (p0: number, p1: number, p2: number, p3: number, t: number) => {
+      const mt = 1 - t;
+      return mt * mt * mt * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t * p3;
+    };
+
+    const pos: [number, number, number] = [0, 0, 0];
+    const rot: [number, number, number] = [0, 0, 0];
+    const scl: [number, number, number] = [0, 0, 0];
+
+    for (let i = 0; i < 3; i++) {
+      pos[i] = cubicBezier(
+        a.position[i],
+        a.position[i] + a.outTangent[i],
+        b.position[i] + b.inTangent[i],
+        b.position[i],
+        t
+      );
+      rot[i] = a.rotation[i] + (b.rotation[i] - a.rotation[i]) * t;
+      scl[i] = a.scale[i] + (b.scale[i] - a.scale[i]) * t;
+    }
+
+    return { position: pos, rotation: rot, scale: scl };
+  }
+
+  function applyKeyframeToObject(objectId: string, kf: Keyframe) {
+    setObjects(prev => prev.map(obj => 
+      obj.id === objectId 
+        ? { ...obj, position: [...kf.position] as [number,number,number], rotation: [...kf.rotation] as [number,number,number], scale: [...kf.scale] as [number,number,number] }
+        : obj
+    ));
+  }
 
   // Save state for undo/redo
   const saveState = useCallback(() => {
@@ -75,6 +177,66 @@ export const Studio3D = () => {
       toast.success(`${type} created`);
     }
   }, [saveState]);
+
+  // Animation operations
+  const addKeyframe = useCallback((objectId: string, frame: number) => {
+    const obj = objects.find(o => o.id === objectId);
+    if (!obj) return;
+
+    const newKf: Keyframe = {
+      id: `kf_${Date.now()}`,
+      objectId,
+      frame,
+      position: [...obj.position] as [number, number, number],
+      rotation: [...obj.rotation] as [number, number, number],
+      scale: [...obj.scale] as [number, number, number],
+      inTangent: [-0.5, 0, 0],
+      outTangent: [0.5, 0, 0],
+    };
+
+    setAnimationTracks(prev => {
+      const existing = prev.find(t => t.objectId === objectId);
+      if (existing) {
+        // Replace keyframe at same frame or add new
+        const filtered = existing.keyframes.filter(k => k.frame !== frame);
+        const updated = [...filtered, newKf].sort((a, b) => a.frame - b.frame);
+        return prev.map(t => t.objectId === objectId ? { ...t, keyframes: updated } : t);
+      } else {
+        return [...prev, {
+          objectId,
+          objectName: obj.name || obj.type,
+          keyframes: [newKf],
+          showTrajectory: false,
+        }];
+      }
+    });
+    
+    toast.success(`Keyframe added at frame ${frame}`);
+  }, [objects]);
+
+  const removeKeyframe = useCallback((objectId: string, keyframeId: string) => {
+    setAnimationTracks(prev => prev.map(t => 
+      t.objectId === objectId
+        ? { ...t, keyframes: t.keyframes.filter(k => k.id !== keyframeId) }
+        : t
+    ).filter(t => t.keyframes.length > 0));
+    setSelectedKeyframe(null);
+    toast.success('Keyframe removed');
+  }, []);
+
+  const updateKeyframe = useCallback((objectId: string, keyframeId: string, updates: Partial<Keyframe>) => {
+    setAnimationTracks(prev => prev.map(t => 
+      t.objectId === objectId
+        ? { ...t, keyframes: t.keyframes.map(k => k.id === keyframeId ? { ...k, ...updates } : k) }
+        : t
+    ));
+  }, []);
+
+  const toggleTrajectory = useCallback((objectId: string) => {
+    setAnimationTracks(prev => prev.map(t => 
+      t.objectId === objectId ? { ...t, showTrajectory: !t.showTrajectory } : t
+    ));
+  }, []);
 
   // Modifier operations
   const addModifier = useCallback((objectId: string, modifierType: string) => {
@@ -134,9 +296,7 @@ export const Studio3D = () => {
 
   const handleTransformObject = useCallback((id: string, transform: any) => {
     setObjects(prev => prev.map(obj => 
-      obj.id === id 
-        ? { ...obj, ...transform }
-        : obj
+      obj.id === id ? { ...obj, ...transform } : obj
     ));
   }, []);
 
@@ -144,9 +304,8 @@ export const Studio3D = () => {
   const deleteObject = useCallback((id: string) => {
     saveState();
     setObjects(prev => prev.filter(obj => obj.id !== id));
-    if (selectedObject === id) {
-      setSelectedObject(null);
-    }
+    setAnimationTracks(prev => prev.filter(t => t.objectId !== id));
+    if (selectedObject === id) setSelectedObject(null);
     toast.success('Object deleted');
   }, [saveState, selectedObject]);
 
@@ -169,33 +328,25 @@ export const Studio3D = () => {
 
   const toggleVisibility = useCallback((id: string) => {
     setObjects(prev => prev.map(obj => 
-      obj.id === id 
-        ? { ...obj, visible: !obj.visible }
-        : obj
+      obj.id === id ? { ...obj, visible: !obj.visible } : obj
     ));
   }, []);
 
   const toggleLock = useCallback((id: string) => {
     setObjects(prev => prev.map(obj => 
-      obj.id === id 
-        ? { ...obj, locked: !obj.locked }
-        : obj
+      obj.id === id ? { ...obj, locked: !obj.locked } : obj
     ));
   }, []);
 
   const renameObject = useCallback((id: string, name: string) => {
     setObjects(prev => prev.map(obj => 
-      obj.id === id 
-        ? { ...obj, name }
-        : obj
+      obj.id === id ? { ...obj, name } : obj
     ));
   }, []);
 
   const handleMaterialChange = useCallback((objectId: string, material: any) => {
     setObjects(prev => prev.map(obj => 
-      obj.id === objectId 
-        ? { ...obj, material, color: material.color }
-        : obj
+      obj.id === objectId ? { ...obj, material, color: material.color } : obj
     ));
   }, []);
 
@@ -225,22 +376,20 @@ export const Studio3D = () => {
     const projectData = {
       version: '1.0',
       objects,
+      animationTracks,
       selectedObject,
       currentFrame,
       timestamp: new Date().toISOString()
     };
     
-    const blob = new Blob([JSON.stringify(projectData, null, 2)], {
-      type: 'application/json'
-    });
-    
+    const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename.endsWith('.3dsled') ? filename : `${filename}.3dsled`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [objects, selectedObject, currentFrame]);
+  }, [objects, animationTracks, selectedObject, currentFrame]);
 
   const loadProject = useCallback((file: File) => {
     const reader = new FileReader();
@@ -249,6 +398,7 @@ export const Studio3D = () => {
         const projectData = JSON.parse(e.target?.result as string);
         saveState();
         setObjects(projectData.objects || []);
+        setAnimationTracks(projectData.animationTracks || []);
         setSelectedObject(projectData.selectedObject || null);
         setCurrentFrame(projectData.currentFrame || 0);
       } catch (error) {
@@ -260,23 +410,17 @@ export const Studio3D = () => {
 
   const exportScene = useCallback((format: string, settings: any) => {
     toast.success(`Exporting as ${format.toUpperCase()}...`);
-    // TODO: Implement actual export functionality
   }, []);
 
   const importModel = useCallback((file: File) => {
     toast.success(`Importing ${file.name}...`);
-    // TODO: Implement actual import functionality
   }, []);
 
-  // Keyboard shortcuts
   const handleDeleteSelected = useCallback(() => {
-    if (selectedObject) {
-      deleteObject(selectedObject);
-    }
+    if (selectedObject) deleteObject(selectedObject);
   }, [selectedObject, deleteObject]);
 
   const handleSelectAll = useCallback(() => {
-    // TODO: Implement multi-selection
     toast.info('Multi-selection not yet implemented');
   }, []);
 
@@ -285,10 +429,7 @@ export const Studio3D = () => {
   }, []);
 
   const handleFocusSelected = useCallback(() => {
-    if (selectedObject) {
-      // TODO: Focus camera on selected object
-      toast.info('Focus on object');
-    }
+    if (selectedObject) toast.info('Focus on object');
   }, [selectedObject]);
 
   const openFileDialog = useCallback((type: 'save' | 'open' | 'export' | 'import') => {
@@ -300,7 +441,6 @@ export const Studio3D = () => {
 
   return (
     <div className="h-screen bg-background text-foreground overflow-hidden flex flex-col">
-      {/* Keyboard Shortcuts */}
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
         onDeleteSelected={handleDeleteSelected}
@@ -314,6 +454,7 @@ export const Studio3D = () => {
         onNew={() => {
           saveState();
           setObjects([]);
+          setAnimationTracks([]);
           setSelectedObject(null);
           setCurrentFrame(0);
           toast.success('New scene created');
@@ -321,7 +462,6 @@ export const Studio3D = () => {
         onViewportChange={setActiveViewport}
       />
 
-      {/* Menu Bar */}
       <MenuBar 
         onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
         onFileOperation={openFileDialog}
@@ -329,9 +469,7 @@ export const Studio3D = () => {
         activeViewport={activeViewport}
       />
 
-      {/* Main Content */}
       <div className="flex flex-1 min-h-0">
-        {/* Left Sidebar - Scene Hierarchy */}
         <div className="w-64 bg-panel border-r border-panel-border">
           <SceneHierarchy
             objects={objects}
@@ -345,56 +483,40 @@ export const Studio3D = () => {
           />
         </div>
 
-        {/* Viewport Area with Toolbar */}
         <div className="flex-1 flex flex-col">
-          {/* Transform Toolbar */}
           <div className="h-12 bg-panel border-b border-panel-border flex items-center px-4 gap-2">
             <span className="text-xs text-muted-foreground mr-4">Transform:</span>
-            <Button
-              variant={transformMode === 'translate' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTransformMode('translate')}
-              className="h-8 gap-2"
-              title="Move Tool (W)"
-            >
+            <Button variant={transformMode === 'translate' ? 'default' : 'ghost'} size="sm"
+              onClick={() => setTransformMode('translate')} className="h-8 gap-2" title="Move Tool (W)">
               ⌖ Move
             </Button>
-            <Button
-              variant={transformMode === 'rotate' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTransformMode('rotate')}
-              className="h-8 gap-2"
-              title="Rotate Tool (E)"
-            >
+            <Button variant={transformMode === 'rotate' ? 'default' : 'ghost'} size="sm"
+              onClick={() => setTransformMode('rotate')} className="h-8 gap-2" title="Rotate Tool (E)">
               ↻ Rotate
             </Button>
-            <Button
-              variant={transformMode === 'scale' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTransformMode('scale')}
-              className="h-8 gap-2"
-              title="Scale Tool (R)"
-            >
+            <Button variant={transformMode === 'scale' ? 'default' : 'ghost'} size="sm"
+              onClick={() => setTransformMode('scale')} className="h-8 gap-2" title="Scale Tool (R)">
               ⚏ Scale
             </Button>
           </div>
 
-          {/* Viewport */}
           <div className="flex-1 p-1">
-          <Viewport
-            type={activeViewport}
-            isActive={true}
-            onActivate={() => {}}
-            objects={objects.filter(obj => obj.visible !== false)}
-            selectedObject={selectedObject}
-            onSelectObject={handleSelectObject}
-            onTransformObject={handleTransformObject}
-            transformMode={transformMode}
+            <Viewport
+              type={activeViewport}
+              isActive={true}
+              onActivate={() => {}}
+              objects={objects.filter(obj => obj.visible !== false)}
+              selectedObject={selectedObject}
+              onSelectObject={handleSelectObject}
+              onTransformObject={handleTransformObject}
+              transformMode={transformMode}
+              animationTracks={animationTracks}
+              selectedKeyframe={selectedKeyframe}
+              onUpdateKeyframe={updateKeyframe}
             />
           </div>
         </div>
 
-        {/* Right Side Panel */}
         <SidePanel
           onCreateObject={createObject}
           selectedObject={selectedObjectData}
@@ -406,26 +528,25 @@ export const Studio3D = () => {
         />
       </div>
 
-      {/* Timeline */}
-      <div className="h-16 bg-panel border-t border-panel-border flex-shrink-0">
-        <Timeline
+      {/* Animation Timeline */}
+      <AnimationTimeline
+        tracks={animationTracks}
         currentFrame={currentFrame}
         totalFrames={totalFrames}
         isPlaying={isPlaying}
+        selectedObject={selectedObject}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onStop={() => {
-          setIsPlaying(false);
-          setCurrentFrame(0);
-        }}
+        onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
         onFrameChange={setCurrentFrame}
-        onSetKeyframe={() => {
-          // TODO: Implement keyframe creation
-          console.log('Set keyframe at frame:', currentFrame);
-        }}
+        onAddKeyframe={addKeyframe}
+        onRemoveKeyframe={removeKeyframe}
+        onUpdateKeyframe={updateKeyframe}
+        onToggleTrajectory={toggleTrajectory}
+        onSelectKeyframe={setSelectedKeyframe}
+        selectedKeyframe={selectedKeyframe}
       />
 
-      {/* Material Editor Dialog */}
       <MaterialEditor
         open={materialEditorOpen}
         onOpenChange={setMaterialEditorOpen}
@@ -433,7 +554,6 @@ export const Studio3D = () => {
         onMaterialChange={handleMaterialChange}
       />
 
-      {/* File Operations Dialog */}
       <FileOperations
         open={fileDialogOpen}
         onOpenChange={setFileDialogOpen}
@@ -442,8 +562,7 @@ export const Studio3D = () => {
         onLoadProject={loadProject}
         onExportScene={exportScene}
         onImportModel={importModel}
-        />
-      </div>
+      />
     </div>
   );
 };
