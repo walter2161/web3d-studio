@@ -483,7 +483,7 @@ export const Studio3D = () => {
           />
         </div>
 
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           <div className="h-12 bg-panel border-b border-panel-border flex items-center px-4 gap-2">
             <span className="text-xs text-muted-foreground mr-4">Transform:</span>
             <Button variant={transformMode === 'translate' ? 'default' : 'ghost'} size="sm"
