@@ -1,7 +1,8 @@
-import { useRef, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
 import { TransformControls } from '@react-three/drei';
 import { Object3D } from './Object3D';
+import { TrajectoryRenderer } from './TrajectoryRenderer';
+import { AnimationTrack, Keyframe } from './AnimationTimeline';
 
 interface Scene3DProps {
   objects: any[];
@@ -11,24 +12,21 @@ interface Scene3DProps {
   viewportType: string;
   transformMode: 'translate' | 'rotate' | 'scale';
   renderMode: 'solid' | 'wireframe' | 'semi-transparent';
+  animationTracks?: AnimationTrack[];
+  selectedKeyframe?: Keyframe | null;
+  onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;
 }
 
 export const Scene3D = ({
-  objects,
-  selectedObject,
-  onSelectObject,
-  onTransformObject,
-  viewportType,
-  transformMode,
-  renderMode
+  objects, selectedObject, onSelectObject, onTransformObject,
+  viewportType, transformMode, renderMode,
+  animationTracks, selectedKeyframe, onUpdateKeyframe
 }: Scene3DProps) => {
   const transformControlsRef = useRef<any>(null);
-
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
   return (
     <>
-      {/* Render all objects */}
       {objects.map((object) => (
         <Object3D
           key={object.id}
@@ -39,16 +37,13 @@ export const Scene3D = ({
         />
       ))}
 
-      {/* Transform Controls for selected object */}
       {selectedObject && selectedObjectData && viewportType === 'perspective' && (
         <TransformControls
           ref={transformControlsRef}
           object={selectedObjectData.ref?.current}
           mode={transformMode}
           size={0.8}
-          showX={true}
-          showY={true}
-          showZ={true}
+          showX showY showZ
           onObjectChange={(e: any) => {
             if (e?.target?.object) {
               const obj = e.target.object;
@@ -60,6 +55,15 @@ export const Scene3D = ({
               });
             }
           }}
+        />
+      )}
+
+      {/* Render trajectories */}
+      {animationTracks && onUpdateKeyframe && (
+        <TrajectoryRenderer
+          tracks={animationTracks}
+          selectedKeyframe={selectedKeyframe || null}
+          onUpdateKeyframe={onUpdateKeyframe}
         />
       )}
     </>
