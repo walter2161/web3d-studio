@@ -25,7 +25,9 @@ import { SelectByNameDialog } from './r3/SelectByNameDialog';
 import { MirrorDialog } from './r3/MirrorDialog';
 import { ArrayDialog } from './r3/ArrayDialog';
 import { AlignDialog, AlignOpts } from './r3/AlignDialog';
+import { CreationProvider, useCreation, GhostObject } from './r3/creation/CreationContext';
 import { toast } from 'sonner';
+
 
 
 interface Object3DData {
