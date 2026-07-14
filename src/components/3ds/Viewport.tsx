@@ -241,11 +241,12 @@ export const Viewport = ({
       )}
 
       <Canvas
+        key={`${view}-${orthographic ? 'ortho' : 'persp'}`}
         ref={canvasRef}
         camera={{
           position: cameraPosition,
           up: cameraUp,
-          ...(orthographic && { left: -10, right: 10, top: 10, bottom: -10, near: 0.1, far: 1000 }),
+          ...(orthographic && { left: -10, right: 10, top: 10, bottom: -10, near: 0.1, far: 1000, zoom: 40 }),
         }}
         orthographic={orthographic}
         className="w-full h-full"
