@@ -115,7 +115,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
         if (modifier.active) {
-          geometry = applyModifier(geometry, modifier);
+          geometry = applyModifier(geometry, modifier, object.type, object.geometry);
         }
       });
     }
