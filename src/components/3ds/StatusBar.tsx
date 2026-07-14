@@ -104,6 +104,17 @@ export const StatusBar = ({
       <Tool title="Set Key (K)" onClick={onSetKey}>
         <Key size={12} />
       </Tool>
+      {onToggleTimeline && (
+        <Tool
+          title={timelineVisible ? 'Hide Timeline' : 'Show Timeline'}
+          onClick={onToggleTimeline}
+          active={timelineVisible}
+        >
+          {timelineVisible ? <ChevronsDown size={12} /> : <ChevronsUp size={12} />}
+        </Tool>
+      )}
+
+
 
       {/* Time / playback cluster */}
       <div className="bevel-sunken bg-win-face flex items-center gap-0.5 px-1">
