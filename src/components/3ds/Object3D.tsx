@@ -389,15 +389,18 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     );
   }
 
+  const isGhost = (object as any).__creating === true;
+
   return (
     <mesh
       ref={meshRef}
       position={object.position}
       rotation={object.rotation}
       scale={object.scale}
-      castShadow
-      receiveShadow
-      onClick={(e) => {
+      castShadow={!isGhost}
+      receiveShadow={!isGhost}
+      raycast={isGhost ? () => null : undefined}
+      onClick={isGhost ? undefined : (e) => {
         e.stopPropagation();
         onSelect();
       }}
@@ -405,8 +408,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     >
       <meshStandardMaterial
         color={object.color}
-        transparent={renderMode === 'semi-transparent'}
-        opacity={renderMode === 'semi-transparent' ? 0.5 : 1}
+        transparent={renderMode === 'semi-transparent' || isGhost}
+        opacity={isGhost ? 0.55 : (renderMode === 'semi-transparent' ? 0.5 : 1)}
         wireframe={renderMode === 'wireframe'}
         metalness={0.15}
         roughness={0.55}
@@ -414,10 +417,18 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       />
 
       {/* Selection outline via edges only (no wire overlay on the surface) */}
-      {isSelected && renderMode !== 'wireframe' && (
+      {isSelected && renderMode !== 'wireframe' && !isGhost && (
         <lineSegments renderOrder={999}>
           <edgesGeometry args={[modifiedGeometry, 15]} />
           <lineBasicMaterial color="#00bfff" transparent opacity={0.9} depthTest={false} />
+        </lineSegments>
+      )}
+
+      {/* Ghost edges — bright preview outline while creating */}
+      {isGhost && (
+        <lineSegments renderOrder={999}>
+          <edgesGeometry args={[modifiedGeometry, 15]} />
+          <lineBasicMaterial color="#fbbf24" transparent opacity={1} depthTest={false} />
         </lineSegments>
       )}
     </mesh>
