@@ -305,12 +305,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     if (axis === 'y') extrGeo.rotateX(-Math.PI / 2);
     else if (axis === 'x') extrGeo.rotateY(Math.PI / 2);
 
-    // Optional cap removal by clearing groups (simplest handling).
-    if (!capStart || !capEnd) {
-      // ExtrudeGeometry uses two groups for caps at the end. Keeping default caps for now.
-    }
     return extrGeo;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  function _padExtrude() {
 
   function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
