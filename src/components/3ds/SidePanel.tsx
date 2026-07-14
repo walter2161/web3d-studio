@@ -312,47 +312,150 @@ export const SidePanel = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="modify" className="mt-0">
-            <div className="bevel-raised">
-              <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
-                Modifier List
-              </div>
-              <div className="p-1 space-y-[2px] max-h-60 overflow-y-auto">
-                {modifiers.map((modifier) => (
-                  <button
-                    key={modifier.name}
-                    disabled={!selectedObject}
-                    onClick={() => selectedObject && onAddModifier(selectedObject.id, modifier.name)}
-                    title={modifier.description}
-                    className={cn(
-                      'w-full h-[22px] text-[11px] text-left px-2 truncate text-win-text',
-                      !selectedObject ? 'bevel-raised opacity-50 cursor-not-allowed' : 'bevel-raised hover:brightness-105'
-                    )}
-                  >
-                    {modifier.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-
-            {/* Applied Modifiers */}
-            {selectedObject && selectedObject.modifiers && selectedObject.modifiers.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <h3 className="text-sm font-medium">Applied Modifiers</h3>
-                {selectedObject.modifiers.map((modifier: any) => (
-                  <ModifierControls
-                    key={modifier.id}
-                    modifier={modifier}
-                    onUpdateModifier={(params) => onUpdateModifier(selectedObject.id, modifier.id, params)}
-                    onRemoveModifier={() => onRemoveModifier(selectedObject.id, modifier.id)}
-                  />
-                ))}
+          <TabsContent value="modify" className="mt-0 space-y-2">
+            {!selectedObject && (
+              <div className="bevel-inset bg-win-face-shadow/40 text-[11px] text-win-text-disabled px-2 py-3 text-center">
+                No object selected
               </div>
             )}
 
-            {selectedObject && (
+            {selectedObject && (() => {
+              const objName = selectedObject.name || `${selectedObject.type}_${(selectedObject.id || '').slice(0, 6)}`;
+              const mods: any[] = selectedObject.modifiers || [];
+              // Display stack top-first (last modifier appears on top), like 3ds Max.
+              const stackDisplay = [...mods].reverse();
+              const baseLabel = String(selectedObject.type || 'Object').replace(/^./, (c) => c.toUpperCase());
+              const activeModifier = mods.find((m) => m.id === selectedStackItem);
+
+              return (
+                <>
+                  {/* Object name */}
+                  <div className="bevel-inset px-1 py-[2px]">
+                    <input
+                      className="w-full h-[20px] text-[11px] bg-white border border-win-shadow px-1 text-win-text"
+                      value={objName}
+                      onChange={(e) => onRenameObject?.(selectedObject.id, e.target.value)}
+                    />
+                  </div>
+
+                  {/* Modifier List dropdown */}
+                  <div className="relative">
+                    <button
+                      className="w-full h-[22px] text-[11px] text-left px-2 bevel-raised hover:brightness-105 text-win-text flex items-center justify-between"
+                      onClick={() => setModifierListOpen((v) => !v)}
+                    >
+                      <span className="truncate">Modifier List</span>
+                      <span className="text-[10px]">▼</span>
+                    </button>
+                    {modifierListOpen && (
+                      <div className="absolute z-50 left-0 right-0 mt-[1px] bevel-raised bg-panel max-h-56 overflow-y-auto">
+                        {modifiers.map((m) => (
+                          <button
+                            key={m.name}
+                            title={m.description}
+                            onClick={() => {
+                              onAddModifier(selectedObject.id, m.name);
+                              setModifierListOpen(false);
+                            }}
+                            className="w-full h-[20px] text-[11px] text-left px-2 truncate text-win-text hover:bg-win-highlight hover:text-white"
+                          >
+                            {m.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modifier Stack */}
+                  <div className="bevel-inset bg-white">
+                    {stackDisplay.map((m: any) => {
+                      const selected = selectedStackItem === m.id;
+                      return (
+                        <div
+                          key={m.id}
+                          className={cn(
+                            'flex items-center gap-1 h-[20px] px-1 text-[11px] text-win-text border-b border-win-shadow/40 cursor-pointer',
+                            selected ? 'bg-win-highlight text-white' : 'hover:bg-win-face-shadow/40'
+                          )}
+                          onClick={() => setSelectedStackItem(m.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            className="w-3 h-3"
+                            checked={m.active !== false}
+                            onChange={(e) => { e.stopPropagation(); onToggleModifier?.(selectedObject.id, m.id); }}
+                            onClick={(e) => e.stopPropagation()}
+                            title="Enable/disable modifier"
+                          />
+                          <span className="flex-1 truncate">{m.type}</span>
+                        </div>
+                      );
+                    })}
+                    {/* Base object row */}
+                    <div
+                      className={cn(
+                        'flex items-center gap-1 h-[20px] px-1 text-[11px] font-semibold text-win-text cursor-pointer',
+                        selectedStackItem === 'base' ? 'bg-win-highlight text-white' : 'hover:bg-win-face-shadow/40'
+                      )}
+                      onClick={() => setSelectedStackItem('base')}
+                    >
+                      <span className="w-3" />
+                      <span className="flex-1 truncate">{baseLabel}</span>
+                    </div>
+                  </div>
+
+                  {/* Stack action row */}
+                  <div className="flex items-center gap-[2px]">
+                    <button
+                      className="flex-1 h-[20px] text-[11px] bevel-raised hover:brightness-105 text-win-text disabled:opacity-50"
+                      disabled={!activeModifier}
+                      title="Move modifier up (later in evaluation)"
+                      onClick={() => activeModifier && onReorderModifier?.(selectedObject.id, activeModifier.id, 1)}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      className="flex-1 h-[20px] text-[11px] bevel-raised hover:brightness-105 text-win-text disabled:opacity-50"
+                      disabled={!activeModifier}
+                      title="Move modifier down (earlier in evaluation)"
+                      onClick={() => activeModifier && onReorderModifier?.(selectedObject.id, activeModifier.id, -1)}
+                    >
+                      ▼
+                    </button>
+                    <button
+                      className="flex-1 h-[20px] text-[11px] bevel-raised hover:brightness-105 text-win-text disabled:opacity-50"
+                      disabled={!activeModifier}
+                      title="Delete modifier"
+                      onClick={() => {
+                        if (!activeModifier) return;
+                        onRemoveModifier(selectedObject.id, activeModifier.id);
+                        setSelectedStackItem('base');
+                      }}
+                    >
+                      🗑
+                    </button>
+                  </div>
+
+                  {/* Selected modifier parameters */}
+                  {activeModifier && (
+                    <ModifierControls
+                      key={activeModifier.id}
+                      modifier={activeModifier}
+                      onUpdateModifier={(params) => onUpdateModifier(selectedObject.id, activeModifier.id, params)}
+                      onRemoveModifier={() => {
+                        onRemoveModifier(selectedObject.id, activeModifier.id);
+                        setSelectedStackItem('base');
+                      }}
+                    />
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Base object parameters — visible only when the base is selected in the stack */}
+            {selectedObject && selectedStackItem === 'base' && (
               <>
+
                 {/* Base Geometry Controls */}
                 <Card className="bg-card border-panel-border mt-4">
                   <CardHeader className="pb-3">
