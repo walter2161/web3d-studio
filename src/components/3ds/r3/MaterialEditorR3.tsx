@@ -621,7 +621,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                         <div><Spinner value={slot.amount} onChange={(v) => updateMap(key, { amount: v })} step={1} min={0} max={100} width={44} /></div>
                         <div>
                           <button
-                            onClick={() => setMapBrowserOpen(key)}
+                            onClick={() => openMapSlot(key)}
                             className={`${slot.name !== 'None' ? 'bevel-inset bg-white' : 'bevel-raised bg-win-face'} h-[18px] px-2 text-[11px] w-full text-left overflow-hidden text-ellipsis whitespace-nowrap`}
                           >{slot.name === 'None' ? 'None' : `Map #${active + 1} (${slot.name})`}</button>
                         </div>
