@@ -804,6 +804,56 @@ export const Studio3D = () => {
     }
   }, [saveState]);
 
+  /**
+   * Import a model straight from a URL — used by the Object Library
+   * drag-and-drop flow. Fetches the bytes, hands them to the same importer
+   * pipeline as the file-based flow, and persists them to IndexedDB so the
+   * imported entity survives page refreshes.
+   */
+  const importFromUrl = useCallback(async (url: string, filename: string, dropAt?: [number, number, number]) => {
+    const loadingId = toast.loading(`Downloading ${filename}...`);
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const bytes = await res.arrayBuffer();
+      const { importFromBytes, setImportedModel } = await import('./utils/modelImport');
+      const { saveModelBlob } = await import('./utils/modelStorage');
+      const model = await importFromBytes(filename, bytes);
+      const id = `imported_${Date.now()}`;
+      setImportedModel(id, model);
+      try {
+        await saveModelBlob(id, filename, bytes);
+      } catch (e) {
+        console.warn('Could not persist model blob:', e);
+      }
+      saveState();
+      const baseName = filename.replace(/\.[^.]+$/, '');
+      const newObject: Object3DData = {
+        id,
+        name: baseName,
+        type: 'imported',
+        position: dropAt || [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#9ca3af',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        ref: { current: null } as any,
+        geometry: { __importedFilename: filename },
+      };
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedObject(id);
+      toast.dismiss(loadingId);
+      toast.success(`Imported ${baseName}`);
+    } catch (err: any) {
+      toast.dismiss(loadingId);
+      console.error('URL import failed:', err);
+      toast.error(`Import failed: ${err?.message || 'unknown error'}`);
+    }
+  }, [saveState]);
+
+
 
 
   const handleDeleteSelected = useCallback(() => {
