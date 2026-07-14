@@ -126,26 +126,47 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     }
   };
 
+  const uploadRefToPublicHost = async (dataUrl: string): Promise<string | null> => {
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+      const fd = new FormData();
+      fd.append('reqtype', 'fileupload');
+      fd.append('time', '1h');
+      fd.append('fileToUpload', blob, `ref-${Date.now()}.png`);
+      const resp = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+        method: 'POST',
+        body: fd,
+      });
+      if (!resp.ok) return null;
+      const text = (await resp.text()).trim();
+      return text.startsWith('http') ? text : null;
+    } catch (e) {
+      console.warn('litterbox upload failed', e);
+      return null;
+    }
+  };
+
   const renderAI = async () => {
     if (!prompt.trim()) return;
     setRendering(true);
     try {
-      // Ensure we have a fresh scene render to use as compositional reference.
-      let ref = refRender;
-      if (!ref) {
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        ref = await doOfflineRender();
-        if (ref) setRefRender(ref);
-      }
+      // Always take a fresh render so the reference matches the current scene.
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const ref = await doOfflineRender();
+      if (ref) setRefRender(ref);
       const w = Math.min(1280, ref?.width ?? 1024);
       const h = Math.min(1280, ref?.height ?? 768);
-      const enrichedPrompt =
-        `${prompt.trim()}. Use the provided 3D scene render as a strict compositional reference: ` +
-        `preserve object positions, proportions, silhouettes, camera angle and perspective from the reference. ` +
-        `Replace the primitive shapes with the described subject while matching their exact form factor.`;
 
-      // Pollinations image API. `image` param is honored by the `kontext`/`gptimage` models
-      // for image-guided generation. We pass the render's data URL as reference.
+      // Pollinations' `image=` param only accepts a public HTTPS URL — data: URLs
+      // are silently ignored. Upload the render to a temp host (1h expiry) and
+      // pass that public URL as the compositional reference.
+      const publicRefUrl = ref?.dataUrl ? await uploadRefToPublicHost(ref.dataUrl) : null;
+
+      const enrichedPrompt =
+        `${prompt.trim()}. Use the provided reference image as a strict compositional guide: ` +
+        `keep the exact object positions, proportions, silhouettes, camera angle and perspective from the reference. ` +
+        `Replace each primitive shape with the described subject while matching its exact form factor and placement.`;
+
       const params = new URLSearchParams({
         width: String(w),
         height: String(h),
@@ -153,16 +174,14 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
         model: 'kontext',
         seed: String(Math.floor(Math.random() * 1_000_000)),
       });
-      if (ref?.dataUrl) params.set('image', ref.dataUrl);
+      if (publicRefUrl) params.set('image', publicRefUrl);
+      else console.warn('Render AI: no public reference URL, generating from prompt only');
 
       const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enrichedPrompt)}?${params.toString()}`;
-
-      // Fetch as blob so we display the final Pollinations image (not the loading page).
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`Pollinations ${resp.status}`);
       const blob = await resp.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      setImage(objectUrl);
+      setImage(URL.createObjectURL(blob));
     } catch (e) {
       console.error('Render AI failed', e);
     } finally {
