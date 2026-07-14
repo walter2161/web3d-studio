@@ -573,9 +573,8 @@ export const Studio3D = () => {
     }));
   }, []);
 
-  const renameObject = useCallback((objectId: string, name: string) => {
-    setObjects(prev => prev.map(obj => (obj.id === objectId ? { ...obj, name } : obj)));
-  }, []);
+
+
 
   const updateObjectGeometry = useCallback((objectId: string, params: any) => {
     setObjects(prev => prev.map(obj => 
