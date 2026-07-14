@@ -891,7 +891,13 @@ export const Studio3D = () => {
 
   return (
     <EnvironmentProvider>
+    <CreationProvider
+      onCommit={commitGhostObject}
+      onArmedChange={setArmedTool}
+      onGhostChange={setGhost}
+    >
     <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
+
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
         onDeleteSelected={handleDeleteSelected}
