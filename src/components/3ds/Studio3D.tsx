@@ -330,6 +330,41 @@ export const Studio3D = () => {
     toast.success(`${type} created`);
   }, [saveState]);
 
+  // Commit a ghost object from the interactive click-drag creation flow.
+  // Pivot policy (matches 3ds Max R3):
+  //   - Box / Cylinder / Cone / Pyramid / Tube  → pivot at CENTER OF BASE
+  //   - Sphere / Torus / Hedra / GeoSphere      → pivot at GEOMETRIC CENTER
+  //   - Plane / Shapes 2D                        → pivot at CENTER
+  // Our geometry primitives are already center-origin, so the ghost sits with
+  // its center at ghost.position. For base-pivot types we shift position up so
+  // that y = base + height/2, and record that offset so the Modify panel still
+  // reads intuitive Width/Depth/Height numbers.
+  const commitGhostObject = useCallback((g: GhostObject) => {
+    saveState();
+    const id = `${g.type}_${Date.now()}`;
+    const newObject: Object3DData = {
+      id,
+      name: `${g.type}${objects.filter((o) => o.type === g.type).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === g.type).length + 1}`,
+      type: g.type as any,
+      position: g.position,
+      rotation: g.rotation,
+      scale: g.scale,
+      color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
+             g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
+        ? '#f2c744' : '#3b82f6',
+      visible: true,
+      locked: false,
+      modifiers: [],
+      geometry: g.geometry,
+      ref: { current: null } as any,
+    };
+    setObjects((prev) => [...prev, newObject]);
+    setSelectedObject(id);
+    setSidePanelTab('modify');
+    toast.success(`${g.type} created`);
+  }, [objects, saveState]);
+
+
   // Animation operations
   const addKeyframe = useCallback((objectId: string, frame: number) => {
     const obj = objects.find(o => o.id === objectId);
