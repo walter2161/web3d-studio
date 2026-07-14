@@ -53,16 +53,18 @@ export const Viewport = ({
   const orthographic = type !== 'perspective';
 
   return (
-    <div 
+    <div
       className={cn(
-        "relative border bg-gradient-viewport w-full h-full",
-        isActive ? "border-viewport-active" : "border-viewport-border"
+        "relative w-full h-full bg-viewport",
+        // Yellow 2px border on active viewport (3ds Max R3 look)
+        isActive ? "outline outline-2 outline-viewport-active -outline-offset-2" : "outline outline-1 outline-viewport-border -outline-offset-1"
       )}
       onClick={onActivate}
     >
-      <div className="absolute top-2 left-2 z-10 px-2 py-1 bg-panel text-xs font-mono text-muted-foreground uppercase tracking-wider">
-        {type}
+      <div className="absolute top-1 left-1 z-10 px-1.5 py-0 bg-black/50 text-[10px] font-mono text-viewport-label uppercase tracking-wide select-none pointer-events-none">
+        [{type}]
       </div>
+
 
       <div className="absolute top-2 right-2 z-10">
         <Select value={renderMode} onValueChange={(value: any) => setRenderMode(value)}>
