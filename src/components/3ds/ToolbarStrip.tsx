@@ -3,6 +3,7 @@ import {
   Undo2, Redo2, MousePointer2, Move, RotateCw, Maximize as ScaleIcon,
   Link2, Unlink, FlipHorizontal, AlignCenter, Layers, Palette, Camera,
   Play, Magnet, Grid3x3, Percent, RotateCcw, Search, LayoutGrid, Square as SquareIcon,
+  ListTree, LibraryBig,
 } from 'lucide-react';
 
 
@@ -45,12 +46,14 @@ interface MainToolbarProps {
   onRenderSetup?: () => void;
   viewportLayout?: 'single' | 'quad';
   onToggleViewportLayout?: () => void;
+  onOpenHierarchy?: () => void;
+  onOpenLibrary?: () => void;
 }
 
 export const MainToolbar = ({
   transformMode, onTransformMode, onUndo, onRedo, onOpenMaterialEditor, onQuickRender,
   onMirror, onAlign, onArray, onLayerManager, onSelectByName, onRenderSetup,
-  viewportLayout, onToggleViewportLayout,
+  viewportLayout, onToggleViewportLayout, onOpenHierarchy, onOpenLibrary,
 }: MainToolbarProps) => {
 
   return (
@@ -71,6 +74,8 @@ export const MainToolbar = ({
       <ToolButton title="Align (A)" onClick={onAlign}><AlignCenter size={14} /></ToolButton>
       <Sep />
       <ToolButton title="Layer Manager" onClick={onLayerManager}><Layers size={14} /></ToolButton>
+      <ToolButton title="Scene Hierarchy (List)" onClick={onOpenHierarchy}><ListTree size={14} /></ToolButton>
+      <ToolButton title="Object Library" onClick={onOpenLibrary}><LibraryBig size={14} /></ToolButton>
       <ToolButton title="Material Editor (M)" onClick={onOpenMaterialEditor}><Palette size={14} /></ToolButton>
       <Sep />
       <ToolButton title="Render Setup" onClick={onRenderSetup}><Camera size={14} /></ToolButton>
