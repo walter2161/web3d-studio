@@ -1180,12 +1180,12 @@ export const Studio3D = () => {
       </div>
 
       <div className="flex flex-1 min-h-0 bg-win-face">
-        {/* Left: Scene hierarchy (collapsible) */}
+        {/* Left: Object Library (drag-drop into viewport) */}
         {hierarchyCollapsed ? (
           <div className="w-6 bevel-raised bg-win-face flex flex-col items-center py-1">
             <button
               className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
-              title="Mostrar Hierarquia"
+              title="Show Object Library"
               onClick={() => setHierarchyCollapsed(false)}
             >
               <ChevronRight size={12} />
@@ -1195,41 +1195,59 @@ export const Studio3D = () => {
               style={{ writingMode: 'vertical-rl' }}
               onClick={() => setHierarchyCollapsed(false)}
             >
-              Hierarchy
+              Library
             </div>
           </div>
         ) : (
           <div className="w-56 bevel-inset bg-panel flex flex-col">
             <div className="flex items-center justify-between px-1 py-0.5 bevel-raised bg-win-face shrink-0">
-              <span className="text-[11px] font-bold pl-1">Hierarchy</span>
-              <button
-                className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
-                title="Esconder Hierarquia"
-                onClick={() => setHierarchyCollapsed(true)}
-              >
-                <ChevronLeft size={12} />
-              </button>
+              <span className="text-[11px] font-bold pl-1">Object Library</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  className="h-5 px-1 bevel-raised bg-win-face hover:brightness-110 text-[10px]"
+                  title="Open Scene Hierarchy window"
+                  onClick={() => setHierarchyWindowOpen(true)}
+                >
+                  List
+                </button>
+                <button
+                  className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
+                  title="Hide Object Library"
+                  onClick={() => setHierarchyCollapsed(true)}
+                >
+                  <ChevronLeft size={12} />
+                </button>
+              </div>
             </div>
             <div className="flex-1 min-h-0">
-              <SceneHierarchy
-                objects={objects}
-                selectedObject={selectedObject}
-                selectedSubUuid={selectedSubUuid}
-                onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
-                onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
-                onDeleteObject={deleteObject}
-                onDuplicateObject={duplicateObject}
-                onToggleVisibility={toggleVisibility}
-                onToggleLock={toggleLock}
-                onRenameObject={renameObject}
-              />
+              <ObjectLibrary onImportUrl={(u, f) => importFromUrl(u, f)} />
             </div>
           </div>
         )}
 
         {/* Center: Viewport(s) */}
-        <div className="flex-1 flex flex-col min-h-0 bevel-inset">
+        <div
+          className="flex-1 flex flex-col min-h-0 bevel-inset"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes(DND_MIME) || e.dataTransfer.types.includes('text/plain')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={(e) => {
+            const raw = e.dataTransfer.getData(DND_MIME) || e.dataTransfer.getData('text/plain');
+            if (!raw) return;
+            try {
+              const data = JSON.parse(raw);
+              if (data?.url && data?.filename) {
+                e.preventDefault();
+                importFromUrl(data.url, data.filename);
+              }
+            } catch { /* not our payload */ }
+          }}
+        >
           <div className="flex-1 min-h-0 bg-win-dark">
+
             <ViewportGrid
               layout={viewportLayout}
               activeViewport={activeViewport}
