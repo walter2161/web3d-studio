@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 interface Object3DData {
   id: string;
   name?: string;
-  type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane';
+  type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported';
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
