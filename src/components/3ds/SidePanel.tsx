@@ -6,6 +6,148 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
+import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
+
+// -------- Geometry parameter schema (drives the Base object panel) --------
+type ParamKind = 'float' | 'int';
+interface ParamDef { key: string; label: string; kind: ParamKind; default: number; min?: number; step?: number; }
+
+const GEOM_SCHEMA: Record<string, ParamDef[]> = {
+  // Standard primitives
+  box: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: 1, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: 1, min: 0.001, step: 0.1 },
+    { key: 'depth',  label: 'Depth',  kind: 'float', default: 1, min: 0.001, step: 0.1 },
+    { key: 'widthSegments',  label: 'W Segs', kind: 'int', default: 1, min: 1 },
+    { key: 'heightSegments', label: 'H Segs', kind: 'int', default: 1, min: 1 },
+    { key: 'depthSegments',  label: 'D Segs', kind: 'int', default: 1, min: 1 },
+  ],
+  sphere: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: 0.5, min: 0.001, step: 0.1 },
+    { key: 'widthSegments',  label: 'W Segs', kind: 'int', default: 32, min: 3 },
+    { key: 'heightSegments', label: 'H Segs', kind: 'int', default: 32, min: 2 },
+  ],
+  cylinder: [
+    { key: 'radiusTop',    label: 'Top R',    kind: 'float', default: 0.5, min: 0, step: 0.1 },
+    { key: 'radiusBottom', label: 'Bottom R', kind: 'float', default: 0.5, min: 0, step: 0.1 },
+    { key: 'height',       label: 'Height',   kind: 'float', default: 1,   min: 0.001, step: 0.1 },
+    { key: 'radialSegments', label: 'Radial Segs', kind: 'int', default: 32, min: 3 },
+    { key: 'heightSegments', label: 'Height Segs', kind: 'int', default: 1,  min: 1 },
+  ],
+  cone: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: 0.5, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: 1,   min: 0.001, step: 0.1 },
+    { key: 'radialSegments', label: 'Radial Segs', kind: 'int', default: 32, min: 3 },
+    { key: 'heightSegments', label: 'Height Segs', kind: 'int', default: 1,  min: 1 },
+  ],
+  torus: [
+    { key: 'radius', label: 'Radius',    kind: 'float', default: 0.5,  min: 0.001, step: 0.1 },
+    { key: 'tube',   label: 'Tube',      kind: 'float', default: 0.15, min: 0.001, step: 0.05 },
+    { key: 'radialSegments',   label: 'Radial Segs',   kind: 'int', default: 16, min: 3 },
+    { key: 'tubularSegments',  label: 'Tubular Segs',  kind: 'int', default: 48, min: 3 },
+  ],
+  plane: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: 1, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: 1, min: 0.001, step: 0.1 },
+    { key: 'widthSegments',  label: 'W Segs', kind: 'int', default: 1, min: 1 },
+    { key: 'heightSegments', label: 'H Segs', kind: 'int', default: 1, min: 1 },
+  ],
+  // Extended primitives — derived from EXT_PRIM_DEFAULTS
+  hedra: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: EXT_PRIM_DEFAULTS.hedra.radius, min: 0.001, step: 0.1 },
+    { key: 'family', label: 'Family (0-4)', kind: 'int', default: EXT_PRIM_DEFAULTS.hedra.family, min: 0 },
+  ],
+  chamferBox: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: EXT_PRIM_DEFAULTS.chamferBox.width, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.chamferBox.height, min: 0.001, step: 0.1 },
+    { key: 'depth',  label: 'Depth',  kind: 'float', default: EXT_PRIM_DEFAULTS.chamferBox.depth, min: 0.001, step: 0.1 },
+    { key: 'fillet', label: 'Fillet', kind: 'float', default: EXT_PRIM_DEFAULTS.chamferBox.fillet, min: 0, step: 0.01 },
+    { key: 'segments', label: 'Fillet Segs', kind: 'int', default: EXT_PRIM_DEFAULTS.chamferBox.segments, min: 1 },
+  ],
+  chamferCyl: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: EXT_PRIM_DEFAULTS.chamferCyl.radius, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.chamferCyl.height, min: 0.001, step: 0.1 },
+    { key: 'fillet', label: 'Fillet', kind: 'float', default: EXT_PRIM_DEFAULTS.chamferCyl.fillet, min: 0, step: 0.01 },
+    { key: 'sides',    label: 'Sides',      kind: 'int', default: EXT_PRIM_DEFAULTS.chamferCyl.sides, min: 3 },
+    { key: 'segments', label: 'Fillet Segs', kind: 'int', default: EXT_PRIM_DEFAULTS.chamferCyl.segments, min: 1 },
+  ],
+  oilTank: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: EXT_PRIM_DEFAULTS.oilTank.radius, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.oilTank.height, min: 0.001, step: 0.1 },
+    { key: 'capHeight', label: 'Cap Height', kind: 'float', default: EXT_PRIM_DEFAULTS.oilTank.capHeight, min: 0.001, step: 0.05 },
+    { key: 'sides', label: 'Sides', kind: 'int', default: EXT_PRIM_DEFAULTS.oilTank.sides, min: 3 },
+  ],
+  spindle: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: EXT_PRIM_DEFAULTS.spindle.radius, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.spindle.height, min: 0.001, step: 0.1 },
+    { key: 'capHeight', label: 'Cap Height', kind: 'float', default: EXT_PRIM_DEFAULTS.spindle.capHeight, min: 0.001, step: 0.05 },
+    { key: 'sides', label: 'Sides', kind: 'int', default: EXT_PRIM_DEFAULTS.spindle.sides, min: 3 },
+  ],
+  gengon: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: EXT_PRIM_DEFAULTS.gengon.radius, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.gengon.height, min: 0.001, step: 0.1 },
+    { key: 'sides',  label: 'Sides',  kind: 'int',   default: EXT_PRIM_DEFAULTS.gengon.sides,  min: 3 },
+    { key: 'fillet', label: 'Fillet', kind: 'float', default: EXT_PRIM_DEFAULTS.gengon.fillet, min: 0, step: 0.01 },
+  ],
+  torusKnot: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: EXT_PRIM_DEFAULTS.torusKnot.radius, min: 0.001, step: 0.1 },
+    { key: 'tube',   label: 'Tube',   kind: 'float', default: EXT_PRIM_DEFAULTS.torusKnot.tube,   min: 0.001, step: 0.05 },
+    { key: 'tubularSegments', label: 'Tubular Segs', kind: 'int', default: EXT_PRIM_DEFAULTS.torusKnot.tubularSegments, min: 3 },
+    { key: 'radialSegments',  label: 'Radial Segs',  kind: 'int', default: EXT_PRIM_DEFAULTS.torusKnot.radialSegments,  min: 3 },
+    { key: 'p', label: 'P', kind: 'int', default: EXT_PRIM_DEFAULTS.torusKnot.p, min: 1 },
+    { key: 'q', label: 'Q', kind: 'int', default: EXT_PRIM_DEFAULTS.torusKnot.q, min: 1 },
+  ],
+  ringWave: [
+    { key: 'outerRadius', label: 'Outer R', kind: 'float', default: EXT_PRIM_DEFAULTS.ringWave.outerRadius, min: 0.001, step: 0.1 },
+    { key: 'innerRadius', label: 'Inner R', kind: 'float', default: EXT_PRIM_DEFAULTS.ringWave.innerRadius, min: 0,     step: 0.1 },
+    { key: 'sides',       label: 'Sides',   kind: 'int',   default: EXT_PRIM_DEFAULTS.ringWave.sides, min: 3 },
+    { key: 'height',      label: 'Height',  kind: 'float', default: EXT_PRIM_DEFAULTS.ringWave.height, min: 0, step: 0.05 },
+  ],
+  prism: [
+    { key: 'side1',  label: 'Side 1', kind: 'float', default: EXT_PRIM_DEFAULTS.prism.side1, min: 0.001, step: 0.1 },
+    { key: 'side2',  label: 'Side 2', kind: 'float', default: EXT_PRIM_DEFAULTS.prism.side2, min: 0.001, step: 0.1 },
+    { key: 'side3',  label: 'Side 3', kind: 'float', default: EXT_PRIM_DEFAULTS.prism.side3, min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.prism.height, min: 0.001, step: 0.1 },
+  ],
+  // Shapes
+  rectangle: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: SHAPE_DEFAULTS.rectangle.width,  min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: SHAPE_DEFAULTS.rectangle.height, min: 0.001, step: 0.1 },
+    { key: 'cornerRadius', label: 'Corner R', kind: 'float', default: SHAPE_DEFAULTS.rectangle.cornerRadius, min: 0, step: 0.01 },
+  ],
+  circle:  [{ key: 'radius', label: 'Radius', kind: 'float', default: SHAPE_DEFAULTS.circle.radius, min: 0.001, step: 0.1 }],
+  ellipse: [
+    { key: 'radiusX', label: 'Radius X', kind: 'float', default: SHAPE_DEFAULTS.ellipse.radiusX, min: 0.001, step: 0.1 },
+    { key: 'radiusY', label: 'Radius Y', kind: 'float', default: SHAPE_DEFAULTS.ellipse.radiusY, min: 0.001, step: 0.1 },
+  ],
+  arc: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: SHAPE_DEFAULTS.arc.radius, min: 0.001, step: 0.1 },
+    { key: 'from',   label: 'From °', kind: 'float', default: SHAPE_DEFAULTS.arc.from, step: 1 },
+    { key: 'to',     label: 'To °',   kind: 'float', default: SHAPE_DEFAULTS.arc.to,   step: 1 },
+  ],
+  donut: [
+    { key: 'radius1', label: 'Radius 1', kind: 'float', default: SHAPE_DEFAULTS.donut.radius1, min: 0.001, step: 0.1 },
+    { key: 'radius2', label: 'Radius 2', kind: 'float', default: SHAPE_DEFAULTS.donut.radius2, min: 0.001, step: 0.1 },
+  ],
+  ngon: [
+    { key: 'radius', label: 'Radius', kind: 'float', default: SHAPE_DEFAULTS.ngon.radius, min: 0.001, step: 0.1 },
+    { key: 'sides',  label: 'Sides',  kind: 'int',   default: SHAPE_DEFAULTS.ngon.sides,  min: 3 },
+  ],
+  star: [
+    { key: 'radius1', label: 'Radius 1', kind: 'float', default: SHAPE_DEFAULTS.star.radius1, min: 0.001, step: 0.1 },
+    { key: 'radius2', label: 'Radius 2', kind: 'float', default: SHAPE_DEFAULTS.star.radius2, min: 0.001, step: 0.1 },
+    { key: 'points',  label: 'Points',   kind: 'int',   default: SHAPE_DEFAULTS.star.points,  min: 3 },
+  ],
+  helix: [
+    { key: 'radius1', label: 'Radius 1', kind: 'float', default: SHAPE_DEFAULTS.helix.radius1, min: 0.001, step: 0.1 },
+    { key: 'radius2', label: 'Radius 2', kind: 'float', default: SHAPE_DEFAULTS.helix.radius2, min: 0.001, step: 0.1 },
+    { key: 'height',  label: 'Height',   kind: 'float', default: SHAPE_DEFAULTS.helix.height,  min: 0.001, step: 0.1 },
+    { key: 'turns',   label: 'Turns',    kind: 'int',   default: SHAPE_DEFAULTS.helix.turns,   min: 1 },
+  ],
+  line: [
+    { key: '__knotCount', label: 'Vertices (read-only)', kind: 'int', default: 0 },
+  ],
+};
 import {
   Box,
   Circle,
