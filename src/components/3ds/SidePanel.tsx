@@ -57,6 +57,77 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
+
+  const standardPrimitives = [
+    { type: 'box', icon: Box, label: 'Box' },
+    { type: 'sphere', icon: Circle, label: 'Sphere' },
+    { type: 'cylinder', icon: Cylinder, label: 'Cylinder' },
+    { type: 'cone', icon: Triangle, label: 'Cone' },
+    { type: 'torus', icon: Torus, label: 'Torus' },
+    { type: 'plane', icon: Square, label: 'Plane' },
+  ];
+
+  const extendedPrimitives = [
+    { type: 'hedra',      label: 'Hedra' },
+    { type: 'chamferBox', label: 'ChamferBox' },
+    { type: 'chamferCyl', label: 'ChamferCyl' },
+    { type: 'oilTank',    label: 'OilTank' },
+    { type: 'spindle',    label: 'Spindle' },
+    { type: 'gengon',     label: 'Gengon' },
+    { type: 'torusKnot',  label: 'Torus Knot' },
+    { type: 'ringWave',   label: 'RingWave' },
+    { type: 'prism',      label: 'Prism' },
+  ];
+
+  const shapes = [
+    { type: 'line',      label: 'Line' },
+    { type: 'rectangle', label: 'Rectangle' },
+    { type: 'circle',    label: 'Circle' },
+    { type: 'ellipse',   label: 'Ellipse' },
+    { type: 'arc',       label: 'Arc' },
+    { type: 'donut',     label: 'Donut' },
+    { type: 'ngon',      label: 'NGon' },
+    { type: 'star',      label: 'Star' },
+    { type: 'helix',     label: 'Helix' },
+  ];
+
+  const modifiers = [
+    { name: 'Bend', description: 'Entorta o objeto em torno de um eixo' },
+    { name: 'Twist', description: 'Torce o objeto em torno de um eixo' },
+    { name: 'Taper', description: 'Afunila a forma, estreitando ou expandindo' },
+    { name: 'Stretch', description: 'Estica ou comprime o objeto' },
+    { name: 'Skew', description: 'Inclina a geometria' },
+    { name: 'Noise', description: 'Adiciona irregularidades aleatórias na malha' },
+    { name: 'FFD', description: 'Deforma o objeto usando caixas de controle' },
+    { name: 'Shell', description: 'Adiciona espessura a superfícies planas' },
+    { name: 'Edit Poly', description: 'Permite editar vértices, arestas, polígonos' },
+    { name: 'Edit Mesh', description: 'Edição direta de malhas triangulares' },
+    { name: 'TurboSmooth', description: 'Suaviza e aumenta o número de polígonos' },
+    { name: 'MeshSmooth', description: 'Subdivide suavizando a malha' },
+    { name: 'Symmetry', description: 'Espelha o objeto em um eixo' },
+    { name: 'Mirror', description: 'Reflete a geometria' },
+    { name: 'UVW Map', description: 'Mapeamento simples de coordenadas de textura' },
+    { name: 'Unwrap UVW', description: 'Controle avançado de mapeamento UV' },
+    { name: 'Lathe', description: 'Revolve uma spline para criar formas cilíndricas' },
+    { name: 'Extrude', description: 'Extruda uma spline para gerar volume' },
+    { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados' },
+    { name: 'Slice', description: 'Corta o objeto em partes' },
+  ];
+
+  const lightSubtypes = [
+    { type: 'light_omni',        label: 'Omni' },
+    { type: 'light_spot',        label: 'Target Spot' },
+    { type: 'light_spot_free',   label: 'Free Spot' },
+    { type: 'light_direct',      label: 'Target Direct' },
+    { type: 'light_direct_free', label: 'Free Direct' },
+    { type: 'light_skylight',    label: 'Skylight' },
+    { type: 'light_ambient',     label: 'Ambient' },
+  ];
+  const cameraSubtypes = [
+    { type: 'camera_target', label: 'Target Camera' },
+    { type: 'camera_free',   label: 'Free Camera' },
+  ];
 
   // R3 command-panel top tabs (icon buttons)
   const panelTabs = [
@@ -68,7 +139,6 @@ export const SidePanel = ({
     { id: 'utilities', label: 'Utilities', icon: Settings },
   ] as const;
 
-  // R3 Create sub-categories (icon row)
   const createCats = [
     { id: 'geometry', label: 'Geometry',    icon: Box },
     { id: 'shapes',   label: 'Shapes',      icon: Spline },
@@ -79,7 +149,6 @@ export const SidePanel = ({
     { id: 'systems',  label: 'Systems',     icon: Settings },
   ] as const;
 
-  const geometrySub = createCategory; // reuse existing standard/extended toggle
 
   const R3TabBtn = ({ active, onClick, title, children }: any) => (
     <button
