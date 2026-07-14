@@ -15,6 +15,66 @@ export const isLightType = (t: string): t is LightType => (LIGHT_TYPES as readon
 export const isCameraType = (t: string): t is CameraType => (CAMERA_TYPES as readonly string[]).includes(t);
 export const isEntityType = (t: string) => isLightType(t) || isCameraType(t) || t === 'target_helper';
 
+/**
+ * Reconstruct the 2D outline of a shape-type object as world-plane 3D points,
+ * plus the axis that would be used as the extrude direction (smallest range).
+ * Returned axis is one of 'x'|'y'|'z'; `pts3` lie approximately on the plane
+ * perpendicular to that axis at the object's local origin.
+ */
+function getShapeOutline(objectType: string, geom: any): { pts3: THREE.Vector3[]; axis: 'x'|'y'|'z'; closed: boolean } | null {
+  if (!geom) return null;
+  let pts3: THREE.Vector3[] = [];
+  let closed = false;
+  if (objectType === 'line') {
+    closed = !!geom.closed;
+    if (geom.knots && geom.knots.length >= 2) {
+      const list = closed ? [...geom.knots, geom.knots[0]] : geom.knots;
+      for (let i = 0; i < list.length - 1; i++) {
+        const k0 = list[i], k1 = list[i + 1];
+        const p0 = new THREE.Vector3(k0.pos[0], k0.pos[1], k0.pos[2]);
+        const p3 = new THREE.Vector3(k1.pos[0], k1.pos[1], k1.pos[2]);
+        const p1 = p0.clone().add(new THREE.Vector3(k0.outH[0], k0.outH[1], k0.outH[2]));
+        const p2 = p3.clone().add(new THREE.Vector3(k1.inH[0], k1.inH[1], k1.inH[2]));
+        const seg = new THREE.CubicBezierCurve3(p0, p1, p2, p3).getPoints(20);
+        if (i > 0) seg.shift();
+        pts3.push(...seg);
+      }
+    } else if (geom.points && geom.points.length >= 2) {
+      pts3 = (geom.points as number[][]).map((v) => new THREE.Vector3(v[0], v[1], v[2]));
+    }
+  } else if (objectType === 'rectangle') {
+    const w = (geom.width ?? 1) / 2, h = (geom.height ?? 1) / 2;
+    pts3 = [
+      new THREE.Vector3(-w, 0, -h), new THREE.Vector3(w, 0, -h),
+      new THREE.Vector3(w, 0, h),   new THREE.Vector3(-w, 0, h),
+    ];
+    closed = true;
+  } else if (objectType === 'circle' || objectType === 'ellipse' || objectType === 'ngon' || objectType === 'star') {
+    const n = objectType === 'ngon' ? Math.max(3, geom.sides ?? 6)
+      : objectType === 'star' ? Math.max(3, geom.points ?? 5) * 2
+      : 64;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      let rx: number, ry: number;
+      if (objectType === 'ellipse') { rx = geom.radiusX ?? 0.7; ry = geom.radiusY ?? 0.4; }
+      else if (objectType === 'star') { const r = i % 2 === 0 ? (geom.radius1 ?? 0.5) : (geom.radius2 ?? 0.22); rx = ry = r; }
+      else { rx = ry = (geom.radius ?? 0.5); }
+      pts3.push(new THREE.Vector3(Math.cos(a) * rx, 0, Math.sin(a) * ry));
+    }
+    closed = true;
+  } else {
+    return null;
+  }
+  if (pts3.length < 2) return null;
+
+  const min = pts3[0].clone(), max = pts3[0].clone();
+  pts3.forEach((p) => { min.min(p); max.max(p); });
+  const range = max.clone().sub(min);
+  const axis: 'x' | 'y' | 'z' =
+    range.x <= range.y && range.x <= range.z ? 'x' : range.y <= range.z ? 'y' : 'z';
+  return { pts3, axis, closed };
+}
+
 interface Object3DProps {
   object: {
     id: string;
@@ -122,6 +182,46 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }, [object.id, object.type, object.geometry, object.modifiers]);
 
+  /**
+   * Visible segment rings for an active Extrude modifier. Produces `segments+1`
+   * copies of the base outline stacked proportionally between base (0) and top
+   * (amount) along the extrude axis, rendered as a wireframe overlay so the
+   * user actually sees the subdivision.
+   */
+  const extrudeRings = useMemo(() => {
+    const ext = object.modifiers?.find((m: any) => m.type === 'Extrude' && m.active);
+    if (!ext) return null;
+    const outline = getShapeOutline(object.type, object.geometry);
+    if (!outline) return null;
+    const amount = ext.params?.amount ?? 1;
+    const segments = Math.max(1, Math.floor(ext.params?.segments ?? 1));
+    const { pts3, axis, closed } = outline;
+
+    const positions: number[] = [];
+    const pushRing = (offset: number) => {
+      for (let i = 0; i < pts3.length; i++) {
+        const a = pts3[i];
+        const b = pts3[(i + 1) % pts3.length];
+        if (!closed && i === pts3.length - 1) break;
+        const push = (p: THREE.Vector3) => {
+          const x = axis === 'x' ? offset : p.x;
+          const y = axis === 'y' ? offset : p.y;
+          const z = axis === 'z' ? offset : p.z;
+          positions.push(x, y, z);
+        };
+        push(a); push(b);
+      }
+    };
+    for (let s = 0; s <= segments; s++) {
+      pushRing((s / segments) * amount);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return g;
+  }, [object.type, object.geometry, object.modifiers]);
+
+
+
 
 
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
@@ -217,65 +317,13 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
   function applyExtrude(objectType: string | undefined, geom: any, params: any): BufferGeometry | null {
     if (!objectType || !geom) return null;
+    const outline = getShapeOutline(objectType, geom);
+    if (!outline || outline.pts3.length < 3) return null;
+
     const amount = params.amount ?? 1;
     const segments = Math.max(1, Math.floor(params.segments ?? 1));
-    const capStart = params.capStart !== false;
-    const capEnd = params.capEnd !== false;
     const bevelEnabled = !!params.bevelEnabled;
-
-    // Build a set of 3D outline points for the shape.
-    let pts3: THREE.Vector3[] = [];
-    let closed = false;
-
-    if (objectType === 'line') {
-      closed = !!geom.closed;
-      if (geom.knots && geom.knots.length >= 2) {
-        const list = closed ? [...geom.knots, geom.knots[0]] : geom.knots;
-        for (let i = 0; i < list.length - 1; i++) {
-          const k0 = list[i], k1 = list[i + 1];
-          const p0 = new THREE.Vector3(k0.pos[0], k0.pos[1], k0.pos[2]);
-          const p3 = new THREE.Vector3(k1.pos[0], k1.pos[1], k1.pos[2]);
-          const p1 = p0.clone().add(new THREE.Vector3(k0.outH[0], k0.outH[1], k0.outH[2]));
-          const p2 = p3.clone().add(new THREE.Vector3(k1.inH[0], k1.inH[1], k1.inH[2]));
-          const seg = new THREE.CubicBezierCurve3(p0, p1, p2, p3).getPoints(20);
-          if (i > 0) seg.shift();
-          pts3.push(...seg);
-        }
-      } else if (geom.points && geom.points.length >= 2) {
-        pts3 = (geom.points as number[][]).map((v) => new THREE.Vector3(v[0], v[1], v[2]));
-      }
-    } else if (objectType === 'rectangle') {
-      const w = (geom.width ?? 1) / 2, h = (geom.height ?? 1) / 2;
-      pts3 = [
-        new THREE.Vector3(-w, 0, -h), new THREE.Vector3(w, 0, -h),
-        new THREE.Vector3(w, 0, h),   new THREE.Vector3(-w, 0, h),
-      ];
-      closed = true;
-    } else if (objectType === 'circle' || objectType === 'ellipse' || objectType === 'ngon' || objectType === 'star') {
-      const n = objectType === 'ngon' ? Math.max(3, geom.sides ?? 6)
-        : objectType === 'star' ? Math.max(3, geom.points ?? 5) * 2
-        : 64;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        let rx: number, ry: number;
-        if (objectType === 'ellipse') { rx = geom.radiusX ?? 0.7; ry = geom.radiusY ?? 0.4; }
-        else if (objectType === 'star') { const r = i % 2 === 0 ? (geom.radius1 ?? 0.5) : (geom.radius2 ?? 0.22); rx = ry = r; }
-        else { rx = ry = (geom.radius ?? 0.5); }
-        pts3.push(new THREE.Vector3(Math.cos(a) * rx, 0, Math.sin(a) * ry));
-      }
-      closed = true;
-    } else {
-      return null;
-    }
-
-    if (pts3.length < 3) return null;
-
-    // Choose the axis with the smallest range as the extrude direction.
-    const min = pts3[0].clone(), max = pts3[0].clone();
-    pts3.forEach((p) => { min.min(p); max.max(p); });
-    const range = max.clone().sub(min);
-    const axis: 'x' | 'y' | 'z' =
-      range.x <= range.y && range.x <= range.z ? 'x' : range.y <= range.z ? 'y' : 'z';
+    const { pts3, axis, closed } = outline;
 
     const to2D = (p: THREE.Vector3) =>
       axis === 'x' ? new THREE.Vector2(p.z, p.y)
@@ -297,12 +345,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     if (axis === 'y') extrGeo.rotateX(-Math.PI / 2);
     else if (axis === 'x') extrGeo.rotateY(Math.PI / 2);
 
-    // Optional cap removal by clearing groups (simplest handling).
-    if (!capStart || !capEnd) {
-      // ExtrudeGeometry uses two groups for caps at the end. Keeping default caps for now.
-    }
     return extrGeo;
   }
+
 
   function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
@@ -605,6 +650,14 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           <lineBasicMaterial color="#fbbf24" transparent opacity={1} depthTest={false} />
         </lineSegments>
       )}
+
+      {/* Extrude segment rings — visible loop divisions along the extrude axis */}
+      {extrudeRings && !isGhost && (
+        <lineSegments geometry={extrudeRings} renderOrder={998}>
+          <lineBasicMaterial color={isSelected ? '#00bfff' : '#333333'} transparent opacity={0.8} depthTest={true} />
+        </lineSegments>
+      )}
+
     </mesh>
 
   );
