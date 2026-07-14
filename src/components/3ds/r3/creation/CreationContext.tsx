@@ -60,7 +60,8 @@ export const CreationProvider = ({ children, onCommit, onArmedChange, onGhostCha
   const commit = useCallback((g: GhostObject) => {
     onCommit(g);
     setGhost(null);
-    // Keep tool armed for chain creation (matches R3). ESC / disarm to stop.
+    // Disarm after commit so the user can select/transform without re-triggering creation.
+    setArmed(null);
   }, [onCommit]);
 
   const value = useMemo(
