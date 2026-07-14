@@ -35,6 +35,7 @@ export const Viewport = ({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [renderMode, setRenderMode] = useState<'solid' | 'wireframe' | 'semi-transparent'>('solid');
+  const { env } = useEnvironment();
 
   const cameraPosition = useMemo(() => {
     switch (type) {
