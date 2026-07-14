@@ -16,6 +16,7 @@ interface MenuBarProps {
   onEnvironment?: () => void;
   onMaterialBrowser?: () => void;
   onViewImageFile?: () => void;
+  onMenuAction?: (action: string) => void;
 }
 
 // R3 menu list. Underlined access-key hint via <u>.
@@ -47,7 +48,7 @@ const renderLabel = (label: string, access: string) => {
   );
 };
 
-export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport, onQuickRender, onRenderSetup, onEnvironment, onMaterialBrowser, onViewImageFile }: MenuBarProps) => {
+export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport, onQuickRender, onRenderSetup, onEnvironment, onMaterialBrowser, onViewImageFile, onMenuAction }: MenuBarProps) => {
   return (
     <div className="h-[22px] bg-win-face flex items-stretch px-1 border-b border-win-shadow">
       {menuItems.map((menu) => (
@@ -93,6 +94,8 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item === 'Top') onViewportChange('top');
                     if (item === 'Front') onViewportChange('front');
                     if (item === 'Left') onViewportChange('left');
+                    // Broadcast raw label for any handler wired via onMenuAction
+                    onMenuAction?.(item);
                   }}
                 >
                   {item}

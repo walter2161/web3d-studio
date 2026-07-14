@@ -16,6 +16,11 @@ import { EnvironmentDialog } from './r3/EnvironmentDialog';
 import { ViewImageFile } from './r3/ViewImageFile';
 import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
 import { EnvironmentProvider } from './r3/EnvironmentContext';
+import { ObjectPropertiesDialog } from './r3/ObjectPropertiesDialog';
+import { UnitsSetup, loadUnits } from './r3/UnitsSetup';
+import { GridAndSnapSettings, loadSnap } from './r3/GridAndSnapSettings';
+import { AboutDialog } from './r3/AboutDialog';
+import { ConfirmDialog } from './r3/ConfirmDialog';
 import { toast } from 'sonner';
 
 
@@ -33,6 +38,24 @@ interface Object3DData {
   geometry?: any;
   modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
+  // Sprint A additions
+  groupId?: string;        // membership in a group node
+  groupOpen?: boolean;     // used on the group node itself (id === groupId)
+  isGroup?: boolean;       // marker for group container objects (not rendered)
+  properties?: {
+    renderable?: boolean;
+    castShadows?: boolean;
+    receiveShadows?: boolean;
+    visibility?: number;
+    displayAsBox?: boolean;
+    backfaceCull?: boolean;
+    edgesOnly?: boolean;
+    vertexTicks?: boolean;
+    wireframeColor?: string;
+    motionBlur?: 'none' | 'object' | 'image';
+    motionBlurMultiplier?: number;
+    gBufferId?: number;
+  };
 }
 
 interface Modifier {
@@ -75,6 +98,14 @@ export const Studio3D = () => {
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
+  const [objectPropsOpen, setObjectPropsOpen] = useState(false);
+  const [unitsOpen, setUnitsOpen] = useState(false);
+  const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onOk: () => void; title?: string }>({ open: false, message: '', onOk: () => {} });
+  const [heldSnapshot, setHeldSnapshot] = useState<Object3DData[] | null>(null);
+  const [units, setUnits] = useState(() => loadUnits());
+  const [snapCfg, setSnapCfg] = useState(() => loadSnap());
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
@@ -578,6 +609,135 @@ export const Studio3D = () => {
 
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
+  // ---------- Sprint A: menu operations ----------
+
+  const askConfirm = (message: string, onOk: () => void, title = 'Confirm') =>
+    setConfirmState({ open: true, message, onOk, title });
+
+  const doNewScene = () => askConfirm('Discard current scene and start a new one?', () => {
+    saveState();
+    setObjects([]);
+    setSelectedObject(null);
+    setAnimationTracks([]);
+    setCurrentFrame(0);
+    toast.success('New scene');
+  }, 'New Scene');
+
+  const doReset = () => askConfirm('Reset all objects, animations and timeline?', () => {
+    saveState();
+    setObjects([]);
+    setSelectedObject(null);
+    setAnimationTracks([]);
+    setCurrentFrame(0);
+    setIsPlaying(false);
+    setAutoKey(false);
+    setTransformMode('translate');
+    toast.success('Scene reset');
+  }, 'Reset');
+
+  const doHold = () => {
+    setHeldSnapshot(JSON.parse(JSON.stringify(objects.map(({ ref, ...o }) => o))));
+    toast.success('Scene held');
+  };
+  const doFetch = () => {
+    if (!heldSnapshot) { toast.error('Nothing to fetch — use Edit → Hold first'); return; }
+    askConfirm('Discard current scene and restore last Hold snapshot?', () => {
+      saveState();
+      setObjects(heldSnapshot.map((o) => ({ ...o, ref: { current: null } })));
+      setSelectedObject(null);
+      toast.success('Scene fetched');
+    }, 'Fetch');
+  };
+
+  // ---------- Groups ----------
+
+  const doGroup = () => {
+    // Group all currently visible top-level selected + everything if none, but we only have single-select.
+    // Behavior: convert selected + all non-grouped as a new group? R3 requires multi-select.
+    // We approximate: group the selected object with the previously duplicated/created objects that share color.
+    // For now, prompt to name and group ALL top-level ungrouped objects.
+    if (objects.filter((o) => !o.groupId && !o.isGroup).length < 2) {
+      toast.error('Select at least 2 objects (multi-select coming soon)');
+      return;
+    }
+    const name = window.prompt('Group name?', `Group${(objects.filter((o) => o.isGroup).length || 0) + 1}`);
+    if (!name) return;
+    const groupId = `grp-${Date.now()}`;
+    saveState();
+    setObjects((prev) => {
+      const groupNode: Object3DData = {
+        id: groupId, name, type: 'box', position: [0,0,0], rotation: [0,0,0], scale: [1,1,1],
+        color: '#888', isGroup: true, groupOpen: false, visible: true,
+      };
+      return [
+        groupNode,
+        ...prev.map((o) => o.groupId || o.isGroup ? o : { ...o, groupId }),
+      ];
+    });
+    setSelectedObject(groupId);
+    toast.success(`Grouped as "${name}"`);
+  };
+  const doUngroup = () => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel || !sel.isGroup) { toast.error('Select a group to ungroup'); return; }
+    saveState();
+    setObjects((prev) => prev
+      .filter((o) => o.id !== sel.id)
+      .map((o) => o.groupId === sel.id ? { ...o, groupId: undefined } : o));
+    setSelectedObject(null);
+    toast.success('Ungrouped');
+  };
+  const doOpenGroup = () => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel?.isGroup) return;
+    setObjects((prev) => prev.map((o) => o.id === sel.id ? { ...o, groupOpen: true } : o));
+  };
+  const doCloseGroup = () => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel?.isGroup) return;
+    setObjects((prev) => prev.map((o) => o.id === sel.id ? { ...o, groupOpen: false } : o));
+  };
+  const doExplode = () => {
+    // Remove all group containers, keep members ungrouped.
+    saveState();
+    setObjects((prev) => prev.filter((o) => !o.isGroup).map((o) => ({ ...o, groupId: undefined })));
+    setSelectedObject(null);
+    toast.success('Exploded groups');
+  };
+
+  const saveObjectProperties = (id: string, updates: { name?: string; color?: string; properties: any }) => {
+    saveState();
+    setObjects((prev) => prev.map((o) => o.id === id ? {
+      ...o,
+      name: updates.name ?? o.name,
+      color: updates.color ?? o.color,
+      properties: { ...(o.properties || {}), ...updates.properties },
+    } : o));
+    toast.success('Properties updated');
+  };
+
+  const handleMenuAction = (action: string) => {
+    switch (action) {
+      case 'New Scene': doNewScene(); break;
+      case 'Reset': doReset(); break;
+      case 'Hold': doHold(); break;
+      case 'Fetch': doFetch(); break;
+      case 'Exit': askConfirm('Save changes before exit?', () => { openFileDialog('save'); }, 'Exit'); break;
+      case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
+      case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
+      case 'Select None': setSelectedObject(null); break;
+      case 'Group': doGroup(); break;
+      case 'Ungroup': doUngroup(); break;
+      case 'Open': doOpenGroup(); break;
+      case 'Close': doCloseGroup(); break;
+      case 'Explode': doExplode(); break;
+      case 'Units Setup...': setUnitsOpen(true); break;
+      case 'Grid and Snap Settings...': setSnapSettingsOpen(true); break;
+      case 'About 3ds Max...': setAboutOpen(true); break;
+      default: break;
+    }
+  };
+
   return (
     <EnvironmentProvider>
     <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
@@ -625,6 +785,7 @@ export const Studio3D = () => {
         onEnvironment={() => setEnvironmentOpen(true)}
         onMaterialBrowser={() => setMaterialBrowserOpen(true)}
         onViewImageFile={() => setViewImageOpen(true)}
+        onMenuAction={handleMenuAction}
       />
 
       {/* Main toolbar row (icons) */}
@@ -699,7 +860,7 @@ export const Studio3D = () => {
               layout={viewportLayout}
               activeViewport={activeViewport}
               onActiveViewportChange={setActiveViewport}
-              objects={objects.filter(obj => obj.visible !== false)}
+              objects={objects.filter(obj => obj.visible !== false && !obj.isGroup)}
               selectedObject={selectedObject}
               selectedSubUuid={selectedSubUuid}
               onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
@@ -766,6 +927,8 @@ export const Studio3D = () => {
         prompt={selectedObjectData ? `Selected: ${selectedObjectData.name || selectedObjectData.type}` : 'Click and drag to select and move objects'}
         viewportLayout={viewportLayout}
         onToggleViewportLayout={() => setViewportLayout(v => v === 'single' ? 'quad' : 'single')}
+        gridSpacing={snapCfg.gridSpacing}
+        units={units}
       />
 
 
@@ -795,6 +958,23 @@ export const Studio3D = () => {
         onLoadProject={loadProject}
         onExportScene={exportScene}
         onImportModel={importModel}
+      />
+
+      <ObjectPropertiesDialog
+        open={objectPropsOpen}
+        onOpenChange={setObjectPropsOpen}
+        object={selectedObjectData ?? null}
+        onSave={saveObjectProperties}
+      />
+      <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
+      <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={() => { confirmState.onOk(); setConfirmState((s) => ({ ...s, open: false })); }}
+        onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
       />
     </div>
     </EnvironmentProvider>

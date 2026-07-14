@@ -19,6 +19,8 @@ interface StatusBarProps {
   prompt?: string;
   viewportLayout: 'single' | 'quad';
   onToggleViewportLayout: () => void;
+  gridSpacing?: number;
+  units?: { system: string; metric: string; us: string; precision: number };
 }
 
 const Tool = ({
@@ -45,12 +47,26 @@ const NumField = ({ label, value }: { label: string; value: number }) => (
   </div>
 );
 
+const NumFieldStr = ({ label, text }: { label: string; text: string }) => (
+  <div className="flex items-center gap-1">
+    <span className="text-[11px] text-win-text w-3">{label}</span>
+    <div className="bevel-sunken bg-white h-[18px] px-1 flex items-center min-w-[64px] text-[11px] font-mono text-win-text">
+      {text}
+    </div>
+  </div>
+);
+
 export const StatusBar = ({
   currentFrame, totalFrames, isPlaying, autoKey, onToggleAutoKey, onSetKey,
   onPlay, onPause, onStop, onFrameChange, selectedPosition, prompt = 'Click and drag to select and move objects',
-  viewportLayout, onToggleViewportLayout,
+  viewportLayout, onToggleViewportLayout, gridSpacing = 1.0, units,
 }: StatusBarProps) => {
   const [x, y, z] = selectedPosition || [0, 0, 0];
+  const suffix = !units || units.system === 'Generic' ? '' :
+    units.system === 'Metric' ? ` ${units.metric}` :
+    units.us === 'Inches' ? '"' : units.us === 'Feet' ? "'" : ' mi';
+  const prec = units?.precision ?? 3;
+  const fmt = (n: number) => n.toFixed(prec) + suffix;
 
   return (
     <div className="bevel-raised px-1 py-1 flex items-stretch gap-1 text-win-text">
@@ -61,14 +77,14 @@ export const StatusBar = ({
 
       {/* Coordinate display X / Y / Z */}
       <div className="bevel-sunken bg-win-face flex items-center gap-2 px-2">
-        <NumField label="X:" value={x} />
-        <NumField label="Y:" value={y} />
-        <NumField label="Z:" value={z} />
+        <NumFieldStr label="X:" text={fmt(x)} />
+        <NumFieldStr label="Y:" text={fmt(y)} />
+        <NumFieldStr label="Z:" text={fmt(z)} />
       </div>
 
       {/* Grid readout */}
       <div className="bevel-sunken bg-win-face flex items-center px-2 text-[11px]">
-        Grid = 1.0
+        Grid = {gridSpacing.toFixed(1)}{suffix}
       </div>
 
       {/* Auto Key + Set Key */}
