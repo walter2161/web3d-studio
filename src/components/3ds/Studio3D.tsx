@@ -927,6 +927,8 @@ export const Studio3D = () => {
         prompt={selectedObjectData ? `Selected: ${selectedObjectData.name || selectedObjectData.type}` : 'Click and drag to select and move objects'}
         viewportLayout={viewportLayout}
         onToggleViewportLayout={() => setViewportLayout(v => v === 'single' ? 'quad' : 'single')}
+        gridSpacing={snapCfg.gridSpacing}
+        units={units}
       />
 
 
