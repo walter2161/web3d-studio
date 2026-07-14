@@ -106,6 +106,10 @@ export const Studio3D = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
   const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+  const [viewportCameras, setViewportCameras] = useState<Record<string, string | null>>({
+    perspective: null, top: null, front: null, left: null,
+  });
+
   const [hierarchyCollapsed, setHierarchyCollapsed] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
