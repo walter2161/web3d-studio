@@ -1424,6 +1424,7 @@ export const Studio3D = () => {
       />
     </div>
     </CreationProvider>
+    </RenderEngineProvider>
     </EnvironmentProvider>
   );
 };
