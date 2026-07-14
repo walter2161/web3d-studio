@@ -329,22 +329,37 @@ export const Studio3D = () => {
       const lightData: any = { intensity: 1, distance: 0, decay: 2, castShadow: false };
       const cameraData: any = { fov: 45, near: 0.1, far: 1000 };
 
+      // Default distance the target sits below the light (matches 3ds Max R3
+      // convention: newly-created directional lights always aim straight down).
+      const defaultDist = 8;
+
       if (baseKind === 'light_omni')     { position = [3, 5, 3]; color = '#fff2cc'; lightData.intensity = 1; }
-      if (baseKind === 'light_spot')     { position = [0, 6, 0]; color = '#ffffff'; lightData.angle = Math.PI / 6; lightData.penumbra = 0.2; lightData.distance = 20; }
-      if (baseKind === 'light_direct')   { position = [5, 8, 5]; color = '#ffffff'; lightData.distance = 30; }
+      if (baseKind === 'light_spot')     { position = [0, 8, 0]; color = '#ffffff'; lightData.angle = Math.PI / 6; lightData.penumbra = 0.2; lightData.distance = 20; }
+      if (baseKind === 'light_direct')   { position = [0, 8, 0]; color = '#ffffff'; lightData.distance = 30; }
       if (baseKind === 'light_skylight') { position = [0, 8, 0]; color = '#a0c8ff'; lightData.skyColor = '#a0c8ff'; lightData.groundColor = '#4a3a2a'; lightData.intensity = 0.6; }
       if (baseKind === 'light_ambient')  { position = [0, 5, 0]; color = '#404040'; lightData.intensity = 0.4; }
       if (baseKind === 'camera_target' || baseKind === 'camera_free') { position = [8, 5, 8]; color = '#4488ff'; }
 
-      // Create target dummy for targeted variants
+      // Free (non-targeted) spot/direct lights: nascem apontando para baixo (-Y).
+      // Local -Z is the light forward, so rotate -90° around X to send -Z → -Y.
+      if (!isTargeted && (baseKind === 'light_spot' || baseKind === 'light_direct')) {
+        rotation = [-Math.PI / 2, 0, 0];
+      }
+
+      // Create target dummy for targeted variants, placed directly BELOW the
+      // light so the initial aim is straight down (3ds Max R3 behavior).
       let targetId: string | undefined;
       if (isTargeted) {
+        const targetPos: [number, number, number] =
+          baseKind.startsWith('light_')
+            ? [position[0], Math.max(0, position[1] - defaultDist), position[2]]
+            : [0, 0, 0]; // camera target keeps origin default
         targetId = `target_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         newObjs.push({
           id: targetId,
           name: `${namePrefix}${count}.Target`,
           type: 'target_helper' as any,
-          position: [0, 0, 0],
+          position: targetPos,
           rotation: [0, 0, 0],
           scale: [1, 1, 1],
           color: '#cccccc',
