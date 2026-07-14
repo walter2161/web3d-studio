@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { toast } from 'sonner';
 import { R3Dialog, R3Button, GroupBox, Row, Spinner } from './R3Dialog';
 
 /**
@@ -216,16 +217,36 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     setSlots((prev) => prev.map((m, i) => i === active ? { ...m, maps: { ...m.maps, [key]: { ...m.maps[key], ...patch } } } : m));
   };
 
+  const matToThree = (m: R3Material) => ({
+    color: m.diffuse,
+    metalness: m.metalness,
+    roughness: m.roughness,
+    opacity: m.opacity / 100,
+    emissive: m.diffuse,
+    emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
+  });
+
   const assignToSelection = () => {
-    if (!selectedObject) return;
-    onMaterialChange(selectedObject.id, {
-      color: mat.diffuse,
-      metalness: mat.metalness,
-      roughness: mat.roughness,
-      opacity: mat.opacity / 100,
-      emissive: mat.diffuse,
-      emissiveIntensity: mat.selfIllumination > 0 ? (mat.selfIllumination / 100) * (mat.emissiveIntensity || 1) : 0,
-    });
+    if (!selectedObject) {
+      toast.error('Select an object first');
+      return;
+    }
+    onMaterialChange(selectedObject.id, matToThree(mat));
+  };
+
+  // HTML5 drag: when a slot starts being dragged, stash the three material payload
+  // on window so Object3D's onPointerUp can read it while raycasting the viewport.
+  const beginSlotDrag = (i: number, e: React.DragEvent) => {
+    const payload = matToThree(slots[i]);
+    (window as any).__matDragPayload = payload;
+    try {
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('application/x-r3-material', JSON.stringify(payload));
+    } catch {}
+  };
+  const endSlotDrag = () => {
+    // Clear shortly after so Object3D onPointerUp still sees it.
+    setTimeout(() => { (window as any).__matDragPayload = null; }, 250);
   };
 
   const getFromScene = () => {
@@ -268,9 +289,12 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
               <button
                 key={i}
                 onClick={() => setActive(i)}
-                onDoubleClick={() => setActive(i)}
-                title={m.name}
-                className={`p-[2px] flex items-center justify-center ${i === active ? 'bevel-inset' : 'bevel-raised'} bg-black`}
+                onDoubleClick={() => { setActive(i); if (selectedObject) onMaterialChange(selectedObject.id, matToThree(m)); }}
+                draggable
+                onDragStart={(e) => { setActive(i); beginSlotDrag(i, e); }}
+                onDragEnd={endSlotDrag}
+                title={`${m.name} — drag onto an object to apply, or double-click to assign to selection`}
+                className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'} bg-black`}
                 style={{ aspectRatio: '1', background: i === active ? '#000' : '#111' }}
               >
                 <SamplePreview mat={m} size={54} shape={previewShape} />
@@ -551,11 +575,14 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between">
-        <div className="text-[11px] text-win-text-disabled">
-          {selectedObject ? `Selection: ${selectedObject.name || selectedObject.id}` : 'No selection'}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="text-[11px] text-win-text-disabled flex-1">
+          {selectedObject
+            ? `Selection: ${selectedObject.name || selectedObject.id} — click "Apply to Selection" or drag a sphere onto any object`
+            : 'No selection — drag a sample sphere onto an object in the viewport to apply the material'}
         </div>
         <div className="flex gap-1">
+          <R3Button width={140} onClick={assignToSelection}>Apply to Selection</R3Button>
           <R3Button width={70} onClick={() => onOpenChange(false)}>Close</R3Button>
         </div>
       </div>

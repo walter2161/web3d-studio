@@ -544,9 +544,20 @@ export const Studio3D = () => {
 
   const handleMaterialChange = useCallback((objectId: string, material: any) => {
     setObjects(prev => prev.map(obj => 
-      obj.id === objectId ? { ...obj, material, color: material.color } : obj
+      obj.id === objectId ? { ...obj, material, color: material.color ?? obj.color } : obj
     ));
+    toast.success('Material applied');
   }, []);
+
+  // Drag & drop material from Material Editor onto a viewport object
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.id && detail?.material) handleMaterialChange(detail.id, detail.material);
+    };
+    window.addEventListener('r3-apply-material', handler);
+    return () => window.removeEventListener('r3-apply-material', handler);
+  }, [handleMaterialChange]);
 
   // Undo/Redo
   const undo = useCallback(() => {
