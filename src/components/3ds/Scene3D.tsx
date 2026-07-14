@@ -1,13 +1,14 @@
-import { useRef, useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useRef } from 'react';
 import { TransformControls } from '@react-three/drei';
 import { Object3D } from './Object3D';
 import { TrajectoryRenderer } from './TrajectoryRenderer';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
+import { getImportedModel } from './utils/modelImport';
 
 interface Scene3DProps {
   objects: any[];
   selectedObject: string | null;
+  selectedSubUuid?: string | null;
   onSelectObject: (id: string | null) => void;
   onTransformObject: (id: string, transform: any) => void;
   viewportType: string;
@@ -16,15 +17,30 @@ interface Scene3DProps {
   animationTracks?: AnimationTrack[];
   selectedKeyframe?: Keyframe | null;
   onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;
+  currentFrame?: number;
+  totalFrames?: number;
+  isPlaying?: boolean;
 }
 
 export const Scene3D = ({
-  objects, selectedObject, onSelectObject, onTransformObject,
+  objects, selectedObject, selectedSubUuid, onSelectObject, onTransformObject,
   viewportType, transformMode, renderMode,
-  animationTracks, selectedKeyframe, onUpdateKeyframe
+  animationTracks, selectedKeyframe, onUpdateKeyframe,
+  currentFrame, totalFrames, isPlaying,
 }: Scene3DProps) => {
   const transformControlsRef = useRef<any>(null);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
+
+  // Resolve the actual THREE.Object3D that TransformControls should attach to.
+  let transformTarget: any = selectedObjectData?.ref?.current || null;
+  if (selectedObjectData?.type === 'imported' && selectedSubUuid) {
+    const imported = getImportedModel(selectedObjectData.id);
+    if (imported) {
+      imported.root.traverse((n: any) => {
+        if (n.uuid === selectedSubUuid) transformTarget = n;
+      });
+    }
+  }
 
   return (
     <>
@@ -35,13 +51,16 @@ export const Scene3D = ({
           isSelected={object.id === selectedObject}
           onSelect={() => onSelectObject(object.id)}
           renderMode={renderMode}
+          currentFrame={currentFrame}
+          totalFrames={totalFrames}
+          isPlaying={isPlaying}
         />
       ))}
 
-      {selectedObject && selectedObjectData && (
+      {selectedObject && transformTarget && (
         <TransformControls
           ref={transformControlsRef}
-          object={selectedObjectData.ref?.current}
+          object={transformTarget}
           mode={transformMode}
           size={0.8}
           showX showY showZ
@@ -54,7 +73,7 @@ export const Scene3D = ({
             if (controls) controls.enabled = true;
           }}
           onObjectChange={(e: any) => {
-            if (e?.target?.object) {
+            if (e?.target?.object && !selectedSubUuid) {
               const obj = e.target.object;
               const { position, rotation, scale } = obj;
               onTransformObject(selectedObject, {
