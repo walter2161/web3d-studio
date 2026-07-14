@@ -100,6 +100,7 @@ export const Viewport = ({
         <Scene3D
           objects={objects}
           selectedObject={selectedObject}
+          selectedSubUuid={selectedSubUuid}
           onSelectObject={onSelectObject}
           onTransformObject={onTransformObject}
           viewportType={type}
@@ -108,7 +109,11 @@ export const Viewport = ({
           animationTracks={animationTracks}
           selectedKeyframe={selectedKeyframe}
           onUpdateKeyframe={onUpdateKeyframe}
+          currentFrame={currentFrame}
+          totalFrames={totalFrames}
+          isPlaying={isPlaying}
         />
+
 
         {type === 'perspective' && (
           <OrbitControls
