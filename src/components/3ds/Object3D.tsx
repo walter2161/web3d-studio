@@ -331,6 +331,32 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
     return geometry;
   }
 
+  // Render imported models as their full scene graph (preserves materials,
+  // textures, skinning, and animations).
+  if (object.type === 'imported') {
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
+      >
+        {imported ? (
+          <primitive object={imported.root} />
+        ) : (
+          <mesh>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color="#666" />
+          </mesh>
+        )}
+      </group>
+    );
+  }
+
   return (
     <mesh
       ref={meshRef}
@@ -363,5 +389,6 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
         </lineSegments>
       )}
     </mesh>
+
   );
 };
