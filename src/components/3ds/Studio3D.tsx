@@ -1400,6 +1400,21 @@ export const Studio3D = () => {
           <ObjectLibrary onImportUrl={(u, f) => importFromUrl(u, f)} />
         </div>
       </R3Dialog>
+
+      {/* Transform Type-In (F12-style) — top-left, opens with Move/Rotate/Scale */}
+      <TransformTypeInDialog
+        open={typeInOpen && !!selectedObjectData}
+        onClose={() => setTypeInOpen(false)}
+        mode={transformMode}
+        object={selectedObjectData ? {
+          id: selectedObjectData.id,
+          name: selectedObjectData.name,
+          position: selectedObjectData.position,
+          rotation: selectedObjectData.rotation,
+          scale: selectedObjectData.scale,
+        } : null}
+        onCommit={(id, t) => handleTransformObject(id, t)}
+      />
     </div>
     </CreationProvider>
     </EnvironmentProvider>
