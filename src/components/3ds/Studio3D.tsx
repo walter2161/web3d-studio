@@ -1045,7 +1045,10 @@ export const Studio3D = () => {
           onLayerManager={() => toast.info('Layer Manager — coming next sprint')}
           onSelectByName={() => setSelectByNameOpen(true)}
           onRenderSetup={() => setRenderSetupOpen(true)}
+          viewportLayout={viewportLayout}
+          onToggleViewportLayout={() => setViewportLayout((v) => v === 'quad' ? 'single' : 'quad')}
         />
+
       </div>
 
       {/* Snaps / secondary toolbar row */}
