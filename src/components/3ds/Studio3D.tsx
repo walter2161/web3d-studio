@@ -9,6 +9,7 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
 import { R3Dialog } from './r3/R3Dialog';
+import { TransformTypeInDialog } from './r3/TransformTypeInDialog';
 import { FileOperations } from './FileOperations';
 import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
