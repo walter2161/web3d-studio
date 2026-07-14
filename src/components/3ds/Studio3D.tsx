@@ -4,6 +4,7 @@ import { Viewport } from './Viewport';
 import { SidePanel } from './SidePanel';
 import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
 import { MaterialEditor } from './MaterialEditor';
+import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
@@ -41,6 +42,7 @@ export const Studio3D = () => {
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
+  const [quickRenderOpen, setQuickRenderOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
@@ -498,6 +500,27 @@ export const Studio3D = () => {
               onClick={() => setTransformMode('scale')} className="h-8 gap-2" title="Scale Tool (R)">
               ⚏ Scale
             </Button>
+
+            <div className="w-px h-6 bg-panel-border mx-2" />
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMaterialEditorOpen(true)}
+              className="h-8 gap-2"
+              title="Material Editor (M)"
+            >
+              ◐ Edit Material
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setQuickRenderOpen(true)}
+              className="h-8 gap-2"
+              title="Quick Render (Shift+Q)"
+            >
+              ▶ Quick Render
+            </Button>
           </div>
 
           <div className="flex-1 min-h-0 p-1">
@@ -553,6 +576,8 @@ export const Studio3D = () => {
         selectedObject={selectedObjectData}
         onMaterialChange={handleMaterialChange}
       />
+
+      <QuickRender open={quickRenderOpen} onOpenChange={setQuickRenderOpen} />
 
       <FileOperations
         open={fileDialogOpen}
