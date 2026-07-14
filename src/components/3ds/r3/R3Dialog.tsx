@@ -7,6 +7,7 @@ interface R3DialogProps {
   title: string;
   width?: number;
   children: ReactNode;
+  initialPosition?: { x: number; y: number };
 }
 
 /**
@@ -15,18 +16,18 @@ interface R3DialogProps {
  * - bevel-raised body on win-face background
  * - Draggable by title bar
  */
-export const R3Dialog = ({ open, onClose, title, width = 480, children }: R3DialogProps) => {
+export const R3Dialog = ({ open, onClose, title, width = 480, children, initialPosition }: R3DialogProps) => {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
   useEffect(() => {
     if (open && pos === null && typeof window !== 'undefined') {
-      setPos({
+      setPos(initialPosition ?? {
         x: Math.max(20, Math.floor((window.innerWidth - width) / 2)),
         y: Math.max(20, Math.floor(window.innerHeight * 0.12)),
       });
     }
-  }, [open, pos, width]);
+  }, [open, pos, width, initialPosition]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {

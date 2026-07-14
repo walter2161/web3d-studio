@@ -9,6 +9,7 @@ import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
 import { R3Dialog } from './r3/R3Dialog';
+import { TransformTypeInDialog } from './r3/TransformTypeInDialog';
 import { FileOperations } from './FileOperations';
 import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
@@ -113,6 +114,7 @@ export const Studio3D = () => {
 
   const [hierarchyWindowOpen, setHierarchyWindowOpen] = useState(false);
   const [libraryWindowOpen, setLibraryWindowOpen] = useState(false);
+  const [typeInOpen, setTypeInOpen] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
@@ -1150,16 +1152,16 @@ export const Studio3D = () => {
       <div className="shrink-0">
         <MainToolbar
           transformMode={transformMode}
-          onTransformMode={setTransformMode}
+          onTransformMode={(m) => { setTransformMode(m); setTypeInOpen(true); }}
           onUndo={undo}
           onRedo={redo}
           onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
           onQuickRender={() => setQuickRenderOpen(true)}
-          onMirror={() => { if (selectedObject) setMirrorOpen(true); else toast.error('Select an object'); }}
-          onArray={() => { if (selectedObject) setArrayOpen(true); else toast.error('Select an object'); }}
-          onAlign={() => { if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); }}
-          onLayerManager={() => toast.info('Layer Manager — coming next sprint')}
-          onSelectByName={() => setSelectByNameOpen(true)}
+          onMirror={() => { setTypeInOpen(false); if (selectedObject) setMirrorOpen(true); else toast.error('Select an object'); }}
+          onArray={() => { setTypeInOpen(false); if (selectedObject) setArrayOpen(true); else toast.error('Select an object'); }}
+          onAlign={() => { setTypeInOpen(false); if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); }}
+          onLayerManager={() => { setTypeInOpen(false); toast.info('Layer Manager — coming next sprint'); }}
+          onSelectByName={() => { setTypeInOpen(false); setSelectByNameOpen(true); }}
           onRenderSetup={() => setRenderSetupOpen(true)}
           onOpenHierarchy={() => setHierarchyWindowOpen(true)}
           onOpenLibrary={() => setLibraryWindowOpen(true)}
@@ -1399,6 +1401,21 @@ export const Studio3D = () => {
           <ObjectLibrary onImportUrl={(u, f) => importFromUrl(u, f)} />
         </div>
       </R3Dialog>
+
+      {/* Transform Type-In (F12-style) — top-left, opens with Move/Rotate/Scale */}
+      <TransformTypeInDialog
+        open={typeInOpen && !!selectedObjectData}
+        onClose={() => setTypeInOpen(false)}
+        mode={transformMode}
+        object={selectedObjectData ? {
+          id: selectedObjectData.id,
+          name: selectedObjectData.name,
+          position: selectedObjectData.position,
+          rotation: selectedObjectData.rotation,
+          scale: selectedObjectData.scale,
+        } : null}
+        onCommit={(id, t) => handleTransformObject(id, t)}
+      />
     </div>
     </CreationProvider>
     </EnvironmentProvider>
