@@ -307,8 +307,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
     return extrGeo;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function _padExtrude() {
+
 
   function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
