@@ -239,4 +239,33 @@ const ViewportRegistrar = ({ vkey }: { vkey: string }) => {
   return null;
 };
 
+/**
+ * Overrides the viewport's default camera each frame to match a scene Camera object.
+ * If the camera has a target, lookAt the target's position (R3 Target Camera).
+ */
+const CameraFollower = ({ camObj, targetPos }: { camObj: any; targetPos: [number, number, number] | null }) => {
+  const { camera } = useThree();
+  useFrame(() => {
+    if (!camObj) return;
+    const [px, py, pz] = camObj.position;
+    camera.position.set(px, py, pz);
+    if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+      const pc = camera as THREE.PerspectiveCamera;
+      const fov = camObj.cameraData?.fov ?? 45;
+      const near = camObj.cameraData?.near ?? 0.1;
+      const far = camObj.cameraData?.far ?? 1000;
+      if (pc.fov !== fov) { pc.fov = fov; pc.updateProjectionMatrix(); }
+      if (pc.near !== near || pc.far !== far) { pc.near = near; pc.far = far; pc.updateProjectionMatrix(); }
+    }
+    if (targetPos) {
+      camera.lookAt(targetPos[0], targetPos[1], targetPos[2]);
+    } else {
+      const [rx, ry, rz] = camObj.rotation;
+      camera.rotation.set(rx, ry, rz);
+    }
+  });
+  return null;
+};
+
+
 
