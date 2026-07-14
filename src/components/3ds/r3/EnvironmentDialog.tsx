@@ -32,6 +32,7 @@ export const EnvironmentDialog = ({ open, onOpenChange }: EnvironmentDialogProps
 
   const addEffect = (type: string) => {
     setEffects((e) => [...e, { name: type, type, active: true }]);
+    if (type === 'Fog' || type === 'Volume Fog') setEnv({ fogEnabled: true });
     setAddOpen(false);
   };
 
