@@ -8,6 +8,8 @@ import { MaterialEditorR3 } from './r3/MaterialEditorR3';
 import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
+import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
+import { R3Dialog } from './r3/R3Dialog';
 import { FileOperations } from './FileOperations';
 import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
@@ -111,6 +113,7 @@ export const Studio3D = () => {
   });
 
   const [hierarchyCollapsed, setHierarchyCollapsed] = useState(false);
+  const [hierarchyWindowOpen, setHierarchyWindowOpen] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
@@ -801,6 +804,56 @@ export const Studio3D = () => {
     }
   }, [saveState]);
 
+  /**
+   * Import a model straight from a URL — used by the Object Library
+   * drag-and-drop flow. Fetches the bytes, hands them to the same importer
+   * pipeline as the file-based flow, and persists them to IndexedDB so the
+   * imported entity survives page refreshes.
+   */
+  const importFromUrl = useCallback(async (url: string, filename: string, dropAt?: [number, number, number]) => {
+    const loadingId = toast.loading(`Downloading ${filename}...`);
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const bytes = await res.arrayBuffer();
+      const { importFromBytes, setImportedModel } = await import('./utils/modelImport');
+      const { saveModelBlob } = await import('./utils/modelStorage');
+      const model = await importFromBytes(filename, bytes);
+      const id = `imported_${Date.now()}`;
+      setImportedModel(id, model);
+      try {
+        await saveModelBlob(id, filename, bytes);
+      } catch (e) {
+        console.warn('Could not persist model blob:', e);
+      }
+      saveState();
+      const baseName = filename.replace(/\.[^.]+$/, '');
+      const newObject: Object3DData = {
+        id,
+        name: baseName,
+        type: 'imported',
+        position: dropAt || [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#9ca3af',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        ref: { current: null } as any,
+        geometry: { __importedFilename: filename },
+      };
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedObject(id);
+      toast.dismiss(loadingId);
+      toast.success(`Imported ${baseName}`);
+    } catch (err: any) {
+      toast.dismiss(loadingId);
+      console.error('URL import failed:', err);
+      toast.error(`Import failed: ${err?.message || 'unknown error'}`);
+    }
+  }, [saveState]);
+
+
 
 
   const handleDeleteSelected = useCallback(() => {
@@ -1127,12 +1180,12 @@ export const Studio3D = () => {
       </div>
 
       <div className="flex flex-1 min-h-0 bg-win-face">
-        {/* Left: Scene hierarchy (collapsible) */}
+        {/* Left: Object Library (drag-drop into viewport) */}
         {hierarchyCollapsed ? (
           <div className="w-6 bevel-raised bg-win-face flex flex-col items-center py-1">
             <button
               className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
-              title="Mostrar Hierarquia"
+              title="Show Object Library"
               onClick={() => setHierarchyCollapsed(false)}
             >
               <ChevronRight size={12} />
@@ -1142,41 +1195,67 @@ export const Studio3D = () => {
               style={{ writingMode: 'vertical-rl' }}
               onClick={() => setHierarchyCollapsed(false)}
             >
-              Hierarchy
+              Library
             </div>
+            <button
+              className="mt-2 h-5 px-1 bevel-raised bg-win-face hover:brightness-110 text-[10px]"
+              title="Open Scene Hierarchy"
+              onClick={() => setHierarchyWindowOpen(true)}
+            >
+              List
+            </button>
           </div>
+
         ) : (
           <div className="w-56 bevel-inset bg-panel flex flex-col">
             <div className="flex items-center justify-between px-1 py-0.5 bevel-raised bg-win-face shrink-0">
-              <span className="text-[11px] font-bold pl-1">Hierarchy</span>
-              <button
-                className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
-                title="Esconder Hierarquia"
-                onClick={() => setHierarchyCollapsed(true)}
-              >
-                <ChevronLeft size={12} />
-              </button>
+              <span className="text-[11px] font-bold pl-1">Object Library</span>
+              <div className="flex items-center gap-0.5">
+                <button
+                  className="h-5 px-1 bevel-raised bg-win-face hover:brightness-110 text-[10px]"
+                  title="Open Scene Hierarchy window"
+                  onClick={() => setHierarchyWindowOpen(true)}
+                >
+                  List
+                </button>
+                <button
+                  className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
+                  title="Hide Object Library"
+                  onClick={() => setHierarchyCollapsed(true)}
+                >
+                  <ChevronLeft size={12} />
+                </button>
+              </div>
             </div>
             <div className="flex-1 min-h-0">
-              <SceneHierarchy
-                objects={objects}
-                selectedObject={selectedObject}
-                selectedSubUuid={selectedSubUuid}
-                onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
-                onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
-                onDeleteObject={deleteObject}
-                onDuplicateObject={duplicateObject}
-                onToggleVisibility={toggleVisibility}
-                onToggleLock={toggleLock}
-                onRenameObject={renameObject}
-              />
+              <ObjectLibrary onImportUrl={(u, f) => importFromUrl(u, f)} />
             </div>
           </div>
         )}
 
         {/* Center: Viewport(s) */}
-        <div className="flex-1 flex flex-col min-h-0 bevel-inset">
+        <div
+          className="flex-1 flex flex-col min-h-0 bevel-inset"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes(DND_MIME) || e.dataTransfer.types.includes('text/plain')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={(e) => {
+            const raw = e.dataTransfer.getData(DND_MIME) || e.dataTransfer.getData('text/plain');
+            if (!raw) return;
+            try {
+              const data = JSON.parse(raw);
+              if (data?.url && data?.filename) {
+                e.preventDefault();
+                importFromUrl(data.url, data.filename);
+              }
+            } catch { /* not our payload */ }
+          }}
+        >
           <div className="flex-1 min-h-0 bg-win-dark">
+
             <ViewportGrid
               layout={viewportLayout}
               activeViewport={activeViewport}
@@ -1334,6 +1413,29 @@ export const Studio3D = () => {
         targetName={objects.find((o) => o.id !== selectedObject && !o.isGroup)?.name}
         onApply={applyAlign}
       />
+
+      {/* Scene Hierarchy — floating window (opened from the "List" button) */}
+      <R3Dialog
+        open={hierarchyWindowOpen}
+        onClose={() => setHierarchyWindowOpen(false)}
+        title="Scene Hierarchy"
+        width={320}
+      >
+        <div style={{ height: 420 }}>
+          <SceneHierarchy
+            objects={objects}
+            selectedObject={selectedObject}
+            selectedSubUuid={selectedSubUuid}
+            onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
+            onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
+            onDeleteObject={deleteObject}
+            onDuplicateObject={duplicateObject}
+            onToggleVisibility={toggleVisibility}
+            onToggleLock={toggleLock}
+            onRenameObject={renameObject}
+          />
+        </div>
+      </R3Dialog>
     </div>
     </CreationProvider>
     </EnvironmentProvider>
