@@ -873,3 +873,178 @@ export const SidePanel = ({
     </div>
   );
 };
+
+// ------------------------------------------------------------------
+// R3-style Light Parameters rollout — matches the 3ds Max R3 panel layout:
+// General Parameters / Intensity / Color / Attenuation / Spot Parameters /
+// Shadow Parameters. Applies to Omni, Spot (target & free), Direct (target &
+// free), Skylight and Ambient — irrelevant sections are hidden per type.
+// ------------------------------------------------------------------
+interface LightParamsProps {
+  object: any;
+  onUpdateColor: (color: string) => void;
+  onUpdateLightData: (patch: any) => void;
+}
+
+const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightParamsProps) => {
+  const t: string = object.type;
+  const ld = object.lightData || {};
+  const isSpot = t === 'light_spot';
+  const isDirect = t === 'light_direct';
+  const isOmni = t === 'light_omni';
+  const isSky = t === 'light_skylight';
+  const isAmbient = t === 'light_ambient';
+  const hasCone = isSpot;
+  const hasAtten = isOmni || isSpot || isDirect;
+  const hasShadow = isOmni || isSpot || isDirect;
+
+  const numRow = (label: string, key: string, def: number, min = 0, step = 0.1) => (
+    <div className="flex items-center justify-between gap-2">
+      <Label className="text-[10px] flex-1">{label}</Label>
+      <Input
+        type="number"
+        value={ld[key] ?? def}
+        step={step}
+        min={min}
+        className="h-6 w-20 text-xs"
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          onUpdateLightData({ [key]: Number.isFinite(v) ? Math.max(min, v) : def });
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <>
+      <Card className="bg-card border-panel-border">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">General Parameters</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <label className="flex items-center gap-2 text-[11px]">
+            <input
+              type="checkbox"
+              checked={ld.on !== false}
+              onChange={(e) => onUpdateLightData({ on: e.target.checked })}
+            />
+            On
+          </label>
+          {hasShadow && (
+            <label className="flex items-center gap-2 text-[11px]">
+              <input
+                type="checkbox"
+                checked={!!ld.castShadow}
+                onChange={(e) => onUpdateLightData({ castShadow: e.target.checked })}
+              />
+              Cast Shadows
+            </label>
+          )}
+          <div className="text-[10px] text-muted-foreground font-mono uppercase">Type: {t.replace('light_', '')}</div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-panel-border mt-2">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Intensity / Color / Attenuation</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-[10px] flex-1">Multiplier</Label>
+            <Input
+              type="number"
+              value={ld.intensity ?? 1}
+              step={0.1}
+              className="h-6 w-20 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                onUpdateLightData({ intensity: Number.isFinite(v) ? v : 1 });
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-[10px] flex-1">Color</Label>
+            <input
+              type="color"
+              value={object.color || '#ffffff'}
+              onChange={(e) => onUpdateColor(e.target.value)}
+              className="h-6 w-12 border border-win-shadow"
+            />
+          </div>
+          {isSky && (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-[10px] flex-1">Ground Color</Label>
+                <input
+                  type="color"
+                  value={ld.groundColor || '#4a3a2a'}
+                  onChange={(e) => onUpdateLightData({ groundColor: e.target.value })}
+                  className="h-6 w-12 border border-win-shadow"
+                />
+              </div>
+            </>
+          )}
+          {hasAtten && (
+            <>
+              <div className="text-[10px] uppercase text-muted-foreground pt-1">Far Attenuation</div>
+              {numRow('Distance', 'distance', 0, 0, 0.5)}
+              {numRow('Decay', 'decay', 2, 0, 0.1)}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {hasCone && (
+        <Card className="bg-card border-panel-border mt-2">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Spot Parameters</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Hotspot (rad)</Label>
+              <Input
+                type="number"
+                value={ld.hotspot ?? (ld.angle ?? Math.PI / 6) * 0.8}
+                step={0.01}
+                min={0}
+                className="h-6 w-20 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdateLightData({ hotspot: Number.isFinite(v) ? Math.max(0, v) : 0.4 });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Falloff (angle)</Label>
+              <Input
+                type="number"
+                value={ld.angle ?? Math.PI / 6}
+                step={0.01}
+                min={0}
+                className="h-6 w-20 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdateLightData({ angle: Number.isFinite(v) ? Math.max(0.01, v) : Math.PI / 6 });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Penumbra</Label>
+              <Input
+                type="number"
+                value={ld.penumbra ?? 0.2}
+                step={0.05}
+                min={0}
+                className="h-6 w-20 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdateLightData({ penumbra: Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.2 });
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isAmbient && (
+        <div className="text-[10px] text-muted-foreground px-1 pt-1">
+          Ambient light has no direction — only Color and Multiplier apply.
+        </div>
+      )}
+    </>
+  );
+};
