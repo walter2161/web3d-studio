@@ -1151,7 +1151,7 @@ export const Studio3D = () => {
       <div className="shrink-0">
         <MainToolbar
           transformMode={transformMode}
-          onTransformMode={setTransformMode}
+          onTransformMode={(m) => { setTransformMode(m); setTypeInOpen(true); }}
           onUndo={undo}
           onRedo={redo}
           onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
