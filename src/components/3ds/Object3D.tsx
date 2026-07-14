@@ -651,22 +651,16 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           <cylinderGeometry args={[0.15, 0.2, 0.25, 12]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
-        {/* Frustum lines when selected */}
+        {/* Frustum wireframe pyramid when selected */}
         {isSelected && (
-          <group>
-            {[[0.6, 0.4], [-0.6, 0.4], [0.6, -0.4], [-0.6, -0.4]].map(([x, y], i) => (
-              <line key={i}>
-                <bufferGeometry
-                  attach="geometry"
-                  onUpdate={(g) => {
-                    g.setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(x * 1.2, y * 1.2, -3)]);
-                  }}
-                />
-                <lineBasicMaterial color="#ffcc00" />
-              </line>
-            ))}
+          <group position={[0, 0, -1.5]}>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[1.2, 3, 4, 1, true]} />
+              <meshBasicMaterial color="#ffcc00" wireframe transparent opacity={0.6} />
+            </mesh>
           </group>
         )}
+
       </group>
     );
   }
