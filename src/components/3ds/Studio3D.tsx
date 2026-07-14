@@ -577,6 +577,8 @@ export const Studio3D = () => {
         onMaterialChange={handleMaterialChange}
       />
 
+      <QuickRender open={quickRenderOpen} onOpenChange={setQuickRenderOpen} />
+
       <FileOperations
         open={fileDialogOpen}
         onOpenChange={setFileDialogOpen}
