@@ -676,8 +676,31 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
         <MapBrowserPopup
           slotName={mapBrowserOpen}
           current={mat.maps[mapBrowserOpen].name}
-          onSelect={(name) => { updateMap(mapBrowserOpen, { name }); setMapBrowserOpen(null); }}
+          onSelect={(name) => {
+            const key = mapBrowserOpen;
+            if (name === 'None') {
+              updateMap(key, { name: 'None' });
+              setMapBrowserOpen(null);
+            } else {
+              // ensure params object exists for the new map, then open params editor
+              updateMap(key, { name, params: mat.maps[key].params || defaultMapParams() });
+              setMapBrowserOpen(null);
+              setMapParamsOpen(key);
+            }
+          }}
           onClose={() => setMapBrowserOpen(null)}
+        />
+      )}
+
+      {mapParamsOpen && (
+        <MapParametersDialog
+          slotKey={mapParamsOpen}
+          slotLabel={String(mapParamsOpen)}
+          slot={mat.maps[mapParamsOpen]}
+          onChange={(patch) => updateMapParams(mapParamsOpen, patch)}
+          onChangeSlot={(patch) => updateMap(mapParamsOpen, patch)}
+          onChangeType={() => { setMapParamsOpen(null); setMapBrowserOpen(mapParamsOpen); }}
+          onClose={() => setMapParamsOpen(null)}
         />
       )}
     </R3Dialog>
