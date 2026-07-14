@@ -15,6 +15,7 @@ import { RenderSetup } from './r3/RenderSetup';
 import { EnvironmentDialog } from './r3/EnvironmentDialog';
 import { ViewImageFile } from './r3/ViewImageFile';
 import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
+import { EnvironmentProvider } from './r3/EnvironmentContext';
 import { toast } from 'sonner';
 
 
