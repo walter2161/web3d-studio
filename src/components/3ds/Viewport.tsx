@@ -172,28 +172,39 @@ export const Viewport = ({
 
         <CreationController viewportType={type} isActive={isActive} />
 
+        {/* Camera-view driver: overrides the default camera each frame to follow a scene camera object. */}
+        {cameraObjectId && (
+          <CameraFollower
+            camObj={availableCameras.find((c) => c.id === cameraObjectId)}
+            targetPos={(() => {
+              const cam = availableCameras.find((c) => c.id === cameraObjectId);
+              const tid = cam?.cameraData?.targetObjectId;
+              const t = tid ? objects.find((o) => o.id === tid) : null;
+              return t ? (t.position as [number, number, number]) : null;
+            })()}
+          />
+        )}
 
-
-
-        {type === 'perspective' && (
+        {!cameraObjectId && type === 'perspective' && (
           <OrbitControls
             makeDefault
             enablePan enableZoom enableRotate panSpeed={1} rotateSpeed={1} zoomSpeed={1}
             onUpdate={(self) => { (window as any).__orbitControls = self; }}
           />
         )}
-        {type !== 'perspective' && (
+        {!cameraObjectId && type !== 'perspective' && (
           <OrbitControls
             makeDefault
             enablePan enableZoom enableRotate={false} panSpeed={1} zoomSpeed={1}
             onUpdate={(self) => { (window as any).__orbitControls = self; }}
           />
         )}
-        {type === 'perspective' && (
+        {type === 'perspective' && !cameraObjectId && (
           <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
             <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="white" />
           </GizmoHelper>
         )}
+
       </Canvas>
     </div>
   );
