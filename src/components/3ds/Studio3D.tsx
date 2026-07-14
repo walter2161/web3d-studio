@@ -18,6 +18,7 @@ import { EnvironmentDialog } from './r3/EnvironmentDialog';
 import { ViewImageFile } from './r3/ViewImageFile';
 import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
 import { EnvironmentProvider } from './r3/EnvironmentContext';
+import { RenderEngineProvider } from './r3/RenderEngineContext';
 import { ObjectPropertiesDialog } from './r3/ObjectPropertiesDialog';
 import { UnitsSetup, loadUnits } from './r3/UnitsSetup';
 import { GridAndSnapSettings, loadSnap } from './r3/GridAndSnapSettings';
