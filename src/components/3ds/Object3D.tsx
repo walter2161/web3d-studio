@@ -366,8 +366,86 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     if (axis === 'y') extrGeo.rotateX(-Math.PI / 2);
     else if (axis === 'x') extrGeo.rotateY(Math.PI / 2);
 
+    // Smooth-shade the side walls (group 1) while keeping caps flat (group 0).
+    // ExtrudeGeometry duplicates vertices per side-quad, producing faceted
+    // shading on curved shapes (circle, ngon, ellipse...). We split the two
+    // groups, mergeVertices on the walls only, recompute normals, then
+    // recombine so the rim between cap and wall stays a hard edge.
+    return smoothExtrudeSides(extrGeo);
+  }
 
-    return extrGeo;
+  function smoothExtrudeSides(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+    try {
+      const groups = geo.groups;
+      if (!groups || groups.length < 2) {
+        geo.computeVertexNormals();
+        return geo;
+      }
+      // Isolate walls (materialIndex === 1) and caps (materialIndex === 0).
+      const nonIndexed = geo.index ? geo.toNonIndexed() : geo;
+      const pos = nonIndexed.getAttribute('position') as THREE.BufferAttribute;
+      const uv = nonIndexed.getAttribute('uv') as THREE.BufferAttribute | undefined;
+      const capsGeo = new THREE.BufferGeometry();
+      const wallsGeo = new THREE.BufferGeometry();
+      const capsPos: number[] = [];
+      const wallsPos: number[] = [];
+      const capsUv: number[] = [];
+      const wallsUv: number[] = [];
+      // Rebuild groups from the non-indexed geometry.
+      // Note: toNonIndexed keeps groups; each group's start/count refers to vertices.
+      const ng = (nonIndexed.groups && nonIndexed.groups.length ? nonIndexed.groups : groups);
+      for (const g of ng) {
+        const start = g.start;
+        const end = g.start + g.count;
+        const target = g.materialIndex === 1 ? wallsPos : capsPos;
+        const targetUv = g.materialIndex === 1 ? wallsUv : capsUv;
+        for (let i = start; i < end; i++) {
+          target.push(pos.getX(i), pos.getY(i), pos.getZ(i));
+          if (uv) targetUv.push(uv.getX(i), uv.getY(i));
+        }
+      }
+      capsGeo.setAttribute('position', new THREE.Float32BufferAttribute(capsPos, 3));
+      wallsGeo.setAttribute('position', new THREE.Float32BufferAttribute(wallsPos, 3));
+      if (uv) {
+        capsGeo.setAttribute('uv', new THREE.Float32BufferAttribute(capsUv, 2));
+        wallsGeo.setAttribute('uv', new THREE.Float32BufferAttribute(wallsUv, 2));
+      }
+      const wallsMerged = mergeVertices(wallsGeo, 1e-4);
+      wallsMerged.computeVertexNormals();
+      capsGeo.computeVertexNormals();
+
+      // Recombine into a single indexed-less geometry with two groups so a
+      // single material still shows both parts.
+      const out = new THREE.BufferGeometry();
+      const wPos = wallsMerged.getAttribute('position') as THREE.BufferAttribute;
+      const wNorm = wallsMerged.getAttribute('normal') as THREE.BufferAttribute;
+      const wIdx = wallsMerged.getIndex();
+      // Flatten walls back to non-indexed to concatenate simply with caps.
+      const wallsFlat = wallsMerged.toNonIndexed();
+      const cPosArr = capsGeo.getAttribute('position').array as Float32Array;
+      const cNormArr = capsGeo.getAttribute('normal').array as Float32Array;
+      const wPosArr = wallsFlat.getAttribute('position').array as Float32Array;
+      const wNormArr = wallsFlat.getAttribute('normal').array as Float32Array;
+      const posOut = new Float32Array(cPosArr.length + wPosArr.length);
+      const normOut = new Float32Array(cNormArr.length + wNormArr.length);
+      posOut.set(cPosArr, 0); posOut.set(wPosArr, cPosArr.length);
+      normOut.set(cNormArr, 0); normOut.set(wNormArr, cNormArr.length);
+      out.setAttribute('position', new THREE.BufferAttribute(posOut, 3));
+      out.setAttribute('normal', new THREE.BufferAttribute(normOut, 3));
+      if (uv) {
+        const cUv = capsGeo.getAttribute('uv')?.array as Float32Array | undefined;
+        const wUv = wallsFlat.getAttribute('uv')?.array as Float32Array | undefined;
+        if (cUv && wUv) {
+          const uvOut = new Float32Array(cUv.length + wUv.length);
+          uvOut.set(cUv, 0); uvOut.set(wUv, cUv.length);
+          out.setAttribute('uv', new THREE.BufferAttribute(uvOut, 2));
+        }
+      }
+      return out;
+    } catch {
+      geo.computeVertexNormals();
+      return geo;
+    }
   }
 
 
