@@ -47,6 +47,15 @@ const NumField = ({ label, value }: { label: string; value: number }) => (
   </div>
 );
 
+const NumFieldStr = ({ label, text }: { label: string; text: string }) => (
+  <div className="flex items-center gap-1">
+    <span className="text-[11px] text-win-text w-3">{label}</span>
+    <div className="bevel-sunken bg-white h-[18px] px-1 flex items-center min-w-[64px] text-[11px] font-mono text-win-text">
+      {text}
+    </div>
+  </div>
+);
+
 export const StatusBar = ({
   currentFrame, totalFrames, isPlaying, autoKey, onToggleAutoKey, onSetKey,
   onPlay, onPause, onStop, onFrameChange, selectedPosition, prompt = 'Click and drag to select and move objects',
