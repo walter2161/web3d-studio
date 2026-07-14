@@ -182,6 +182,46 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }, [object.id, object.type, object.geometry, object.modifiers]);
 
+  /**
+   * Visible segment rings for an active Extrude modifier. Produces `segments+1`
+   * copies of the base outline stacked proportionally between base (0) and top
+   * (amount) along the extrude axis, rendered as a wireframe overlay so the
+   * user actually sees the subdivision.
+   */
+  const extrudeRings = useMemo(() => {
+    const ext = object.modifiers?.find((m: any) => m.type === 'Extrude' && m.active);
+    if (!ext) return null;
+    const outline = getShapeOutline(object.type, object.geometry);
+    if (!outline) return null;
+    const amount = ext.params?.amount ?? 1;
+    const segments = Math.max(1, Math.floor(ext.params?.segments ?? 1));
+    const { pts3, axis, closed } = outline;
+
+    const positions: number[] = [];
+    const pushRing = (offset: number) => {
+      for (let i = 0; i < pts3.length; i++) {
+        const a = pts3[i];
+        const b = pts3[(i + 1) % pts3.length];
+        if (!closed && i === pts3.length - 1) break;
+        const push = (p: THREE.Vector3) => {
+          const x = axis === 'x' ? offset : p.x;
+          const y = axis === 'y' ? offset : p.y;
+          const z = axis === 'z' ? offset : p.z;
+          positions.push(x, y, z);
+        };
+        push(a); push(b);
+      }
+    };
+    for (let s = 0; s <= segments; s++) {
+      pushRing((s / segments) * amount);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return g;
+  }, [object.type, object.geometry, object.modifiers]);
+
+
+
 
 
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
