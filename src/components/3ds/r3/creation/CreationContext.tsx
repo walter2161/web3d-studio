@@ -38,13 +38,16 @@ interface ProviderProps {
   children: ReactNode;
   onCommit: (g: GhostObject) => void;
   onArmedChange?: (t: CreatableTool | null) => void;
+  onGhostChange?: (g: GhostObject | null) => void;
 }
 
-export const CreationProvider = ({ children, onCommit, onArmedChange }: ProviderProps) => {
+export const CreationProvider = ({ children, onCommit, onArmedChange, onGhostChange }: ProviderProps) => {
   const [armed, setArmed] = useState<CreatableTool | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
 
   useEffect(() => { onArmedChange?.(armed); }, [armed, onArmedChange]);
+  useEffect(() => { onGhostChange?.(ghost); }, [ghost, onGhostChange]);
+
 
   const arm = useCallback((tool: CreatableTool) => {
     setGhost(null);
