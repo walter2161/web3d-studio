@@ -48,7 +48,7 @@ export const SidePanel = ({
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
 
 
   const standardPrimitives = [
