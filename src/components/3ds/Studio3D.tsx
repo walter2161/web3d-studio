@@ -584,6 +584,18 @@ export const Studio3D = () => {
     ));
   }, []);
 
+  const updateObjectLightData = useCallback((objectId: string, params: any) => {
+    setObjects(prev => prev.map(obj =>
+      obj.id === objectId
+        ? { ...obj, lightData: { ...(obj.lightData || {}), ...params } }
+        : obj
+    ));
+  }, []);
+
+  const updateObjectColor = useCallback((objectId: string, color: string) => {
+    setObjects(prev => prev.map(obj => obj.id === objectId ? { ...obj, color } : obj));
+  }, []);
+
 
   const handleSelectObject = useCallback((id: string | null) => {
     setSelectedObject(id);
@@ -1197,6 +1209,8 @@ export const Studio3D = () => {
             onReorderModifier={reorderModifier}
             onRenameObject={renameObject}
             onUpdateObjectGeometry={updateObjectGeometry}
+            onUpdateObjectLightData={updateObjectLightData}
+            onUpdateObjectColor={updateObjectColor}
           />
 
 

@@ -183,6 +183,8 @@ interface SidePanelProps {
   onReorderModifier?: (objectId: string, modifierId: string, direction: -1 | 1) => void;
   onRenameObject?: (objectId: string, name: string) => void;
   onUpdateObjectGeometry: (objectId: string, params: any) => void;
+  onUpdateObjectLightData?: (objectId: string, params: any) => void;
+  onUpdateObjectColor?: (objectId: string, color: string) => void;
 }
 
 export const SidePanel = ({
@@ -199,7 +201,9 @@ export const SidePanel = ({
   onToggleModifier,
   onReorderModifier,
   onRenameObject,
-  onUpdateObjectGeometry
+  onUpdateObjectGeometry,
+  onUpdateObjectLightData,
+  onUpdateObjectColor,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
@@ -208,7 +212,6 @@ export const SidePanel = ({
   const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
-  const [modifierListOpen, setModifierListOpen] = useState(false);
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
@@ -515,38 +518,41 @@ export const SidePanel = ({
                     />
                   </div>
 
-                  {/* Modifier List dropdown */}
-                  <div className="relative">
-                    <button
-                      className="w-full h-[22px] text-[11px] text-left px-2 bevel-raised hover:brightness-105 text-win-text flex items-center justify-between"
-                      onClick={() => setModifierListOpen((v) => !v)}
-                    >
-                      <span className="truncate">Modifier List</span>
-                      <span className="text-[10px]">▼</span>
-                    </button>
-                    {modifierListOpen && (
-                      <div className="absolute z-50 left-0 right-0 mt-[1px] bevel-raised bg-panel max-h-56 overflow-y-auto">
-                        {availableModifiers.length === 0 && (
-                          <div className="px-2 py-1 text-[11px] text-win-text/60 italic">
-                            No modifiers available for this object type
-                          </div>
-                        )}
-                        {availableModifiers.map((m) => (
-                          <button
-                            key={m.name}
-                            title={m.description}
-                            onClick={() => {
-                              onAddModifier(selectedObject.id, m.name);
-                              setModifierListOpen(false);
-                            }}
-                            className="w-full h-[20px] text-[11px] text-left px-2 truncate text-win-text hover:bg-win-highlight hover:text-white"
-                          >
-                            {m.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Modifier List — classic R3 combobox (native select) */}
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      if (name) onAddModifier(selectedObject.id, name);
+                      e.target.value = '';
+                    }}
+                    className="w-full h-[22px] text-[11px] bevel-sunken bg-white px-1 text-win-text border border-win-shadow"
+                    disabled={availableModifiers.length === 0}
+                    title={availableModifiers.length === 0
+                      ? 'No modifiers available for this object class'
+                      : 'Modifier List — pick to add on top of the stack'}
+                  >
+                    <option value="">
+                      {availableModifiers.length === 0 ? '— No modifiers available —' : 'Modifier List'}
+                    </option>
+                    {(() => {
+                      const cls = currentObjectClass(selectedObject);
+                      const groups: Array<{ label: string; items: typeof modifiers }> = [];
+                      if (cls === 'shape') {
+                        groups.push({ label: 'SELECTION MODIFIERS', items: [] });
+                        groups.push({ label: 'OBJECT-SPACE MODIFIERS', items: availableModifiers.filter((m) => m.category === 'shape' || m.category === 'universal') });
+                      } else {
+                        groups.push({ label: 'OBJECT-SPACE MODIFIERS', items: availableModifiers });
+                      }
+                      return groups.filter((g) => g.items.length > 0).map((g) => (
+                        <optgroup key={g.label} label={g.label}>
+                          {g.items.map((m) => (
+                            <option key={m.name} value={m.name} title={m.description}>{m.name}</option>
+                          ))}
+                        </optgroup>
+                      ));
+                    })()}
+                  </select>
 
                   {/* Modifier Stack */}
                   <div className="bevel-inset bg-white">
@@ -637,6 +643,16 @@ export const SidePanel = ({
             {/* Base object parameters — visible only when the base is selected in the stack */}
             {selectedObject && selectedStackItem === 'base' && (
               <>
+                {/* Light Parameters — R3-style General / Intensity/Color / Attenuation / Spot / Shadows */}
+                {String(selectedObject.type || '').startsWith('light_') && (
+                  <LightParameters
+                    object={selectedObject}
+                    onUpdateColor={(c) => onUpdateObjectColor?.(selectedObject.id, c)}
+                    onUpdateLightData={(patch) => onUpdateObjectLightData?.(selectedObject.id, patch)}
+                  />
+                )}
+
+
 
                 {/* Base Geometry Controls — schema-driven, real values from selectedObject.geometry */}
                 <Card className="bg-card border-panel-border mt-4">
@@ -855,5 +871,180 @@ export const SidePanel = ({
         </div>
       </Tabs>
     </div>
+  );
+};
+
+// ------------------------------------------------------------------
+// R3-style Light Parameters rollout — matches the 3ds Max R3 panel layout:
+// General Parameters / Intensity / Color / Attenuation / Spot Parameters /
+// Shadow Parameters. Applies to Omni, Spot (target & free), Direct (target &
+// free), Skylight and Ambient — irrelevant sections are hidden per type.
+// ------------------------------------------------------------------
+interface LightParamsProps {
+  object: any;
+  onUpdateColor: (color: string) => void;
+  onUpdateLightData: (patch: any) => void;
+}
+
+const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightParamsProps) => {
+  const t: string = object.type;
+  const ld = object.lightData || {};
+  const isSpot = t === 'light_spot';
+  const isDirect = t === 'light_direct';
+  const isOmni = t === 'light_omni';
+  const isSky = t === 'light_skylight';
+  const isAmbient = t === 'light_ambient';
+  const hasCone = isSpot;
+  const hasAtten = isOmni || isSpot || isDirect;
+  const hasShadow = isOmni || isSpot || isDirect;
+
+  const numRow = (label: string, key: string, def: number, min = 0, step = 0.1) => (
+    <div className="flex items-center justify-between gap-2">
+      <Label className="text-[10px] flex-1">{label}</Label>
+      <Input
+        type="number"
+        value={ld[key] ?? def}
+        step={step}
+        min={min}
+        className="h-6 w-20 text-xs"
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          onUpdateLightData({ [key]: Number.isFinite(v) ? Math.max(min, v) : def });
+        }}
+      />
+    </div>
+  );
+
+  return (
+    <>
+      <Card className="bg-card border-panel-border">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">General Parameters</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <label className="flex items-center gap-2 text-[11px]">
+            <input
+              type="checkbox"
+              checked={ld.on !== false}
+              onChange={(e) => onUpdateLightData({ on: e.target.checked })}
+            />
+            On
+          </label>
+          {hasShadow && (
+            <label className="flex items-center gap-2 text-[11px]">
+              <input
+                type="checkbox"
+                checked={!!ld.castShadow}
+                onChange={(e) => onUpdateLightData({ castShadow: e.target.checked })}
+              />
+              Cast Shadows
+            </label>
+          )}
+          <div className="text-[10px] text-muted-foreground font-mono uppercase">Type: {t.replace('light_', '')}</div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-panel-border mt-2">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Intensity / Color / Attenuation</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-[10px] flex-1">Multiplier</Label>
+            <Input
+              type="number"
+              value={ld.intensity ?? 1}
+              step={0.1}
+              className="h-6 w-20 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                onUpdateLightData({ intensity: Number.isFinite(v) ? v : 1 });
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <Label className="text-[10px] flex-1">Color</Label>
+            <input
+              type="color"
+              value={object.color || '#ffffff'}
+              onChange={(e) => onUpdateColor(e.target.value)}
+              className="h-6 w-12 border border-win-shadow"
+            />
+          </div>
+          {isSky && (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-[10px] flex-1">Ground Color</Label>
+                <input
+                  type="color"
+                  value={ld.groundColor || '#4a3a2a'}
+                  onChange={(e) => onUpdateLightData({ groundColor: e.target.value })}
+                  className="h-6 w-12 border border-win-shadow"
+                />
+              </div>
+            </>
+          )}
+          {hasAtten && (
+            <>
+              <div className="text-[10px] uppercase text-muted-foreground pt-1">Far Attenuation</div>
+              {numRow('Distance', 'distance', 0, 0, 0.5)}
+              {numRow('Decay', 'decay', 2, 0, 0.1)}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {hasCone && (
+        <Card className="bg-card border-panel-border mt-2">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Spot Parameters</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Hotspot (rad)</Label>
+              <Input
+                type="number"
+                value={ld.hotspot ?? (ld.angle ?? Math.PI / 6) * 0.8}
+                step={0.01}
+                min={0}
+                className="h-6 w-20 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdateLightData({ hotspot: Number.isFinite(v) ? Math.max(0, v) : 0.4 });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Falloff (angle)</Label>
+              <Input
+                type="number"
+                value={ld.angle ?? Math.PI / 6}
+                step={0.01}
+                min={0}
+                className="h-6 w-20 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdateLightData({ angle: Number.isFinite(v) ? Math.max(0.01, v) : Math.PI / 6 });
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Penumbra</Label>
+              <Input
+                type="number"
+                value={ld.penumbra ?? 0.2}
+                step={0.05}
+                min={0}
+                className="h-6 w-20 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  onUpdateLightData({ penumbra: Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.2 });
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isAmbient && (
+        <div className="text-[10px] text-muted-foreground px-1 pt-1">
+          Ambient light has no direction — only Color and Multiplier apply.
+        </div>
+      )}
+    </>
   );
 };
