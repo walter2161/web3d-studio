@@ -4,7 +4,7 @@ import { MenuBar } from './MenuBar';
 import { ViewportGrid, ViewportLayout } from './ViewportGrid';
 import { SidePanel } from './SidePanel';
 import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
-import { MaterialEditor } from './MaterialEditor';
+import { MaterialEditorR3 } from './r3/MaterialEditorR3';
 import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
