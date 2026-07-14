@@ -141,6 +141,10 @@ export const Viewport = ({
   // Ortho zoom that matches perspective visible height at same distance (fov≈50°).
   const orthoZoom = useMemo(() => 21.44 / Math.max(0.001, distanceRef.current), [view]);
   const effectiveShowGrid = showGridProp && showGridLocal;
+  const hasActiveSceneLights = useMemo(
+    () => objects.some((o) => o.visible !== false && String(o.type || '').startsWith('light_') && o.lightData?.on !== false),
+    [objects]
+  );
 
   // F3 → toggle Wireframe, F4 → toggle Edged Faces (R3 shortcuts). Active viewport only.
   useEffect(() => {
@@ -273,6 +277,11 @@ export const Viewport = ({
         className="w-full h-full"
         onCreated={({ gl, scene }) => {
           gl.setClearColor(env.backgroundColor);
+          gl.shadowMap.enabled = true;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
           scene.background = new THREE.Color(env.backgroundColor);
         }}
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
@@ -285,9 +294,13 @@ export const Viewport = ({
           fogNear={env.fogNear}
           fogFar={env.fogFar}
         />
-        <ambientLight color={env.ambient} intensity={env.ambientIntensity * env.level} />
-        <directionalLight color={env.tint} position={[10, 10, 5]} intensity={0.8 * env.level} />
-        <directionalLight color={env.tint} position={[-10, -10, -5]} intensity={0.3 * env.level} />
+        <ambientLight color={env.ambient} intensity={(hasActiveSceneLights ? 0.08 : env.ambientIntensity) * env.level} />
+        {!hasActiveSceneLights && (
+          <>
+            <directionalLight color={env.tint} position={[10, 10, 5]} intensity={0.8 * env.level} />
+            <directionalLight color={env.tint} position={[-10, -10, -5]} intensity={0.3 * env.level} />
+          </>
+        )}
 
         {effectiveShowGrid && (
           <group userData={{ __helper: true }}>
