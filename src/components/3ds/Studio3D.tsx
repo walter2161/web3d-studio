@@ -1085,6 +1085,22 @@ export const Studio3D = () => {
         onConfirm={() => { confirmState.onOk(); setConfirmState((s) => ({ ...s, open: false })); }}
         onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
       />
+
+      <SelectByNameDialog
+        open={selectByNameOpen}
+        onOpenChange={setSelectByNameOpen}
+        objects={objects}
+        selectedId={selectedObject}
+        onSelect={setSelectedObject}
+      />
+      <MirrorDialog open={mirrorOpen} onOpenChange={setMirrorOpen} onApply={applyMirror} />
+      <ArrayDialog open={arrayOpen} onOpenChange={setArrayOpen} onApply={applyArray} />
+      <AlignDialog
+        open={alignOpen}
+        onOpenChange={setAlignOpen}
+        targetName={objects.find((o) => o.id !== selectedObject && !o.isGroup)?.name}
+        onApply={applyAlign}
+      />
     </div>
     </EnvironmentProvider>
   );
