@@ -171,14 +171,30 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
 
   switch (type) {
     case 'line': {
-      // Multi-vertex line: `points` is an array of [x,y,z] in local space.
-      // Rendered as a thin tube so it shows up in the mesh pipeline.
-      const rawPts: number[][] | undefined = p.points;
-      if (rawPts && rawPts.length >= 2) {
-        const pts3 = rawPts.map((v) => new THREE.Vector3(v[0], v[1], v[2]));
-        const closed = !!p.closed;
-        const curve = new THREE.CatmullRomCurve3(pts3, closed, 'catmullrom', 0);
-        const segs = Math.max(16, pts3.length * 24);
+      // Line: prefer explicit `knots` (Bezier), fall back to plain `points`, then to a segment.
+      const knots: Array<{ pos: number[]; inH: number[]; outH: number[] }> | undefined = p.knots;
+      const closed = !!p.closed;
+      let sampled: THREE.Vector3[] | null = null;
+      if (knots && knots.length >= 2) {
+        const list = closed ? [...knots, knots[0]] : knots;
+        sampled = [];
+        for (let i = 0; i < list.length - 1; i++) {
+          const k0 = list[i], k1 = list[i + 1];
+          const p0 = new THREE.Vector3(k0.pos[0], k0.pos[1], k0.pos[2]);
+          const p3 = new THREE.Vector3(k1.pos[0], k1.pos[1], k1.pos[2]);
+          const p1 = p0.clone().add(new THREE.Vector3(k0.outH[0], k0.outH[1], k0.outH[2]));
+          const p2 = p3.clone().add(new THREE.Vector3(k1.inH[0], k1.inH[1], k1.inH[2]));
+          const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
+          const seg = curve.getPoints(24);
+          if (i > 0) seg.shift();
+          sampled.push(...seg);
+        }
+      } else if (p.points && p.points.length >= 2) {
+        sampled = (p.points as number[][]).map((v) => new THREE.Vector3(v[0], v[1], v[2]));
+      }
+      if (sampled && sampled.length >= 2) {
+        const curve = new THREE.CatmullRomCurve3(sampled, closed, 'catmullrom', 0);
+        const segs = Math.max(32, sampled.length * 8);
         return new THREE.TubeGeometry(curve, segs, TUBE_RADIUS, TUBE_RADIAL_SEG, closed);
       }
       const curve = new THREE.LineCurve3(new THREE.Vector3(-p.length / 2, 0, 0), new THREE.Vector3(p.length / 2, 0, 0));

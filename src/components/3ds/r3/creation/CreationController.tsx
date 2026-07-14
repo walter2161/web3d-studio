@@ -238,17 +238,24 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const totalStages = STAGES[armed];
 
-    // -------- Line tool: multi-click FSM ---------
-    // Points are stored in world space. The LAST entry is always the live
-    // preview point that tracks the cursor between clicks.
-    const lineRef: { pts: THREE.Vector3[] } | null = armed === 'line' ? { pts: [] } : null;
+    // -------- Line tool: multi-click FSM with Bezier drag ---------
+    // Each anchor is a "knot": position + in/out tangent handles.
+    // Click without drag => Corner (zero handles). Click + drag => Bezier
+    // (handles mirrored around the anchor, length = drag distance).
+    // The LAST knot is always the live preview tracking the cursor.
+    type Knot = { pos: THREE.Vector3; inH: THREE.Vector3; outH: THREE.Vector3 };
+    const lineRef: { knots: Knot[]; draggingIdx: number } | null =
+      armed === 'line' ? { knots: [], draggingIdx: -1 } : null;
 
-    const buildLineGhost = (worldPts: THREE.Vector3[], closed: boolean): GhostObject => {
-      // Center around centroid so position != 0 and local points are relative.
+    const buildLineGhost = (knots: Knot[], closed: boolean): GhostObject => {
       const centroid = new THREE.Vector3();
-      worldPts.forEach((p) => centroid.add(p));
-      centroid.multiplyScalar(1 / worldPts.length);
-      const local = worldPts.map((p) => [p.x - centroid.x, p.y - centroid.y, p.z - centroid.z] as [number, number, number]);
+      knots.forEach((k) => centroid.add(k.pos));
+      centroid.multiplyScalar(1 / knots.length);
+      const local = knots.map((k) => ({
+        pos: [k.pos.x - centroid.x, k.pos.y - centroid.y, k.pos.z - centroid.z] as [number, number, number],
+        inH: [k.inH.x, k.inH.y, k.inH.z] as [number, number, number],
+        outH: [k.outH.x, k.outH.y, k.outH.z] as [number, number, number],
+      }));
       return {
         id: '__ghost',
         type: 'line',
@@ -256,7 +263,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         rotation: [0, 0, 0],
         scale: [1, 1, 1],
         color: COLOR_GHOST,
-        geometry: { points: local, closed },
+        geometry: { knots: local, closed },
         visible: true,
         __creating: true,
       };
@@ -264,16 +271,21 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const commitLine = (closed: boolean) => {
       if (!lineRef) return;
-      // Drop trailing preview point.
-      const real = lineRef.pts.slice(0, -1);
+      const real = lineRef.knots.slice(0, -1); // drop preview
       if (real.length >= 2) {
-        const g = buildLineGhost(real, closed);
-        commit(g);
+        commit(buildLineGhost(real, closed));
       } else {
         setGhost(null);
       }
-      lineRef.pts = [];
+      lineRef.knots = [];
+      lineRef.draggingIdx = -1;
     };
+
+    const mkKnot = (p: THREE.Vector3): Knot => ({
+      pos: p.clone(),
+      inH: new THREE.Vector3(),
+      outH: new THREE.Vector3(),
+    });
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
@@ -281,27 +293,35 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       if (lineRef) {
         const p = raycastBase(e);
         if (!p) return;
-        if (lineRef.pts.length === 0) {
-          // First anchor + preview point.
-          lineRef.pts.push(p.clone(), p.clone());
+        if (lineRef.knots.length === 0) {
+          // First anchor + live preview. Start dragging first anchor's handles.
+          lineRef.knots.push(mkKnot(p), mkKnot(p));
+          lineRef.draggingIdx = 0;
         } else {
-          // Check close-on-first-point (world-space tolerance based on distance to camera).
-          const first = lineRef.pts[0];
+          // Close-on-first-point check (world-space tolerance).
+          const first = lineRef.knots[0].pos;
           const camDist = camera.position.distanceTo(first);
           const tol = Math.max(0.05, camDist * 0.02);
-          if (lineRef.pts.length >= 3 && p.distanceTo(first) < tol) {
-            // Replace preview with a copy of first, commit closed.
-            lineRef.pts[lineRef.pts.length - 1] = first.clone();
+          if (lineRef.knots.length >= 3 && p.distanceTo(first) < tol) {
+            // Snap preview to first knot, commit closed.
+            lineRef.knots[lineRef.knots.length - 1].pos.copy(first);
             commitLine(true);
             e.preventDefault();
             e.stopPropagation();
             return;
           }
-          // Commit current preview point as a real anchor, add new preview.
-          lineRef.pts[lineRef.pts.length - 1] = p.clone();
-          lineRef.pts.push(p.clone());
+          // Commit preview as anchor; drag will now shape its handles.
+          const anchorIdx = lineRef.knots.length - 1;
+          const anchor = lineRef.knots[anchorIdx];
+          anchor.pos.copy(p);
+          anchor.inH.set(0, 0, 0);
+          anchor.outH.set(0, 0, 0);
+          lineRef.draggingIdx = anchorIdx;
+          // Add a new preview knot at the same position.
+          lineRef.knots.push(mkKnot(p));
         }
-        setGhost(buildLineGhost(lineRef.pts, false));
+        setGhost(buildLineGhost(lineRef.knots, false));
+        dom.setPointerCapture?.(e.pointerId);
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -330,11 +350,20 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onMove = (e: PointerEvent) => {
       if (lineRef) {
-        if (lineRef.pts.length === 0) return;
+        if (lineRef.knots.length === 0) return;
         const p = raycastBase(e);
         if (!p) return;
-        lineRef.pts[lineRef.pts.length - 1] = p;
-        setGhost(buildLineGhost(lineRef.pts, false));
+        if (lineRef.draggingIdx >= 0) {
+          // Button held after clicking anchor: drag defines Bezier handles.
+          const anchor = lineRef.knots[lineRef.draggingIdx];
+          const outH = p.clone().sub(anchor.pos);
+          anchor.outH.copy(outH);
+          anchor.inH.copy(outH.clone().multiplyScalar(-1));
+        } else {
+          // Between clicks: last knot is preview and follows the cursor.
+          lineRef.knots[lineRef.knots.length - 1].pos.copy(p);
+        }
+        setGhost(buildLineGhost(lineRef.knots, false));
         return;
       }
       const s = stageRef.current;
@@ -346,7 +375,15 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onUp = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if (lineRef) return; // line uses clicks only
+      if (lineRef) {
+        // End of drag on an anchor; keep the anchor, wait for the next click.
+        if (lineRef.draggingIdx >= 0) {
+          lineRef.draggingIdx = -1;
+          dom.releasePointerCapture?.(e.pointerId);
+        }
+        return;
+      }
+
       const s = stageRef.current;
       if (!s) return;
       if (s.stage === 0) {
@@ -364,7 +401,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (lineRef) lineRef.pts = [];
+        if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
         stageRef.current = null;
         setGhost(null);
         disarm();
@@ -373,7 +410,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      if (lineRef && lineRef.pts.length > 0) {
+      if (lineRef && lineRef.knots.length > 0) {
         // Right-click finishes the line (open spline).
         commitLine(false);
         return;

@@ -502,10 +502,13 @@ export const Studio3D = () => {
 
   // Modifier operations
   const addModifier = useCallback((objectId: string, modifierType: string) => {
+    const defaultParams: Record<string, any> = {
+      Extrude: { amount: 1, segments: 1, capStart: true, capEnd: true, bevelEnabled: false },
+    };
     const newModifier: Modifier = {
       id: `${modifierType}_${Date.now()}`,
       type: modifierType,
-      params: {},
+      params: defaultParams[modifierType] || {},
       active: true
     };
     
