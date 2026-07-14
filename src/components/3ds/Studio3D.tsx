@@ -61,6 +61,7 @@ export const Studio3D = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
   const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+  const [hierarchyCollapsed, setHierarchyCollapsed] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
