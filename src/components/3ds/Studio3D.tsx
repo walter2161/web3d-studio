@@ -372,11 +372,22 @@ export const Studio3D = () => {
   // Object operations
   const deleteObject = useCallback((id: string) => {
     saveState();
-    setObjects(prev => prev.filter(obj => obj.id !== id));
+    const obj = objects.find(o => o.id === id);
+    setObjects(prev => prev.filter(o => o.id !== id));
     setAnimationTracks(prev => prev.filter(t => t.objectId !== id));
     if (selectedObject === id) setSelectedObject(null);
+    // Clean up persisted blob for imported models.
+    if (obj?.type === 'imported') {
+      import('./utils/modelStorage').then(({ deleteModelBlob }) => {
+        deleteModelBlob(id).catch(() => {});
+      });
+      import('./utils/modelImport').then(({ removeImportedModel }) => {
+        removeImportedModel(id);
+      });
+    }
     toast.success('Object deleted');
-  }, [saveState, selectedObject]);
+  }, [saveState, selectedObject, objects]);
+
 
   const duplicateObject = useCallback((id: string) => {
     const obj = objects.find(o => o.id === id);
