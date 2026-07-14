@@ -618,6 +618,11 @@ export const Studio3D = () => {
         onFileOperation={openFileDialog}
         onViewportChange={setActiveViewport}
         activeViewport={activeViewport}
+        onQuickRender={() => setQuickRenderOpen(true)}
+        onRenderSetup={() => setRenderSetupOpen(true)}
+        onEnvironment={() => setEnvironmentOpen(true)}
+        onMaterialBrowser={() => setMaterialBrowserOpen(true)}
+        onViewImageFile={() => setViewImageOpen(true)}
       />
 
       {/* Main toolbar row (icons) */}
