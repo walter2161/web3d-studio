@@ -94,6 +94,8 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item === 'Top') onViewportChange('top');
                     if (item === 'Front') onViewportChange('front');
                     if (item === 'Left') onViewportChange('left');
+                    // Broadcast raw label for any handler wired via onMenuAction
+                    onMenuAction?.(item);
                   }}
                 >
                   {item}
