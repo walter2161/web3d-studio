@@ -25,7 +25,11 @@ interface Object3DProps {
   isSelected: boolean;
   onSelect: () => void;
   renderMode: 'solid' | 'wireframe' | 'semi-transparent';
+  currentFrame?: number;
+  totalFrames?: number;
+  isPlaying?: boolean;
 }
+
 
 
 export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DProps) => {
