@@ -233,7 +233,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       } else if (s.stage >= 1) {
         // Click confirms a "hovering" stage.
         if (s.stage >= totalStages - 1) {
-          if (ghost) commit(ghost);
+          if (ghostRef.current) commit(ghostRef.current);
           stageRef.current = null;
         } else {
           stageRef.current = { ...s, stage: s.stage + 1 };
@@ -248,7 +248,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       if (!s) return;
       const pt = s.stage === 0 ? raycastBase(e) : raycastHeight(e, s.start);
       if (!pt) return;
-      setGhost(buildGhost(armed, s.stage, s.start, pt, heightAxis, ghost));
+      setGhost(buildGhost(armed, s.stage, s.start, pt, heightAxis, ghostRef.current));
     };
 
     const onUp = (e: PointerEvent) => {
@@ -258,7 +258,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       if (s.stage === 0) {
         if (totalStages === 1) {
           // Single-stage tools commit on release.
-          if (ghost) commit(ghost);
+          if (ghostRef.current) commit(ghostRef.current);
           stageRef.current = null;
         } else {
           stageRef.current = { ...s, stage: 1 };
