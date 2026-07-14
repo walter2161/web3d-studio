@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import { useFrame } from '@react-three/fiber';
 import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as ThreeObject3D } from 'three';
 import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
@@ -697,7 +697,13 @@ interface EntityRendererProps {
 
 const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }: EntityRendererProps) => {
   const groupRef = useRef<Group>(null);
+  const pointLightRef = useRef<THREE.PointLight>(null);
+  const spotLightRef = useRef<THREE.SpotLight>(null);
+  const spotTargetRef = useRef<THREE.Object3D>(null);
+  const directLightRef = useRef<THREE.DirectionalLight>(null);
+  const directTargetRef = useRef<THREE.Object3D>(null);
   const targetId: string | undefined = object.lightData?.targetObjectId || object.cameraData?.targetObjectId;
+  const isOn = object.lightData?.on !== false;
 
   // Track target — rotate the group to look at it every frame.
   useFrame(() => {
@@ -706,6 +712,28 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
     if (!tp) return;
     groupRef.current.lookAt(tp[0], tp[1], tp[2]);
   });
+
+  useFrame(() => {
+    if (spotLightRef.current && spotTargetRef.current) spotLightRef.current.target = spotTargetRef.current;
+    if (directLightRef.current && directTargetRef.current) directLightRef.current.target = directTargetRef.current;
+  });
+
+  useEffect(() => {
+    const configureShadow = (light: THREE.PointLight | THREE.SpotLight | THREE.DirectionalLight | null) => {
+      if (!light?.shadow) return;
+      light.shadow.mapSize.set(1024, 1024);
+      light.shadow.bias = -0.0005;
+      if ((light.shadow.camera as any).isPerspectiveCamera) {
+        const cam = light.shadow.camera as THREE.PerspectiveCamera;
+        cam.near = 0.1;
+        cam.far = Math.max(10, object.lightData?.distance || 50);
+        cam.updateProjectionMatrix();
+      }
+    };
+    configureShadow(pointLightRef.current);
+    configureShadow(spotLightRef.current);
+    configureShadow(directLightRef.current);
+  }, [object.lightData?.distance]);
 
   useEffect(() => { if (object.ref) object.ref.current = groupRef.current; }, [object.ref]);
 
@@ -719,7 +747,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
   if (t === 'light_ambient') {
     return (
       <group ref={groupRef} position={object.position}>
-        <ambientLight color={object.color} intensity={object.lightData?.intensity ?? 0.5} />
+        <ambientLight color={object.color} intensity={isOn ? (object.lightData?.intensity ?? 0.5) : 0} />
         <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <sphereGeometry args={[0.25, 12, 8]} />
           <meshBasicMaterial color={iconColor} wireframe />
@@ -733,7 +761,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         <hemisphereLight
           color={object.lightData?.skyColor || object.color}
           groundColor={object.lightData?.groundColor || '#404040'}
-          intensity={object.lightData?.intensity ?? 0.6}
+          intensity={isOn ? (object.lightData?.intensity ?? 0.6) : 0}
         />
         <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <octahedronGeometry args={[0.3, 0]} />
@@ -746,8 +774,9 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
     return (
       <group ref={groupRef} position={object.position}>
         <pointLight
+          ref={pointLightRef}
           color={object.color}
-          intensity={object.lightData?.intensity ?? 1}
+          intensity={isOn ? (object.lightData?.intensity ?? 1) : 0}
           distance={object.lightData?.distance ?? 0}
           decay={object.lightData?.decay ?? 2}
           castShadow={!!object.lightData?.castShadow}
@@ -772,16 +801,17 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
       <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
         {/* SpotLight in three.js emits down -Z; child target at (0,0,-1) does that automatically */}
         <spotLight
+          ref={spotLightRef}
           color={object.color}
-          intensity={object.lightData?.intensity ?? 1}
+          intensity={isOn ? (object.lightData?.intensity ?? 1) : 0}
           distance={dist}
           angle={angle}
           penumbra={object.lightData?.penumbra ?? 0.2}
           decay={object.lightData?.decay ?? 2}
           castShadow={!!object.lightData?.castShadow}
           position={[0, 0, 0]}
-          target-position={[0, 0, -1]}
         />
+        <object3D ref={spotTargetRef} position={[0, 0, -1]} />
         {/* Cone helper points along -Z */}
         <group rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
           <mesh>
@@ -801,12 +831,13 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
     return (
       <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <directionalLight
+          ref={directLightRef}
           color={object.color}
-          intensity={object.lightData?.intensity ?? 1}
+          intensity={isOn ? (object.lightData?.intensity ?? 1) : 0}
           castShadow={!!object.lightData?.castShadow}
           position={[0, 0, 0]}
-          target-position={[0, 0, -1]}
         />
+        <object3D ref={directTargetRef} position={[0, 0, -1]} />
         {/* Ray helper along -Z */}
         <group position={[0, 0, -dist / 2]}>
           <mesh>
