@@ -466,6 +466,51 @@ export const ModifierControls = ({ modifier, onUpdateModifier, onRemoveModifier 
     </div>
   );
 
+  const renderExtrudeControls = () => (
+    <div className="space-y-4">
+      <div>
+        <Label className="text-xs">Amount</Label>
+        <Slider
+          value={[params.amount ?? 1]}
+          onValueChange={(v) => updateParam('amount', v[0])}
+          min={-20}
+          max={20}
+          step={0.01}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{(params.amount ?? 1).toFixed(2)}</div>
+      </div>
+      <div>
+        <Label className="text-xs">Segments</Label>
+        <Slider
+          value={[params.segments ?? 1]}
+          onValueChange={(v) => updateParam('segments', Math.round(v[0]))}
+          min={1}
+          max={64}
+          step={1}
+          className="mt-1"
+        />
+        <div className="text-xs text-muted-foreground mt-1">{params.segments ?? 1}</div>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="capStart"
+          checked={params.capStart !== false}
+          onCheckedChange={(c) => updateParam('capStart', !!c)}
+        />
+        <Label htmlFor="capStart" className="text-xs">Cap Start</Label>
+      </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="capEnd"
+          checked={params.capEnd !== false}
+          onCheckedChange={(c) => updateParam('capEnd', !!c)}
+        />
+        <Label htmlFor="capEnd" className="text-xs">Cap End</Label>
+      </div>
+    </div>
+  );
+
   const getControlsForModifier = () => {
     switch (modifier.type) {
       case 'Bend': return renderBendControls();
@@ -476,6 +521,7 @@ export const ModifierControls = ({ modifier, onUpdateModifier, onRemoveModifier 
       case 'Symmetry': return renderSymmetryControls();
       case 'Edit Poly': return renderEditPolyControls();
       case 'Edit Mesh': return renderEditMeshControls();
+      case 'Extrude': return renderExtrudeControls();
       default: return renderDefaultControls();
     }
   };
