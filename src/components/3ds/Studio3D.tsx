@@ -1264,24 +1264,26 @@ export const Studio3D = () => {
         </div>
       </div>
 
-      {/* Trackbar (Animation timeline) */}
-      <AnimationTimeline
-        tracks={animationTracks}
-        currentFrame={currentFrame}
-        totalFrames={totalFrames}
-        isPlaying={isPlaying}
-        selectedObject={selectedObject}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
-        onFrameChange={setCurrentFrame}
-        onAddKeyframe={addKeyframe}
-        onRemoveKeyframe={removeKeyframe}
-        onUpdateKeyframe={updateKeyframe}
-        onToggleTrajectory={toggleTrajectory}
-        onSelectKeyframe={setSelectedKeyframe}
-        selectedKeyframe={selectedKeyframe}
-      />
+      {/* Trackbar (Animation timeline) — hidden by default */}
+      {timelineVisible && (
+        <AnimationTimeline
+          tracks={animationTracks}
+          currentFrame={currentFrame}
+          totalFrames={totalFrames}
+          isPlaying={isPlaying}
+          selectedObject={selectedObject}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
+          onFrameChange={setCurrentFrame}
+          onAddKeyframe={addKeyframe}
+          onRemoveKeyframe={removeKeyframe}
+          onUpdateKeyframe={updateKeyframe}
+          onToggleTrajectory={toggleTrajectory}
+          onSelectKeyframe={setSelectedKeyframe}
+          selectedKeyframe={selectedKeyframe}
+        />
+      )}
 
       {/* Status bar */}
       <StatusBar
