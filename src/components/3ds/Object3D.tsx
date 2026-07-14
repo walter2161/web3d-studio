@@ -312,29 +312,30 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
       position={object.position}
       rotation={object.rotation}
       scale={object.scale}
+      castShadow
+      receiveShadow
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
       }}
       geometry={modifiedGeometry}
     >
-      <meshPhongMaterial 
+      <meshStandardMaterial
         color={object.color}
-        transparent={renderMode === 'semi-transparent' || isSelected}
-        opacity={renderMode === 'semi-transparent' ? 0.6 : isSelected ? 0.8 : 1}
+        transparent={renderMode === 'semi-transparent'}
+        opacity={renderMode === 'semi-transparent' ? 0.5 : 1}
         wireframe={renderMode === 'wireframe'}
+        metalness={0.15}
+        roughness={0.55}
+        flatShading={false}
       />
-      
-      {/* Selection outline */}
-      {isSelected && (
-        <mesh geometry={modifiedGeometry}>
-          <meshBasicMaterial 
-            color="#00bfff" 
-            wireframe 
-            transparent 
-            opacity={0.5}
-          />
-        </mesh>
+
+      {/* Selection outline via edges only (no wire overlay on the surface) */}
+      {isSelected && renderMode !== 'wireframe' && (
+        <lineSegments renderOrder={999}>
+          <edgesGeometry args={[modifiedGeometry, 15]} />
+          <lineBasicMaterial color="#00bfff" transparent opacity={0.9} depthTest={false} />
+        </lineSegments>
       )}
     </mesh>
   );
