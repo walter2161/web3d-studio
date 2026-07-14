@@ -598,245 +598,70 @@ export const SidePanel = ({
             {selectedObject && selectedStackItem === 'base' && (
               <>
 
-                {/* Base Geometry Controls */}
+                {/* Base Geometry Controls — schema-driven, real values from selectedObject.geometry */}
                 <Card className="bg-card border-panel-border mt-4">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Geometry Parameters</CardTitle>
+                    <CardTitle className="text-sm">
+                      Geometry Parameters
+                      <span className="ml-2 text-[10px] text-muted-foreground font-mono">
+                        {selectedObject.type}
+                      </span>
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    {selectedObject.type === 'box' && (
-                      <>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <Label className="text-xs">Width</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.width || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { width: parseFloat(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
+                  <CardContent className="space-y-2">
+                    {(() => {
+                      const schema = GEOM_SCHEMA[selectedObject.type];
+                      if (!schema) {
+                        return (
+                          <div className="text-xs text-muted-foreground">
+                            No editable parameters for type <span className="font-mono">{selectedObject.type}</span>.
                           </div>
-                          <div>
-                            <Label className="text-xs">Height</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.height || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { height: parseFloat(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
+                        );
+                      }
+                      const geom = selectedObject.geometry || {};
+                      // Read-only badges for line: vertex count
+                      const isLine = selectedObject.type === 'line';
+                      if (isLine) {
+                        const knots = Array.isArray(geom.knots) ? geom.knots.length : 0;
+                        return (
+                          <div className="text-xs space-y-1 font-mono">
+                            <div>Vertices: <span className="text-foreground">{knots}</span></div>
+                            <div>Closed: <span className="text-foreground">{geom.closed ? 'Yes' : 'No'}</span></div>
+                            <div className="text-muted-foreground text-[10px] mt-1">
+                              Line vertices are edited in sub-object mode.
+                            </div>
                           </div>
-                          <div>
-                            <Label className="text-xs">Depth</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.depth || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { depth: parseFloat(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <Label className="text-xs">W Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.widthSegments || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { widthSegments: parseInt(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">H Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.heightSegments || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { heightSegments: parseInt(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">D Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.depthSegments || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { depthSegments: parseInt(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="1"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    
-                    {selectedObject.type === 'sphere' && (
-                      <>
+                        );
+                      }
+                      return (
                         <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">Radius</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.radius || 0.5}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { radius: parseFloat(e.target.value) || 0.5 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
-                          </div>
+                          {schema.map((p) => {
+                            const rawVal = geom[p.key];
+                            const displayVal = rawVal !== undefined && rawVal !== null ? rawVal : p.default;
+                            return (
+                              <div key={p.key}>
+                                <Label className="text-[10px]">{p.label}</Label>
+                                <Input
+                                  type="number"
+                                  value={displayVal}
+                                  onChange={(e) => {
+                                    const raw = e.target.value;
+                                    const parsed = p.kind === 'int' ? parseInt(raw, 10) : parseFloat(raw);
+                                    const next = Number.isFinite(parsed)
+                                      ? (p.min !== undefined ? Math.max(p.min, parsed) : parsed)
+                                      : p.default;
+                                    onUpdateObjectGeometry(selectedObject.id, { [p.key]: next });
+                                  }}
+                                  className="h-7 text-xs"
+                                  step={p.step ?? (p.kind === 'int' ? 1 : 0.1)}
+                                  min={p.min}
+                                />
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">W Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.widthSegments || 32}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { widthSegments: parseInt(e.target.value) || 32 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="3"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">H Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.heightSegments || 32}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { heightSegments: parseInt(e.target.value) || 32 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="2"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {selectedObject.type === 'cylinder' && (
-                      <>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <Label className="text-xs">Top Radius</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.radiusTop || 0.5}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { radiusTop: parseFloat(e.target.value) || 0.5 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Bottom Radius</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.radiusBottom || 0.5}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { radiusBottom: parseFloat(e.target.value) || 0.5 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Height</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.height || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { height: parseFloat(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">Radial Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.radialSegments || 32}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { radialSegments: parseInt(e.target.value) || 32 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="3"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Height Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.heightSegments || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { heightSegments: parseInt(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="1"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    {selectedObject.type === 'plane' && (
-                      <>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">Width</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.width || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { width: parseFloat(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">Height</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.height || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { height: parseFloat(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="0.1"
-                              min="0.1"
-                            />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs">W Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.widthSegments || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { widthSegments: parseInt(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs">H Segments</Label>
-                            <Input
-                              type="number"
-                              value={selectedObject.geometry?.heightSegments || 1}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { heightSegments: parseInt(e.target.value) || 1 })}
-                              className="h-7 text-xs"
-                              step="1"
-                              min="1"
-                            />
-                          </div>
-                        </div>
-                      </>
-                    )}
+                      );
+                    })()}
                   </CardContent>
                 </Card>
 
