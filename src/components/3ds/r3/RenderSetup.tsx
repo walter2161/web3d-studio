@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
+import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
 
 interface RenderSetupProps {
   open: boolean;
