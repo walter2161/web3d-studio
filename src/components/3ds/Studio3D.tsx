@@ -609,6 +609,135 @@ export const Studio3D = () => {
 
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
+  // ---------- Sprint A: menu operations ----------
+
+  const askConfirm = (message: string, onOk: () => void, title = 'Confirm') =>
+    setConfirmState({ open: true, message, onOk, title });
+
+  const doNewScene = () => askConfirm('Discard current scene and start a new one?', () => {
+    saveState();
+    setObjects([]);
+    setSelectedObject(null);
+    setAnimationTracks([]);
+    setCurrentFrame(0);
+    toast.success('New scene');
+  }, 'New Scene');
+
+  const doReset = () => askConfirm('Reset all objects, animations and timeline?', () => {
+    saveState();
+    setObjects([]);
+    setSelectedObject(null);
+    setAnimationTracks([]);
+    setCurrentFrame(0);
+    setIsPlaying(false);
+    setAutoKey(false);
+    setTransformMode('translate');
+    toast.success('Scene reset');
+  }, 'Reset');
+
+  const doHold = () => {
+    setHeldSnapshot(JSON.parse(JSON.stringify(objects.map(({ ref, ...o }) => o))));
+    toast.success('Scene held');
+  };
+  const doFetch = () => {
+    if (!heldSnapshot) { toast.error('Nothing to fetch — use Edit → Hold first'); return; }
+    askConfirm('Discard current scene and restore last Hold snapshot?', () => {
+      saveState();
+      setObjects(heldSnapshot.map((o) => ({ ...o, ref: { current: null } })));
+      setSelectedObject(null);
+      toast.success('Scene fetched');
+    }, 'Fetch');
+  };
+
+  // ---------- Groups ----------
+
+  const doGroup = () => {
+    // Group all currently visible top-level selected + everything if none, but we only have single-select.
+    // Behavior: convert selected + all non-grouped as a new group? R3 requires multi-select.
+    // We approximate: group the selected object with the previously duplicated/created objects that share color.
+    // For now, prompt to name and group ALL top-level ungrouped objects.
+    if (objects.filter((o) => !o.groupId && !o.isGroup).length < 2) {
+      toast.error('Select at least 2 objects (multi-select coming soon)');
+      return;
+    }
+    const name = window.prompt('Group name?', `Group${(objects.filter((o) => o.isGroup).length || 0) + 1}`);
+    if (!name) return;
+    const groupId = `grp-${Date.now()}`;
+    saveState();
+    setObjects((prev) => {
+      const groupNode: Object3DData = {
+        id: groupId, name, type: 'box', position: [0,0,0], rotation: [0,0,0], scale: [1,1,1],
+        color: '#888', isGroup: true, groupOpen: false, visible: true,
+      };
+      return [
+        groupNode,
+        ...prev.map((o) => o.groupId || o.isGroup ? o : { ...o, groupId }),
+      ];
+    });
+    setSelectedObject(groupId);
+    toast.success(`Grouped as "${name}"`);
+  };
+  const doUngroup = () => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel || !sel.isGroup) { toast.error('Select a group to ungroup'); return; }
+    saveState();
+    setObjects((prev) => prev
+      .filter((o) => o.id !== sel.id)
+      .map((o) => o.groupId === sel.id ? { ...o, groupId: undefined } : o));
+    setSelectedObject(null);
+    toast.success('Ungrouped');
+  };
+  const doOpenGroup = () => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel?.isGroup) return;
+    setObjects((prev) => prev.map((o) => o.id === sel.id ? { ...o, groupOpen: true } : o));
+  };
+  const doCloseGroup = () => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel?.isGroup) return;
+    setObjects((prev) => prev.map((o) => o.id === sel.id ? { ...o, groupOpen: false } : o));
+  };
+  const doExplode = () => {
+    // Remove all group containers, keep members ungrouped.
+    saveState();
+    setObjects((prev) => prev.filter((o) => !o.isGroup).map((o) => ({ ...o, groupId: undefined })));
+    setSelectedObject(null);
+    toast.success('Exploded groups');
+  };
+
+  const saveObjectProperties = (id: string, updates: { name?: string; color?: string; properties: any }) => {
+    saveState();
+    setObjects((prev) => prev.map((o) => o.id === id ? {
+      ...o,
+      name: updates.name ?? o.name,
+      color: updates.color ?? o.color,
+      properties: { ...(o.properties || {}), ...updates.properties },
+    } : o));
+    toast.success('Properties updated');
+  };
+
+  const handleMenuAction = (action: string) => {
+    switch (action) {
+      case 'New Scene': doNewScene(); break;
+      case 'Reset': doReset(); break;
+      case 'Hold': doHold(); break;
+      case 'Fetch': doFetch(); break;
+      case 'Exit': askConfirm('Save changes before exit?', () => { openFileDialog('save'); }, 'Exit'); break;
+      case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
+      case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
+      case 'Select None': setSelectedObject(null); break;
+      case 'Group': doGroup(); break;
+      case 'Ungroup': doUngroup(); break;
+      case 'Open': doOpenGroup(); break;
+      case 'Close': doCloseGroup(); break;
+      case 'Explode': doExplode(); break;
+      case 'Units Setup...': setUnitsOpen(true); break;
+      case 'Grid and Snap Settings...': setSnapSettingsOpen(true); break;
+      case 'About 3ds Max...': setAboutOpen(true); break;
+      default: break;
+    }
+  };
+
   return (
     <EnvironmentProvider>
     <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
