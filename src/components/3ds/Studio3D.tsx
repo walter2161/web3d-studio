@@ -51,6 +51,9 @@ interface Object3DData {
   geometry?: any;
   modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
+  lightData?: any;
+  cameraData?: any;
+
   // Sprint A additions
   groupId?: string;
   groupOpen?: boolean;
