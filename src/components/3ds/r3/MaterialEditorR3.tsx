@@ -216,16 +216,36 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     setSlots((prev) => prev.map((m, i) => i === active ? { ...m, maps: { ...m.maps, [key]: { ...m.maps[key], ...patch } } } : m));
   };
 
+  const matToThree = (m: R3Material) => ({
+    color: m.diffuse,
+    metalness: m.metalness,
+    roughness: m.roughness,
+    opacity: m.opacity / 100,
+    emissive: m.diffuse,
+    emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
+  });
+
   const assignToSelection = () => {
-    if (!selectedObject) return;
-    onMaterialChange(selectedObject.id, {
-      color: mat.diffuse,
-      metalness: mat.metalness,
-      roughness: mat.roughness,
-      opacity: mat.opacity / 100,
-      emissive: mat.diffuse,
-      emissiveIntensity: mat.selfIllumination > 0 ? (mat.selfIllumination / 100) * (mat.emissiveIntensity || 1) : 0,
-    });
+    if (!selectedObject) {
+      try { (window as any).sonner?.error?.('Select an object first'); } catch {}
+      return;
+    }
+    onMaterialChange(selectedObject.id, matToThree(mat));
+  };
+
+  // HTML5 drag: when a slot starts being dragged, stash the three material payload
+  // on window so Object3D's onPointerUp can read it while raycasting the viewport.
+  const beginSlotDrag = (i: number, e: React.DragEvent) => {
+    const payload = matToThree(slots[i]);
+    (window as any).__matDragPayload = payload;
+    try {
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('application/x-r3-material', JSON.stringify(payload));
+    } catch {}
+  };
+  const endSlotDrag = () => {
+    // Clear shortly after so Object3D onPointerUp still sees it.
+    setTimeout(() => { (window as any).__matDragPayload = null; }, 250);
   };
 
   const getFromScene = () => {
