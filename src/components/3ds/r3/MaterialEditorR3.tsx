@@ -25,11 +25,81 @@ export type ShaderType =
   | 'Strauss'
   | 'Constant';
 
+export interface R3MapCoords {
+  mappingChannel: number;
+  offsetU: number; offsetV: number;
+  tilingU: number; tilingV: number;
+  angleU: number; angleV: number; angleW: number;
+  mirrorU: boolean; mirrorV: boolean;
+  tileU: boolean; tileV: boolean;
+  blur: number; blurOffset: number;
+}
+export interface R3MapOutput {
+  outputAmount: number; // 0..2
+  rgbOffset: number;    // -1..1
+  rgbLevel: number;     // 0..4
+  invert: boolean;
+  clamp: boolean;
+  bumpAmount: number;   // used for bump only
+}
+export interface R3MapParams {
+  // Bitmap
+  filename: string;
+  monoChannel: 'RGB Intensity' | 'Alpha';
+  rgbChannel: 'RGB' | 'Alpha as Gray';
+  alphaSource: 'Image Alpha' | 'RGB Intensity' | 'None';
+  // Procedural common
+  color1: string; color2: string; color3: string;
+  size: number;
+  // Noise
+  noiseType: 'Regular' | 'Fractal' | 'Turbulence';
+  levels: number; phase: number; low: number; high: number;
+  // Checker soften
+  soften: number;
+  // Marble
+  veinWidth: number; turbulence: number;
+  // Falloff
+  falloffType: 'Perpendicular / Parallel' | 'Towards / Away' | 'Fresnel' | 'Shadow/Light' | 'Distance Blend';
+  // Mix
+  mixAmount: number;
+  coords: R3MapCoords;
+  output: R3MapOutput;
+}
 export interface R3MapSlot {
   enabled: boolean;
   amount: number; // 0-100
-  name: string; // 'None' or map type
+  name: string;   // 'None' or map type
+  params?: R3MapParams;
 }
+
+const defaultCoords = (): R3MapCoords => ({
+  mappingChannel: 1,
+  offsetU: 0, offsetV: 0,
+  tilingU: 1, tilingV: 1,
+  angleU: 0, angleV: 0, angleW: 0,
+  mirrorU: false, mirrorV: false,
+  tileU: true, tileV: true,
+  blur: 1, blurOffset: 0,
+});
+const defaultOutput = (): R3MapOutput => ({
+  outputAmount: 1, rgbOffset: 0, rgbLevel: 1, invert: false, clamp: false, bumpAmount: 30,
+});
+const defaultMapParams = (): R3MapParams => ({
+  filename: '',
+  monoChannel: 'RGB Intensity',
+  rgbChannel: 'RGB',
+  alphaSource: 'Image Alpha',
+  color1: '#000000', color2: '#ffffff', color3: '#808080',
+  size: 25,
+  noiseType: 'Regular',
+  levels: 3, phase: 0, low: 0, high: 1,
+  soften: 0,
+  veinWidth: 0.025, turbulence: 1,
+  falloffType: 'Perpendicular / Parallel',
+  mixAmount: 0.5,
+  coords: defaultCoords(),
+  output: defaultOutput(),
+});
 
 export interface R3Material {
   name: string;
