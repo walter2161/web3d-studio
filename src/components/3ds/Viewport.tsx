@@ -1,10 +1,12 @@
 import { useRef, useState, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
+import * as THREE from 'three';
 import { Scene3D } from './Scene3D';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
+import { useEnvironment } from './r3/EnvironmentContext';
 
 interface ViewportProps {
   type: 'perspective' | 'top' | 'front' | 'left';
