@@ -171,16 +171,15 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
 
   switch (type) {
     case 'line': {
-      // Multi-vertex line: points is an array of [x,y,z] in local space.
-      // Falls back to a single horizontal segment when no points are supplied.
+      // Multi-vertex line: `points` is an array of [x,y,z] in local space.
+      // Rendered as a thin tube so it shows up in the mesh pipeline.
       const rawPts: number[][] | undefined = p.points;
       if (rawPts && rawPts.length >= 2) {
         const pts3 = rawPts.map((v) => new THREE.Vector3(v[0], v[1], v[2]));
         const closed = !!p.closed;
-        const geom = new THREE.BufferGeometry().setFromPoints(
-          closed ? [...pts3, pts3[0]] : pts3
-        );
-        return geom;
+        const curve = new THREE.CatmullRomCurve3(pts3, closed, 'catmullrom', 0);
+        const segs = Math.max(16, pts3.length * 24);
+        return new THREE.TubeGeometry(curve, segs, TUBE_RADIUS, TUBE_RADIAL_SEG, closed);
       }
       const curve = new THREE.LineCurve3(new THREE.Vector3(-p.length / 2, 0, 0), new THREE.Vector3(p.length / 2, 0, 0));
       return shapeToTube(curve, 8);
