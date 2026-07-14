@@ -77,64 +77,57 @@ async function readFileAs(file: File, mode: 'text' | 'arraybuffer'): Promise<str
   });
 }
 
-export async function importModelFile(file: File): Promise<ImportedModel> {
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+export async function importFromBytes(filename: string, bytes: ArrayBuffer): Promise<ImportedModel> {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  const decodeText = () => new TextDecoder().decode(bytes);
 
   let loaded: { scene: THREE.Object3D; animations: THREE.AnimationClip[] };
 
   switch (ext) {
     case 'obj': {
-      const text = (await readFileAs(file, 'text')) as string;
-      const scene = new OBJLoader().parse(text);
+      const scene = new OBJLoader().parse(decodeText());
       loaded = { scene, animations: [] };
       break;
     }
     case 'gltf': {
-      const text = (await readFileAs(file, 'text')) as string;
       const loader = new GLTFLoader();
       const gltf = await new Promise<any>((res, rej) =>
-        loader.parse(text, '', res, rej)
+        loader.parse(decodeText(), '', res, rej)
       );
       loaded = { scene: gltf.scene, animations: gltf.animations || [] };
       break;
     }
     case 'glb': {
-      const buf = (await readFileAs(file, 'arraybuffer')) as ArrayBuffer;
       const loader = new GLTFLoader();
       const gltf = await new Promise<any>((res, rej) =>
-        loader.parse(buf, '', res, rej)
+        loader.parse(bytes, '', res, rej)
       );
       loaded = { scene: gltf.scene, animations: gltf.animations || [] };
       break;
     }
     case 'fbx': {
-      const buf = (await readFileAs(file, 'arraybuffer')) as ArrayBuffer;
-      const scene = new FBXLoader().parse(buf, '');
+      const scene = new FBXLoader().parse(bytes, '');
       loaded = { scene, animations: scene.animations || [] };
       break;
     }
     case '3ds': {
-      const buf = (await readFileAs(file, 'arraybuffer')) as ArrayBuffer;
-      const scene = new TDSLoader().parse(buf, '');
+      const scene = new TDSLoader().parse(bytes, '');
       loaded = { scene, animations: [] };
       break;
     }
     case 'dae': {
-      const text = (await readFileAs(file, 'text')) as string;
-      const collada = new ColladaLoader().parse(text, '');
+      const collada = new ColladaLoader().parse(decodeText(), '');
       loaded = { scene: collada.scene, animations: collada.scene.animations || [] };
       break;
     }
     case 'stl': {
-      const buf = (await readFileAs(file, 'arraybuffer')) as ArrayBuffer;
-      const geom = new STLLoader().parse(buf);
+      const geom = new STLLoader().parse(bytes);
       const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0x9ca3af }));
       loaded = { scene: mesh, animations: [] };
       break;
     }
     case 'ply': {
-      const buf = (await readFileAs(file, 'arraybuffer')) as ArrayBuffer;
-      const geom = new PLYLoader().parse(buf);
+      const geom = new PLYLoader().parse(bytes);
       geom.computeVertexNormals();
       const mesh = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({ color: 0x9ca3af }));
       loaded = { scene: mesh, animations: [] };
@@ -147,3 +140,10 @@ export async function importModelFile(file: File): Promise<ImportedModel> {
   const root = normalizeTransform(loaded.scene);
   return { root, animations: loaded.animations };
 }
+
+export async function importModelFile(file: File): Promise<{ model: ImportedModel; bytes: ArrayBuffer }> {
+  const bytes = await file.arrayBuffer();
+  const model = await importFromBytes(file.name, bytes);
+  return { model, bytes };
+}
+
