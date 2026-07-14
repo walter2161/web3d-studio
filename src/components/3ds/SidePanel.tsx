@@ -146,13 +146,15 @@ export const SidePanel = ({
               <CardContent className="grid grid-cols-2 gap-2">
                 {createCategory === 'standard' && standardPrimitives.map((primitive) => {
                   const IconComponent = primitive.icon;
+                  const pressed = armedTool === primitive.type;
                   return (
                     <Button
                       key={primitive.type}
                       variant="outline"
                       size="sm"
-                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => onCreateObject(primitive.type)}
+                      className={`h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover ${pressed ? 'ring-2 ring-yellow-400 bevel-inset' : ''}`}
+                      onClick={() => (onArmTool ? onArmTool(primitive.type) : onCreateObject(primitive.type))}
+                      title={pressed ? 'Armed — click & drag in the viewport (ESC to cancel)' : `Create ${primitive.label}`}
                     >
                       <IconComponent className="w-6 h-6" />
                       <span className="text-xs">{primitive.label}</span>
@@ -160,29 +162,36 @@ export const SidePanel = ({
                   );
                 })}
 
-                {createCategory === 'extended' && extendedPrimitives.map((p) => (
-                  <Button
-                    key={p.type}
-                    variant="outline"
-                    size="sm"
-                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
-                    onClick={() => onCreateObject(p.type)}
-                  >
-                    {p.label}
-                  </Button>
-                ))}
+                {createCategory === 'extended' && extendedPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <Button
+                      key={p.type}
+                      variant="outline"
+                      size="sm"
+                      className={`h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px] ${pressed ? 'ring-2 ring-yellow-400 bevel-inset' : ''}`}
+                      onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                    >
+                      {p.label}
+                    </Button>
+                  );
+                })}
 
-                {createCategory === 'shapes' && shapes.map((s) => (
-                  <Button
-                    key={s.type}
-                    variant="outline"
-                    size="sm"
-                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
-                    onClick={() => onCreateObject(s.type)}
-                  >
-                    {s.label}
-                  </Button>
-                ))}
+                {createCategory === 'shapes' && shapes.map((s) => {
+                  const pressed = armedTool === s.type;
+                  return (
+                    <Button
+                      key={s.type}
+                      variant="outline"
+                      size="sm"
+                      className={`h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px] ${pressed ? 'ring-2 ring-yellow-400 bevel-inset' : ''}`}
+                      onClick={() => (onArmTool ? onArmTool(s.type) : onCreateObject(s.type))}
+                    >
+                      {s.label}
+                    </Button>
+                  );
+                })}
+
 
                 {createCategory === 'lights' && (
                   <>
