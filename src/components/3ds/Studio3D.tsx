@@ -1061,7 +1061,7 @@ export const Studio3D = () => {
       />
 
 
-      <MaterialEditor
+      <MaterialEditorR3
         open={materialEditorOpen}
         onOpenChange={setMaterialEditorOpen}
         selectedObject={selectedObjectData}
