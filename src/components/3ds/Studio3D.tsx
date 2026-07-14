@@ -1193,6 +1193,9 @@ export const Studio3D = () => {
             onAddModifier={addModifier}
             onUpdateModifier={updateModifier}
             onRemoveModifier={removeModifier}
+            onToggleModifier={toggleModifier}
+            onReorderModifier={reorderModifier}
+            onRenameObject={renameObject}
             onUpdateObjectGeometry={updateObjectGeometry}
           />
 
