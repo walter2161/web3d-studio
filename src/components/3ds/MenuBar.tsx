@@ -80,6 +80,11 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                   }`}
                   onClick={() => {
                     if (item.startsWith('Material Editor')) onOpenMaterialEditor();
+                    if (item.startsWith('Material/Map Browser')) onMaterialBrowser?.();
+                    if (item === 'Render...') onQuickRender?.();
+                    if (item.startsWith('Render Setup')) onRenderSetup?.();
+                    if (item.startsWith('Environment')) onEnvironment?.();
+                    if (item.startsWith('View Image File')) onViewImageFile?.();
                     if (item === 'Save' || item.startsWith('Save As')) onFileOperation('save');
                     if (item.startsWith('Open')) onFileOperation('open');
                     if (item.startsWith('Export')) onFileOperation('export');
