@@ -850,6 +850,9 @@ export const Studio3D = () => {
           toast.success('New scene created');
         }}
         onViewportChange={setActiveViewport}
+        onToggleMaximize={() => setViewportLayout((v) => (v === 'single' ? 'quad' : 'single'))}
+        onToggleSnap={() => setSnapEnabled((v) => !v)}
+        onOpenSelectByName={() => setSelectByNameOpen(true)}
       />
 
       {/* Windows title bar */}
@@ -887,12 +890,24 @@ export const Studio3D = () => {
           onRedo={redo}
           onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
           onQuickRender={() => setQuickRenderOpen(true)}
+          onMirror={() => { if (selectedObject) setMirrorOpen(true); else toast.error('Select an object'); }}
+          onArray={() => { if (selectedObject) setArrayOpen(true); else toast.error('Select an object'); }}
+          onAlign={() => { if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); }}
+          onLayerManager={() => toast.info('Layer Manager — coming next sprint')}
+          onSelectByName={() => setSelectByNameOpen(true)}
+          onRenderSetup={() => setRenderSetupOpen(true)}
         />
       </div>
 
       {/* Snaps / secondary toolbar row */}
       <div className="shrink-0">
-        <SnapsToolbar />
+        <SnapsToolbar
+          snapEnabled={snapEnabled}
+          onToggleSnap={() => setSnapEnabled((v) => !v)}
+          angleSnapEnabled={angleSnapEnabled}
+          onToggleAngleSnap={() => setAngleSnapEnabled((v) => !v)}
+          onOpenGridSettings={() => setSnapSettingsOpen(true)}
+        />
       </div>
 
       <div className="flex flex-1 min-h-0 bg-win-face">
