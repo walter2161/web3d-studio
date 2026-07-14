@@ -16,7 +16,7 @@ export interface EnvironmentSettings {
 const DEFAULT_ENV: EnvironmentSettings = {
   backgroundColor: '#0f1419',
   tint: '#ffffff',
-  level: 1.0,
+  level: 5.0,
   ambient: '#333333',
   ambientIntensity: 0.4,
   fogEnabled: false,

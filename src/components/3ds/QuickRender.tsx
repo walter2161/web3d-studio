@@ -4,71 +4,15 @@ import { Download, RefreshCw, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { getViewportHandle } from './r3/viewportRegistry';
+import { ENGINES, RenderEngine, useRenderEngine } from './r3/RenderEngineContext';
 
 interface QuickRenderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Render engines simulate the "look" of the three industry-leading engines
- * for 3ds Max. Each preset tweaks three.js tone mapping + exposure and
- * applies a CSS filter pass over the final image to emulate the engine's
- * signature response, and enriches the AI prompt with the engine's style.
- */
-export type RenderEngine = 'scanline' | 'vray' | 'corona' | 'arnold';
+export type { RenderEngine };
 
-interface EnginePreset {
-  label: string;
-  description: string;
-  toneMapping: THREE.ToneMapping;
-  exposure: number;
-  /** CSS filter applied to the <img> so the preset is visible even after render */
-  cssFilter: string;
-  /** Extra prompt fragment appended for Render AI */
-  aiStyle: string;
-}
-
-const ENGINES: Record<RenderEngine, EnginePreset> = {
-  scanline: {
-    label: 'Scanline',
-    description: 'Default 3ds Max Scanline renderer — flat shaded pass, no tricks.',
-    toneMapping: THREE.NoToneMapping,
-    exposure: 1.0,
-    cssFilter: 'none',
-    aiStyle: 'clean flat 3d render, neutral studio lighting, no post-processing',
-  },
-  vray: {
-    label: 'V-Ray',
-    description: 'V-Ray — physically-based, punchy contrast and rich reflections (ArchViz standard).',
-    toneMapping: THREE.ACESFilmicToneMapping,
-    exposure: 1.15,
-    cssFilter: 'contrast(1.12) saturate(1.15) brightness(1.02)',
-    aiStyle:
-      'V-Ray photorealistic architectural render, physically based materials, VRaySun and VRaySky lighting, ' +
-      'glossy reflections, subtle GI bounce, sharp contact shadows, ArchViz cinematic look',
-  },
-  corona: {
-    label: 'Corona',
-    description: 'Chaos Corona — unbiased path tracing, soft cinematic tones, LightMix warmth.',
-    toneMapping: THREE.CineonToneMapping,
-    exposure: 1.05,
-    cssFilter: 'contrast(1.05) saturate(1.08) brightness(1.04) sepia(0.05)',
-    aiStyle:
-      'Chaos Corona unbiased path traced render, soft cinematic tone mapping, warm LightMix balance, ' +
-      'creamy highlights, physically accurate soft shadows, artistic ArchViz mood',
-  },
-  arnold: {
-    label: 'Arnold',
-    description: 'Autodesk Arnold — Monte Carlo ray tracing, filmic VFX/cinema quality with deep volumes.',
-    toneMapping: THREE.AgXToneMapping,
-    exposure: 1.0,
-    cssFilter: 'contrast(1.08) saturate(0.98) brightness(0.98)',
-    aiStyle:
-      'Autodesk Arnold Monte Carlo ray traced render, filmic VFX cinema quality, subsurface scattering, ' +
-      'volumetric lighting, deep blacks, subtle grain, Hollywood studio VFX look',
-  },
-};
 
 /**
  * "Production" render:
@@ -172,7 +116,7 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
   const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [rendering, setRendering] = useState(false);
   const [mode, setMode] = useState<Mode>('standard');
-  const [engine, setEngine] = useState<RenderEngine>('vray');
+  const { engine, setEngine } = useRenderEngine();
   const [prompt, setPrompt] = useState('a modern building');
 
   const render = async (eng: RenderEngine = engine) => {
