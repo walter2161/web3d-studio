@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Package, User, Car, Bird, Cat, Building2, Skull, Search,
+  Package, User, Car, Bird, Building2, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
