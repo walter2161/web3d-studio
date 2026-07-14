@@ -279,13 +279,18 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           geom.radialSegments || 16,
           geom.tubularSegments || 100
         );
-      case 'plane':
-        return new THREE.PlaneGeometry(
+      case 'plane': {
+        const planeGeom = new THREE.PlaneGeometry(
           geom.width || 1,
           geom.height || 1,
           geom.widthSegments || 1,
           geom.heightSegments || 1
         );
+        // 3ds Max Plane sits flat on the ground (XZ plane, normal +Y).
+        // Three's PlaneGeometry lies on XY (normal +Z), so rotate -90° around X.
+        planeGeom.rotateX(-Math.PI / 2);
+        return planeGeom;
+      }
       default:
         return new THREE.BoxGeometry(1, 1, 1, 1, 1, 1);
     }
