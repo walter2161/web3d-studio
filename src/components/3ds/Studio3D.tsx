@@ -344,7 +344,7 @@ export const Studio3D = () => {
       if (baseKind === 'light_direct')   { position = [0, 8, 0]; color = '#ffffff'; lightData.distance = 30; }
       if (baseKind === 'light_skylight') { position = [0, 8, 0]; color = '#a0c8ff'; lightData.skyColor = '#a0c8ff'; lightData.groundColor = '#4a3a2a'; lightData.intensity = 0.6; }
       if (baseKind === 'light_ambient')  { position = [0, 5, 0]; color = '#404040'; lightData.intensity = 0.4; }
-      if (baseKind === 'camera_target' || baseKind === 'camera_free') { position = [8, 5, 8]; color = '#4488ff'; }
+      if (baseKind === 'camera_target' || baseKind === 'camera_free') { position = [3, 3, 3]; color = '#4488ff'; }
 
       // Free (non-targeted) spot/direct lights: nascem apontando para baixo (-Y).
       // Local -Z is the light forward, so rotate -90° around X to send -Z → -Y.
