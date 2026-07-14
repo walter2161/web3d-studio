@@ -116,7 +116,7 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
   const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [rendering, setRendering] = useState(false);
   const [mode, setMode] = useState<Mode>('standard');
-  const [engine, setEngine] = useState<RenderEngine>('vray');
+  const { engine, setEngine } = useRenderEngine();
   const [prompt, setPrompt] = useState('a modern building');
 
   const render = async (eng: RenderEngine = engine) => {
