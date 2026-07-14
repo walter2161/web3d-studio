@@ -415,9 +415,21 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         )}
       </group>
     );
+  // Render lights and cameras as full-fledged scene entities with R3-style helpers.
+  if (isEntityType(object.type)) {
+    return (
+      <EntityRenderer
+        object={object as any}
+        isSelected={isSelected}
+        onSelect={onSelect}
+        meshRef={meshRef as any}
+        targetLookup={targetLookup}
+      />
+    );
   }
 
   const isGhost = (object as any).__creating === true;
+
 
   return (
     <mesh
