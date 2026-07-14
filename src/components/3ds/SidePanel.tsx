@@ -643,6 +643,16 @@ export const SidePanel = ({
             {/* Base object parameters — visible only when the base is selected in the stack */}
             {selectedObject && selectedStackItem === 'base' && (
               <>
+                {/* Light Parameters — R3-style General / Intensity/Color / Attenuation / Spot / Shadows */}
+                {String(selectedObject.type || '').startsWith('light_') && (
+                  <LightParameters
+                    object={selectedObject}
+                    onUpdateColor={(c) => onUpdateObjectColor?.(selectedObject.id, c)}
+                    onUpdateLightData={(patch) => onUpdateObjectLightData?.(selectedObject.id, patch)}
+                  />
+                )}
+
+
 
                 {/* Base Geometry Controls — schema-driven, real values from selectedObject.geometry */}
                 <Card className="bg-card border-panel-border mt-4">
