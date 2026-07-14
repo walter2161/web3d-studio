@@ -448,9 +448,16 @@ export const Studio3D = () => {
     const loadingId = toast.loading(`Importing ${file.name}...`);
     try {
       const { importModelFile, setImportedModel } = await import('./utils/modelImport');
-      const model = await importModelFile(file);
+      const { saveModelBlob } = await import('./utils/modelStorage');
+      const { model, bytes } = await importModelFile(file);
       const id = `imported_${Date.now()}`;
       setImportedModel(id, model);
+      // Persist the original bytes so we can rehydrate after a refresh.
+      try {
+        await saveModelBlob(id, file.name, bytes);
+      } catch (e) {
+        console.warn('Could not persist model blob:', e);
+      }
       saveState();
       const baseName = file.name.replace(/\.[^.]+$/, '');
       const newObject: Object3DData = {
@@ -465,6 +472,8 @@ export const Studio3D = () => {
         locked: false,
         modifiers: [],
         ref: { current: null } as any,
+        // Store filename in geometry blob so rehydration knows the extension.
+        geometry: { __importedFilename: file.name },
       };
       setObjects(prev => [...prev, newObject]);
       setSelectedObject(id);
@@ -473,13 +482,13 @@ export const Studio3D = () => {
         ? ` (${model.animations.length} animation${model.animations.length > 1 ? 's' : ''})`
         : '';
       toast.success(`Imported ${file.name}${animMsg}`);
-
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('Import failed:', err);
       toast.error(`Import failed: ${err?.message || 'unknown error'}`);
     }
   }, [saveState]);
+
 
 
   const handleDeleteSelected = useCallback(() => {
