@@ -1,10 +1,19 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer } from 'three';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as ThreeObject3D } from 'three';
 import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 
+// R3-style entity types
+export const LIGHT_TYPES = ['light_omni', 'light_spot', 'light_direct', 'light_skylight', 'light_ambient'] as const;
+export const CAMERA_TYPES = ['camera_free', 'camera_target'] as const;
+export const TARGET_TYPES = ['target_helper'] as const;
+export type LightType = typeof LIGHT_TYPES[number];
+export type CameraType = typeof CAMERA_TYPES[number];
+export const isLightType = (t: string): t is LightType => (LIGHT_TYPES as readonly string[]).includes(t);
+export const isCameraType = (t: string): t is CameraType => (CAMERA_TYPES as readonly string[]).includes(t);
+export const isEntityType = (t: string) => isLightType(t) || isCameraType(t) || t === 'target_helper';
 
 interface Object3DProps {
   object: {
@@ -15,13 +24,30 @@ interface Object3DProps {
     scale: [number, number, number];
     color: string;
     geometry?: any;
+    lightData?: {
+      intensity?: number;
+      distance?: number;
+      decay?: number;
+      angle?: number;        // spot
+      penumbra?: number;     // spot
+      castShadow?: boolean;
+      skyColor?: string;     // skylight
+      groundColor?: string;  // skylight
+      targetObjectId?: string;
+    };
+    cameraData?: {
+      fov?: number;
+      near?: number;
+      far?: number;
+      targetObjectId?: string;
+    };
     modifiers?: Array<{
       id: string;
       type: string;
       params: any;
       active: boolean;
     }>;
-    ref?: React.MutableRefObject<Mesh | null>;
+    ref?: React.MutableRefObject<any>;
   };
   isSelected: boolean;
   onSelect: () => void;
@@ -29,12 +55,14 @@ interface Object3DProps {
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
+  targetLookup?: (id: string) => [number, number, number] | null;
 }
 
 
 
-export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false }: Object3DProps) => {
+export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup }: Object3DProps) => {
   const meshRef = useRef<Mesh>(null);
+
 
   // Update object ref
   useEffect(() => {
