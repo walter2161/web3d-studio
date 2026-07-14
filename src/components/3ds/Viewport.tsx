@@ -155,3 +155,22 @@ export const Viewport = ({
     </div>
   );
 };
+
+// Syncs environment settings (background, fog) with the three.js scene each render.
+import { useThree } from '@react-three/fiber';
+import { useEffect } from 'react';
+
+const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }: {
+  backgroundColor: string; fogEnabled: boolean; fogColor: string; fogNear: number; fogFar: number;
+}) => {
+  const { scene, gl } = useThree();
+  useEffect(() => {
+    scene.background = new THREE.Color(backgroundColor);
+    gl.setClearColor(backgroundColor);
+  }, [backgroundColor, scene, gl]);
+  useEffect(() => {
+    scene.fog = fogEnabled ? new THREE.Fog(fogColor, fogNear, fogFar) : null;
+  }, [fogEnabled, fogColor, fogNear, fogFar, scene]);
+  return null;
+};
+
