@@ -726,6 +726,84 @@ export const Studio3D = () => {
     toast.success('Properties updated');
   };
 
+  // ---------- Sprint B: Mirror / Array / Align / Select Invert ----------
+
+  const applyMirror = (opts: { axis: 'X' | 'Y' | 'Z' | 'XY' | 'YZ' | 'ZX'; offset: number; cloneMode: 'no' | 'copy' | 'instance' | 'reference' }) => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel) { toast.error('Select an object first'); return; }
+    saveState();
+    const flip = (v: [number, number, number], axis: typeof opts.axis, off: number): [number, number, number] => {
+      const p: [number, number, number] = [...v] as [number, number, number];
+      const applyOn = (i: 0 | 1 | 2) => { p[i] = -p[i] + (i === 0 ? off : 0); };
+      if (axis.includes('X')) applyOn(0);
+      if (axis.includes('Y')) applyOn(1);
+      if (axis.includes('Z')) applyOn(2);
+      return p;
+    };
+    const flipScale = (v: [number, number, number], axis: typeof opts.axis): [number, number, number] => {
+      const s: [number, number, number] = [...v] as [number, number, number];
+      if (axis.includes('X')) s[0] = -s[0];
+      if (axis.includes('Y')) s[1] = -s[1];
+      if (axis.includes('Z')) s[2] = -s[2];
+      return s;
+    };
+    const mirrored = {
+      ...sel,
+      id: opts.cloneMode !== 'no' ? `${sel.type}_${Date.now()}` : sel.id,
+      name: opts.cloneMode !== 'no' ? `${sel.name || sel.type}_mirror` : sel.name,
+      position: flip(sel.position, opts.axis, opts.offset),
+      scale: flipScale(sel.scale, opts.axis),
+      ref: opts.cloneMode !== 'no' ? { current: null } as any : sel.ref,
+    };
+    setObjects((prev) => opts.cloneMode === 'no'
+      ? prev.map((o) => (o.id === sel.id ? mirrored : o))
+      : [...prev, mirrored]
+    );
+    if (opts.cloneMode !== 'no') setSelectedObject(mirrored.id);
+    toast.success(`Mirrored along ${opts.axis}`);
+  };
+
+  const applyArray = (opts: { count: number; incX: number; incY: number; incZ: number; incRotX: number; incRotY: number; incRotZ: number; incScale: number }) => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel) { toast.error('Select an object first'); return; }
+    saveState();
+    const clones: Object3DData[] = [];
+    const d2r = Math.PI / 180;
+    for (let i = 1; i < opts.count; i++) {
+      clones.push({
+        ...sel,
+        id: `${sel.type}_${Date.now()}_${i}`,
+        name: `${sel.name || sel.type}_${String(i).padStart(2, '0')}`,
+        position: [sel.position[0] + opts.incX * i, sel.position[1] + opts.incY * i, sel.position[2] + opts.incZ * i],
+        rotation: [sel.rotation[0] + opts.incRotX * d2r * i, sel.rotation[1] + opts.incRotY * d2r * i, sel.rotation[2] + opts.incRotZ * d2r * i],
+        scale: [sel.scale[0] * Math.pow(opts.incScale, i), sel.scale[1] * Math.pow(opts.incScale, i), sel.scale[2] * Math.pow(opts.incScale, i)],
+        ref: { current: null } as any,
+      });
+    }
+    setObjects((prev) => [...prev, ...clones]);
+    toast.success(`Array of ${opts.count} created`);
+  };
+
+  const applyAlign = (opts: AlignOpts) => {
+    const sel = objects.find((o) => o.id === selectedObject);
+    if (!sel) { toast.error('Select current object first'); return; }
+    const target = objects.find((o) => o.id !== sel.id && !o.isGroup);
+    if (!target) { toast.error('Need a second object as target'); return; }
+    saveState();
+    const pos: [number, number, number] = [...sel.position] as [number, number, number];
+    if (opts.x) pos[0] = target.position[0];
+    if (opts.y) pos[1] = target.position[1];
+    if (opts.z) pos[2] = target.position[2];
+    setObjects((prev) => prev.map((o) => (o.id === sel.id ? { ...o, position: pos } : o)));
+    toast.success(`Aligned to ${target.name || target.type}`);
+  };
+
+  const doSelectInvert = () => {
+    const candidates = objects.filter((o) => !o.isGroup && o.visible !== false);
+    const other = candidates.find((o) => o.id !== selectedObject);
+    setSelectedObject(other?.id ?? null);
+  };
+
   const handleMenuAction = (action: string) => {
     switch (action) {
       case 'New Scene': doNewScene(); break;
@@ -736,6 +814,8 @@ export const Studio3D = () => {
       case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
       case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
       case 'Select None': setSelectedObject(null); break;
+      case 'Select Invert': doSelectInvert(); break;
+      case 'Region': setSelectByNameOpen(true); break;
       case 'Group': doGroup(); break;
       case 'Ungroup': doUngroup(); break;
       case 'Open': doOpenGroup(); break;
