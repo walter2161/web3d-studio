@@ -188,7 +188,7 @@ export const Viewport = ({
             {(['perspective', 'top', 'bottom', 'front', 'back', 'left', 'right', 'user'] as ViewType[]).map((v) => (
               <DropdownMenuItem
                 key={v}
-                onClick={() => { setViewOverride(v); onChangeCameraObject?.(null); }}
+                onClick={() => switchView(v)}
               >
                 {VIEW_LABELS[v]}{view === v && !cameraObjectId ? '  ✓' : ''}
               </DropdownMenuItem>
