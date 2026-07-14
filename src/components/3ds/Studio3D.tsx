@@ -37,7 +37,10 @@ interface Object3DData {
   type:
     | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported'
     | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
-    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix';
+    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix'
+    | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
+    | 'camera_target' | 'camera_free' | 'target_helper';
+
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
