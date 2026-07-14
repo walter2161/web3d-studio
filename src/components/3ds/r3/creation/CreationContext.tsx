@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 
 export type CreatableTool =
   | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane'
@@ -24,7 +24,6 @@ interface CreationCtx {
   ghost: GhostObject | null;
   setGhost: (g: GhostObject | null) => void;
   commit: (g: GhostObject) => void;
-  registerCommitHandler: (fn: (g: GhostObject) => void) => void;
 }
 
 const Ctx = createContext<CreationCtx | null>(null);
@@ -35,10 +34,17 @@ export const useCreation = () => {
   return ctx;
 };
 
-export const CreationProvider = ({ children }: { children: ReactNode }) => {
+interface ProviderProps {
+  children: ReactNode;
+  onCommit: (g: GhostObject) => void;
+  onArmedChange?: (t: CreatableTool | null) => void;
+}
+
+export const CreationProvider = ({ children, onCommit, onArmedChange }: ProviderProps) => {
   const [armed, setArmed] = useState<CreatableTool | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
-  const [commitFn, setCommitFn] = useState<(g: GhostObject) => void>(() => () => {});
+
+  useEffect(() => { onArmedChange?.(armed); }, [armed, onArmedChange]);
 
   const arm = useCallback((tool: CreatableTool) => {
     setGhost(null);
@@ -49,18 +55,15 @@ export const CreationProvider = ({ children }: { children: ReactNode }) => {
     setArmed(null);
   }, []);
   const commit = useCallback((g: GhostObject) => {
-    commitFn(g);
+    onCommit(g);
     setGhost(null);
-    // 3ds Max R3 keeps the tool armed until you press ESC or pick another,
-    // so users can chain-create the same primitive quickly.
-  }, [commitFn]);
-  const registerCommitHandler = useCallback((fn: (g: GhostObject) => void) => {
-    setCommitFn(() => fn);
-  }, []);
+    // Keep tool armed for chain creation (matches R3). ESC / disarm to stop.
+  }, [onCommit]);
 
   const value = useMemo(
-    () => ({ armed, arm, disarm, ghost, setGhost, commit, registerCommitHandler }),
-    [armed, arm, disarm, ghost, commit, registerCommitHandler]
+    () => ({ armed, arm, disarm, ghost, setGhost, commit }),
+    [armed, arm, disarm, ghost, commit]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
+
