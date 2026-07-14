@@ -152,8 +152,10 @@ export const SidePanel = ({
               <option value="standard">Standard Primitives</option>
               <option value="extended">Extended Primitives</option>
               <option value="shapes">Shapes</option>
-              <option value="lights">Lights &amp; Cameras</option>
+              <option value="lights">Lights</option>
+              <option value="cameras">Cameras</option>
             </select>
+
 
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3">
