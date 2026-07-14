@@ -597,15 +597,20 @@ export const Studio3D = () => {
               onActivate={() => {}}
               objects={objects.filter(obj => obj.visible !== false)}
               selectedObject={selectedObject}
-              onSelectObject={handleSelectObject}
+              selectedSubUuid={selectedSubUuid}
+              onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
               onTransformObject={handleTransformObject}
               transformMode={transformMode}
               animationTracks={animationTracks}
               selectedKeyframe={selectedKeyframe}
               onUpdateKeyframe={updateKeyframe}
+              currentFrame={currentFrame}
+              totalFrames={totalFrames}
+              isPlaying={isPlaying}
             />
           </div>
         </div>
+
 
         <SidePanel
           onCreateObject={createObject}
