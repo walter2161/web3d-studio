@@ -160,7 +160,10 @@ export const KeyboardShortcuts = ({
     onSave,
     onOpen,
     onNew,
-    onViewportChange
+    onViewportChange,
+    onToggleMaximize,
+    onToggleSnap,
+    onOpenSelectByName,
   ]);
 
   return null;
