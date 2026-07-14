@@ -183,6 +183,8 @@ interface SidePanelProps {
   onReorderModifier?: (objectId: string, modifierId: string, direction: -1 | 1) => void;
   onRenameObject?: (objectId: string, name: string) => void;
   onUpdateObjectGeometry: (objectId: string, params: any) => void;
+  onUpdateObjectLightData?: (objectId: string, params: any) => void;
+  onUpdateObjectColor?: (objectId: string, color: string) => void;
 }
 
 export const SidePanel = ({
