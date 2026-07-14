@@ -211,30 +211,36 @@ export const SidePanel = ({
                 })}
 
 
-                {createCategory === 'lights' && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => onCreateObject('light')}
-                    >
-                      <Lightbulb className="w-6 h-6" />
-                      <span className="text-xs">Light</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => onCreateObject('camera')}
-                    >
-                      <Camera className="w-6 h-6" />
-                      <span className="text-xs">Camera</span>
-                    </Button>
-                  </>
-                )}
+                {createCategory === 'lights' && lightSubtypes.map((l) => (
+                  <Button
+                    key={l.type}
+                    variant="outline"
+                    size="sm"
+                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
+                    onClick={() => onCreateObject(l.type)}
+                    title={`Create ${l.label}`}
+                  >
+                    <Lightbulb className="w-4 h-4" />
+                    <span>{l.label}</span>
+                  </Button>
+                ))}
+
+                {createCategory === 'cameras' && cameraSubtypes.map((c) => (
+                  <Button
+                    key={c.type}
+                    variant="outline"
+                    size="sm"
+                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
+                    onClick={() => onCreateObject(c.type)}
+                    title={`Create ${c.label}`}
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>{c.label}</span>
+                  </Button>
+                ))}
               </CardContent>
             </Card>
+
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0">
