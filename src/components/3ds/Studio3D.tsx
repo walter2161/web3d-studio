@@ -33,6 +33,24 @@ interface Object3DData {
   geometry?: any;
   modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
+  // Sprint A additions
+  groupId?: string;        // membership in a group node
+  groupOpen?: boolean;     // used on the group node itself (id === groupId)
+  isGroup?: boolean;       // marker for group container objects (not rendered)
+  properties?: {
+    renderable?: boolean;
+    castShadows?: boolean;
+    receiveShadows?: boolean;
+    visibility?: number;
+    displayAsBox?: boolean;
+    backfaceCull?: boolean;
+    edgesOnly?: boolean;
+    vertexTicks?: boolean;
+    wireframeColor?: string;
+    motionBlur?: 'none' | 'object' | 'image';
+    motionBlurMultiplier?: number;
+    gBufferId?: number;
+  };
 }
 
 interface Modifier {
