@@ -12,19 +12,25 @@ interface ViewportProps {
   onActivate: () => void;
   objects: any[];
   selectedObject: string | null;
+  selectedSubUuid?: string | null;
   onSelectObject: (id: string | null) => void;
   onTransformObject: (id: string, transform: any) => void;
   transformMode: 'translate' | 'rotate' | 'scale';
   animationTracks?: AnimationTrack[];
   selectedKeyframe?: Keyframe | null;
   onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;
+  currentFrame?: number;
+  totalFrames?: number;
+  isPlaying?: boolean;
 }
 
-export const Viewport = ({ 
-  type, isActive, onActivate, objects, selectedObject, 
+export const Viewport = ({
+  type, isActive, onActivate, objects, selectedObject, selectedSubUuid,
   onSelectObject, onTransformObject, transformMode,
-  animationTracks, selectedKeyframe, onUpdateKeyframe
+  animationTracks, selectedKeyframe, onUpdateKeyframe,
+  currentFrame, totalFrames, isPlaying,
 }: ViewportProps) => {
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [renderMode, setRenderMode] = useState<'solid' | 'wireframe' | 'semi-transparent'>('solid');
 
