@@ -168,6 +168,9 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
   const { gl, camera } = useThree();
   const { armed, ghost, setGhost, commit, disarm } = useCreation();
   const stageRef = useRef<{ stage: number; start: THREE.Vector3 } | null>(null);
+  const ghostRef = useRef<GhostObject | null>(ghost);
+  ghostRef.current = ghost;
+
 
   useEffect(() => {
     if (!armed || !isActive) return;
