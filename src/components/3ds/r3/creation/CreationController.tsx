@@ -78,13 +78,26 @@ function buildGhost(
     case 'box':
     case 'chamferBox':
     case 'prism': {
-      // Stage 0: two corners define width + depth.
-      const w = Math.max(0.001, Math.abs(dBaseA));
-      const d = Math.max(0.001, Math.abs(dBaseB));
-      setBase(baseAxes[0], start[baseAxes[0]] + dBaseA / 2);
-      setBase(baseAxes[1], start[baseAxes[1]] + dBaseB / 2);
-      const h = stage >= 1 ? Math.max(0.001, Math.abs(dHeight)) : (prev?.geometry?.height ?? 0.001);
-      setH(start[heightAxis] + (h / 2) * Math.sign(dHeight || 1));
+      // Stage 0 (base): drag two corners → width + depth. Freeze base at stage ≥1.
+      let w: number, d: number, cA: number, cB: number;
+      if (stage === 0) {
+        w = Math.max(0.001, Math.abs(dBaseA));
+        d = Math.max(0.001, Math.abs(dBaseB));
+        cA = start[baseAxes[0]] + dBaseA / 2;
+        cB = start[baseAxes[1]] + dBaseB / 2;
+      } else {
+        w = heightAxis === 'y' ? (prev?.geometry?.width ?? 1) : heightAxis === 'z' ? (prev?.geometry?.width ?? 1) : (prev?.geometry?.height ?? 1);
+        d = heightAxis === 'y' ? (prev?.geometry?.depth ?? 1) : heightAxis === 'z' ? (prev?.geometry?.height ?? 1) : (prev?.geometry?.depth ?? 1);
+        const bIdxA = baseAxes[0] === 'x' ? 0 : baseAxes[0] === 'y' ? 1 : 2;
+        const bIdxB = baseAxes[1] === 'x' ? 0 : baseAxes[1] === 'y' ? 1 : 2;
+        cA = prev?.position[bIdxA] ?? 0;
+        cB = prev?.position[bIdxB] ?? 0;
+      }
+      setBase(baseAxes[0], cA);
+      setBase(baseAxes[1], cB);
+      const h = stage >= 1 ? Math.max(0.001, Math.abs(dHeight)) : 0.001;
+      // Base pivot: sit on the base plane, grow along heightAxis toward the cursor.
+      setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
       if (heightAxis === 'y') geometry = { ...geometry, width: w, depth: d, height: h };
       else if (heightAxis === 'z') geometry = { ...geometry, width: w, height: d, depth: h };
       else geometry = { ...geometry, height: w, depth: d, width: h };
@@ -104,7 +117,7 @@ function buildGhost(
       const r = Math.max(0.001, baseDist);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
-      setH(start[heightAxis]);
+      setH(start[heightAxis] + r);
       geometry = { ...geometry, radius: r };
       break;
     }
@@ -115,11 +128,12 @@ function buildGhost(
     case 'spindle':
     case 'gengon':
     case 'helix': {
-      const r = Math.max(0.001, baseDist);
+      // Stage 0: radius from center. Stage 1+: freeze radius, drag height.
+      const r = stage === 0 ? Math.max(0.001, baseDist) : (prev?.geometry?.radius ?? 0.001);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
-      const h = stage >= 1 ? Math.max(0.001, Math.abs(dHeight)) : (prev?.geometry?.height ?? 0.001);
-      setH(start[heightAxis] + (h / 2) * Math.sign(dHeight || 1));
+      const h = stage >= 1 ? Math.max(0.001, Math.abs(dHeight)) : 0.001;
+      setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
       geometry = { ...geometry, radius: r, radiusTop: r, radiusBottom: r, height: h };
       break;
     }
@@ -127,11 +141,14 @@ function buildGhost(
     case 'torusKnot':
     case 'donut':
     case 'ringWave': {
-      const r = Math.max(0.001, baseDist);
+      // Stage 0: main radius. Stage 1: freeze radius, drag height axis for tube.
+      const r = stage === 0 ? Math.max(0.001, baseDist) : (prev?.geometry?.radius ?? 0.5);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
       setH(start[heightAxis]);
-      const tube = stage >= 1 ? Math.max(0.001, Math.min(r * 0.9, Math.abs(dHeight))) : (prev?.geometry?.tube ?? r * 0.25);
+      const tube = stage >= 1
+        ? Math.max(0.001, Math.min(r * 0.9, Math.abs(dHeight)))
+        : (prev?.geometry?.tube ?? r * 0.25);
       geometry = { ...geometry, radius: r, tube };
       break;
     }
@@ -150,6 +167,7 @@ function buildGhost(
       break;
     }
   }
+
 
   return {
     id: '__ghost',
