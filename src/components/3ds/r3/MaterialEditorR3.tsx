@@ -228,7 +228,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
 
   const assignToSelection = () => {
     if (!selectedObject) {
-      try { (window as any).sonner?.error?.('Select an object first'); } catch {}
+      toast.error('Select an object first');
       return;
     }
     onMaterialChange(selectedObject.id, matToThree(mat));
