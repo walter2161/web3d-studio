@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
 import { useEnvironment } from './r3/EnvironmentContext';
 import { registerViewport, unregisterViewport } from './r3/viewportRegistry';
+import { CreationController } from './r3/creation/CreationController';
+
 
 interface ViewportProps {
   type: 'perspective' | 'top' | 'front' | 'left';
