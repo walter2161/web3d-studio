@@ -410,7 +410,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      if (lineRef && lineRef.pts.length > 0) {
+      if (lineRef && lineRef.knots.length > 0) {
         // Right-click finishes the line (open spline).
         commitLine(false);
         return;
