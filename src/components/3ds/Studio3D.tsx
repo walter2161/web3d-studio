@@ -797,5 +797,6 @@ export const Studio3D = () => {
         onImportModel={importModel}
       />
     </div>
+    </EnvironmentProvider>
   );
 };
