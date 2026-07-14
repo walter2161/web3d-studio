@@ -1197,7 +1197,15 @@ export const Studio3D = () => {
             >
               Library
             </div>
+            <button
+              className="mt-2 h-5 px-1 bevel-raised bg-win-face hover:brightness-110 text-[10px]"
+              title="Open Scene Hierarchy"
+              onClick={() => setHierarchyWindowOpen(true)}
+            >
+              List
+            </button>
           </div>
+
         ) : (
           <div className="w-56 bevel-inset bg-panel flex flex-col">
             <div className="flex items-center justify-between px-1 py-0.5 bevel-raised bg-win-face shrink-0">
