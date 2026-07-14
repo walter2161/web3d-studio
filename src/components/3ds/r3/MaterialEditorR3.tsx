@@ -574,11 +574,14 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
         </div>
       </div>
 
-      <div className="mt-2 flex items-center justify-between">
-        <div className="text-[11px] text-win-text-disabled">
-          {selectedObject ? `Selection: ${selectedObject.name || selectedObject.id}` : 'No selection'}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="text-[11px] text-win-text-disabled flex-1">
+          {selectedObject
+            ? `Selection: ${selectedObject.name || selectedObject.id} — click "Apply to Selection" or drag a sphere onto any object`
+            : 'No selection — drag a sample sphere onto an object in the viewport to apply the material'}
         </div>
         <div className="flex gap-1">
+          <R3Button width={140} onClick={assignToSelection}>Apply to Selection</R3Button>
           <R3Button width={70} onClick={() => onOpenChange(false)}>Close</R3Button>
         </div>
       </div>
