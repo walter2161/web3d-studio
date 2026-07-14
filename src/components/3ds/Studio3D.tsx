@@ -442,9 +442,39 @@ export const Studio3D = () => {
     toast.success(`Exporting as ${format.toUpperCase()}...`);
   }, []);
 
-  const importModel = useCallback((file: File) => {
-    toast.success(`Importing ${file.name}...`);
-  }, []);
+  const importModel = useCallback(async (file: File) => {
+    const loadingId = toast.loading(`Importing ${file.name}...`);
+    try {
+      const { importModelFile, setImportedGeometry } = await import('./utils/modelImport');
+      const geom = await importModelFile(file);
+      const id = `imported_${Date.now()}`;
+      setImportedGeometry(id, geom);
+      saveState();
+      const baseName = file.name.replace(/\.[^.]+$/, '');
+      const newObject: Object3DData = {
+        id,
+        name: baseName,
+        type: 'imported',
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#9ca3af',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        ref: { current: null } as any,
+      };
+      setObjects(prev => [...prev, newObject]);
+      setSelectedObject(id);
+      toast.dismiss(loadingId);
+      toast.success(`Imported ${file.name}`);
+    } catch (err: any) {
+      toast.dismiss(loadingId);
+      console.error('Import failed:', err);
+      toast.error(`Import failed: ${err?.message || 'unknown error'}`);
+    }
+  }, [saveState]);
+
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedObject) deleteObject(selectedObject);
