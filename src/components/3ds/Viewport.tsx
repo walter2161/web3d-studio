@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
 import { useEnvironment } from './r3/EnvironmentContext';
+import { registerViewport, unregisterViewport } from './r3/viewportRegistry';
 
 interface ViewportProps {
   type: 'perspective' | 'top' | 'front' | 'left';
