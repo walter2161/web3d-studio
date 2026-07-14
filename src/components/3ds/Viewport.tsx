@@ -91,12 +91,24 @@ export const Viewport = ({
         }}
         orthographic={orthographic}
         className="w-full h-full"
-        onCreated={({ gl }) => { gl.setClearColor('#0f1419'); }}
+        onCreated={({ gl, scene }) => {
+          gl.setClearColor(env.backgroundColor);
+          scene.background = new THREE.Color(env.backgroundColor);
+        }}
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[10, 10, 5]} intensity={0.8} />
-        <directionalLight position={[-10, -10, -5]} intensity={0.3} />
+        <SceneEnvSync
+          backgroundColor={env.backgroundColor}
+          fogEnabled={env.fogEnabled}
+          fogColor={env.fogColor}
+          fogNear={env.fogNear}
+          fogFar={env.fogFar}
+        />
+        <ambientLight color={env.ambient} intensity={env.ambientIntensity * env.level} />
+        <directionalLight color={env.tint} position={[10, 10, 5]} intensity={0.8 * env.level} />
+        <directionalLight color={env.tint} position={[-10, -10, -5]} intensity={0.3 * env.level} />
+
+
 
         <Grid position={[0, 0, 0]} args={[20, 20]} cellSize={1} cellThickness={0.5} cellColor="#404040"
           sectionSize={5} sectionThickness={1} sectionColor="#606060" fadeDistance={30} fadeStrength={1}
