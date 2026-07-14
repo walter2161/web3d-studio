@@ -785,6 +785,7 @@ export const Studio3D = () => {
         onEnvironment={() => setEnvironmentOpen(true)}
         onMaterialBrowser={() => setMaterialBrowserOpen(true)}
         onViewImageFile={() => setViewImageOpen(true)}
+        onMenuAction={handleMenuAction}
       />
 
       {/* Main toolbar row (icons) */}
