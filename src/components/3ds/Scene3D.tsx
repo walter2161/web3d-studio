@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { TransformControls } from '@react-three/drei';
+import * as THREE from 'three';
 import { Object3D } from './Object3D';
 import { TrajectoryRenderer } from './TrajectoryRenderer';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
@@ -20,6 +21,10 @@ interface Scene3DProps {
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
+  snapEnabled?: boolean;
+  snapGridSpacing?: number;
+  snapAngleDeg?: number;
+  snapPercent?: number;
 }
 
 export const Scene3D = ({
@@ -27,6 +32,7 @@ export const Scene3D = ({
   viewportType, transformMode, renderMode,
   animationTracks, selectedKeyframe, onUpdateKeyframe,
   currentFrame, totalFrames, isPlaying,
+  snapEnabled, snapGridSpacing = 1, snapAngleDeg = 5, snapPercent = 10,
 }: Scene3DProps) => {
   const transformControlsRef = useRef<any>(null);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
@@ -64,6 +70,9 @@ export const Scene3D = ({
           mode={transformMode}
           size={0.8}
           showX showY showZ
+          translationSnap={snapEnabled && transformMode === 'translate' ? snapGridSpacing : null}
+          rotationSnap={snapEnabled && transformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
+          scaleSnap={snapEnabled && transformMode === 'scale' ? snapPercent / 100 : null}
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;

@@ -25,6 +25,11 @@ interface ViewportProps {
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
+  snapEnabled?: boolean;
+  snapGridSpacing?: number;
+  snapAngleDeg?: number;
+  snapPercent?: number;
+  showGrid?: boolean;
 }
 
 export const Viewport = ({
@@ -32,6 +37,7 @@ export const Viewport = ({
   onSelectObject, onTransformObject, transformMode,
   animationTracks, selectedKeyframe, onUpdateKeyframe,
   currentFrame, totalFrames, isPlaying,
+  snapEnabled, snapGridSpacing, snapAngleDeg, snapPercent, showGrid = true,
 }: ViewportProps) => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -112,11 +118,13 @@ export const Viewport = ({
 
 
 
-        <group userData={{ __helper: true }}>
-          <Grid position={[0, 0, 0]} args={[20, 20]} cellSize={1} cellThickness={0.5} cellColor="#404040"
-            sectionSize={5} sectionThickness={1} sectionColor="#606060" fadeDistance={30} fadeStrength={1}
-            followCamera={false} infiniteGrid={true} />
-        </group>
+        {showGrid && (
+          <group userData={{ __helper: true }}>
+            <Grid position={[0, 0, 0]} args={[20, 20]} cellSize={snapGridSpacing || 1} cellThickness={0.5} cellColor="#404040"
+              sectionSize={(snapGridSpacing || 1) * 5} sectionThickness={1} sectionColor="#606060" fadeDistance={30} fadeStrength={1}
+              followCamera={false} infiniteGrid={true} />
+          </group>
+        )}
 
         <Scene3D
           objects={objects}
@@ -133,6 +141,10 @@ export const Viewport = ({
           currentFrame={currentFrame}
           totalFrames={totalFrames}
           isPlaying={isPlaying}
+          snapEnabled={snapEnabled}
+          snapGridSpacing={snapGridSpacing}
+          snapAngleDeg={snapAngleDeg}
+          snapPercent={snapPercent}
         />
 
 

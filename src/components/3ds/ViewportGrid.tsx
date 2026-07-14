@@ -21,6 +21,11 @@ interface ViewportGridProps {
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
+  snapEnabled?: boolean;
+  snapGridSpacing?: number;
+  snapAngleDeg?: number;
+  snapPercent?: number;
+  showGrid?: boolean;
 }
 
 export const ViewportGrid = (props: ViewportGridProps) => {
