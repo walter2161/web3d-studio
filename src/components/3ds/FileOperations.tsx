@@ -60,10 +60,10 @@ export const FileOperations = ({
       toast.success(`Project ${file.name} loaded`);
     } else {
       onImportModel(file);
-      toast.success(`Model ${file.name} imported`);
     }
-    
+
     onOpenChange(false);
+
   };
 
   const handleExport = () => {
