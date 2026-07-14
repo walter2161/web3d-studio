@@ -201,7 +201,9 @@ export const SidePanel = ({
   onToggleModifier,
   onReorderModifier,
   onRenameObject,
-  onUpdateObjectGeometry
+  onUpdateObjectGeometry,
+  onUpdateObjectLightData,
+  onUpdateObjectColor,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
