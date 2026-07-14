@@ -3,6 +3,7 @@ import {
   Undo2, Redo2, MousePointer2, Move, RotateCw, Maximize as ScaleIcon,
   Link2, Unlink, FlipHorizontal, AlignCenter, Layers, Palette, Camera,
   Play, Magnet, Grid3x3, Percent, RotateCcw, Search, LayoutGrid, Square as SquareIcon,
+  ListTree, LibraryBig,
 } from 'lucide-react';
 
 
