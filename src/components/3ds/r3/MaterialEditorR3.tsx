@@ -741,3 +741,286 @@ function MapBrowserPopup({ slotName, current, onSelect, onClose }: {
     </div>
   );
 }
+
+/* ============================================================================
+ * MapParametersDialog — 3ds Max R3 map parameter editor.
+ *  Shows rollouts depending on the selected map type (Bitmap, Noise, Checker,
+ *  Gradient, Marble, Falloff, Cellular, Mix, ...) plus universal Coordinates
+ *  and Output rollouts.
+ * ==========================================================================*/
+function Rollout({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="mb-1">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left bevel-raised bg-win-face px-1 text-[11px] font-bold flex items-center gap-1"
+        style={{ height: 18 }}
+      >
+        <span>{open ? '▼' : '▶'}</span>{title}
+      </button>
+      {open && <div className="bevel-inset bg-win-face p-2">{children}</div>}
+    </div>
+  );
+}
+
+function MapParametersDialog({
+  slotKey, slotLabel, slot, onChange, onChangeSlot, onChangeType, onClose,
+}: {
+  slotKey: string;
+  slotLabel: string;
+  slot: R3MapSlot;
+  onChange: (patch: Partial<R3MapParams>) => void;
+  onChangeSlot: (patch: Partial<R3MapSlot>) => void;
+  onChangeType: () => void;
+  onClose: () => void;
+}) {
+  const p = slot.params || defaultMapParams();
+  const c = p.coords;
+  const o = p.output;
+  const setCoords = (patch: Partial<R3MapCoords>) => onChange({ coords: { ...c, ...patch } });
+  const setOutput = (patch: Partial<R3MapOutput>) => onChange({ output: { ...o, ...patch } });
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => ({
+    x: Math.max(20, Math.floor((window.innerWidth - 460) / 2) + 80),
+    y: Math.max(20, Math.floor(window.innerHeight * 0.08)),
+  }));
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  useEffect(() => {
+    const mv = (e: MouseEvent) => { if (dragRef.current) setPos({ x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy }); };
+    const up = () => { dragRef.current = null; };
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
+  }, []);
+
+  const isBitmap = slot.name === 'Bitmap';
+  const isNoise = slot.name === 'Noise';
+  const isChecker = slot.name === 'Checker';
+  const isGradient = slot.name === 'Gradient' || slot.name === 'Gradient Ramp';
+  const isMarble = slot.name === 'Marble' || slot.name === 'Perlin Marble';
+  const isFalloff = slot.name === 'Falloff';
+  const isCellular = slot.name === 'Cellular';
+  const isMix = slot.name === 'Mix';
+
+  const loadBitmap = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      onChange({ filename: f.name });
+      onChangeSlot({}); // trigger rerender
+      // stash the URL alongside for future rendering
+      (window as any).__r3BitmapUrls = { ...(window as any).__r3BitmapUrls, [f.name]: url };
+    };
+    input.click();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] pointer-events-none">
+      <div className="absolute pointer-events-auto bevel-raised bg-win-face shadow-lg" style={{ left: pos.x, top: pos.y, width: 460 }}>
+        <div
+          className="h-[18px] flex items-center justify-between px-1 select-none cursor-move"
+          style={{ background: 'linear-gradient(to right, #000080, #1084d0)' }}
+          onMouseDown={(e) => { dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; }}
+        >
+          <span className="text-white text-[11px] font-bold">Map #{slotLabel} — {slot.name}</span>
+          <button onClick={onClose} className="text-white bevel-raised bg-win-face px-1 text-[10px]" style={{ color: 'black' }}>X</button>
+        </div>
+
+        <div className="p-2" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+          {/* Navigation / header */}
+          <div className="flex items-center gap-1 mb-2">
+            <R3Button width={80} onClick={onClose}>◀ Parent</R3Button>
+            <R3Button width={80} onClick={onChangeType}>Type: {slot.name}</R3Button>
+            <div className="flex-1 text-[11px] px-1">Channel: {slotLabel}</div>
+          </div>
+
+          {/* Coordinates */}
+          <Rollout title="Coordinates">
+            <Row label="Mapping:" labelWidth={70}>
+              <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`crd-${slotKey}`} defaultChecked /> Texture</label>
+              <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`crd-${slotKey}`} /> Environ</label>
+              <span className="ml-2 text-[11px]">Channel:</span>
+              <Spinner value={c.mappingChannel} onChange={(v) => setCoords({ mappingChannel: Math.max(1, Math.round(v)) })} step={1} min={1} max={99} width={40} />
+            </Row>
+            <div className="grid grid-cols-[50px_1fr_1fr_1fr_60px_60px] gap-x-1 gap-y-[2px] items-center mt-1">
+              <div></div>
+              <div className="text-[11px] font-bold text-center">Offset</div>
+              <div className="text-[11px] font-bold text-center">Tiling</div>
+              <div className="text-[11px] font-bold text-center">Angle</div>
+              <div className="text-[11px] font-bold text-center">Mirror</div>
+              <div className="text-[11px] font-bold text-center">Tile</div>
+
+              <div className="text-[11px]">U:</div>
+              <Spinner value={c.offsetU} onChange={(v) => setCoords({ offsetU: v })} step={0.01} min={-10} max={10} width={70} />
+              <Spinner value={c.tilingU} onChange={(v) => setCoords({ tilingU: v })} step={0.1} min={0.01} max={100} width={70} />
+              <Spinner value={c.angleU} onChange={(v) => setCoords({ angleU: v })} step={1} min={-360} max={360} width={70} />
+              <div className="text-center"><input type="checkbox" checked={c.mirrorU} onChange={(e) => setCoords({ mirrorU: e.target.checked })} /></div>
+              <div className="text-center"><input type="checkbox" checked={c.tileU} onChange={(e) => setCoords({ tileU: e.target.checked })} /></div>
+
+              <div className="text-[11px]">V:</div>
+              <Spinner value={c.offsetV} onChange={(v) => setCoords({ offsetV: v })} step={0.01} min={-10} max={10} width={70} />
+              <Spinner value={c.tilingV} onChange={(v) => setCoords({ tilingV: v })} step={0.1} min={0.01} max={100} width={70} />
+              <Spinner value={c.angleV} onChange={(v) => setCoords({ angleV: v })} step={1} min={-360} max={360} width={70} />
+              <div className="text-center"><input type="checkbox" checked={c.mirrorV} onChange={(e) => setCoords({ mirrorV: e.target.checked })} /></div>
+              <div className="text-center"><input type="checkbox" checked={c.tileV} onChange={(e) => setCoords({ tileV: e.target.checked })} /></div>
+
+              <div className="text-[11px]">W:</div>
+              <div></div><div></div>
+              <Spinner value={c.angleW} onChange={(v) => setCoords({ angleW: v })} step={1} min={-360} max={360} width={70} />
+              <div></div><div></div>
+            </div>
+            <Row label="Blur:" labelWidth={70}>
+              <Spinner value={c.blur} onChange={(v) => setCoords({ blur: v })} step={0.1} min={0} max={10} />
+              <span className="ml-2 text-[11px]">Blur offset:</span>
+              <Spinner value={c.blurOffset} onChange={(v) => setCoords({ blurOffset: v })} step={0.01} min={0} max={1} />
+            </Row>
+          </Rollout>
+
+          {/* Bitmap parameters */}
+          {isBitmap && (
+            <Rollout title="Bitmap Parameters">
+              <Row label="Bitmap:" labelWidth={70}>
+                <button onClick={loadBitmap} className="bevel-raised bg-win-face h-[20px] px-2 text-[11px] flex-1 text-left overflow-hidden text-ellipsis whitespace-nowrap">
+                  {p.filename || '<none>'}
+                </button>
+                <R3Button width={54} onClick={loadBitmap}>Reload</R3Button>
+              </Row>
+              <Row label="Filtering:" labelWidth={70}>
+                <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`filt-${slotKey}`} defaultChecked /> Pyramidal</label>
+                <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`filt-${slotKey}`} /> Summed Area</label>
+                <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`filt-${slotKey}`} /> None</label>
+              </Row>
+              <div className="flex gap-3 mt-1">
+                <GroupBox title="Mono Channel Output:">
+                  <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`mc-${slotKey}`} checked={p.monoChannel === 'RGB Intensity'} onChange={() => onChange({ monoChannel: 'RGB Intensity' })} /> RGB Intensity</label>
+                  <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`mc-${slotKey}`} checked={p.monoChannel === 'Alpha'} onChange={() => onChange({ monoChannel: 'Alpha' })} /> Alpha</label>
+                </GroupBox>
+                <GroupBox title="RGB Channel Output:">
+                  <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`rc-${slotKey}`} checked={p.rgbChannel === 'RGB'} onChange={() => onChange({ rgbChannel: 'RGB' })} /> RGB</label>
+                  <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`rc-${slotKey}`} checked={p.rgbChannel === 'Alpha as Gray'} onChange={() => onChange({ rgbChannel: 'Alpha as Gray' })} /> Alpha as Gray</label>
+                </GroupBox>
+                <GroupBox title="Alpha Source:">
+                  {(['Image Alpha', 'RGB Intensity', 'None'] as const).map((a) => (
+                    <label key={a} className="flex items-center gap-1 text-[11px]"><input type="radio" name={`as-${slotKey}`} checked={p.alphaSource === a} onChange={() => onChange({ alphaSource: a })} /> {a}</label>
+                  ))}
+                </GroupBox>
+              </div>
+            </Rollout>
+          )}
+
+          {/* Noise */}
+          {isNoise && (
+            <Rollout title="Noise Parameters">
+              <Row label="Noise Type:" labelWidth={80}>
+                {(['Regular', 'Fractal', 'Turbulence'] as const).map((t) => (
+                  <label key={t} className="flex items-center gap-1 text-[11px] mr-1"><input type="radio" name={`nt-${slotKey}`} checked={p.noiseType === t} onChange={() => onChange({ noiseType: t })} /> {t}</label>
+                ))}
+              </Row>
+              <Row label="Size:" labelWidth={80}><Spinner value={p.size} onChange={(v) => onChange({ size: v })} step={1} min={0} max={1000} /></Row>
+              <Row label="Levels:" labelWidth={80}><Spinner value={p.levels} onChange={(v) => onChange({ levels: v })} step={1} min={1} max={10} /></Row>
+              <Row label="Phase:" labelWidth={80}><Spinner value={p.phase} onChange={(v) => onChange({ phase: v })} step={0.1} min={-100} max={100} /></Row>
+              <Row label="Low:" labelWidth={80}><Spinner value={p.low} onChange={(v) => onChange({ low: v })} step={0.01} min={0} max={1} /></Row>
+              <Row label="High:" labelWidth={80}><Spinner value={p.high} onChange={(v) => onChange({ high: v })} step={0.01} min={0} max={1} /></Row>
+              <Row label="Color #1:" labelWidth={80}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Color #2:" labelWidth={80}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+            </Rollout>
+          )}
+
+          {/* Checker */}
+          {isChecker && (
+            <Rollout title="Checker Parameters">
+              <Row label="Soften:" labelWidth={80}><Spinner value={p.soften} onChange={(v) => onChange({ soften: v })} step={0.01} min={0} max={1} /></Row>
+              <Row label="Color #1:" labelWidth={80}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Color #2:" labelWidth={80}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+            </Rollout>
+          )}
+
+          {/* Gradient */}
+          {isGradient && (
+            <Rollout title="Gradient Parameters">
+              <Row label="Color #1:" labelWidth={80}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Color #2:" labelWidth={80}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Color #3:" labelWidth={80}><input type="color" value={p.color3} onChange={(e) => onChange({ color3: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Noise Amt:" labelWidth={80}><Spinner value={p.mixAmount} onChange={(v) => onChange({ mixAmount: v })} step={0.01} min={0} max={1} /></Row>
+              <Row label="Gradient Type:" labelWidth={100}>
+                <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`gt-${slotKey}`} defaultChecked /> Linear</label>
+                <label className="flex items-center gap-1 text-[11px]"><input type="radio" name={`gt-${slotKey}`} /> Radial</label>
+              </Row>
+            </Rollout>
+          )}
+
+          {/* Marble */}
+          {isMarble && (
+            <Rollout title="Marble Parameters">
+              <Row label="Size:" labelWidth={80}><Spinner value={p.size} onChange={(v) => onChange({ size: v })} step={0.1} min={0} max={1000} /></Row>
+              <Row label="Vein Width:" labelWidth={80}><Spinner value={p.veinWidth} onChange={(v) => onChange({ veinWidth: v })} step={0.001} min={0} max={1} /></Row>
+              <Row label="Turbulence:" labelWidth={80}><Spinner value={p.turbulence} onChange={(v) => onChange({ turbulence: v })} step={0.1} min={0} max={10} /></Row>
+              <Row label="Color #1:" labelWidth={80}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Color #2:" labelWidth={80}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+            </Rollout>
+          )}
+
+          {/* Falloff */}
+          {isFalloff && (
+            <Rollout title="Falloff Parameters">
+              <Row label="Type:" labelWidth={80}>
+                <select
+                  value={p.falloffType}
+                  onChange={(e) => onChange({ falloffType: e.target.value as R3MapParams['falloffType'] })}
+                  className="bevel-inset bg-white h-[20px] text-[11px]"
+                >
+                  {['Perpendicular / Parallel','Towards / Away','Fresnel','Shadow/Light','Distance Blend'].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </Row>
+              <Row label="Front:" labelWidth={80}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Side:" labelWidth={80}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+            </Rollout>
+          )}
+
+          {/* Cellular */}
+          {isCellular && (
+            <Rollout title="Cellular Parameters">
+              <Row label="Cell Color:" labelWidth={80}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Div. Color:" labelWidth={80}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Size:" labelWidth={80}><Spinner value={p.size} onChange={(v) => onChange({ size: v })} step={1} min={0} max={1000} /></Row>
+              <Row label="Spread:" labelWidth={80}><Spinner value={p.turbulence} onChange={(v) => onChange({ turbulence: v })} step={0.01} min={0} max={1} /></Row>
+            </Rollout>
+          )}
+
+          {/* Mix */}
+          {isMix && (
+            <Rollout title="Mix Parameters">
+              <Row label="Mix Amount:" labelWidth={90}><Spinner value={p.mixAmount} onChange={(v) => onChange({ mixAmount: v })} step={0.01} min={0} max={1} /></Row>
+              <Row label="Color #1:" labelWidth={90}><input type="color" value={p.color1} onChange={(e) => onChange({ color1: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+              <Row label="Color #2:" labelWidth={90}><input type="color" value={p.color2} onChange={(e) => onChange({ color2: e.target.value })} className="w-[36px] h-[16px]" /></Row>
+            </Rollout>
+          )}
+
+          {/* Bump amount (only visible when this slot is bump-like) */}
+          {slotKey === 'bump' && (
+            <Rollout title="Bump">
+              <Row label="Amount:" labelWidth={80}><Spinner value={o.bumpAmount} onChange={(v) => setOutput({ bumpAmount: v })} step={1} min={-999} max={999} /></Row>
+            </Rollout>
+          )}
+
+          {/* Output */}
+          <Rollout title="Output">
+            <Row label="Output Amount:" labelWidth={110}><Spinner value={o.outputAmount} onChange={(v) => setOutput({ outputAmount: v })} step={0.01} min={0} max={4} /></Row>
+            <Row label="RGB Offset:" labelWidth={110}><Spinner value={o.rgbOffset} onChange={(v) => setOutput({ rgbOffset: v })} step={0.01} min={-1} max={1} /></Row>
+            <Row label="RGB Level:" labelWidth={110}><Spinner value={o.rgbLevel} onChange={(v) => setOutput({ rgbLevel: v })} step={0.01} min={0} max={4} /></Row>
+            <Row label=" " labelWidth={110}>
+              <label className="flex items-center gap-1 text-[11px] mr-2"><input type="checkbox" checked={o.invert} onChange={(e) => setOutput({ invert: e.target.checked })} /> Invert</label>
+              <label className="flex items-center gap-1 text-[11px]"><input type="checkbox" checked={o.clamp} onChange={(e) => setOutput({ clamp: e.target.checked })} /> Clamp</label>
+            </Row>
+          </Rollout>
+
+          <div className="mt-2 flex justify-end gap-1">
+            <R3Button width={80} onClick={onClose}>OK</R3Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
