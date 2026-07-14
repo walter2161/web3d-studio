@@ -149,6 +149,10 @@ export const Viewport = ({
           snapPercent={snapPercent}
         />
 
+        <CreationController viewportType={type} isActive={isActive} />
+
+
+
 
         {type === 'perspective' && (
           <OrbitControls
