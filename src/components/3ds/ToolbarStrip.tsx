@@ -75,9 +75,18 @@ export const MainToolbar = ({
       <Sep />
       <ToolButton title="Render Setup" onClick={onRenderSetup}><Camera size={14} /></ToolButton>
       <ToolButton title="Quick Render (Shift+Q)" onClick={onQuickRender}><Play size={14} /></ToolButton>
+      <Sep />
+      <ToolButton
+        title={viewportLayout === 'quad' ? 'Min/Max Toggle (W) — Single View' : 'Min/Max Toggle (W) — Quad View (Top/Front/Left/Perspective)'}
+        active={viewportLayout === 'quad'}
+        onClick={onToggleViewportLayout}
+      >
+        {viewportLayout === 'quad' ? <SquareIcon size={14} /> : <LayoutGrid size={14} />}
+      </ToolButton>
     </div>
   );
 };
+
 
 interface SnapsToolbarProps {
   snapEnabled?: boolean;
