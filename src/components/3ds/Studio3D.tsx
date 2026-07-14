@@ -1211,6 +1211,7 @@ export const Studio3D = () => {
             onUpdateObjectGeometry={updateObjectGeometry}
             onUpdateObjectLightData={updateObjectLightData}
             onUpdateObjectColor={updateObjectColor}
+          />
 
 
         </div>
