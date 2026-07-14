@@ -735,7 +735,10 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
     configureShadow(directLightRef.current);
   }, [object.lightData?.distance]);
 
-  useEffect(() => { if (object.ref) object.ref.current = groupRef.current; }, [object.ref]);
+  useEffect(() => {
+    if (object.ref) object.ref.current = groupRef.current;
+    meshRef.current = groupRef.current;
+  }, [meshRef, object.ref]);
 
   const t = object.type;
   const iconColor = isSelected ? '#ffcc00' : (
@@ -748,7 +751,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
     return (
       <group ref={groupRef} position={object.position}>
         <ambientLight color={object.color} intensity={isOn ? (object.lightData?.intensity ?? 0.5) : 0} />
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <sphereGeometry args={[0.25, 12, 8]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
@@ -763,7 +766,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           groundColor={object.lightData?.groundColor || '#404040'}
           intensity={isOn ? (object.lightData?.intensity ?? 0.6) : 0}
         />
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <octahedronGeometry args={[0.3, 0]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
@@ -781,12 +784,12 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           decay={object.lightData?.decay ?? 2}
           castShadow={!!object.lightData?.castShadow}
         />
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <sphereGeometry args={[0.2, 12, 8]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
         {isSelected && (
-          <lineSegments>
+          <lineSegments userData={{ __helper: true }}>
             <edgesGeometry args={[new THREE.SphereGeometry(0.35, 12, 8), 1]} />
             <lineBasicMaterial color="#ffcc00" />
           </lineSegments>
@@ -813,13 +816,13 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         />
         <object3D ref={spotTargetRef} position={[0, 0, -1]} />
         {/* Cone helper points along -Z */}
-        <group rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
-          <mesh>
+        <group userData={{ __helper: true }} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
+          <mesh userData={{ __helper: true }}>
             <coneGeometry args={[Math.tan(angle) * dist, dist, 20, 1, true]} />
             <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.6} />
           </mesh>
         </group>
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.3, 0.3, 0.5]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
@@ -839,13 +842,13 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         />
         <object3D ref={directTargetRef} position={[0, 0, -1]} />
         {/* Ray helper along -Z */}
-        <group position={[0, 0, -dist / 2]}>
-          <mesh>
+        <group userData={{ __helper: true }} position={[0, 0, -dist / 2]}>
+          <mesh userData={{ __helper: true }}>
             <cylinderGeometry args={[0.4, 0.4, dist, 16, 1, true]} />
             <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.4} />
           </mesh>
         </group>
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.4, 0.4, 0.4]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
@@ -861,19 +864,19 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
       <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
         {/* Body */}
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.6, 0.4, 0.6]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
         {/* Lens (pointing -Z, R3 camera looks down -Z) */}
-        <mesh position={[0, 0, -0.4]}>
+        <mesh userData={{ __helper: true }} position={[0, 0, -0.4]}>
           <cylinderGeometry args={[0.15, 0.2, 0.25, 12]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
         {/* Frustum wireframe pyramid when selected */}
         {isSelected && (
-          <group position={[0, 0, -1.5]}>
-            <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <group userData={{ __helper: true }} position={[0, 0, -1.5]}>
+            <mesh userData={{ __helper: true }} rotation={[Math.PI / 2, 0, 0]}>
               <coneGeometry args={[1.2, 3, 4, 1, true]} />
               <meshBasicMaterial color="#ffcc00" wireframe transparent opacity={0.6} />
             </mesh>
@@ -886,7 +889,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
   if (t === 'target_helper') {
     return (
       <group ref={groupRef} position={object.position}>
-        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.25, 0.25, 0.25]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
