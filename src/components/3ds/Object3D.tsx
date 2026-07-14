@@ -490,3 +490,196 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
   );
 };
+
+
+/**
+ * Renders a light or camera object with a small pickable icon (R3-style helper).
+ * - The `meshRef` (passed from Object3D) is bound to the actual THREE entity so
+ *   TransformControls can attach to it.
+ * - For target-based entities (target camera, target spot, etc.), we lookAt the
+ *   target object's world position every frame via `targetLookup`.
+ */
+interface EntityRendererProps {
+  object: any;
+  isSelected: boolean;
+  onSelect: () => void;
+  meshRef: React.MutableRefObject<any>;
+  targetLookup?: (id: string) => [number, number, number] | null;
+}
+
+const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }: EntityRendererProps) => {
+  const groupRef = useRef<Group>(null);
+  const targetId: string | undefined = object.lightData?.targetObjectId || object.cameraData?.targetObjectId;
+
+  // Track target — rotate the group to look at it every frame.
+  useFrame(() => {
+    if (!targetId || !groupRef.current || !targetLookup) return;
+    const tp = targetLookup(targetId);
+    if (!tp) return;
+    groupRef.current.lookAt(tp[0], tp[1], tp[2]);
+  });
+
+  useEffect(() => { if (object.ref) object.ref.current = groupRef.current; }, [object.ref]);
+
+  const t = object.type;
+  const iconColor = isSelected ? '#ffcc00' : (
+    t.startsWith('light_') ? '#ffef88' :
+    t.startsWith('camera_') ? '#7ec8ff' : '#aaaaaa'
+  );
+
+  // Ambient / Skylight are non-directional and don't need helpers beyond an icon.
+  if (t === 'light_ambient') {
+    return (
+      <group ref={groupRef} position={object.position}>
+        <ambientLight color={object.color} intensity={object.lightData?.intensity ?? 0.5} />
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <sphereGeometry args={[0.25, 12, 8]} />
+          <meshBasicMaterial color={iconColor} wireframe />
+        </mesh>
+      </group>
+    );
+  }
+  if (t === 'light_skylight') {
+    return (
+      <group ref={groupRef} position={object.position}>
+        <hemisphereLight
+          color={object.lightData?.skyColor || object.color}
+          groundColor={object.lightData?.groundColor || '#404040'}
+          intensity={object.lightData?.intensity ?? 0.6}
+        />
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <octahedronGeometry args={[0.3, 0]} />
+          <meshBasicMaterial color={iconColor} wireframe />
+        </mesh>
+      </group>
+    );
+  }
+  if (t === 'light_omni') {
+    return (
+      <group ref={groupRef} position={object.position}>
+        <pointLight
+          color={object.color}
+          intensity={object.lightData?.intensity ?? 1}
+          distance={object.lightData?.distance ?? 0}
+          decay={object.lightData?.decay ?? 2}
+          castShadow={!!object.lightData?.castShadow}
+        />
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <sphereGeometry args={[0.2, 12, 8]} />
+          <meshBasicMaterial color={iconColor} />
+        </mesh>
+        {isSelected && (
+          <lineSegments>
+            <edgesGeometry args={[new THREE.SphereGeometry(0.35, 12, 8), 1]} />
+            <lineBasicMaterial color="#ffcc00" />
+          </lineSegments>
+        )}
+      </group>
+    );
+  }
+  if (t === 'light_spot') {
+    const angle = object.lightData?.angle ?? Math.PI / 6;
+    const dist = object.lightData?.distance ?? 10;
+    return (
+      <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
+        {/* SpotLight in three.js emits down -Z; child target at (0,0,-1) does that automatically */}
+        <spotLight
+          color={object.color}
+          intensity={object.lightData?.intensity ?? 1}
+          distance={dist}
+          angle={angle}
+          penumbra={object.lightData?.penumbra ?? 0.2}
+          decay={object.lightData?.decay ?? 2}
+          castShadow={!!object.lightData?.castShadow}
+          position={[0, 0, 0]}
+          target-position={[0, 0, -1]}
+        />
+        {/* Cone helper points along -Z */}
+        <group rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
+          <mesh>
+            <coneGeometry args={[Math.tan(angle) * dist, dist, 20, 1, true]} />
+            <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.6} />
+          </mesh>
+        </group>
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <boxGeometry args={[0.3, 0.3, 0.5]} />
+          <meshBasicMaterial color={iconColor} />
+        </mesh>
+      </group>
+    );
+  }
+  if (t === 'light_direct') {
+    const dist = object.lightData?.distance ?? 20;
+    return (
+      <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
+        <directionalLight
+          color={object.color}
+          intensity={object.lightData?.intensity ?? 1}
+          castShadow={!!object.lightData?.castShadow}
+          position={[0, 0, 0]}
+          target-position={[0, 0, -1]}
+        />
+        {/* Ray helper along -Z */}
+        <group position={[0, 0, -dist / 2]}>
+          <mesh>
+            <cylinderGeometry args={[0.4, 0.4, dist, 16, 1, true]} />
+            <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.4} />
+          </mesh>
+        </group>
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <boxGeometry args={[0.4, 0.4, 0.4]} />
+          <meshBasicMaterial color={iconColor} />
+        </mesh>
+      </group>
+    );
+  }
+  if (t === 'camera_free' || t === 'camera_target') {
+    const fov = object.cameraData?.fov ?? 45;
+    const near = object.cameraData?.near ?? 0.1;
+    const far = object.cameraData?.far ?? 100;
+    // Build a small camera-shaped helper (body + lens)
+    return (
+      <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
+        <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
+        {/* Body */}
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <boxGeometry args={[0.6, 0.4, 0.6]} />
+          <meshBasicMaterial color={iconColor} />
+        </mesh>
+        {/* Lens (pointing -Z, R3 camera looks down -Z) */}
+        <mesh position={[0, 0, -0.4]}>
+          <cylinderGeometry args={[0.15, 0.2, 0.25, 12]} />
+          <meshBasicMaterial color={iconColor} />
+        </mesh>
+        {/* Frustum lines when selected */}
+        {isSelected && (
+          <group>
+            {[[0.6, 0.4], [-0.6, 0.4], [0.6, -0.4], [-0.6, -0.4]].map(([x, y], i) => (
+              <line key={i}>
+                <bufferGeometry
+                  attach="geometry"
+                  onUpdate={(g) => {
+                    g.setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(x * 1.2, y * 1.2, -3)]);
+                  }}
+                />
+                <lineBasicMaterial color="#ffcc00" />
+              </line>
+            ))}
+          </group>
+        )}
+      </group>
+    );
+  }
+  if (t === 'target_helper') {
+    return (
+      <group ref={groupRef} position={object.position}>
+        <mesh onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+          <boxGeometry args={[0.25, 0.25, 0.25]} />
+          <meshBasicMaterial color={iconColor} wireframe />
+        </mesh>
+      </group>
+    );
+  }
+  return null;
+};
+
