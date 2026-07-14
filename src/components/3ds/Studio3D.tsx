@@ -1092,6 +1092,7 @@ export const Studio3D = () => {
 
   return (
     <EnvironmentProvider>
+    <RenderEngineProvider>
     <CreationProvider
       onCommit={commitGhostObject}
       onArmedChange={setArmedTool}
