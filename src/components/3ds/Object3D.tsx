@@ -1,8 +1,9 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, BufferGeometry, Vector3 } from 'three';
+import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer } from 'three';
 import * as THREE from 'three';
-import { getImportedGeometry } from './utils/modelImport';
+import { getImportedModel } from './utils/modelImport';
+
 
 interface Object3DProps {
   object: {
