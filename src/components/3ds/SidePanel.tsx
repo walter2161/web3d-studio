@@ -212,7 +212,6 @@ export const SidePanel = ({
   const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
-  const [modifierListOpen, setModifierListOpen] = useState(false);
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
