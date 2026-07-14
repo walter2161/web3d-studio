@@ -72,7 +72,7 @@ export const SidePanel = ({
   ];
 
   return (
-    <div className="w-80 bg-panel border-l border-panel-border h-full overflow-y-auto">
+    <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
         <TabsList className="grid w-full grid-cols-5 bg-panel-header">
           <TabsTrigger value="create" className="text-xs">Create</TabsTrigger>
