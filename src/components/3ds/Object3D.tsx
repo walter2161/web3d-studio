@@ -489,12 +489,23 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       )}
 
       {/* Bounding Box mode: fill mesh becomes invisible, box drawn instead */}
-      {renderMode === 'bbox' && !isGhost && (
-        <lineSegments renderOrder={999}>
-          <edgesGeometry args={[new THREE.BoxGeometry(1, 1, 1)]} />
-          <lineBasicMaterial color={isSelected ? '#00bfff' : '#a3a3a3'} />
-        </lineSegments>
-      )}
+      {renderMode === 'bbox' && !isGhost && (() => {
+        modifiedGeometry.computeBoundingBox();
+        const bb = modifiedGeometry.boundingBox;
+        if (!bb) return null;
+        const sx = Math.max(0.001, bb.max.x - bb.min.x);
+        const sy = Math.max(0.001, bb.max.y - bb.min.y);
+        const sz = Math.max(0.001, bb.max.z - bb.min.z);
+        const cx = (bb.max.x + bb.min.x) / 2;
+        const cy = (bb.max.y + bb.min.y) / 2;
+        const cz = (bb.max.z + bb.min.z) / 2;
+        return (
+          <lineSegments position={[cx, cy, cz]} renderOrder={999}>
+            <edgesGeometry args={[new THREE.BoxGeometry(sx, sy, sz)]} />
+            <lineBasicMaterial color={isSelected ? '#00bfff' : '#a3a3a3'} />
+          </lineSegments>
+        );
+      })()}
 
       {/* Ghost edges — bright preview outline while creating */}
       {isGhost && (
