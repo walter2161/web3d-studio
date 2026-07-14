@@ -860,7 +860,7 @@ export const Studio3D = () => {
               layout={viewportLayout}
               activeViewport={activeViewport}
               onActiveViewportChange={setActiveViewport}
-              objects={objects.filter(obj => obj.visible !== false)}
+              objects={objects.filter(obj => obj.visible !== false && !obj.isGroup)}
               selectedObject={selectedObject}
               selectedSubUuid={selectedSubUuid}
               onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
