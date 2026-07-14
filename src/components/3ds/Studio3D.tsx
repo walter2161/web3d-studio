@@ -8,6 +8,8 @@ import { MaterialEditorR3 } from './r3/MaterialEditorR3';
 import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
+import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
+import { R3Dialog } from './r3/R3Dialog';
 import { FileOperations } from './FileOperations';
 import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
