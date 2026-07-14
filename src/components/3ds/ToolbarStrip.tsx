@@ -43,12 +43,16 @@ interface MainToolbarProps {
   onLayerManager?: () => void;
   onSelectByName?: () => void;
   onRenderSetup?: () => void;
+  viewportLayout?: 'single' | 'quad';
+  onToggleViewportLayout?: () => void;
 }
 
 export const MainToolbar = ({
   transformMode, onTransformMode, onUndo, onRedo, onOpenMaterialEditor, onQuickRender,
   onMirror, onAlign, onArray, onLayerManager, onSelectByName, onRenderSetup,
+  viewportLayout, onToggleViewportLayout,
 }: MainToolbarProps) => {
+
   return (
     <div className="bevel-raised px-1 py-0.5 flex items-center gap-0.5">
       <ToolButton title="Undo (Ctrl+Z)" onClick={onUndo}><Undo2 size={14} /></ToolButton>
