@@ -1405,6 +1405,29 @@ export const Studio3D = () => {
         targetName={objects.find((o) => o.id !== selectedObject && !o.isGroup)?.name}
         onApply={applyAlign}
       />
+
+      {/* Scene Hierarchy — floating window (opened from the "List" button) */}
+      <R3Dialog
+        open={hierarchyWindowOpen}
+        onClose={() => setHierarchyWindowOpen(false)}
+        title="Scene Hierarchy"
+        width={320}
+      >
+        <div style={{ height: 420 }}>
+          <SceneHierarchy
+            objects={objects}
+            selectedObject={selectedObject}
+            selectedSubUuid={selectedSubUuid}
+            onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
+            onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
+            onDeleteObject={deleteObject}
+            onDuplicateObject={duplicateObject}
+            onToggleVisibility={toggleVisibility}
+            onToggleLock={toggleLock}
+            onRenameObject={renameObject}
+          />
+        </div>
+      </R3Dialog>
     </div>
     </CreationProvider>
     </EnvironmentProvider>
