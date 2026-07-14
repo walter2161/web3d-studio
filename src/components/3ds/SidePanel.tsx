@@ -20,6 +20,10 @@ import {
 
 interface SidePanelProps {
   onCreateObject: (type: string) => void;
+  onArmTool?: (type: string) => void;
+  armedTool?: string | null;
+  activeTab?: string;
+  onActiveTabChange?: (tab: string) => void;
   selectedObject: any;
   onOpenMaterialEditor?: () => void;
   onAddModifier: (objectId: string, modifierType: string) => void;
@@ -29,7 +33,11 @@ interface SidePanelProps {
 }
 
 export const SidePanel = ({ 
-  onCreateObject, 
+  onCreateObject,
+  onArmTool,
+  armedTool,
+  activeTab: activeTabProp,
+  onActiveTabChange,
   selectedObject, 
   onOpenMaterialEditor,
   onAddModifier,
@@ -37,8 +45,11 @@ export const SidePanel = ({
   onRemoveModifier,
   onUpdateObjectGeometry
 }: SidePanelProps) => {
-  const [activeTab, setActiveTab] = useState('create');
+  const [internalTab, setInternalTab] = useState('create');
+  const activeTab = activeTabProp ?? internalTab;
+  const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights'>('standard');
+
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
