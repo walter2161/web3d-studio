@@ -499,20 +499,21 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                           style={{ width: 14, height: 14 }}
                         >🔒</button>
                         <button
-                          onClick={() => setMapBrowserOpen('ambient')}
-                          className="bevel-raised bg-win-face text-[10px] ml-1"
+                          onClick={() => openMapSlot('ambient')}
+                          className={`${mat.maps.ambient.name !== 'None' ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] ml-1`}
                           style={{ width: 14, height: 14 }}
-                          title="Ambient map"
+                          title={mat.maps.ambient.name === 'None' ? 'Ambient map (None)' : `Ambient map: ${mat.maps.ambient.name}`}
                         >M</button>
                       </Row>
                       <Row label="Diffuse:" labelWidth={70}>
                         <input type="color" value={mat.diffuse} onChange={(e) => update({ diffuse: e.target.value })} className="w-[36px] h-[16px]" />
-                        <button onClick={() => setMapBrowserOpen('diffuse')} className={`${mat.maps.diffuse.name !== 'None' ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] ml-1`} style={{ width: 14, height: 14 }} title="Diffuse map">M</button>
+                        <button onClick={() => openMapSlot('diffuse')} className={`${mat.maps.diffuse.name !== 'None' ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] ml-1`} style={{ width: 14, height: 14 }} title={mat.maps.diffuse.name === 'None' ? 'Diffuse map (None)' : `Diffuse map: ${mat.maps.diffuse.name}`}>M</button>
                       </Row>
                       <Row label="Specular:" labelWidth={70}>
                         <input type="color" value={mat.specular} onChange={(e) => update({ specular: e.target.value })} className="w-[36px] h-[16px]" />
-                        <button onClick={() => setMapBrowserOpen('specular')} className={`${mat.maps.specular.name !== 'None' ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] ml-1`} style={{ width: 14, height: 14 }} title="Specular map">M</button>
+                        <button onClick={() => openMapSlot('specular')} className={`${mat.maps.specular.name !== 'None' ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] ml-1`} style={{ width: 14, height: 14 }} title={mat.maps.specular.name === 'None' ? 'Specular map (None)' : `Specular map: ${mat.maps.specular.name}`}>M</button>
                       </Row>
+
                     </div>
 
                     <div className="flex-1">
