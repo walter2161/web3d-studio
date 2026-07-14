@@ -177,3 +177,15 @@ const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }
   return null;
 };
 
+// Registers this viewport's three.js primitives so the Quick Render dialog can
+// access them for a proper offline render.
+const ViewportRegistrar = ({ vkey }: { vkey: string }) => {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    registerViewport(vkey, { gl, scene, camera });
+    return () => unregisterViewport(vkey);
+  }, [vkey, gl, scene, camera]);
+  return null;
+};
+
+
