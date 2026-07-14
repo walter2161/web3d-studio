@@ -59,6 +59,9 @@ export const Studio3D = () => {
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [autoKey, setAutoKey] = useState(false);
+  const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
