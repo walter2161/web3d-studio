@@ -712,7 +712,7 @@ export const Studio3D = () => {
   const redo = useCallback(() => {
     if (redoStack.length > 0) {
       const nextState = redoStack[redoStack.length - 1];
-      setUndoStack(prev => [...prev, [...objects]]);
+      setUndoStack(prev => [...prev.slice(-9), [...objects]]);
       setRedoStack(prev => prev.slice(0, -1));
       setObjects(nextState);
       toast.success('Redo');
