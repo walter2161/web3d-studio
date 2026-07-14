@@ -32,7 +32,7 @@ interface Object3DProps {
 
 
 
-export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DProps) => {
+export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false }: Object3DProps) => {
   const meshRef = useRef<Mesh>(null);
 
   // Update object ref
@@ -45,23 +45,39 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
   // Imported model: cached scene graph + animations
   const imported = object.type === 'imported' ? getImportedModel(object.id) : undefined;
   const mixerRef = useRef<AnimationMixer | null>(null);
+  const actionRef = useRef<THREE.AnimationAction | null>(null);
+  const clipDurationRef = useRef<number>(0);
 
   useEffect(() => {
     if (!imported || imported.animations.length === 0) return;
     const mixer = new AnimationMixer(imported.root);
-    mixerRef.current = mixer;
     const action = mixer.clipAction(imported.animations[0]);
-    action.reset().play();
+    action.play();
+    action.paused = true; // driven manually by timeline
+    mixerRef.current = mixer;
+    actionRef.current = action;
+    clipDurationRef.current = imported.animations[0].duration;
     return () => {
       mixer.stopAllAction();
       mixer.uncacheRoot(imported.root);
       mixerRef.current = null;
+      actionRef.current = null;
     };
   }, [imported]);
 
-  useFrame((_, delta) => {
-    mixerRef.current?.update(delta);
+  // Drive animation from scene timeline
+  useFrame(() => {
+    const mixer = mixerRef.current;
+    const action = actionRef.current;
+    if (!mixer || !action) return;
+    const duration = clipDurationRef.current || 0;
+    if (duration <= 0) return;
+    const t = totalFrames > 0 ? (currentFrame / totalFrames) : 0;
+    const clipTime = (t * duration) % duration;
+    action.time = clipTime;
+    mixer.update(0);
   });
+
 
   // Apply modifiers to geometry (only for primitive types)
   const modifiedGeometry = useMemo(() => {
