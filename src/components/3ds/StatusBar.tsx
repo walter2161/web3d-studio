@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import {
   Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus,
+  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp,
 } from 'lucide-react';
 
 interface StatusBarProps {
@@ -21,6 +21,8 @@ interface StatusBarProps {
   onToggleViewportLayout: () => void;
   gridSpacing?: number;
   units?: { system: string; metric: string; us: string; precision: number };
+  timelineVisible?: boolean;
+  onToggleTimeline?: () => void;
 }
 
 const Tool = ({
@@ -60,6 +62,7 @@ export const StatusBar = ({
   currentFrame, totalFrames, isPlaying, autoKey, onToggleAutoKey, onSetKey,
   onPlay, onPause, onStop, onFrameChange, selectedPosition, prompt = 'Click and drag to select and move objects',
   viewportLayout, onToggleViewportLayout, gridSpacing = 1.0, units,
+  timelineVisible = false, onToggleTimeline,
 }: StatusBarProps) => {
   const [x, y, z] = selectedPosition || [0, 0, 0];
   const suffix = !units || units.system === 'Generic' ? '' :
@@ -101,6 +104,17 @@ export const StatusBar = ({
       <Tool title="Set Key (K)" onClick={onSetKey}>
         <Key size={12} />
       </Tool>
+      {onToggleTimeline && (
+        <Tool
+          title={timelineVisible ? 'Hide Timeline' : 'Show Timeline'}
+          onClick={onToggleTimeline}
+          active={timelineVisible}
+        >
+          {timelineVisible ? <ChevronsDown size={12} /> : <ChevronsUp size={12} />}
+        </Tool>
+      )}
+
+
 
       {/* Time / playback cluster */}
       <div className="bevel-sunken bg-win-face flex items-center gap-0.5 px-1">

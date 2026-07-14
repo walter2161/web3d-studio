@@ -105,6 +105,7 @@ export const Studio3D = () => {
   const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
+  const [timelineVisible, setTimelineVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
   const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
@@ -1264,24 +1265,26 @@ export const Studio3D = () => {
         </div>
       </div>
 
-      {/* Trackbar (Animation timeline) */}
-      <AnimationTimeline
-        tracks={animationTracks}
-        currentFrame={currentFrame}
-        totalFrames={totalFrames}
-        isPlaying={isPlaying}
-        selectedObject={selectedObject}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
-        onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
-        onFrameChange={setCurrentFrame}
-        onAddKeyframe={addKeyframe}
-        onRemoveKeyframe={removeKeyframe}
-        onUpdateKeyframe={updateKeyframe}
-        onToggleTrajectory={toggleTrajectory}
-        onSelectKeyframe={setSelectedKeyframe}
-        selectedKeyframe={selectedKeyframe}
-      />
+      {/* Trackbar (Animation timeline) — hidden by default */}
+      {timelineVisible && (
+        <AnimationTimeline
+          tracks={animationTracks}
+          currentFrame={currentFrame}
+          totalFrames={totalFrames}
+          isPlaying={isPlaying}
+          selectedObject={selectedObject}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
+          onFrameChange={setCurrentFrame}
+          onAddKeyframe={addKeyframe}
+          onRemoveKeyframe={removeKeyframe}
+          onUpdateKeyframe={updateKeyframe}
+          onToggleTrajectory={toggleTrajectory}
+          onSelectKeyframe={setSelectedKeyframe}
+          selectedKeyframe={selectedKeyframe}
+        />
+      )}
 
       {/* Status bar */}
       <StatusBar
@@ -1303,6 +1306,8 @@ export const Studio3D = () => {
         onToggleViewportLayout={() => setViewportLayout(v => v === 'single' ? 'quad' : 'single')}
         gridSpacing={snapCfg.gridSpacing}
         units={units}
+        timelineVisible={timelineVisible}
+        onToggleTimeline={() => setTimelineVisible(v => !v)}
       />
 
 
