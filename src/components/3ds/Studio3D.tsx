@@ -1178,6 +1178,24 @@ export const Studio3D = () => {
         onApply={applyAlign}
       />
     </div>
+    </CreationProvider>
     </EnvironmentProvider>
   );
 };
+
+// Bridges the SidePanel's "arm tool" action to the CreationContext so the
+// button clicks in the Create rollout hand off to the viewport click-drag flow.
+const ArmedSidePanel = (props: React.ComponentProps<typeof SidePanel>) => {
+  const { arm, disarm, armed } = useCreation();
+  return (
+    <SidePanel
+      {...props}
+      armedTool={armed}
+      onArmTool={(t: string) => {
+        if (armed === (t as any)) disarm();
+        else arm(t as any);
+      }}
+    />
+  );
+};
+
