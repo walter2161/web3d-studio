@@ -104,10 +104,18 @@ export const Viewport = ({
         />
 
         {type === 'perspective' && (
-          <OrbitControls enablePan enableZoom enableRotate panSpeed={1} rotateSpeed={1} zoomSpeed={1} />
+          <OrbitControls
+            makeDefault
+            enablePan enableZoom enableRotate panSpeed={1} rotateSpeed={1} zoomSpeed={1}
+            onUpdate={(self) => { (window as any).__orbitControls = self; }}
+          />
         )}
         {type !== 'perspective' && (
-          <OrbitControls enablePan enableZoom enableRotate={false} panSpeed={1} zoomSpeed={1} />
+          <OrbitControls
+            makeDefault
+            enablePan enableZoom enableRotate={false} panSpeed={1} zoomSpeed={1}
+            onUpdate={(self) => { (window as any).__orbitControls = self; }}
+          />
         )}
         {type === 'perspective' && (
           <GizmoHelper alignment="bottom-right" margin={[80, 80]}>

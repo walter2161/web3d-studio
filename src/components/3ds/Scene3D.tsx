@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
 import { TransformControls } from '@react-three/drei';
 import { Object3D } from './Object3D';
 import { TrajectoryRenderer } from './TrajectoryRenderer';
@@ -37,13 +38,21 @@ export const Scene3D = ({
         />
       ))}
 
-      {selectedObject && selectedObjectData && viewportType === 'perspective' && (
+      {selectedObject && selectedObjectData && (
         <TransformControls
           ref={transformControlsRef}
           object={selectedObjectData.ref?.current}
           mode={transformMode}
           size={0.8}
           showX showY showZ
+          onMouseDown={() => {
+            const controls = (window as any).__orbitControls;
+            if (controls) controls.enabled = false;
+          }}
+          onMouseUp={() => {
+            const controls = (window as any).__orbitControls;
+            if (controls) controls.enabled = true;
+          }}
           onObjectChange={(e: any) => {
             if (e?.target?.object) {
               const obj = e.target.object;
