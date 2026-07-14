@@ -957,6 +957,23 @@ export const Studio3D = () => {
         onExportScene={exportScene}
         onImportModel={importModel}
       />
+
+      <ObjectPropertiesDialog
+        open={objectPropsOpen}
+        onOpenChange={setObjectPropsOpen}
+        object={selectedObjectData ?? null}
+        onSave={saveObjectProperties}
+      />
+      <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
+      <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={() => { confirmState.onOk(); setConfirmState((s) => ({ ...s, open: false })); }}
+        onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
+      />
     </div>
     </EnvironmentProvider>
   );
