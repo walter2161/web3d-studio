@@ -1182,58 +1182,8 @@ export const Studio3D = () => {
       </div>
 
       <div className="flex flex-1 min-h-0 bg-win-face">
-        {/* Left: Object Library (drag-drop into viewport) */}
-        {hierarchyCollapsed ? (
-          <div className="w-6 bevel-raised bg-win-face flex flex-col items-center py-1">
-            <button
-              className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
-              title="Show Object Library"
-              onClick={() => setHierarchyCollapsed(false)}
-            >
-              <ChevronRight size={12} />
-            </button>
-            <div
-              className="mt-2 text-[10px] select-none cursor-pointer"
-              style={{ writingMode: 'vertical-rl' }}
-              onClick={() => setHierarchyCollapsed(false)}
-            >
-              Library
-            </div>
-            <button
-              className="mt-2 h-5 px-1 bevel-raised bg-win-face hover:brightness-110 text-[10px]"
-              title="Open Scene Hierarchy"
-              onClick={() => setHierarchyWindowOpen(true)}
-            >
-              List
-            </button>
-          </div>
+        {/* Left sidebar removed — Object Library is now a floating window opened from the toolbar */}
 
-        ) : (
-          <div className="w-56 bevel-inset bg-panel flex flex-col">
-            <div className="flex items-center justify-between px-1 py-0.5 bevel-raised bg-win-face shrink-0">
-              <span className="text-[11px] font-bold pl-1">Object Library</span>
-              <div className="flex items-center gap-0.5">
-                <button
-                  className="h-5 px-1 bevel-raised bg-win-face hover:brightness-110 text-[10px]"
-                  title="Open Scene Hierarchy window"
-                  onClick={() => setHierarchyWindowOpen(true)}
-                >
-                  List
-                </button>
-                <button
-                  className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
-                  title="Hide Object Library"
-                  onClick={() => setHierarchyCollapsed(true)}
-                >
-                  <ChevronLeft size={12} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0">
-              <ObjectLibrary onImportUrl={(u, f) => importFromUrl(u, f)} />
-            </div>
-          </div>
-        )}
 
         {/* Center: Viewport(s) */}
         <div
