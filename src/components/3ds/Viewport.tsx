@@ -81,6 +81,7 @@ export const Viewport = ({
         orthographic={orthographic}
         className="w-full h-full"
         onCreated={({ gl }) => { gl.setClearColor('#0f1419'); }}
+        onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
         <ambientLight intensity={0.4} />
         <directionalLight position={[10, 10, 5]} intensity={0.8} />
