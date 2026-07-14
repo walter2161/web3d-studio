@@ -1388,6 +1388,18 @@ export const Studio3D = () => {
           />
         </div>
       </R3Dialog>
+
+      {/* Object Library — floating window (opened from the toolbar button) */}
+      <R3Dialog
+        open={libraryWindowOpen}
+        onClose={() => setLibraryWindowOpen(false)}
+        title="Object Library"
+        width={360}
+      >
+        <div style={{ height: 480 }}>
+          <ObjectLibrary onImportUrl={(u, f) => importFromUrl(u, f)} />
+        </div>
+      </R3Dialog>
     </div>
     </CreationProvider>
     </EnvironmentProvider>
