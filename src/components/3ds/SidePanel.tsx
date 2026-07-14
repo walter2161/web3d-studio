@@ -243,28 +243,63 @@ export const SidePanel = ({
     { type: 'helix',     label: 'Helix' },
   ];
 
-  const modifiers = [
-    { name: 'Bend', description: 'Entorta o objeto em torno de um eixo' },
-    { name: 'Twist', description: 'Torce o objeto em torno de um eixo' },
-    { name: 'Taper', description: 'Afunila a forma, estreitando ou expandindo' },
-    { name: 'Stretch', description: 'Estica ou comprime o objeto' },
-    { name: 'Skew', description: 'Inclina a geometria' },
-    { name: 'Noise', description: 'Adiciona irregularidades aleatórias na malha' },
-    { name: 'FFD', description: 'Deforma o objeto usando caixas de controle' },
-    { name: 'Shell', description: 'Adiciona espessura a superfícies planas' },
-    { name: 'Edit Poly', description: 'Permite editar vértices, arestas, polígonos' },
-    { name: 'Edit Mesh', description: 'Edição direta de malhas triangulares' },
-    { name: 'TurboSmooth', description: 'Suaviza e aumenta o número de polígonos' },
-    { name: 'MeshSmooth', description: 'Subdivide suavizando a malha' },
-    { name: 'Symmetry', description: 'Espelha o objeto em um eixo' },
-    { name: 'Mirror', description: 'Reflete a geometria' },
-    { name: 'UVW Map', description: 'Mapeamento simples de coordenadas de textura' },
-    { name: 'Unwrap UVW', description: 'Controle avançado de mapeamento UV' },
-    { name: 'Lathe', description: 'Revolve uma spline para criar formas cilíndricas' },
-    { name: 'Extrude', description: 'Extruda uma spline para gerar volume' },
-    { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados' },
-    { name: 'Slice', description: 'Corta o objeto em partes' },
+  // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
+  // 'universal' → apply to anything geometric. 'converts' marks modifiers that
+  // change the current pipeline class (e.g. Extrude turns a shape into a mesh).
+  const modifiers: Array<{ name: string; description: string; category: 'shape' | 'mesh' | 'universal'; converts?: 'mesh' }> = [
+    { name: 'Bend', description: 'Entorta o objeto em torno de um eixo', category: 'universal' },
+    { name: 'Twist', description: 'Torce o objeto em torno de um eixo', category: 'universal' },
+    { name: 'Taper', description: 'Afunila a forma, estreitando ou expandindo', category: 'universal' },
+    { name: 'Stretch', description: 'Estica ou comprime o objeto', category: 'universal' },
+    { name: 'Skew', description: 'Inclina a geometria', category: 'universal' },
+    { name: 'Noise', description: 'Adiciona irregularidades aleatórias na malha', category: 'universal' },
+    { name: 'FFD', description: 'Deforma o objeto usando caixas de controle', category: 'universal' },
+    { name: 'Shell', description: 'Adiciona espessura a superfícies planas', category: 'mesh' },
+    { name: 'Edit Poly', description: 'Permite editar vértices, arestas, polígonos', category: 'mesh' },
+    { name: 'Edit Mesh', description: 'Edição direta de malhas triangulares', category: 'mesh' },
+    { name: 'TurboSmooth', description: 'Suaviza e aumenta o número de polígonos', category: 'mesh' },
+    { name: 'MeshSmooth', description: 'Subdivide suavizando a malha', category: 'mesh' },
+    { name: 'Symmetry', description: 'Espelha o objeto em um eixo', category: 'mesh' },
+    { name: 'Mirror', description: 'Reflete a geometria', category: 'universal' },
+    { name: 'UVW Map', description: 'Mapeamento simples de coordenadas de textura', category: 'mesh' },
+    { name: 'Unwrap UVW', description: 'Controle avançado de mapeamento UV', category: 'mesh' },
+    { name: 'Lathe', description: 'Revolve uma spline para criar formas cilíndricas', category: 'shape', converts: 'mesh' },
+    { name: 'Extrude', description: 'Extruda uma spline para gerar volume', category: 'shape', converts: 'mesh' },
+    { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados', category: 'shape', converts: 'mesh' },
+    { name: 'Slice', description: 'Corta o objeto em partes', category: 'universal' },
   ];
+
+  // Base-object class. Shapes (Line/Rectangle/Circle/...) are SplineShape until
+  // Extrude/Lathe/Bevel turns them into a Mesh. Lights/cameras/helpers → none.
+  const SHAPE_TYPES = new Set(['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix', 'text']);
+  const NON_GEOM_PREFIXES = ['light_', 'camera_', 'helper_'];
+  const classifyBase = (t: string): 'shape' | 'mesh' | 'none' => {
+    if (!t) return 'none';
+    if (NON_GEOM_PREFIXES.some((p) => t.startsWith(p))) return 'none';
+    if (SHAPE_TYPES.has(t)) return 'shape';
+    return 'mesh';
+  };
+
+  // Walks the stack (evaluation order = array order) to find the current pipeline
+  // class, exactly like the 3ds Max stack (Shape → Extrude → Mesh → Edit Poly → Poly).
+  const currentObjectClass = (obj: any): 'shape' | 'mesh' | 'none' => {
+    let cls = classifyBase(obj?.type);
+    const stack: any[] = obj?.modifiers || [];
+    for (const m of stack) {
+      if (m?.active === false) continue;
+      const def = modifiers.find((x) => x.name === m.type);
+      if (def?.converts) cls = def.converts;
+    }
+    return cls;
+  };
+
+  const availableModifiers = selectedObject
+    ? (() => {
+        const cls = currentObjectClass(selectedObject);
+        if (cls === 'none') return [] as typeof modifiers;
+        return modifiers.filter((m) => m.category === 'universal' || m.category === cls);
+      })()
+    : modifiers;
 
   const lightSubtypes = [
     { type: 'light_omni',        label: 'Omni' },
