@@ -288,9 +288,12 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
               <button
                 key={i}
                 onClick={() => setActive(i)}
-                onDoubleClick={() => setActive(i)}
-                title={m.name}
-                className={`p-[2px] flex items-center justify-center ${i === active ? 'bevel-inset' : 'bevel-raised'} bg-black`}
+                onDoubleClick={() => { setActive(i); if (selectedObject) onMaterialChange(selectedObject.id, matToThree(m)); }}
+                draggable
+                onDragStart={(e) => { setActive(i); beginSlotDrag(i, e); }}
+                onDragEnd={endSlotDrag}
+                title={`${m.name} — drag onto an object to apply, or double-click to assign to selection`}
+                className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'} bg-black`}
                 style={{ aspectRatio: '1', background: i === active ? '#000' : '#111' }}
               >
                 <SamplePreview mat={m} size={54} shape={previewShape} />
