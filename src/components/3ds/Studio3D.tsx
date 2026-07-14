@@ -301,7 +301,7 @@ export const Studio3D = () => {
 
   // Save state for undo/redo
   const saveState = useCallback(() => {
-    setUndoStack(prev => [...prev.slice(-19), [...objects]]);
+    setUndoStack(prev => [...prev.slice(-9), [...objects]]);
     setRedoStack([]);
   }, [objects]);
 
