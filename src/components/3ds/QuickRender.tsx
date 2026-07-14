@@ -11,17 +11,79 @@ interface QuickRenderProps {
 }
 
 /**
+ * Render engines simulate the "look" of the three industry-leading engines
+ * for 3ds Max. Each preset tweaks three.js tone mapping + exposure and
+ * applies a CSS filter pass over the final image to emulate the engine's
+ * signature response, and enriches the AI prompt with the engine's style.
+ */
+export type RenderEngine = 'scanline' | 'vray' | 'corona' | 'arnold';
+
+interface EnginePreset {
+  label: string;
+  description: string;
+  toneMapping: THREE.ToneMapping;
+  exposure: number;
+  /** CSS filter applied to the <img> so the preset is visible even after render */
+  cssFilter: string;
+  /** Extra prompt fragment appended for Render AI */
+  aiStyle: string;
+}
+
+const ENGINES: Record<RenderEngine, EnginePreset> = {
+  scanline: {
+    label: 'Scanline',
+    description: 'Default 3ds Max Scanline renderer — flat shaded pass, no tricks.',
+    toneMapping: THREE.NoToneMapping,
+    exposure: 1.0,
+    cssFilter: 'none',
+    aiStyle: 'clean flat 3d render, neutral studio lighting, no post-processing',
+  },
+  vray: {
+    label: 'V-Ray',
+    description: 'V-Ray — physically-based, punchy contrast and rich reflections (ArchViz standard).',
+    toneMapping: THREE.ACESFilmicToneMapping,
+    exposure: 1.15,
+    cssFilter: 'contrast(1.12) saturate(1.15) brightness(1.02)',
+    aiStyle:
+      'V-Ray photorealistic architectural render, physically based materials, VRaySun and VRaySky lighting, ' +
+      'glossy reflections, subtle GI bounce, sharp contact shadows, ArchViz cinematic look',
+  },
+  corona: {
+    label: 'Corona',
+    description: 'Chaos Corona — unbiased path tracing, soft cinematic tones, LightMix warmth.',
+    toneMapping: THREE.CineonToneMapping,
+    exposure: 1.05,
+    cssFilter: 'contrast(1.05) saturate(1.08) brightness(1.04) sepia(0.05)',
+    aiStyle:
+      'Chaos Corona unbiased path traced render, soft cinematic tone mapping, warm LightMix balance, ' +
+      'creamy highlights, physically accurate soft shadows, artistic ArchViz mood',
+  },
+  arnold: {
+    label: 'Arnold',
+    description: 'Autodesk Arnold — Monte Carlo ray tracing, filmic VFX/cinema quality with deep volumes.',
+    toneMapping: THREE.AgXToneMapping,
+    exposure: 1.0,
+    cssFilter: 'contrast(1.08) saturate(0.98) brightness(0.98)',
+    aiStyle:
+      'Autodesk Arnold Monte Carlo ray traced render, filmic VFX cinema quality, subsurface scattering, ' +
+      'volumetric lighting, deep blacks, subtle grain, Hollywood studio VFX look',
+  },
+};
+
+/**
  * "Production" render:
  * - Uses the perspective viewport's three.js scene/camera
  * - Hides all viewport helpers (grid, gizmo, transform controls, selection outlines)
- * - Renders offscreen at 2× at ACES filmic tone mapping + sRGB output
- * - No caustics / no fake reflections — a clean shaded pass
+ * - Renders offscreen at 2× with the selected engine's tone mapping + exposure
  * Result is drawn back into the dialog as a PNG image.
  */
-const doOfflineRender = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
+const doOfflineRender = async (
+  engine: RenderEngine,
+): Promise<{ dataUrl: string; width: number; height: number } | null> => {
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) return null;
   const { gl, scene, camera } = handle;
+  const preset = ENGINES[engine];
 
   const canvasEl = gl.domElement;
   const w = canvasEl.clientWidth || canvasEl.width;
@@ -38,8 +100,8 @@ const doOfflineRender = async (): Promise<{ dataUrl: string; width: number; heig
   });
   offscreen.setPixelRatio(1);
   offscreen.setSize(outW, outH, false);
-  offscreen.toneMapping = THREE.ACESFilmicToneMapping;
-  offscreen.toneMappingExposure = 1.0;
+  offscreen.toneMapping = preset.toneMapping;
+  offscreen.toneMappingExposure = preset.exposure;
   offscreen.outputColorSpace = THREE.SRGBColorSpace;
   offscreen.shadowMap.enabled = true;
   offscreen.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -110,13 +172,14 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
   const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [rendering, setRendering] = useState(false);
   const [mode, setMode] = useState<Mode>('standard');
+  const [engine, setEngine] = useState<RenderEngine>('vray');
   const [prompt, setPrompt] = useState('a modern building');
 
-  const render = async () => {
+  const render = async (eng: RenderEngine = engine) => {
     setRendering(true);
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const res = await doOfflineRender();
+      const res = await doOfflineRender(eng);
       if (res) {
         setRefRender(res);
         setImage(res.dataUrl);
@@ -142,13 +205,14 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     try {
       // Always take a fresh render so the reference matches the current scene.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const ref = await doOfflineRender();
+      const ref = await doOfflineRender(engine);
       if (!ref) throw new Error('No viewport render available');
       setRefRender(ref);
 
       const refFile = await dataUrlToFile(ref.dataUrl, `viewport-${Date.now()}.png`);
+      const enginePreset = ENGINES[engine];
       const enrichedPrompt =
-        `${prompt.trim()}, highly detailed, 3d render, photorealistic, architectural lighting. ` +
+        `${prompt.trim()}, ${enginePreset.aiStyle}, highly detailed, photorealistic. ` +
         `Use the input image as a strict compositional reference: keep object positions, proportions, ` +
         `silhouettes, camera angle and perspective, replacing the primitive shapes with the described subject.`;
 
@@ -169,7 +233,6 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
       const data = await resp.json();
       const imgUrl: string | undefined = data?.data?.[0]?.url ?? data?.data?.[0]?.b64_json;
       if (!imgUrl) throw new Error('Pollinations response missing image data');
-      // Support either a URL or base64 payload
       if (imgUrl.startsWith('http')) {
         setImage(imgUrl);
       } else {
@@ -182,11 +245,10 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     }
   };
 
-
   useEffect(() => {
     if (open) {
       setMode('standard');
-      render();
+      render(engine);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -195,9 +257,11 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     if (!image) return;
     const a = document.createElement('a');
     a.href = image;
-    a.download = `render-${Date.now()}.png`;
+    a.download = `render-${engine}-${Date.now()}.png`;
     a.click();
   };
+
+  const currentPreset = ENGINES[engine];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -223,7 +287,7 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={mode === 'ai' ? renderAI : render}
+                onClick={mode === 'ai' ? renderAI : () => render(engine)}
                 disabled={rendering || (mode === 'ai' && !prompt.trim())}
               >
                 <RefreshCw className={`w-3.5 h-3.5 mr-1 ${rendering ? 'animate-spin' : ''}`} />
@@ -235,6 +299,27 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
             </div>
           </DialogTitle>
         </DialogHeader>
+
+        {/* Engine selector */}
+        <div className="flex items-center gap-2 text-[11px]">
+          <label className="whitespace-nowrap font-semibold">Engine:</label>
+          <div className="flex bevel-inset bg-win-face">
+            {(Object.keys(ENGINES) as RenderEngine[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => {
+                  setEngine(k);
+                  if (mode === 'standard') render(k);
+                }}
+                title={ENGINES[k].description}
+                className={`px-2 py-[2px] ${engine === k ? 'bevel-inset bg-white font-semibold' : 'bevel-raised'}`}
+              >
+                {ENGINES[k].label}
+              </button>
+            ))}
+          </div>
+          <span className="text-muted-foreground truncate">{currentPreset.description}</span>
+        </div>
 
         {mode === 'ai' && (
           <div className="flex items-center gap-2 text-[11px]">
@@ -252,21 +337,27 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
         <div className="bg-black rounded border border-panel-border overflow-hidden flex items-center justify-center min-h-[400px]">
           {rendering ? (
             <span className="text-muted-foreground text-sm">
-              {mode === 'ai' ? 'Generating with AI...' : 'Rendering...'}
+              {mode === 'ai'
+                ? `Generating with AI (${currentPreset.label} style)...`
+                : `Rendering with ${currentPreset.label}...`}
             </span>
           ) : image ? (
-            <img src={image} alt="Rendered viewport" className="max-w-full max-h-[70vh]" />
+            <img
+              src={image}
+              alt="Rendered viewport"
+              className="max-w-full max-h-[70vh]"
+              style={{ filter: currentPreset.cssFilter }}
+            />
           ) : (
             <span className="text-muted-foreground text-sm">No render yet</span>
           )}
         </div>
 
-        {mode === 'ai' && (
-          <p className="text-[10px] text-muted-foreground">
-            Render AI uses Pollinations with your current render as compositional reference — the primitives'
-            positions and proportions guide the generated image.
-          </p>
-        )}
+        <p className="text-[10px] text-muted-foreground">
+          {mode === 'ai'
+            ? `Render AI uses Pollinations with the ${currentPreset.label} style guiding tone, lighting and materials; the current render is used as strict compositional reference.`
+            : `${currentPreset.label} preset: tone mapping + exposure + color response tuned to match the engine's signature look.`}
+        </p>
       </DialogContent>
     </Dialog>
   );
