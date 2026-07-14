@@ -704,6 +704,15 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
   const directTargetRef = useRef<THREE.Object3D>(null);
   const targetId: string | undefined = object.lightData?.targetObjectId || object.cameraData?.targetObjectId;
   const isOn = object.lightData?.on !== false;
+  // 3ds Max R3 multipliers are artist-facing values, not physically tiny
+  // three.js candela/lumen values. Scale them so Multiplier 1 visibly lights
+  // scene objects in both the viewport and Quick Render.
+  const maxMultiplier = object.lightData?.intensity ?? 1;
+  const omniIntensity = isOn ? maxMultiplier * 55 : 0;
+  const spotIntensity = isOn ? maxMultiplier * 70 : 0;
+  const directIntensity = isOn ? maxMultiplier * 2.2 : 0;
+  const ambientIntensity = isOn ? maxMultiplier : 0;
+  const hemiIntensity = isOn ? maxMultiplier * 1.4 : 0;
 
   // Track target — rotate the group to look at it every frame.
   useFrame(() => {
@@ -750,7 +759,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
   if (t === 'light_ambient') {
     return (
       <group ref={groupRef} position={object.position}>
-        <ambientLight color={object.color} intensity={isOn ? (object.lightData?.intensity ?? 0.5) : 0} />
+        <ambientLight color={object.color} intensity={ambientIntensity} />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <sphereGeometry args={[0.25, 12, 8]} />
           <meshBasicMaterial color={iconColor} wireframe />
@@ -764,7 +773,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         <hemisphereLight
           color={object.lightData?.skyColor || object.color}
           groundColor={object.lightData?.groundColor || '#404040'}
-          intensity={isOn ? (object.lightData?.intensity ?? 0.6) : 0}
+          intensity={hemiIntensity}
         />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <octahedronGeometry args={[0.3, 0]} />
@@ -779,7 +788,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         <pointLight
           ref={pointLightRef}
           color={object.color}
-          intensity={isOn ? (object.lightData?.intensity ?? 1) : 0}
+          intensity={omniIntensity}
           distance={object.lightData?.distance ?? 0}
           decay={object.lightData?.decay ?? 2}
           castShadow={!!object.lightData?.castShadow}
@@ -806,7 +815,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         <spotLight
           ref={spotLightRef}
           color={object.color}
-          intensity={isOn ? (object.lightData?.intensity ?? 1) : 0}
+          intensity={spotIntensity}
           distance={dist}
           angle={angle}
           penumbra={object.lightData?.penumbra ?? 0.2}
@@ -836,7 +845,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         <directionalLight
           ref={directLightRef}
           color={object.color}
-          intensity={isOn ? (object.lightData?.intensity ?? 1) : 0}
+          intensity={directIntensity}
           castShadow={!!object.lightData?.castShadow}
           position={[0, 0, 0]}
         />
