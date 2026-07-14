@@ -15,6 +15,7 @@ import { RenderSetup } from './r3/RenderSetup';
 import { EnvironmentDialog } from './r3/EnvironmentDialog';
 import { ViewImageFile } from './r3/ViewImageFile';
 import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
+import { EnvironmentProvider } from './r3/EnvironmentContext';
 import { toast } from 'sonner';
 
 
@@ -578,6 +579,7 @@ export const Studio3D = () => {
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
   return (
+    <EnvironmentProvider>
     <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
@@ -795,5 +797,6 @@ export const Studio3D = () => {
         onImportModel={importModel}
       />
     </div>
+    </EnvironmentProvider>
   );
 };

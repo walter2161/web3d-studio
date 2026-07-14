@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
+import { useEnvironment } from './EnvironmentContext';
 
 interface EnvironmentDialogProps {
   open: boolean;
@@ -11,12 +12,17 @@ const EFFECT_TYPES = ['Fog', 'Volume Fog', 'Volume Light', 'Fire Effect'];
 type Tab = 'Environment' | 'Effects';
 
 export const EnvironmentDialog = ({ open, onOpenChange }: EnvironmentDialogProps) => {
+  const { env, setEnv } = useEnvironment();
   const [tab, setTab] = useState<Tab>('Environment');
-  const [bgColor, setBgColor] = useState('#000000');
+  const bgColor = env.backgroundColor;
+  const setBgColor = (v: string) => setEnv({ backgroundColor: v });
   const [useMap, setUseMap] = useState(true);
-  const [tint, setTint] = useState('#ffffff');
-  const [level, setLevel] = useState(1.0);
-  const [ambient, setAmbient] = useState('#000000');
+  const tint = env.tint;
+  const setTint = (v: string) => setEnv({ tint: v });
+  const level = env.level;
+  const setLevel = (v: number) => setEnv({ level: v });
+  const ambient = env.ambient;
+  const setAmbient = (v: string) => setEnv({ ambient: v });
   const [exposure, setExposure] = useState<'<no exposure control>' | 'Automatic Exposure Control' | 'Linear Exposure Control' | 'Logarithmic Exposure Control'>('<no exposure control>');
   const [processBackground, setProcessBackground] = useState(false);
 
@@ -26,6 +32,7 @@ export const EnvironmentDialog = ({ open, onOpenChange }: EnvironmentDialogProps
 
   const addEffect = (type: string) => {
     setEffects((e) => [...e, { name: type, type, active: true }]);
+    if (type === 'Fog' || type === 'Volume Fog') setEnv({ fogEnabled: true });
     setAddOpen(false);
   };
 
