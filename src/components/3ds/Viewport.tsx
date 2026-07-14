@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
 import { useEnvironment } from './r3/EnvironmentContext';
+import { registerViewport, unregisterViewport } from './r3/viewportRegistry';
 
 interface ViewportProps {
   type: 'perspective' | 'top' | 'front' | 'left';
@@ -97,6 +98,7 @@ export const Viewport = ({
         }}
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
+        <ViewportRegistrar vkey={type} />
         <SceneEnvSync
           backgroundColor={env.backgroundColor}
           fogEnabled={env.fogEnabled}
@@ -110,9 +112,11 @@ export const Viewport = ({
 
 
 
-        <Grid position={[0, 0, 0]} args={[20, 20]} cellSize={1} cellThickness={0.5} cellColor="#404040"
-          sectionSize={5} sectionThickness={1} sectionColor="#606060" fadeDistance={30} fadeStrength={1}
-          followCamera={false} infiniteGrid={true} />
+        <group userData={{ __helper: true }}>
+          <Grid position={[0, 0, 0]} args={[20, 20]} cellSize={1} cellThickness={0.5} cellColor="#404040"
+            sectionSize={5} sectionThickness={1} sectionColor="#606060" fadeDistance={30} fadeStrength={1}
+            followCamera={false} infiniteGrid={true} />
+        </group>
 
         <Scene3D
           objects={objects}
@@ -173,4 +177,16 @@ const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }
   }, [fogEnabled, fogColor, fogNear, fogFar, scene]);
   return null;
 };
+
+// Registers this viewport's three.js primitives so the Quick Render dialog can
+// access them for a proper offline render.
+const ViewportRegistrar = ({ vkey }: { vkey: string }) => {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    registerViewport(vkey, { gl, scene, camera });
+    return () => unregisterViewport(vkey);
+  }, [vkey, gl, scene, camera]);
+  return null;
+};
+
 
