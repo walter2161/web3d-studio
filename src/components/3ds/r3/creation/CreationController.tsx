@@ -238,8 +238,75 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const totalStages = STAGES[armed];
 
+    // -------- Line tool: multi-click FSM ---------
+    // Points are stored in world space. The LAST entry is always the live
+    // preview point that tracks the cursor between clicks.
+    const lineRef: { pts: THREE.Vector3[] } | null = armed === 'line' ? { pts: [] } : null;
+
+    const buildLineGhost = (worldPts: THREE.Vector3[], closed: boolean): GhostObject => {
+      // Center around centroid so position != 0 and local points are relative.
+      const centroid = new THREE.Vector3();
+      worldPts.forEach((p) => centroid.add(p));
+      centroid.multiplyScalar(1 / worldPts.length);
+      const local = worldPts.map((p) => [p.x - centroid.x, p.y - centroid.y, p.z - centroid.z] as [number, number, number]);
+      return {
+        id: '__ghost',
+        type: 'line',
+        position: [centroid.x, centroid.y, centroid.z],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry: { points: local, closed },
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitLine = (closed: boolean) => {
+      if (!lineRef) return;
+      // Drop trailing preview point.
+      const real = lineRef.pts.slice(0, -1);
+      if (real.length >= 2) {
+        const g = buildLineGhost(real, closed);
+        commit(g);
+      } else {
+        setGhost(null);
+      }
+      lineRef.pts = [];
+    };
+
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+
+      if (lineRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (lineRef.pts.length === 0) {
+          // First anchor + preview point.
+          lineRef.pts.push(p.clone(), p.clone());
+        } else {
+          // Check close-on-first-point (world-space tolerance based on distance to camera).
+          const first = lineRef.pts[0];
+          const camDist = camera.position.distanceTo(first);
+          const tol = Math.max(0.05, camDist * 0.02);
+          if (lineRef.pts.length >= 3 && p.distanceTo(first) < tol) {
+            // Replace preview with a copy of first, commit closed.
+            lineRef.pts[lineRef.pts.length - 1] = first.clone();
+            commitLine(true);
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          // Commit current preview point as a real anchor, add new preview.
+          lineRef.pts[lineRef.pts.length - 1] = p.clone();
+          lineRef.pts.push(p.clone());
+        }
+        setGhost(buildLineGhost(lineRef.pts, false));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       const s = stageRef.current;
       if (!s) {
         // Stage 0 begins.
@@ -262,6 +329,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (lineRef) {
+        if (lineRef.pts.length === 0) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        lineRef.pts[lineRef.pts.length - 1] = p;
+        setGhost(buildLineGhost(lineRef.pts, false));
+        return;
+      }
       const s = stageRef.current;
       if (!s) return;
       const pt = s.stage === 0 ? raycastBase(e) : raycastHeight(e, s.start);
@@ -271,6 +346,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onUp = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      if (lineRef) return; // line uses clicks only
       const s = stageRef.current;
       if (!s) return;
       if (s.stage === 0) {
@@ -288,6 +364,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (lineRef) lineRef.pts = [];
         stageRef.current = null;
         setGhost(null);
         disarm();
@@ -295,13 +372,18 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onContextMenu = (e: MouseEvent) => {
-      // Right-click also cancels current in-progress creation, like R3.
+      e.preventDefault();
+      if (lineRef && lineRef.pts.length > 0) {
+        // Right-click finishes the line (open spline).
+        commitLine(false);
+        return;
+      }
       if (stageRef.current) {
-        e.preventDefault();
         stageRef.current = null;
         setGhost(null);
       }
     };
+
 
     dom.addEventListener('pointerdown', onDown);
     dom.addEventListener('pointermove', onMove);
