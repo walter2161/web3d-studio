@@ -579,6 +579,7 @@ export const Studio3D = () => {
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
   return (
+    <EnvironmentProvider>
     <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
