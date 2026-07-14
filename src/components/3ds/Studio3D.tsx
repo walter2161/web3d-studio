@@ -113,6 +113,7 @@ export const Studio3D = () => {
 
   const [hierarchyWindowOpen, setHierarchyWindowOpen] = useState(false);
   const [libraryWindowOpen, setLibraryWindowOpen] = useState(false);
+  const [typeInOpen, setTypeInOpen] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
