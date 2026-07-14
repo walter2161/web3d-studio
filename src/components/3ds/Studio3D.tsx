@@ -81,6 +81,43 @@ export const Studio3D = () => {
     } catch {}
   }, [objects, animationTracks, selectedObject, currentFrame]);
 
+  // Rehydrate imported models from IndexedDB on mount.
+  // Autosave restores object metadata, but the parsed scene graph lives in
+  // memory only — we re-parse from the stored bytes so the character isn't
+  // replaced by a placeholder cube after a refresh.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const importedObjs = objects.filter(o => o.type === 'imported');
+      if (importedObjs.length === 0) return;
+      const { getImportedModel, setImportedModel, importFromBytes } = await import('./utils/modelImport');
+      const { loadModelBlob } = await import('./utils/modelStorage');
+      let rehydratedAny = false;
+      for (const obj of importedObjs) {
+        if (getImportedModel(obj.id)) continue;
+        try {
+          const stored = await loadModelBlob(obj.id);
+          if (!stored) continue;
+          const model = await importFromBytes(stored.filename, stored.bytes);
+          if (cancelled) return;
+          setImportedModel(obj.id, model);
+          rehydratedAny = true;
+        } catch (e) {
+          console.warn('Failed to rehydrate imported model', obj.id, e);
+        }
+      }
+      // Force a re-render so <primitive> picks up the newly cached scene.
+      if (rehydratedAny && !cancelled) {
+        setObjects(prev => prev.map(o => ({ ...o })));
+      }
+    })();
+    return () => { cancelled = true; };
+    // Run once on mount; subsequent imports set the cache synchronously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+
 
   // Playback loop
   useEffect(() => {
@@ -335,11 +372,22 @@ export const Studio3D = () => {
   // Object operations
   const deleteObject = useCallback((id: string) => {
     saveState();
-    setObjects(prev => prev.filter(obj => obj.id !== id));
+    const obj = objects.find(o => o.id === id);
+    setObjects(prev => prev.filter(o => o.id !== id));
     setAnimationTracks(prev => prev.filter(t => t.objectId !== id));
     if (selectedObject === id) setSelectedObject(null);
+    // Clean up persisted blob for imported models.
+    if (obj?.type === 'imported') {
+      import('./utils/modelStorage').then(({ deleteModelBlob }) => {
+        deleteModelBlob(id).catch(() => {});
+      });
+      import('./utils/modelImport').then(({ removeImportedModel }) => {
+        removeImportedModel(id);
+      });
+    }
     toast.success('Object deleted');
-  }, [saveState, selectedObject]);
+  }, [saveState, selectedObject, objects]);
+
 
   const duplicateObject = useCallback((id: string) => {
     const obj = objects.find(o => o.id === id);
@@ -448,9 +496,16 @@ export const Studio3D = () => {
     const loadingId = toast.loading(`Importing ${file.name}...`);
     try {
       const { importModelFile, setImportedModel } = await import('./utils/modelImport');
-      const model = await importModelFile(file);
+      const { saveModelBlob } = await import('./utils/modelStorage');
+      const { model, bytes } = await importModelFile(file);
       const id = `imported_${Date.now()}`;
       setImportedModel(id, model);
+      // Persist the original bytes so we can rehydrate after a refresh.
+      try {
+        await saveModelBlob(id, file.name, bytes);
+      } catch (e) {
+        console.warn('Could not persist model blob:', e);
+      }
       saveState();
       const baseName = file.name.replace(/\.[^.]+$/, '');
       const newObject: Object3DData = {
@@ -465,6 +520,8 @@ export const Studio3D = () => {
         locked: false,
         modifiers: [],
         ref: { current: null } as any,
+        // Store filename in geometry blob so rehydration knows the extension.
+        geometry: { __importedFilename: file.name },
       };
       setObjects(prev => [...prev, newObject]);
       setSelectedObject(id);
@@ -473,13 +530,13 @@ export const Studio3D = () => {
         ? ` (${model.animations.length} animation${model.animations.length > 1 ? 's' : ''})`
         : '';
       toast.success(`Imported ${file.name}${animMsg}`);
-
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('Import failed:', err);
       toast.error(`Import failed: ${err?.message || 'unknown error'}`);
     }
   }, [saveState]);
+
 
 
   const handleDeleteSelected = useCallback(() => {
