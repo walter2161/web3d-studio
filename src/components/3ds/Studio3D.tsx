@@ -35,11 +35,25 @@ interface Modifier {
 }
 
 export const Studio3D = () => {
-  const [objects, setObjects] = useState<Object3DData[]>([]);
-  const [selectedObject, setSelectedObject] = useState<string | null>(null);
+  const STORAGE_KEY = '3dsled:scene:autosave:v1';
+
+  const loadInitial = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  };
+  const initial = loadInitial();
+
+  const [objects, setObjects] = useState<Object3DData[]>(() =>
+    (initial?.objects || []).map((o: any) => ({ ...o, ref: { current: null } }))
+  );
+  const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
   const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
-  const [currentFrame, setCurrentFrame] = useState(0);
+  const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
@@ -47,10 +61,24 @@ export const Studio3D = () => {
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
-  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>([]);
+  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+
+  // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
+  useEffect(() => {
+    try {
+      const serializable = objects.map(({ ref, ...rest }) => rest);
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+        objects: serializable,
+        animationTracks,
+        selectedObject,
+        currentFrame,
+      }));
+    } catch {}
+  }, [objects, animationTracks, selectedObject, currentFrame]);
+
 
   // Playback loop
   useEffect(() => {
