@@ -51,6 +51,8 @@ export const Studio3D = () => {
     (initial?.objects || []).map((o: any) => ({ ...o, ref: { current: null } }))
   );
   const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
+  const [selectedSubUuid, setSelectedSubUuid] = useState<string | null>(null);
+
   const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
