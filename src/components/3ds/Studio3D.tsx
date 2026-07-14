@@ -128,8 +128,12 @@ export const Studio3D = () => {
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
+  const [armedTool, setArmedTool] = useState<string | null>(null);
+  const [ghost, setGhost] = useState<GhostObject | null>(null);
+  const [sidePanelTab, setSidePanelTab] = useState<string>('create');
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+
 
   // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
   useEffect(() => {
