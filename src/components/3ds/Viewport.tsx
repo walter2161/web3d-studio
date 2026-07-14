@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
 import { Scene3D } from './Scene3D';
@@ -32,6 +32,9 @@ interface ViewportProps {
   snapAngleDeg?: number;
   snapPercent?: number;
   showGrid?: boolean;
+  cameraObjectId?: string | null;
+  onChangeCameraObject?: (id: string | null) => void;
+  availableCameras?: any[];
 }
 
 export const Viewport = ({
@@ -40,7 +43,9 @@ export const Viewport = ({
   animationTracks, selectedKeyframe, onUpdateKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing, snapAngleDeg, snapPercent, showGrid = true,
+  cameraObjectId, onChangeCameraObject, availableCameras = [],
 }: ViewportProps) => {
+
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [renderMode, setRenderMode] = useState<'solid' | 'wireframe' | 'semi-transparent'>('solid');
