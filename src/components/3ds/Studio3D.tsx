@@ -775,6 +775,15 @@ export const Studio3D = () => {
       />
 
       <QuickRender open={quickRenderOpen} onOpenChange={setQuickRenderOpen} />
+      <RenderSetup
+        open={renderSetupOpen}
+        onOpenChange={setRenderSetupOpen}
+        onRender={() => setQuickRenderOpen(true)}
+        currentFrame={currentFrame}
+      />
+      <EnvironmentDialog open={environmentOpen} onOpenChange={setEnvironmentOpen} />
+      <ViewImageFile open={viewImageOpen} onOpenChange={setViewImageOpen} />
+      <MaterialMapBrowser open={materialBrowserOpen} onOpenChange={setMaterialBrowserOpen} />
 
       <FileOperations
         open={fileDialogOpen}
