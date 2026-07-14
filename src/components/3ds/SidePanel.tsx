@@ -111,8 +111,24 @@ export const SidePanel = ({
     standard: 'Standard Primitives',
     extended: 'Extended Primitives',
     shapes: 'Shapes',
-    lights: 'Lights & Cameras',
+    lights: 'Lights',
+    cameras: 'Cameras',
   };
+
+  const lightSubtypes = [
+    { type: 'light_omni',     label: 'Omni' },
+    { type: 'light_spot',     label: 'Target Spot' },
+    { type: 'light_spot_free',label: 'Free Spot' },
+    { type: 'light_direct',   label: 'Target Direct' },
+    { type: 'light_direct_free', label: 'Free Direct' },
+    { type: 'light_skylight', label: 'Skylight' },
+    { type: 'light_ambient',  label: 'Ambient' },
+  ];
+  const cameraSubtypes = [
+    { type: 'camera_target', label: 'Target Camera' },
+    { type: 'camera_free',   label: 'Free Camera' },
+  ];
+
 
   return (
     <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto">
