@@ -210,12 +210,10 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       return pointsToTube(pts, false);
     }
     case 'donut': {
-      // Two concentric circles → merge as two tube geometries
-      const g1 = buildShape('circle', { radius: p.radius1 });
-      const g2 = buildShape('circle', { radius: p.radius2 });
-      return THREE.BufferGeometryUtils
-        ? (THREE as any).BufferGeometryUtils.mergeGeometries([g1, g2])
-        : g1;
+      // Donut = torus with tiny minor radius so it renders as two concentric rings.
+      const majorR = (p.radius1 + p.radius2) / 2;
+      const minorR = Math.max(0.001, Math.abs(p.radius1 - p.radius2) / 2);
+      return new THREE.TorusGeometry(majorR, minorR, 12, 64);
     }
     case 'ngon': {
       const pts: THREE.Vector2[] = [];
