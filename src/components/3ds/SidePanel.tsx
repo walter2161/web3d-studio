@@ -526,7 +526,12 @@ export const SidePanel = ({
                     </button>
                     {modifierListOpen && (
                       <div className="absolute z-50 left-0 right-0 mt-[1px] bevel-raised bg-panel max-h-56 overflow-y-auto">
-                        {modifiers.map((m) => (
+                        {availableModifiers.length === 0 && (
+                          <div className="px-2 py-1 text-[11px] text-win-text/60 italic">
+                            No modifiers available for this object type
+                          </div>
+                        )}
+                        {availableModifiers.map((m) => (
                           <button
                             key={m.name}
                             title={m.description}
