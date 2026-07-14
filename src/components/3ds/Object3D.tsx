@@ -2,11 +2,12 @@ import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, BufferGeometry, Vector3 } from 'three';
 import * as THREE from 'three';
+import { getImportedGeometry } from './utils/modelImport';
 
 interface Object3DProps {
   object: {
     id: string;
-    type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane';
+    type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported';
     position: [number, number, number];
     rotation: [number, number, number];
     scale: [number, number, number];
@@ -24,6 +25,7 @@ interface Object3DProps {
   onSelect: () => void;
   renderMode: 'solid' | 'wireframe' | 'semi-transparent';
 }
+
 
 export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DProps) => {
   const meshRef = useRef<Mesh>(null);
