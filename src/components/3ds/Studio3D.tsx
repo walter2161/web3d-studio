@@ -540,7 +540,9 @@ export const Studio3D = () => {
           <SceneHierarchy
             objects={objects}
             selectedObject={selectedObject}
-            onSelectObject={handleSelectObject}
+            selectedSubUuid={selectedSubUuid}
+            onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
+            onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
             onDeleteObject={deleteObject}
             onDuplicateObject={duplicateObject}
             onToggleVisibility={toggleVisibility}
@@ -548,6 +550,7 @@ export const Studio3D = () => {
             onRenameObject={renameObject}
           />
         </div>
+
 
         <div className="flex-1 flex flex-col min-h-0">
           <div className="h-12 bg-panel border-b border-panel-border flex items-center px-4 gap-2">
