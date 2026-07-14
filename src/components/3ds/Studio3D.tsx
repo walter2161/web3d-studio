@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MenuBar } from './MenuBar';
 import { ViewportGrid, ViewportLayout } from './ViewportGrid';
 import { SidePanel } from './SidePanel';
@@ -61,6 +62,7 @@ export const Studio3D = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
   const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+  const [hierarchyCollapsed, setHierarchyCollapsed] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
@@ -628,21 +630,52 @@ export const Studio3D = () => {
       </div>
 
       <div className="flex flex-1 min-h-0 bg-win-face">
-        {/* Left: Scene hierarchy */}
-        <div className="w-56 bevel-inset bg-panel">
-          <SceneHierarchy
-            objects={objects}
-            selectedObject={selectedObject}
-            selectedSubUuid={selectedSubUuid}
-            onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
-            onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
-            onDeleteObject={deleteObject}
-            onDuplicateObject={duplicateObject}
-            onToggleVisibility={toggleVisibility}
-            onToggleLock={toggleLock}
-            onRenameObject={renameObject}
-          />
-        </div>
+        {/* Left: Scene hierarchy (collapsible) */}
+        {hierarchyCollapsed ? (
+          <div className="w-6 bevel-raised bg-win-face flex flex-col items-center py-1">
+            <button
+              className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
+              title="Mostrar Hierarquia"
+              onClick={() => setHierarchyCollapsed(false)}
+            >
+              <ChevronRight size={12} />
+            </button>
+            <div
+              className="mt-2 text-[10px] select-none cursor-pointer"
+              style={{ writingMode: 'vertical-rl' }}
+              onClick={() => setHierarchyCollapsed(false)}
+            >
+              Hierarchy
+            </div>
+          </div>
+        ) : (
+          <div className="w-56 bevel-inset bg-panel flex flex-col">
+            <div className="flex items-center justify-between px-1 py-0.5 bevel-raised bg-win-face shrink-0">
+              <span className="text-[11px] font-bold pl-1">Hierarchy</span>
+              <button
+                className="w-5 h-5 bevel-raised bg-win-face hover:brightness-110 flex items-center justify-center"
+                title="Esconder Hierarquia"
+                onClick={() => setHierarchyCollapsed(true)}
+              >
+                <ChevronLeft size={12} />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <SceneHierarchy
+                objects={objects}
+                selectedObject={selectedObject}
+                selectedSubUuid={selectedSubUuid}
+                onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
+                onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
+                onDeleteObject={deleteObject}
+                onDuplicateObject={duplicateObject}
+                onToggleVisibility={toggleVisibility}
+                onToggleLock={toggleLock}
+                onRenameObject={renameObject}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Center: Viewport(s) */}
         <div className="flex-1 flex flex-col min-h-0 bevel-inset">
