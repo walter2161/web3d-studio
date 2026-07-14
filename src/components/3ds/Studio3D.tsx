@@ -1060,6 +1060,10 @@ export const Studio3D = () => {
         <div className="w-[210px] shrink-0 bevel-inset bg-panel overflow-hidden">
           <SidePanel
             onCreateObject={createObject}
+            onArmTool={(t) => setArmedTool(t) /* provider syncs via context arm() below */}
+            armedTool={armedTool}
+            activeTab={sidePanelTab}
+            onActiveTabChange={setSidePanelTab}
             selectedObject={selectedObjectData}
             onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
             onAddModifier={addModifier}
@@ -1067,6 +1071,7 @@ export const Studio3D = () => {
             onRemoveModifier={removeModifier}
             onUpdateObjectGeometry={updateObjectGeometry}
           />
+
         </div>
       </div>
 
