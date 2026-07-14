@@ -16,6 +16,7 @@ interface MenuBarProps {
   onEnvironment?: () => void;
   onMaterialBrowser?: () => void;
   onViewImageFile?: () => void;
+  onMenuAction?: (action: string) => void;
 }
 
 // R3 menu list. Underlined access-key hint via <u>.
