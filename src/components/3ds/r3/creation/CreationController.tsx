@@ -401,7 +401,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (lineRef) lineRef.pts = [];
+        if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
         stageRef.current = null;
         setGhost(null);
         disarm();
