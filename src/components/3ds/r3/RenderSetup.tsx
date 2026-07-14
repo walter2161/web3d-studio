@@ -23,6 +23,7 @@ const OUTPUT_SIZES = [
 ];
 
 export const RenderSetup = ({ open, onOpenChange, onRender, currentFrame = 0 }: RenderSetupProps) => {
+  const { engine, setEngine } = useRenderEngine();
   const [tab, setTab] = useState<Tab>('Common');
   const [timeMode, setTimeMode] = useState<'single' | 'active' | 'range' | 'frames'>('single');
   const [rangeFrom, setRangeFrom] = useState(0);
