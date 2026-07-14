@@ -461,8 +461,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     >
       <meshStandardMaterial
         color={(object as any).material?.color ?? object.color}
-        transparent={renderMode === 'semi-transparent' || isGhost || ((object as any).material?.opacity ?? 1) < 1}
-        opacity={isGhost ? 0.55 : (renderMode === 'semi-transparent' ? 0.5 : ((object as any).material?.opacity ?? 1))}
+        transparent={renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || ((object as any).material?.opacity ?? 1) < 1}
+        opacity={isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (renderMode === 'semi-transparent' ? 0.5 : ((object as any).material?.opacity ?? 1)))}
+        depthWrite={renderMode !== 'bbox'}
         wireframe={renderMode === 'wireframe'}
         metalness={(object as any).material?.metalness ?? 0.15}
         roughness={(object as any).material?.roughness ?? 0.55}
