@@ -31,7 +31,11 @@ import { toast } from 'sonner';
 interface Object3DData {
   id: string;
   name?: string;
-  type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported';
+  // Sprint C: expanded to include Extended Primitives + Shapes.
+  type:
+    | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported'
+    | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
+    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix';
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
@@ -43,9 +47,9 @@ interface Object3DData {
   modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
   // Sprint A additions
-  groupId?: string;        // membership in a group node
-  groupOpen?: boolean;     // used on the group node itself (id === groupId)
-  isGroup?: boolean;       // marker for group container objects (not rendered)
+  groupId?: string;
+  groupOpen?: boolean;
+  isGroup?: boolean;
   properties?: {
     renderable?: boolean;
     castShadows?: boolean;
@@ -282,26 +286,42 @@ export const Studio3D = () => {
   }, [objects]);
 
   const createObject = useCallback((type: string) => {
-    if (['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'].includes(type)) {
-      saveState();
-      const newObject: Object3DData = {
-        id: `${type}_${Date.now()}`,
-        name: `${type}_${Math.random().toString(36).slice(2, 8)}`,
-        type: type as any,
-        position: [0, 0, 0],
-        rotation: [0, 0, 0],
-        scale: [1, 1, 1],
-        color: '#3b82f6',
-        visible: true,
-        locked: false,
-        modifiers: [],
-        ref: { current: null } as any,
-      };
-      
-      setObjects(prev => [...prev, newObject]);
-      setSelectedObject(newObject.id);
-      toast.success(`${type} created`);
+    const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'];
+    const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
+    const shapes = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
+
+    if (![...standard, ...extended, ...shapes].includes(type)) return;
+
+    saveState();
+
+    // Sensible default parameter set per type so the object appears with
+    // usable dimensions on first click, matching R3's Create panel behavior.
+    let defaultGeometry: any = undefined;
+    if (extended.includes(type)) {
+      // Defaults live in extendedGeometry.ts and are auto-applied when geometry is empty.
+      defaultGeometry = {};
+    } else if (shapes.includes(type)) {
+      defaultGeometry = {};
     }
+
+    const newObject: Object3DData = {
+      id: `${type}_${Date.now()}`,
+      name: `${type}_${Math.random().toString(36).slice(2, 8)}`,
+      type: type as any,
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: shapes.includes(type) ? '#f2c744' : '#3b82f6',
+      visible: true,
+      locked: false,
+      modifiers: [],
+      geometry: defaultGeometry,
+      ref: { current: null } as any,
+    };
+
+    setObjects(prev => [...prev, newObject]);
+    setSelectedObject(newObject.id);
+    toast.success(`${type} created`);
   }, [saveState]);
 
   // Animation operations
