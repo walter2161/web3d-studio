@@ -1156,11 +1156,11 @@ export const Studio3D = () => {
           onRedo={redo}
           onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
           onQuickRender={() => setQuickRenderOpen(true)}
-          onMirror={() => { if (selectedObject) setMirrorOpen(true); else toast.error('Select an object'); }}
-          onArray={() => { if (selectedObject) setArrayOpen(true); else toast.error('Select an object'); }}
-          onAlign={() => { if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); }}
-          onLayerManager={() => toast.info('Layer Manager — coming next sprint')}
-          onSelectByName={() => setSelectByNameOpen(true)}
+          onMirror={() => { setTypeInOpen(false); if (selectedObject) setMirrorOpen(true); else toast.error('Select an object'); }}
+          onArray={() => { setTypeInOpen(false); if (selectedObject) setArrayOpen(true); else toast.error('Select an object'); }}
+          onAlign={() => { setTypeInOpen(false); if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); }}
+          onLayerManager={() => { setTypeInOpen(false); toast.info('Layer Manager — coming next sprint'); }}
+          onSelectByName={() => { setTypeInOpen(false); setSelectByNameOpen(true); }}
           onRenderSetup={() => setRenderSetupOpen(true)}
           onOpenHierarchy={() => setHierarchyWindowOpen(true)}
           onOpenLibrary={() => setLibraryWindowOpen(true)}
