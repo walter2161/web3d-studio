@@ -62,6 +62,7 @@ export const StatusBar = ({
   currentFrame, totalFrames, isPlaying, autoKey, onToggleAutoKey, onSetKey,
   onPlay, onPause, onStop, onFrameChange, selectedPosition, prompt = 'Click and drag to select and move objects',
   viewportLayout, onToggleViewportLayout, gridSpacing = 1.0, units,
+  timelineVisible = false, onToggleTimeline,
 }: StatusBarProps) => {
   const [x, y, z] = selectedPosition || [0, 0, 0];
   const suffix = !units || units.system === 'Generic' ? '' :
