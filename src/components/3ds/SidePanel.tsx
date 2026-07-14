@@ -64,6 +64,9 @@ export const SidePanel = ({
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
   const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
+  // 'base' selects the base object parameters; a modifier id selects that modifier.
+  const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
+  const [modifierListOpen, setModifierListOpen] = useState(false);
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
