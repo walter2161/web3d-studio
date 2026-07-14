@@ -38,16 +38,31 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
     }
   }, [object.ref]);
 
-  // Apply modifiers to geometry
-  const modifiedGeometry = useMemo(() => {
-    let geometry: BufferGeometry;
-    if (object.type === 'imported') {
-      const cached = getImportedGeometry(object.id);
-      geometry = cached ? cached.clone() : new THREE.BoxGeometry(1, 1, 1);
-    } else {
-      geometry = createBaseGeometry(object.type, object.geometry);
-    }
+  // Imported model: cached scene graph + animations
+  const imported = object.type === 'imported' ? getImportedModel(object.id) : undefined;
+  const mixerRef = useRef<AnimationMixer | null>(null);
 
+  useEffect(() => {
+    if (!imported || imported.animations.length === 0) return;
+    const mixer = new AnimationMixer(imported.root);
+    mixerRef.current = mixer;
+    const action = mixer.clipAction(imported.animations[0]);
+    action.reset().play();
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(imported.root);
+      mixerRef.current = null;
+    };
+  }, [imported]);
+
+  useFrame((_, delta) => {
+    mixerRef.current?.update(delta);
+  });
+
+  // Apply modifiers to geometry (only for primitive types)
+  const modifiedGeometry = useMemo(() => {
+    if (object.type === 'imported') return new THREE.BufferGeometry();
+    let geometry: BufferGeometry = createBaseGeometry(object.type, object.geometry);
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
         if (modifier.active) {
@@ -55,9 +70,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
         }
       });
     }
-
     return geometry;
   }, [object.id, object.type, object.geometry, object.modifiers]);
+
 
 
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
