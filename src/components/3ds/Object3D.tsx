@@ -4,6 +4,7 @@ import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as Three
 import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, ExtPrimType, ShapeType } from './utils/extendedGeometry';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // R3-style entity types
 export const LIGHT_TYPES = ['light_omni', 'light_spot', 'light_direct', 'light_skylight', 'light_ambient'] as const;
