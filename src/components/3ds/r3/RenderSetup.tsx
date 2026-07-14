@@ -169,20 +169,28 @@ export const RenderSetup = ({ open, onOpenChange, onRender, currentFrame = 0 }: 
             <GroupBox title="Current Renderers">
               <Row label="Production:" labelWidth={80}>
                 <select
-                  value={renderer}
-                  onChange={(e) => setRenderer(e.target.value as typeof renderer)}
+                  value={engine}
+                  onChange={(e) => setEngine(e.target.value as RenderEngine)}
                   className="bevel-inset bg-white text-[11px] h-[18px]"
+                  style={{ width: 220 }}
                 >
-                  <option>Default Scanline</option>
-                  <option>VUE File Renderer</option>
+                  {(Object.keys(ENGINES) as RenderEngine[]).map((k) => (
+                    <option key={k} value={k}>{ENGINES[k].label}</option>
+                  ))}
                 </select>
                 <R3Button>Assign...</R3Button>
               </Row>
               <Row label="Draft:" labelWidth={80}>
-                <span className="bevel-inset bg-white px-1 h-[18px] flex items-center" style={{ width: 200 }}>Default Scanline Renderer</span>
+                <span className="bevel-inset bg-white px-1 h-[18px] flex items-center" style={{ width: 220 }}>
+                  {ENGINES[engine].label} Renderer
+                </span>
                 <R3Button>Assign...</R3Button>
               </Row>
+              <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
+                {ENGINES[engine].description} The chosen engine drives Quick Render and adjusts the scene Environment (level / tint / ambient).
+              </div>
             </GroupBox>
+
 
             <GroupBox title="Options">
               <div className="grid grid-cols-2 gap-x-2 gap-y-[2px]">
