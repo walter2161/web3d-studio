@@ -39,8 +39,14 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
 
   // Apply modifiers to geometry
   const modifiedGeometry = useMemo(() => {
-    let geometry = createBaseGeometry(object.type, object.geometry);
-    
+    let geometry: BufferGeometry;
+    if (object.type === 'imported') {
+      const cached = getImportedGeometry(object.id);
+      geometry = cached ? cached.clone() : new THREE.BoxGeometry(1, 1, 1);
+    } else {
+      geometry = createBaseGeometry(object.type, object.geometry);
+    }
+
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
         if (modifier.active) {
@@ -48,9 +54,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
         }
       });
     }
-    
+
     return geometry;
-  }, [object.type, object.geometry, object.modifiers]);
+  }, [object.id, object.type, object.geometry, object.modifiers]);
+
 
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
     const geom = geometry || {};
