@@ -479,6 +479,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </lineSegments>
       )}
 
+      {/* Edged Faces (F4): show wire on top of solid */}
+      {renderMode === 'edged' && !isGhost && !isSelected && (
+        <lineSegments>
+          <edgesGeometry args={[modifiedGeometry, 15]} />
+          <lineBasicMaterial color="#000000" transparent opacity={0.55} />
+        </lineSegments>
+      )}
+
+      {/* Bounding Box mode: fill mesh becomes invisible, box drawn instead */}
+      {renderMode === 'bbox' && !isGhost && (
+        <lineSegments renderOrder={999}>
+          <edgesGeometry args={[new THREE.BoxGeometry(1, 1, 1)]} />
+          <lineBasicMaterial color={isSelected ? '#00bfff' : '#a3a3a3'} />
+        </lineSegments>
+      )}
+
       {/* Ghost edges — bright preview outline while creating */}
       {isGhost && (
         <lineSegments renderOrder={999}>
