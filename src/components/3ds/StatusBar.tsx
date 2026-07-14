@@ -19,6 +19,8 @@ interface StatusBarProps {
   prompt?: string;
   viewportLayout: 'single' | 'quad';
   onToggleViewportLayout: () => void;
+  gridSpacing?: number;
+  units?: { system: string; metric: string; us: string; precision: number };
 }
 
 const Tool = ({
