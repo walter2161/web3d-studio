@@ -1306,6 +1306,8 @@ export const Studio3D = () => {
         onToggleViewportLayout={() => setViewportLayout(v => v === 'single' ? 'quad' : 'single')}
         gridSpacing={snapCfg.gridSpacing}
         units={units}
+        timelineVisible={timelineVisible}
+        onToggleTimeline={() => setTimelineVisible(v => !v)}
       />
 
 
