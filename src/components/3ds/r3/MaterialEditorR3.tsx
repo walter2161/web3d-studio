@@ -275,6 +275,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   const [previewShape, setPreviewShape] = useState<PreviewShape>('sphere');
   const [pickMode, setPickMode] = useState(false);
   const [mapBrowserOpen, setMapBrowserOpen] = useState<null | keyof R3Material['maps']>(null);
+  const [mapParamsOpen, setMapParamsOpen] = useState<null | keyof R3Material['maps']>(null);
 
   useEffect(() => { if (open) setSlots(loadSlots()); }, [open]);
   useEffect(() => { saveSlots(slots); }, [slots]);
@@ -285,6 +286,19 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   };
   const updateMap = (key: keyof R3Material['maps'], patch: Partial<R3MapSlot>) => {
     setSlots((prev) => prev.map((m, i) => i === active ? { ...m, maps: { ...m.maps, [key]: { ...m.maps[key], ...patch } } } : m));
+  };
+  const updateMapParams = (key: keyof R3Material['maps'], patch: Partial<R3MapParams>) => {
+    setSlots((prev) => prev.map((m, i) => {
+      if (i !== active) return m;
+      const slot = m.maps[key];
+      const params = { ...(slot.params || defaultMapParams()), ...patch };
+      return { ...m, maps: { ...m.maps, [key]: { ...slot, params } } };
+    }));
+  };
+  const openMapSlot = (key: keyof R3Material['maps']) => {
+    const slot = mat.maps[key];
+    if (slot.name === 'None') setMapBrowserOpen(key);
+    else setMapParamsOpen(key);
   };
 
   const matToThree = (m: R3Material) => ({
