@@ -21,6 +21,10 @@ import { UnitsSetup, loadUnits } from './r3/UnitsSetup';
 import { GridAndSnapSettings, loadSnap } from './r3/GridAndSnapSettings';
 import { AboutDialog } from './r3/AboutDialog';
 import { ConfirmDialog } from './r3/ConfirmDialog';
+import { SelectByNameDialog } from './r3/SelectByNameDialog';
+import { MirrorDialog } from './r3/MirrorDialog';
+import { ArrayDialog } from './r3/ArrayDialog';
+import { AlignDialog, AlignOpts } from './r3/AlignDialog';
 import { toast } from 'sonner';
 
 
@@ -106,6 +110,12 @@ export const Studio3D = () => {
   const [heldSnapshot, setHeldSnapshot] = useState<Object3DData[] | null>(null);
   const [units, setUnits] = useState(() => loadUnits());
   const [snapCfg, setSnapCfg] = useState(() => loadSnap());
+  const [snapEnabled, setSnapEnabled] = useState(false);
+  const [angleSnapEnabled, setAngleSnapEnabled] = useState(false);
+  const [selectByNameOpen, setSelectByNameOpen] = useState(false);
+  const [mirrorOpen, setMirrorOpen] = useState(false);
+  const [arrayOpen, setArrayOpen] = useState(false);
+  const [alignOpen, setAlignOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
