@@ -124,12 +124,15 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   const meshRef = useRef<Mesh>(null);
 
 
-  // Update object ref
+  // Update object ref — skip for lights/cameras/helpers, whose EntityRenderer
+  // binds `object.ref` to its own group. Overwriting here with the (null) mesh
+  // ref would break TransformControls attach for those entities.
   useEffect(() => {
+    if (isEntityType(object.type)) return;
     if (object.ref) {
       object.ref.current = meshRef.current;
     }
-  }, [object.ref]);
+  }, [object.ref, object.type]);
 
   // Imported model: cached scene graph + animations
   const imported = object.type === 'imported' ? getImportedModel(object.id) : undefined;
