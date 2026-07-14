@@ -519,38 +519,41 @@ export const SidePanel = ({
                     />
                   </div>
 
-                  {/* Modifier List dropdown */}
-                  <div className="relative">
-                    <button
-                      className="w-full h-[22px] text-[11px] text-left px-2 bevel-raised hover:brightness-105 text-win-text flex items-center justify-between"
-                      onClick={() => setModifierListOpen((v) => !v)}
-                    >
-                      <span className="truncate">Modifier List</span>
-                      <span className="text-[10px]">▼</span>
-                    </button>
-                    {modifierListOpen && (
-                      <div className="absolute z-50 left-0 right-0 mt-[1px] bevel-raised bg-panel max-h-56 overflow-y-auto">
-                        {availableModifiers.length === 0 && (
-                          <div className="px-2 py-1 text-[11px] text-win-text/60 italic">
-                            No modifiers available for this object type
-                          </div>
-                        )}
-                        {availableModifiers.map((m) => (
-                          <button
-                            key={m.name}
-                            title={m.description}
-                            onClick={() => {
-                              onAddModifier(selectedObject.id, m.name);
-                              setModifierListOpen(false);
-                            }}
-                            className="w-full h-[20px] text-[11px] text-left px-2 truncate text-win-text hover:bg-win-highlight hover:text-white"
-                          >
-                            {m.name}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Modifier List — classic R3 combobox (native select) */}
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      if (name) onAddModifier(selectedObject.id, name);
+                      e.target.value = '';
+                    }}
+                    className="w-full h-[22px] text-[11px] bevel-sunken bg-white px-1 text-win-text border border-win-shadow"
+                    disabled={availableModifiers.length === 0}
+                    title={availableModifiers.length === 0
+                      ? 'No modifiers available for this object class'
+                      : 'Modifier List — pick to add on top of the stack'}
+                  >
+                    <option value="">
+                      {availableModifiers.length === 0 ? '— No modifiers available —' : 'Modifier List'}
+                    </option>
+                    {(() => {
+                      const cls = currentObjectClass(selectedObject);
+                      const groups: Array<{ label: string; items: typeof modifiers }> = [];
+                      if (cls === 'shape') {
+                        groups.push({ label: 'SELECTION MODIFIERS', items: [] });
+                        groups.push({ label: 'OBJECT-SPACE MODIFIERS', items: availableModifiers.filter((m) => m.category === 'shape' || m.category === 'universal') });
+                      } else {
+                        groups.push({ label: 'OBJECT-SPACE MODIFIERS', items: availableModifiers });
+                      }
+                      return groups.filter((g) => g.items.length > 0).map((g) => (
+                        <optgroup key={g.label} label={g.label}>
+                          {g.items.map((m) => (
+                            <option key={m.name} value={m.name} title={m.description}>{m.name}</option>
+                          ))}
+                        </optgroup>
+                      ));
+                    })()}
+                  </select>
 
                   {/* Modifier Stack */}
                   <div className="bevel-inset bg-white">
