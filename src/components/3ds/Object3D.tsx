@@ -404,15 +404,27 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         e.stopPropagation();
         onSelect();
       }}
+      onPointerUp={isGhost ? undefined : (e) => {
+        const payload = (window as any).__matDragPayload;
+        if (payload) {
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent('r3-apply-material', {
+            detail: { id: (object as any).id, material: payload },
+          }));
+          (window as any).__matDragPayload = null;
+        }
+      }}
       geometry={modifiedGeometry}
     >
       <meshStandardMaterial
-        color={object.color}
-        transparent={renderMode === 'semi-transparent' || isGhost}
-        opacity={isGhost ? 0.55 : (renderMode === 'semi-transparent' ? 0.5 : 1)}
+        color={(object as any).material?.color ?? object.color}
+        transparent={renderMode === 'semi-transparent' || isGhost || ((object as any).material?.opacity ?? 1) < 1}
+        opacity={isGhost ? 0.55 : (renderMode === 'semi-transparent' ? 0.5 : ((object as any).material?.opacity ?? 1))}
         wireframe={renderMode === 'wireframe'}
-        metalness={0.15}
-        roughness={0.55}
+        metalness={(object as any).material?.metalness ?? 0.15}
+        roughness={(object as any).material?.roughness ?? 0.55}
+        emissive={(object as any).material?.emissive ?? '#000000'}
+        emissiveIntensity={(object as any).material?.emissiveIntensity ?? 0}
         flatShading={false}
       />
 
