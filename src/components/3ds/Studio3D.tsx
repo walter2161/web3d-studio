@@ -25,7 +25,9 @@ import { SelectByNameDialog } from './r3/SelectByNameDialog';
 import { MirrorDialog } from './r3/MirrorDialog';
 import { ArrayDialog } from './r3/ArrayDialog';
 import { AlignDialog, AlignOpts } from './r3/AlignDialog';
+import { CreationProvider, useCreation, GhostObject } from './r3/creation/CreationContext';
 import { toast } from 'sonner';
+
 
 
 interface Object3DData {
@@ -126,8 +128,12 @@ export const Studio3D = () => {
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
+  const [armedTool, setArmedTool] = useState<string | null>(null);
+  const [ghost, setGhost] = useState<GhostObject | null>(null);
+  const [sidePanelTab, setSidePanelTab] = useState<string>('create');
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+
 
   // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
   useEffect(() => {
@@ -323,6 +329,41 @@ export const Studio3D = () => {
     setSelectedObject(newObject.id);
     toast.success(`${type} created`);
   }, [saveState]);
+
+  // Commit a ghost object from the interactive click-drag creation flow.
+  // Pivot policy (matches 3ds Max R3):
+  //   - Box / Cylinder / Cone / Pyramid / Tube  → pivot at CENTER OF BASE
+  //   - Sphere / Torus / Hedra / GeoSphere      → pivot at GEOMETRIC CENTER
+  //   - Plane / Shapes 2D                        → pivot at CENTER
+  // Our geometry primitives are already center-origin, so the ghost sits with
+  // its center at ghost.position. For base-pivot types we shift position up so
+  // that y = base + height/2, and record that offset so the Modify panel still
+  // reads intuitive Width/Depth/Height numbers.
+  const commitGhostObject = useCallback((g: GhostObject) => {
+    saveState();
+    const id = `${g.type}_${Date.now()}`;
+    const newObject: Object3DData = {
+      id,
+      name: `${g.type}${objects.filter((o) => o.type === g.type).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === g.type).length + 1}`,
+      type: g.type as any,
+      position: g.position,
+      rotation: g.rotation,
+      scale: g.scale,
+      color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
+             g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
+        ? '#f2c744' : '#3b82f6',
+      visible: true,
+      locked: false,
+      modifiers: [],
+      geometry: g.geometry,
+      ref: { current: null } as any,
+    };
+    setObjects((prev) => [...prev, newObject]);
+    setSelectedObject(id);
+    setSidePanelTab('modify');
+    toast.success(`${g.type} created`);
+  }, [objects, saveState]);
+
 
   // Animation operations
   const addKeyframe = useCallback((objectId: string, frame: number) => {
@@ -850,7 +891,13 @@ export const Studio3D = () => {
 
   return (
     <EnvironmentProvider>
+    <CreationProvider
+      onCommit={commitGhostObject}
+      onArmedChange={setArmedTool}
+      onGhostChange={setGhost}
+    >
     <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
+
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
         onDeleteSelected={handleDeleteSelected}
@@ -985,7 +1032,11 @@ export const Studio3D = () => {
               layout={viewportLayout}
               activeViewport={activeViewport}
               onActiveViewportChange={setActiveViewport}
-              objects={objects.filter(obj => obj.visible !== false && !obj.isGroup)}
+              objects={[
+                ...objects.filter(obj => obj.visible !== false && !obj.isGroup),
+                ...(ghost ? [ghost as any] : []),
+              ]}
+
               selectedObject={selectedObject}
               selectedSubUuid={selectedSubUuid}
               onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
@@ -1007,8 +1058,10 @@ export const Studio3D = () => {
 
         {/* Right: Command Panel — fixed width like 3ds Max R3 (~200 px) */}
         <div className="w-[210px] shrink-0 bevel-inset bg-panel overflow-hidden">
-          <SidePanel
+          <ArmedSidePanel
             onCreateObject={createObject}
+            activeTab={sidePanelTab}
+            onActiveTabChange={setSidePanelTab}
             selectedObject={selectedObjectData}
             onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
             onAddModifier={addModifier}
@@ -1016,6 +1069,8 @@ export const Studio3D = () => {
             onRemoveModifier={removeModifier}
             onUpdateObjectGeometry={updateObjectGeometry}
           />
+
+
         </div>
       </div>
 
@@ -1122,6 +1177,24 @@ export const Studio3D = () => {
         onApply={applyAlign}
       />
     </div>
+    </CreationProvider>
     </EnvironmentProvider>
   );
 };
+
+// Bridges the SidePanel's "arm tool" action to the CreationContext so the
+// button clicks in the Create rollout hand off to the viewport click-drag flow.
+const ArmedSidePanel = (props: React.ComponentProps<typeof SidePanel>) => {
+  const { arm, disarm, armed } = useCreation();
+  return (
+    <SidePanel
+      {...props}
+      armedTool={armed}
+      onArmTool={(t: string) => {
+        if (armed === (t as any)) disarm();
+        else arm(t as any);
+      }}
+    />
+  );
+};
+
