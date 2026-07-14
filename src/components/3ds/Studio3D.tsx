@@ -445,10 +445,10 @@ export const Studio3D = () => {
   const importModel = useCallback(async (file: File) => {
     const loadingId = toast.loading(`Importing ${file.name}...`);
     try {
-      const { importModelFile, setImportedGeometry } = await import('./utils/modelImport');
-      const geom = await importModelFile(file);
+      const { importModelFile, setImportedModel } = await import('./utils/modelImport');
+      const model = await importModelFile(file);
       const id = `imported_${Date.now()}`;
-      setImportedGeometry(id, geom);
+      setImportedModel(id, model);
       saveState();
       const baseName = file.name.replace(/\.[^.]+$/, '');
       const newObject: Object3DData = {
@@ -467,7 +467,11 @@ export const Studio3D = () => {
       setObjects(prev => [...prev, newObject]);
       setSelectedObject(id);
       toast.dismiss(loadingId);
-      toast.success(`Imported ${file.name}`);
+      const animMsg = model.animations.length > 0
+        ? ` (${model.animations.length} animation${model.animations.length > 1 ? 's' : ''})`
+        : '';
+      toast.success(`Imported ${file.name}${animMsg}`);
+
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('Import failed:', err);

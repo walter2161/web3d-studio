@@ -1,8 +1,9 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Mesh, BufferGeometry, Vector3 } from 'three';
+import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer } from 'three';
 import * as THREE from 'three';
-import { getImportedGeometry } from './utils/modelImport';
+import { getImportedModel } from './utils/modelImport';
+
 
 interface Object3DProps {
   object: {
@@ -37,16 +38,31 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
     }
   }, [object.ref]);
 
-  // Apply modifiers to geometry
-  const modifiedGeometry = useMemo(() => {
-    let geometry: BufferGeometry;
-    if (object.type === 'imported') {
-      const cached = getImportedGeometry(object.id);
-      geometry = cached ? cached.clone() : new THREE.BoxGeometry(1, 1, 1);
-    } else {
-      geometry = createBaseGeometry(object.type, object.geometry);
-    }
+  // Imported model: cached scene graph + animations
+  const imported = object.type === 'imported' ? getImportedModel(object.id) : undefined;
+  const mixerRef = useRef<AnimationMixer | null>(null);
 
+  useEffect(() => {
+    if (!imported || imported.animations.length === 0) return;
+    const mixer = new AnimationMixer(imported.root);
+    mixerRef.current = mixer;
+    const action = mixer.clipAction(imported.animations[0]);
+    action.reset().play();
+    return () => {
+      mixer.stopAllAction();
+      mixer.uncacheRoot(imported.root);
+      mixerRef.current = null;
+    };
+  }, [imported]);
+
+  useFrame((_, delta) => {
+    mixerRef.current?.update(delta);
+  });
+
+  // Apply modifiers to geometry (only for primitive types)
+  const modifiedGeometry = useMemo(() => {
+    if (object.type === 'imported') return new THREE.BufferGeometry();
+    let geometry: BufferGeometry = createBaseGeometry(object.type, object.geometry);
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
         if (modifier.active) {
@@ -54,9 +70,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
         }
       });
     }
-
     return geometry;
   }, [object.id, object.type, object.geometry, object.modifiers]);
+
 
 
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
@@ -315,6 +331,32 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
     return geometry;
   }
 
+  // Render imported models as their full scene graph (preserves materials,
+  // textures, skinning, and animations).
+  if (object.type === 'imported') {
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect();
+        }}
+      >
+        {imported ? (
+          <primitive object={imported.root} />
+        ) : (
+          <mesh>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshStandardMaterial color="#666" />
+          </mesh>
+        )}
+      </group>
+    );
+  }
+
   return (
     <mesh
       ref={meshRef}
@@ -347,5 +389,6 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode }: Object3DP
         </lineSegments>
       )}
     </mesh>
+
   );
 };
