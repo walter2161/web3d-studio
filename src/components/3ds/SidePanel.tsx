@@ -38,14 +38,39 @@ export const SidePanel = ({
   onUpdateObjectGeometry
 }: SidePanelProps) => {
   const [activeTab, setActiveTab] = useState('create');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights'>('standard');
 
-  const primitives = [
+  const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
     { type: 'sphere', icon: Circle, label: 'Sphere' },
     { type: 'cylinder', icon: Cylinder, label: 'Cylinder' },
     { type: 'cone', icon: Triangle, label: 'Cone' },
     { type: 'torus', icon: Torus, label: 'Torus' },
     { type: 'plane', icon: Square, label: 'Plane' },
+  ];
+
+  const extendedPrimitives = [
+    { type: 'hedra',      label: 'Hedra' },
+    { type: 'chamferBox', label: 'ChamferBox' },
+    { type: 'chamferCyl', label: 'ChamferCyl' },
+    { type: 'oilTank',    label: 'OilTank' },
+    { type: 'spindle',    label: 'Spindle' },
+    { type: 'gengon',     label: 'Gengon' },
+    { type: 'torusKnot',  label: 'Torus Knot' },
+    { type: 'ringWave',   label: 'RingWave' },
+    { type: 'prism',      label: 'Prism' },
+  ];
+
+  const shapes = [
+    { type: 'line',      label: 'Line' },
+    { type: 'rectangle', label: 'Rectangle' },
+    { type: 'circle',    label: 'Circle' },
+    { type: 'ellipse',   label: 'Ellipse' },
+    { type: 'arc',       label: 'Arc' },
+    { type: 'donut',     label: 'Donut' },
+    { type: 'ngon',      label: 'NGon' },
+    { type: 'star',      label: 'Star' },
+    { type: 'helix',     label: 'Helix' },
   ];
 
   const modifiers = [
@@ -71,6 +96,13 @@ export const SidePanel = ({
     { name: 'Slice', description: 'Corta o objeto em partes' }
   ];
 
+  const categoryLabel: Record<typeof createCategory, string> = {
+    standard: 'Standard Primitives',
+    extended: 'Extended Primitives',
+    shapes: 'Shapes',
+    lights: 'Lights & Cameras',
+  };
+
   return (
     <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
@@ -83,13 +115,25 @@ export const SidePanel = ({
         </TabsList>
 
         <div className="p-3 space-y-4">
-          <TabsContent value="create" className="mt-0">
+          <TabsContent value="create" className="mt-0 space-y-3">
+            {/* R3-style category selector */}
+            <select
+              value={createCategory}
+              onChange={(e) => setCreateCategory(e.target.value as any)}
+              className="w-full h-7 text-xs bg-card border border-panel-border rounded px-2"
+            >
+              <option value="standard">Standard Primitives</option>
+              <option value="extended">Extended Primitives</option>
+              <option value="shapes">Shapes</option>
+              <option value="lights">Lights &amp; Cameras</option>
+            </select>
+
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Standard Primitives</CardTitle>
+                <CardTitle className="text-sm">{categoryLabel[createCategory]}</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-2">
-                {primitives.map((primitive) => {
+                {createCategory === 'standard' && standardPrimitives.map((primitive) => {
                   const IconComponent = primitive.icon;
                   return (
                     <Button
@@ -104,32 +148,53 @@ export const SidePanel = ({
                     </Button>
                   );
                 })}
-              </CardContent>
-            </Card>
 
-            <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Lights & Cameras</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                  onClick={() => onCreateObject('light')}
-                >
-                  <Lightbulb className="w-6 h-6" />
-                  <span className="text-xs">Light</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                  onClick={() => onCreateObject('camera')}
-                >
-                  <Camera className="w-6 h-6" />
-                  <span className="text-xs">Camera</span>
-                </Button>
+                {createCategory === 'extended' && extendedPrimitives.map((p) => (
+                  <Button
+                    key={p.type}
+                    variant="outline"
+                    size="sm"
+                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
+                    onClick={() => onCreateObject(p.type)}
+                  >
+                    {p.label}
+                  </Button>
+                ))}
+
+                {createCategory === 'shapes' && shapes.map((s) => (
+                  <Button
+                    key={s.type}
+                    variant="outline"
+                    size="sm"
+                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
+                    onClick={() => onCreateObject(s.type)}
+                  >
+                    {s.label}
+                  </Button>
+                ))}
+
+                {createCategory === 'lights' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
+                      onClick={() => onCreateObject('light')}
+                    >
+                      <Lightbulb className="w-6 h-6" />
+                      <span className="text-xs">Light</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
+                      onClick={() => onCreateObject('camera')}
+                    >
+                      <Camera className="w-6 h-6" />
+                      <span className="text-xs">Camera</span>
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
