@@ -81,6 +81,43 @@ export const Studio3D = () => {
     } catch {}
   }, [objects, animationTracks, selectedObject, currentFrame]);
 
+  // Rehydrate imported models from IndexedDB on mount.
+  // Autosave restores object metadata, but the parsed scene graph lives in
+  // memory only — we re-parse from the stored bytes so the character isn't
+  // replaced by a placeholder cube after a refresh.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const importedObjs = objects.filter(o => o.type === 'imported');
+      if (importedObjs.length === 0) return;
+      const { getImportedModel, setImportedModel, importFromBytes } = await import('./utils/modelImport');
+      const { loadModelBlob } = await import('./utils/modelStorage');
+      let rehydratedAny = false;
+      for (const obj of importedObjs) {
+        if (getImportedModel(obj.id)) continue;
+        try {
+          const stored = await loadModelBlob(obj.id);
+          if (!stored) continue;
+          const model = await importFromBytes(stored.filename, stored.bytes);
+          if (cancelled) return;
+          setImportedModel(obj.id, model);
+          rehydratedAny = true;
+        } catch (e) {
+          console.warn('Failed to rehydrate imported model', obj.id, e);
+        }
+      }
+      // Force a re-render so <primitive> picks up the newly cached scene.
+      if (rehydratedAny && !cancelled) {
+        setObjects(prev => prev.map(o => ({ ...o })));
+      }
+    })();
+    return () => { cancelled = true; };
+    // Run once on mount; subsequent imports set the cache synchronously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+
 
   // Playback loop
   useEffect(() => {
