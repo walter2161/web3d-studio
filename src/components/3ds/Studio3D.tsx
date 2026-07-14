@@ -1125,6 +1125,9 @@ export const Studio3D = () => {
                 ...objects.filter(obj => obj.visible !== false && !obj.isGroup),
                 ...(ghost ? [ghost as any] : []),
               ]}
+              viewportCameras={viewportCameras}
+              onSetViewportCamera={(vp, camId) => setViewportCameras((prev) => ({ ...prev, [vp]: camId }))}
+              availableCameras={objects.filter((o) => o.type === 'camera_target' || o.type === 'camera_free')}
 
               selectedObject={selectedObject}
               selectedSubUuid={selectedSubUuid}
@@ -1142,6 +1145,7 @@ export const Studio3D = () => {
               snapAngleDeg={angleSnapEnabled ? snapCfg.angleSnap : 0}
               snapPercent={snapCfg.percentSnap}
             />
+
           </div>
         </div>
 
