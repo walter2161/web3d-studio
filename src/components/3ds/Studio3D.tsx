@@ -112,8 +112,8 @@ export const Studio3D = () => {
     perspective: null, top: null, front: null, left: null,
   });
 
-  const [hierarchyCollapsed, setHierarchyCollapsed] = useState(false);
   const [hierarchyWindowOpen, setHierarchyWindowOpen] = useState(false);
+  const [libraryWindowOpen, setLibraryWindowOpen] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
