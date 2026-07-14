@@ -325,9 +325,21 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const bevelEnabled = !!params.bevelEnabled;
     const { pts3, axis, closed } = outline;
 
+    // Map outline to shape-local 2D so that after the rotation below the base
+    // ring lands exactly on the original pts3 (matching the visible ring
+    // overlay). ExtrudeGeometry places shape at local z=0 and extrudes toward
+    // local +Z; the rotations below then send local +Z → world +axis.
+    //
+    //   axis='y': rotateX(-π/2) → world (x,y,z) = (u,  z_local, -v)
+    //   axis='x': rotateY(+π/2) → world (x,y,z) = ( z_local, v, -u)
+    //   axis='z': no rotation   → world (x,y,z) = (u, v, z_local)
+    //
+    // We want world base (z_local=0) to equal the source pts3 coordinates on
+    // the plane perpendicular to `axis`, so we invert the second component
+    // accordingly on x/y axes.
     const to2D = (p: THREE.Vector3) =>
-      axis === 'x' ? new THREE.Vector2(p.z, p.y)
-      : axis === 'y' ? new THREE.Vector2(p.x, p.z)
+      axis === 'x' ? new THREE.Vector2(-p.z, p.y)
+      : axis === 'y' ? new THREE.Vector2(p.x, -p.z)
       : new THREE.Vector2(p.x, p.y);
 
     const pts2 = pts3.map(to2D);
@@ -341,9 +353,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       curveSegments: 24,
     });
 
-    // ExtrudeGeometry extrudes along +Z; rotate to align with the chosen axis.
+    // Align local +Z (extrude direction) with the chosen world axis.
     if (axis === 'y') extrGeo.rotateX(-Math.PI / 2);
     else if (axis === 'x') extrGeo.rotateY(Math.PI / 2);
+
 
     return extrGeo;
   }
