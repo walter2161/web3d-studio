@@ -78,8 +78,23 @@ export const Viewport = ({
       )}
       onClick={onActivate}
     >
-      <div className="absolute top-1 left-1 z-10 px-1.5 py-0 bg-black/50 text-[10px] font-mono text-viewport-label uppercase tracking-wide select-none pointer-events-none">
-        [{type}]
+      <div className="absolute top-1 left-1 z-10 flex items-center gap-1 pointer-events-none">
+        <div className="px-1.5 py-0 bg-black/50 text-[10px] font-mono text-viewport-label uppercase tracking-wide select-none">
+          [{cameraObjectId ? (availableCameras.find((c) => c.id === cameraObjectId)?.name || 'Camera') : type}]
+        </div>
+        {availableCameras.length > 0 && (
+          <select
+            className="pointer-events-auto h-5 text-[10px] bg-black/70 text-viewport-label border border-viewport-border px-1"
+            value={cameraObjectId || '__view'}
+            onChange={(e) => onChangeCameraObject?.(e.target.value === '__view' ? null : e.target.value)}
+            title="View from camera (C)"
+          >
+            <option value="__view">View: {type}</option>
+            {availableCameras.map((c) => (
+              <option key={c.id} value={c.id}>Cam: {c.name || c.id}</option>
+            ))}
+          </select>
+        )}
       </div>
 
 
@@ -95,6 +110,7 @@ export const Viewport = ({
           </SelectContent>
         </Select>
       </div>
+
 
       <Canvas
         ref={canvasRef}
