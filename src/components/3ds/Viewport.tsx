@@ -116,9 +116,30 @@ export const Viewport = ({
 
   const view: ViewType = viewOverride ?? (type as ViewType);
 
-  const cameraPosition = useMemo(() => VIEW_POS[view], [view]);
+  // Preserve zoom distance across view switches (R3-style). Captured from OrbitControls
+  // right before changing view, then used to scale the new camera position / ortho zoom.
+  const distanceRef = useRef<number>(Math.sqrt(75)); // ~8.66 (matches default [5,5,5])
+
+  const captureDistance = () => {
+    const oc: any = (window as any).__orbitControls;
+    if (oc?.object && oc?.target) {
+      const d = oc.object.position.distanceTo(oc.target);
+      if (d > 0.001 && isFinite(d)) distanceRef.current = d;
+    }
+  };
+
+  const switchView = (v: ViewType) => { captureDistance(); setViewOverride(v); onChangeCameraObject?.(null); };
+
+  const cameraPosition = useMemo(() => {
+    const [x, y, z] = VIEW_POS[view];
+    const len = Math.hypot(x, y, z) || 1;
+    const s = distanceRef.current / len;
+    return [x * s, y * s, z * s] as [number, number, number];
+  }, [view]);
   const cameraUp = useMemo(() => VIEW_UP[view], [view]);
   const orthographic = view !== 'perspective' && view !== 'user';
+  // Ortho zoom that matches perspective visible height at same distance (fov≈50°).
+  const orthoZoom = useMemo(() => 21.44 / Math.max(0.001, distanceRef.current), [view]);
   const effectiveShowGrid = showGridProp && showGridLocal;
 
   // F3 → toggle Wireframe, F4 → toggle Edged Faces (R3 shortcuts). Active viewport only.
