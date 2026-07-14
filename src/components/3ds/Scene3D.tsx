@@ -14,7 +14,7 @@ interface Scene3DProps {
   onTransformObject: (id: string, transform: any) => void;
   viewportType: string;
   transformMode: 'translate' | 'rotate' | 'scale';
-  renderMode: 'solid' | 'wireframe' | 'semi-transparent';
+  renderMode: 'solid' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
   animationTracks?: AnimationTrack[];
   selectedKeyframe?: Keyframe | null;
   onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;

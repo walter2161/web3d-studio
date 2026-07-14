@@ -51,7 +51,7 @@ interface Object3DProps {
   };
   isSelected: boolean;
   onSelect: () => void;
-  renderMode: 'solid' | 'wireframe' | 'semi-transparent';
+  renderMode: 'solid' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
@@ -461,8 +461,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     >
       <meshStandardMaterial
         color={(object as any).material?.color ?? object.color}
-        transparent={renderMode === 'semi-transparent' || isGhost || ((object as any).material?.opacity ?? 1) < 1}
-        opacity={isGhost ? 0.55 : (renderMode === 'semi-transparent' ? 0.5 : ((object as any).material?.opacity ?? 1))}
+        transparent={renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || ((object as any).material?.opacity ?? 1) < 1}
+        opacity={isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (renderMode === 'semi-transparent' ? 0.5 : ((object as any).material?.opacity ?? 1)))}
+        depthWrite={renderMode !== 'bbox'}
         wireframe={renderMode === 'wireframe'}
         metalness={(object as any).material?.metalness ?? 0.15}
         roughness={(object as any).material?.roughness ?? 0.55}
@@ -478,6 +479,33 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           <lineBasicMaterial color="#00bfff" transparent opacity={0.9} depthTest={false} />
         </lineSegments>
       )}
+
+      {/* Edged Faces (F4): show wire on top of solid */}
+      {renderMode === 'edged' && !isGhost && !isSelected && (
+        <lineSegments>
+          <edgesGeometry args={[modifiedGeometry, 15]} />
+          <lineBasicMaterial color="#000000" transparent opacity={0.55} />
+        </lineSegments>
+      )}
+
+      {/* Bounding Box mode: fill mesh becomes invisible, box drawn instead */}
+      {renderMode === 'bbox' && !isGhost && (() => {
+        modifiedGeometry.computeBoundingBox();
+        const bb = modifiedGeometry.boundingBox;
+        if (!bb) return null;
+        const sx = Math.max(0.001, bb.max.x - bb.min.x);
+        const sy = Math.max(0.001, bb.max.y - bb.min.y);
+        const sz = Math.max(0.001, bb.max.z - bb.min.z);
+        const cx = (bb.max.x + bb.min.x) / 2;
+        const cy = (bb.max.y + bb.min.y) / 2;
+        const cz = (bb.max.z + bb.min.z) / 2;
+        return (
+          <lineSegments position={[cx, cy, cz]} renderOrder={999}>
+            <edgesGeometry args={[new THREE.BoxGeometry(sx, sy, sz)]} />
+            <lineBasicMaterial color={isSelected ? '#00bfff' : '#a3a3a3'} />
+          </lineSegments>
+        );
+      })()}
 
       {/* Ghost edges — bright preview outline while creating */}
       {isGhost && (
