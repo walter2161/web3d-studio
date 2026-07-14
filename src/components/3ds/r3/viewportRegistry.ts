@@ -14,6 +14,7 @@ const handles = new Map<string, ViewportHandle>();
 
 export const registerViewport = (key: string, handle: ViewportHandle) => {
   handles.set(key, handle);
+  if (typeof window !== 'undefined') (window as any).__viewportHandles = handles;
 };
 
 export const unregisterViewport = (key: string) => {
