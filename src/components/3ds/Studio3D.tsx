@@ -715,8 +715,8 @@ export const Studio3D = () => {
           </div>
         </div>
 
-        {/* Right: Command Panel */}
-        <div className="w-64 bevel-inset bg-panel">
+        {/* Right: Command Panel — fixed width like 3ds Max R3 (~200 px) */}
+        <div className="w-[210px] shrink-0 bevel-inset bg-panel overflow-hidden">
           <SidePanel
             onCreateObject={createObject}
             selectedObject={selectedObjectData}
