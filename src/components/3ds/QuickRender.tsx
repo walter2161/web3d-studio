@@ -126,24 +126,14 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     }
   };
 
-  const uploadRefToPublicHost = async (dataUrl: string): Promise<string | null> => {
-    try {
-      const blob = await (await fetch(dataUrl)).blob();
-      const fd = new FormData();
-      fd.append('reqtype', 'fileupload');
-      fd.append('time', '1h');
-      fd.append('fileToUpload', blob, `ref-${Date.now()}.png`);
-      const resp = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-        method: 'POST',
-        body: fd,
-      });
-      if (!resp.ok) return null;
-      const text = (await resp.text()).trim();
-      return text.startsWith('http') ? text : null;
-    } catch (e) {
-      console.warn('litterbox upload failed', e);
-      return null;
-    }
+  // NOTE: this frontend-only app has no backend to keep the key server-side,
+  // so the Pollinations key is embedded in the bundle. Rotate it in
+  // enter.pollinations.ai whenever the app is published publicly.
+  const POLLINATIONS_API_KEY = 'sk_Sb8MsBioP705HyKkjSTbBdMbf0lhOM2E';
+
+  const dataUrlToFile = async (dataUrl: string, filename: string): Promise<File> => {
+    const blob = await (await fetch(dataUrl)).blob();
+    return new File([blob], filename, { type: blob.type || 'image/png' });
   };
 
   const renderAI = async () => {
@@ -153,41 +143,45 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
       // Always take a fresh render so the reference matches the current scene.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const ref = await doOfflineRender();
-      if (ref) setRefRender(ref);
-      const w = Math.min(1280, ref?.width ?? 1024);
-      const h = Math.min(1280, ref?.height ?? 768);
+      if (!ref) throw new Error('No viewport render available');
+      setRefRender(ref);
 
-      // Pollinations' `image=` param only accepts a public HTTPS URL — data: URLs
-      // are silently ignored. Upload the render to a temp host (1h expiry) and
-      // pass that public URL as the compositional reference.
-      const publicRefUrl = ref?.dataUrl ? await uploadRefToPublicHost(ref.dataUrl) : null;
-
+      const refFile = await dataUrlToFile(ref.dataUrl, `viewport-${Date.now()}.png`);
       const enrichedPrompt =
-        `${prompt.trim()}. Use the provided reference image as a strict compositional guide: ` +
-        `keep the exact object positions, proportions, silhouettes, camera angle and perspective from the reference. ` +
-        `Replace each primitive shape with the described subject while matching its exact form factor and placement.`;
+        `${prompt.trim()}, highly detailed, 3d render, photorealistic, architectural lighting. ` +
+        `Use the input image as a strict compositional reference: keep object positions, proportions, ` +
+        `silhouettes, camera angle and perspective, replacing the primitive shapes with the described subject.`;
 
-      const params = new URLSearchParams({
-        width: String(w),
-        height: String(h),
-        nologo: 'true',
-        model: 'kontext',
-        seed: String(Math.floor(Math.random() * 1_000_000)),
+      const formData = new FormData();
+      formData.append('image', refFile);
+      formData.append('prompt', enrichedPrompt);
+      formData.append('model', 'nanobanana-pro');
+
+      const resp = await fetch('https://gen.pollinations.ai/v1/images/edits', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${POLLINATIONS_API_KEY}` },
+        body: formData,
       });
-      if (publicRefUrl) params.set('image', publicRefUrl);
-      else console.warn('Render AI: no public reference URL, generating from prompt only');
-
-      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enrichedPrompt)}?${params.toString()}`;
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`Pollinations ${resp.status}`);
-      const blob = await resp.blob();
-      setImage(URL.createObjectURL(blob));
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '');
+        throw new Error(`Pollinations ${resp.status}: ${errText}`);
+      }
+      const data = await resp.json();
+      const imgUrl: string | undefined = data?.data?.[0]?.url ?? data?.data?.[0]?.b64_json;
+      if (!imgUrl) throw new Error('Pollinations response missing image data');
+      // Support either a URL or base64 payload
+      if (imgUrl.startsWith('http')) {
+        setImage(imgUrl);
+      } else {
+        setImage(`data:image/png;base64,${imgUrl}`);
+      }
     } catch (e) {
       console.error('Render AI failed', e);
     } finally {
       setRendering(false);
     }
   };
+
 
   useEffect(() => {
     if (open) {
