@@ -1209,7 +1209,8 @@ export const Studio3D = () => {
             onReorderModifier={reorderModifier}
             onRenameObject={renameObject}
             onUpdateObjectGeometry={updateObjectGeometry}
-          />
+            onUpdateObjectLightData={updateObjectLightData}
+            onUpdateObjectColor={updateObjectColor}
 
 
         </div>
