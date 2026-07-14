@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { MenuBar } from './MenuBar';
-import { Viewport } from './Viewport';
+import { ViewportGrid, ViewportLayout } from './ViewportGrid';
 import { SidePanel } from './SidePanel';
 import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
 import { MaterialEditor } from './MaterialEditor';
@@ -8,8 +8,10 @@ import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
-import { Button } from '@/components/ui/button';
+import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
+import { StatusBar } from './StatusBar';
 import { toast } from 'sonner';
+
 
 interface Object3DData {
   id: string;
