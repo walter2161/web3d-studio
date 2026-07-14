@@ -11,6 +11,10 @@ import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
 import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
+import { RenderSetup } from './r3/RenderSetup';
+import { EnvironmentDialog } from './r3/EnvironmentDialog';
+import { ViewImageFile } from './r3/ViewImageFile';
+import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
 import { toast } from 'sonner';
 
 
