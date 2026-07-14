@@ -650,6 +650,14 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           <lineBasicMaterial color="#fbbf24" transparent opacity={1} depthTest={false} />
         </lineSegments>
       )}
+
+      {/* Extrude segment rings — visible loop divisions along the extrude axis */}
+      {extrudeRings && !isGhost && (
+        <lineSegments geometry={extrudeRings} renderOrder={998}>
+          <lineBasicMaterial color={isSelected ? '#00bfff' : '#333333'} transparent opacity={0.8} depthTest={true} />
+        </lineSegments>
+      )}
+
     </mesh>
 
   );
