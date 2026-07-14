@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { getViewportHandle } from './r3/viewportRegistry';
@@ -18,12 +18,11 @@ interface QuickRenderProps {
  * - No caustics / no fake reflections — a clean shaded pass
  * Result is drawn back into the dialog as a PNG image.
  */
-const doOfflineRender = async (): Promise<string | null> => {
+const doOfflineRender = async (): Promise<{ dataUrl: string; width: number; height: number } | null> => {
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) return null;
   const { gl, scene, camera } = handle;
 
-  // Offscreen renderer for pristine output (viewport pixels stay untouched).
   const canvasEl = gl.domElement;
   const w = canvasEl.clientWidth || canvasEl.width;
   const h = canvasEl.clientHeight || canvasEl.height;
@@ -45,11 +44,9 @@ const doOfflineRender = async (): Promise<string | null> => {
   offscreen.shadowMap.enabled = true;
   offscreen.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  // Match the on-screen clear color / background
   const bg = scene.background instanceof THREE.Color ? scene.background : null;
   if (bg) offscreen.setClearColor(bg);
 
-  // Hide viewport helpers: grid, gizmo, transform controls, selection wires.
   const hidden: THREE.Object3D[] = [];
   scene.traverse((obj) => {
     const ud = obj.userData || {};
@@ -68,7 +65,6 @@ const doOfflineRender = async (): Promise<string | null> => {
     }
   });
 
-  // Cast/receive shadows on real meshes so the offline pass looks polished.
   const meshTouched: { mesh: THREE.Mesh; cast: boolean; receive: boolean }[] = [];
   scene.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -79,7 +75,6 @@ const doOfflineRender = async (): Promise<string | null> => {
     }
   });
 
-  // Enable shadow casting on directional lights temporarily.
   const lightTouched: { light: THREE.Light; cast: boolean }[] = [];
   scene.traverse((obj) => {
     const l = obj as THREE.DirectionalLight;
@@ -94,11 +89,9 @@ const doOfflineRender = async (): Promise<string | null> => {
     }
   });
 
-  // Render
   offscreen.render(scene, camera);
   const dataUrl = offscreen.domElement.toDataURL('image/png');
 
-  // Restore everything
   hidden.forEach((o) => { o.visible = true; });
   meshTouched.forEach(({ mesh, cast, receive }) => {
     mesh.castShadow = cast;
@@ -107,27 +100,81 @@ const doOfflineRender = async (): Promise<string | null> => {
   lightTouched.forEach(({ light, cast }) => { light.castShadow = cast; });
   offscreen.dispose();
 
-  return dataUrl;
+  return { dataUrl, width: outW, height: outH };
 };
+
+type Mode = 'standard' | 'ai';
 
 export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
   const [image, setImage] = useState<string | null>(null);
+  const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [mode, setMode] = useState<Mode>('standard');
+  const [prompt, setPrompt] = useState('a modern building');
 
   const render = async () => {
     setRendering(true);
     try {
-      // Wait a frame so the viewport is up to date before capturing.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const url = await doOfflineRender();
-      setImage(url);
+      const res = await doOfflineRender();
+      if (res) {
+        setRefRender(res);
+        setImage(res.dataUrl);
+      }
+    } finally {
+      setRendering(false);
+    }
+  };
+
+  const renderAI = async () => {
+    if (!prompt.trim()) return;
+    setRendering(true);
+    try {
+      // Ensure we have a fresh scene render to use as compositional reference.
+      let ref = refRender;
+      if (!ref) {
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        ref = await doOfflineRender();
+        if (ref) setRefRender(ref);
+      }
+      const w = Math.min(1280, ref?.width ?? 1024);
+      const h = Math.min(1280, ref?.height ?? 768);
+      const enrichedPrompt =
+        `${prompt.trim()}. Use the provided 3D scene render as a strict compositional reference: ` +
+        `preserve object positions, proportions, silhouettes, camera angle and perspective from the reference. ` +
+        `Replace the primitive shapes with the described subject while matching their exact form factor.`;
+
+      // Pollinations image API. `image` param is honored by the `kontext`/`gptimage` models
+      // for image-guided generation. We pass the render's data URL as reference.
+      const params = new URLSearchParams({
+        width: String(w),
+        height: String(h),
+        nologo: 'true',
+        model: 'kontext',
+        seed: String(Math.floor(Math.random() * 1_000_000)),
+      });
+      if (ref?.dataUrl) params.set('image', ref.dataUrl);
+
+      const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(enrichedPrompt)}?${params.toString()}`;
+
+      // Fetch as blob so we display the final Pollinations image (not the loading page).
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Pollinations ${resp.status}`);
+      const blob = await resp.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      setImage(objectUrl);
+    } catch (e) {
+      console.error('Render AI failed', e);
     } finally {
       setRendering(false);
     }
   };
 
   useEffect(() => {
-    if (open) render();
+    if (open) {
+      setMode('standard');
+      render();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -143,10 +190,29 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl bg-panel border-panel-border">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-8">
+          <DialogTitle className="flex items-center justify-between pr-8 gap-2">
             <span>Rendered Frame Window</span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={render} disabled={rendering}>
+            <div className="flex gap-2 items-center">
+              <div className="flex bevel-inset bg-win-face text-[11px]">
+                <button
+                  onClick={() => setMode('standard')}
+                  className={`px-2 py-[2px] ${mode === 'standard' ? 'bevel-inset bg-white' : 'bevel-raised'}`}
+                >
+                  Standard
+                </button>
+                <button
+                  onClick={() => setMode('ai')}
+                  className={`px-2 py-[2px] flex items-center gap-1 ${mode === 'ai' ? 'bevel-inset bg-white' : 'bevel-raised'}`}
+                >
+                  <Sparkles className="w-3 h-3" /> Render AI
+                </button>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={mode === 'ai' ? renderAI : render}
+                disabled={rendering || (mode === 'ai' && !prompt.trim())}
+              >
                 <RefreshCw className={`w-3.5 h-3.5 mr-1 ${rendering ? 'animate-spin' : ''}`} />
                 Render
               </Button>
@@ -156,13 +222,38 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
             </div>
           </DialogTitle>
         </DialogHeader>
+
+        {mode === 'ai' && (
+          <div className="flex items-center gap-2 text-[11px]">
+            <label className="whitespace-nowrap">Prompt:</label>
+            <input
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !rendering) renderAI(); }}
+              placeholder="e.g. a tall glass skyscraper, cinematic lighting"
+              className="flex-1 bevel-inset bg-white px-2 h-[22px]"
+            />
+          </div>
+        )}
+
         <div className="bg-black rounded border border-panel-border overflow-hidden flex items-center justify-center min-h-[400px]">
-          {image ? (
+          {rendering ? (
+            <span className="text-muted-foreground text-sm">
+              {mode === 'ai' ? 'Generating with AI...' : 'Rendering...'}
+            </span>
+          ) : image ? (
             <img src={image} alt="Rendered viewport" className="max-w-full max-h-[70vh]" />
           ) : (
-            <span className="text-muted-foreground text-sm">Rendering...</span>
+            <span className="text-muted-foreground text-sm">No render yet</span>
           )}
         </div>
+
+        {mode === 'ai' && (
+          <p className="text-[10px] text-muted-foreground">
+            Render AI uses Pollinations with your current render as compositional reference — the primitives'
+            positions and proportions guide the generated image.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );
