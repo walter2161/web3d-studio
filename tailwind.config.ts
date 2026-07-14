@@ -47,15 +47,30 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // 3ds Max specific colors
+        // 3ds Max R3 (Win9x) tokens
+        win: {
+          face: "hsl(var(--win-face))",
+          "face-2": "hsl(var(--win-face-2))",
+          light: "hsl(var(--win-face-light))",
+          shadow: "hsl(var(--win-face-shadow))",
+          dark: "hsl(var(--win-face-dark))",
+          text: "hsl(var(--win-text))",
+          "text-disabled": "hsl(var(--win-text-disabled))",
+          title: "hsl(var(--win-title))",
+          "title-2": "hsl(var(--win-title-2))",
+          "title-fg": "hsl(var(--win-title-fg))",
+          "title-inactive": "hsl(var(--win-title-inactive))",
+        },
         viewport: {
           DEFAULT: "hsl(var(--viewport-bg))",
           border: "hsl(var(--viewport-border))",
           active: "hsl(var(--viewport-active))",
+          label: "hsl(var(--viewport-label))",
         },
         menu: {
           DEFAULT: "hsl(var(--menu-bg))",
           hover: "hsl(var(--menu-hover))",
+          "hover-fg": "hsl(var(--menu-hover-fg))",
           active: "hsl(var(--menu-active))",
         },
         panel: {
@@ -67,6 +82,7 @@ export default {
           DEFAULT: "hsl(var(--timeline-bg))",
           track: "hsl(var(--timeline-track))",
           keyframe: "hsl(var(--timeline-keyframe))",
+          current: "hsl(var(--timeline-current))",
         },
         gizmo: {
           x: "hsl(var(--gizmo-x))",
@@ -77,6 +93,7 @@ export default {
           primary: "hsl(var(--grid-primary))",
           secondary: "hsl(var(--grid-secondary))",
         },
+
       },
       backgroundImage: {
         'gradient-panel': 'var(--gradient-panel)',

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { MenuBar } from './MenuBar';
-import { Viewport } from './Viewport';
+import { ViewportGrid, ViewportLayout } from './ViewportGrid';
 import { SidePanel } from './SidePanel';
 import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
 import { MaterialEditor } from './MaterialEditor';
@@ -8,8 +8,10 @@ import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
-import { Button } from '@/components/ui/button';
+import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
+import { StatusBar } from './StatusBar';
 import { toast } from 'sonner';
+
 
 interface Object3DData {
   id: string;
@@ -57,6 +59,9 @@ export const Studio3D = () => {
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [autoKey, setAutoKey] = useState(false);
+  const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
@@ -563,7 +568,7 @@ export const Studio3D = () => {
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
   return (
-    <div className="h-screen bg-background text-foreground overflow-hidden flex flex-col">
+    <div className="h-screen bg-win-face text-win-text overflow-hidden flex flex-col select-none">
       <KeyboardShortcuts
         onTransformMode={setTransformMode}
         onDeleteSelected={handleDeleteSelected}
@@ -585,15 +590,46 @@ export const Studio3D = () => {
         onViewportChange={setActiveViewport}
       />
 
-      <MenuBar 
+      {/* Windows title bar */}
+      <div className="titlebar-gradient h-[20px] px-1.5 flex items-center justify-between text-[11px] font-bold shrink-0">
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 bevel-raised bg-win-face flex items-center justify-center text-[10px] text-win-title">3</div>
+          <span>Untitled - 3dsLed R3</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">_</button>
+          <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">▢</button>
+          <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">✕</button>
+        </div>
+      </div>
+
+      <MenuBar
         onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
         onFileOperation={openFileDialog}
         onViewportChange={setActiveViewport}
         activeViewport={activeViewport}
       />
 
-      <div className="flex flex-1 min-h-0">
-        <div className="w-64 bg-panel border-r border-panel-border">
+      {/* Main toolbar row (icons) */}
+      <div className="shrink-0">
+        <MainToolbar
+          transformMode={transformMode}
+          onTransformMode={setTransformMode}
+          onUndo={undo}
+          onRedo={redo}
+          onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
+          onQuickRender={() => setQuickRenderOpen(true)}
+        />
+      </div>
+
+      {/* Snaps / secondary toolbar row */}
+      <div className="shrink-0">
+        <SnapsToolbar />
+      </div>
+
+      <div className="flex flex-1 min-h-0 bg-win-face">
+        {/* Left: Scene hierarchy */}
+        <div className="w-56 bevel-inset bg-panel">
           <SceneHierarchy
             objects={objects}
             selectedObject={selectedObject}
@@ -608,50 +644,13 @@ export const Studio3D = () => {
           />
         </div>
 
-
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="h-12 bg-panel border-b border-panel-border flex items-center px-4 gap-2">
-            <span className="text-xs text-muted-foreground mr-4">Transform:</span>
-            <Button variant={transformMode === 'translate' ? 'default' : 'ghost'} size="sm"
-              onClick={() => setTransformMode('translate')} className="h-8 gap-2" title="Move Tool (W)">
-              ⌖ Move
-            </Button>
-            <Button variant={transformMode === 'rotate' ? 'default' : 'ghost'} size="sm"
-              onClick={() => setTransformMode('rotate')} className="h-8 gap-2" title="Rotate Tool (E)">
-              ↻ Rotate
-            </Button>
-            <Button variant={transformMode === 'scale' ? 'default' : 'ghost'} size="sm"
-              onClick={() => setTransformMode('scale')} className="h-8 gap-2" title="Scale Tool (R)">
-              ⚏ Scale
-            </Button>
-
-            <div className="w-px h-6 bg-panel-border mx-2" />
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMaterialEditorOpen(true)}
-              className="h-8 gap-2"
-              title="Material Editor (M)"
-            >
-              ◐ Edit Material
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setQuickRenderOpen(true)}
-              className="h-8 gap-2"
-              title="Quick Render (Shift+Q)"
-            >
-              ▶ Quick Render
-            </Button>
-          </div>
-
-          <div className="flex-1 min-h-0 p-1">
-            <Viewport
-              type={activeViewport}
-              isActive={true}
-              onActivate={() => {}}
+        {/* Center: Viewport(s) */}
+        <div className="flex-1 flex flex-col min-h-0 bevel-inset">
+          <div className="flex-1 min-h-0 bg-win-dark">
+            <ViewportGrid
+              layout={viewportLayout}
+              activeViewport={activeViewport}
+              onActiveViewportChange={setActiveViewport}
               objects={objects.filter(obj => obj.visible !== false)}
               selectedObject={selectedObject}
               selectedSubUuid={selectedSubUuid}
@@ -668,19 +667,21 @@ export const Studio3D = () => {
           </div>
         </div>
 
-
-        <SidePanel
-          onCreateObject={createObject}
-          selectedObject={selectedObjectData}
-          onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
-          onAddModifier={addModifier}
-          onUpdateModifier={updateModifier}
-          onRemoveModifier={removeModifier}
-          onUpdateObjectGeometry={updateObjectGeometry}
-        />
+        {/* Right: Command Panel */}
+        <div className="w-64 bevel-inset bg-panel">
+          <SidePanel
+            onCreateObject={createObject}
+            selectedObject={selectedObjectData}
+            onOpenMaterialEditor={() => setMaterialEditorOpen(true)}
+            onAddModifier={addModifier}
+            onUpdateModifier={updateModifier}
+            onRemoveModifier={removeModifier}
+            onUpdateObjectGeometry={updateObjectGeometry}
+          />
+        </div>
       </div>
 
-      {/* Animation Timeline */}
+      {/* Trackbar (Animation timeline) */}
       <AnimationTimeline
         tracks={animationTracks}
         currentFrame={currentFrame}
@@ -698,6 +699,27 @@ export const Studio3D = () => {
         onSelectKeyframe={setSelectedKeyframe}
         selectedKeyframe={selectedKeyframe}
       />
+
+      {/* Status bar */}
+      <StatusBar
+        currentFrame={currentFrame}
+        totalFrames={totalFrames}
+        isPlaying={isPlaying}
+        autoKey={autoKey}
+        onToggleAutoKey={() => setAutoKey(v => !v)}
+        onSetKey={() => {
+          if (selectedObject) addKeyframe(selectedObject, currentFrame);
+        }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
+        onFrameChange={setCurrentFrame}
+        selectedPosition={selectedObjectData?.position ?? null}
+        prompt={selectedObjectData ? `Selected: ${selectedObjectData.name || selectedObjectData.type}` : 'Click and drag to select and move objects'}
+        viewportLayout={viewportLayout}
+        onToggleViewportLayout={() => setViewportLayout(v => v === 'single' ? 'quad' : 'single')}
+      />
+
 
       <MaterialEditor
         open={materialEditorOpen}

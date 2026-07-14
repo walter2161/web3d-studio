@@ -2,129 +2,193 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* 3ds Max R3 — Windows 9x/2000 skin
+ * All colors in HSL. Semantic tokens only.
+ */
 
 @layer base {
   :root {
-    /* 3ds Max inspired design system - Dark mode default */
-    --background: 210 11% 8%;
-    --foreground: 0 0% 95%;
+    /* Classic Windows 9x face color #c0c0c0 */
+    --background: 0 0% 75%;
+    --foreground: 0 0% 0%;
 
-    --card: 210 15% 12%;
-    --card-foreground: 0 0% 95%;
+    --win-face: 0 0% 75%;         /* #bfbfbf */
+    --win-face-2: 32 15% 80%;     /* #d1cec8 — warm gray for panels */
+    --win-face-light: 0 0% 100%;  /* highlight (top/left bevel) */
+    --win-face-shadow: 0 0% 50%;  /* 1st shadow (bottom/right bevel) */
+    --win-face-dark: 0 0% 25%;    /* deep shadow (outer bevel) */
+    --win-text: 0 0% 0%;
+    --win-text-disabled: 0 0% 50%;
 
-    --popover: 210 15% 10%;
-    --popover-foreground: 0 0% 95%;
+    /* Title bar */
+    --win-title: 240 100% 25%;    /* #000080 classic navy caption */
+    --win-title-2: 220 90% 45%;   /* gradient endpoint */
+    --win-title-fg: 0 0% 100%;
+    --win-title-inactive: 0 0% 50%;
 
-    --primary: 195 100% 50%;
+    /* Card / popover / menu */
+    --card: 0 0% 75%;
+    --card-foreground: 0 0% 0%;
+    --popover: 0 0% 75%;
+    --popover-foreground: 0 0% 0%;
+
+    --primary: 240 100% 25%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 20% 20%;
-    --secondary-foreground: 0 0% 90%;
+    --secondary: 0 0% 75%;
+    --secondary-foreground: 0 0% 0%;
 
-    --muted: 210 15% 15%;
-    --muted-foreground: 0 0% 70%;
+    --muted: 0 0% 82%;
+    --muted-foreground: 0 0% 30%;
 
-    --accent: 195 100% 45%;
+    --accent: 240 100% 25%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 85% 60%;
+    --destructive: 0 75% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 22%;
-    --input: 210 15% 18%;
-    --ring: 195 100% 50%;
+    --border: 0 0% 50%;
+    --input: 0 0% 100%;
+    --ring: 240 100% 30%;
 
-    --radius: 0.25rem;
+    --radius: 0;
 
-    /* 3ds Max specific colors */
-    --viewport-bg: 210 15% 6%;
-    --viewport-border: 210 20% 25%;
-    --viewport-active: 195 100% 50%;
-    
-    --menu-bg: 210 15% 12%;
-    --menu-hover: 210 20% 18%;
-    --menu-active: 195 100% 50%;
-    
-    --panel-bg: 210 15% 10%;
-    --panel-header: 210 20% 15%;
-    --panel-border: 210 20% 20%;
-    
-    --timeline-bg: 210 15% 8%;
-    --timeline-track: 210 15% 15%;
-    --timeline-keyframe: 195 100% 50%;
-    
-    --gizmo-x: 0 85% 60%;
-    --gizmo-y: 120 85% 50%;
-    --gizmo-z: 240 85% 60%;
-    
+    /* Viewport */
+    --viewport-bg: 0 0% 25%;              /* dark gray 3ds Max viewport */
+    --viewport-border: 0 0% 15%;
+    --viewport-active: 60 100% 50%;       /* iconic yellow border */
+    --viewport-label: 0 0% 85%;
+
+    /* Menu */
+    --menu-bg: 0 0% 75%;
+    --menu-hover: 240 100% 25%;
+    --menu-hover-fg: 0 0% 100%;
+    --menu-active: 240 100% 25%;
+
+    /* Panel */
+    --panel-bg: 32 15% 80%;
+    --panel-header: 0 0% 65%;
+    --panel-border: 0 0% 50%;
+
+    /* Timeline / trackbar */
+    --timeline-bg: 0 0% 82%;
+    --timeline-track: 0 0% 60%;
+    --timeline-keyframe: 0 0% 15%;
+    --timeline-current: 0 85% 45%;         /* red current-time marker */
+
+    /* Gizmo (kept for compat) */
+    --gizmo-x: 0 85% 55%;
+    --gizmo-y: 120 70% 40%;
+    --gizmo-z: 220 90% 55%;
+
     --grid-primary: 0 0% 30%;
     --grid-secondary: 0 0% 20%;
 
     /* Gradients */
     --gradient-panel: linear-gradient(180deg, hsl(var(--panel-header)), hsl(var(--panel-bg)));
-    --gradient-button: linear-gradient(180deg, hsl(var(--secondary)), hsl(var(--muted)));
-    --gradient-viewport: linear-gradient(145deg, hsl(var(--viewport-bg)), hsl(210 15% 4%));
-  }
-
-  .light {
-    /* Optional light mode for future use */
-    --background: 0 0% 98%;
-    --foreground: 210 15% 15%;
-    --card: 0 0% 100%;
-    --card-foreground: 210 15% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 15% 15%;
-    --primary: 195 100% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 90%;
-    --secondary-foreground: 210 15% 15%;
-    --muted: 210 15% 95%;
-    --muted-foreground: 210 15% 40%;
-    --accent: 195 100% 35%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 85% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 15% 85%;
-    --input: 210 15% 90%;
-    --ring: 195 100% 40%;
+    --gradient-button: linear-gradient(180deg, hsl(var(--win-face-light)) 0%, hsl(var(--win-face)) 100%);
+    --gradient-viewport: linear-gradient(145deg, hsl(var(--viewport-bg)), hsl(0 0% 15%));
+    --gradient-title: linear-gradient(90deg, hsl(var(--win-title)) 0%, hsl(var(--win-title-2)) 100%);
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   body {
     @apply bg-background text-foreground;
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "MS Sans Serif", "Microsoft Sans Serif", Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 11px;
     user-select: none;
     overflow: hidden;
+    -webkit-font-smoothing: none;
+    letter-spacing: 0;
   }
 
-  /* Custom scrollbar for panels */
-  .panel-scroll::-webkit-scrollbar {
-    width: 8px;
+  button, input, select, textarea {
+    font-family: inherit;
+    font-size: 11px;
   }
 
+  canvas { outline: none; }
+}
+
+/* ---- Windows 9x bevel utilities ---- */
+@layer components {
+  /* Raised (default button): light top/left, dark bottom/right */
+  .bevel-raised {
+    background: hsl(var(--win-face));
+    border-top: 1px solid hsl(var(--win-face-light));
+    border-left: 1px solid hsl(var(--win-face-light));
+    border-right: 1px solid hsl(var(--win-face-dark));
+    border-bottom: 1px solid hsl(var(--win-face-dark));
+    box-shadow:
+      inset -1px -1px 0 hsl(var(--win-face-shadow)),
+      inset  1px  1px 0 hsl(var(--win-face));
+  }
+
+  /* Sunken (input / active toggle): inverted bevel */
+  .bevel-sunken {
+    background: hsl(var(--win-face));
+    border-top: 1px solid hsl(var(--win-face-dark));
+    border-left: 1px solid hsl(var(--win-face-dark));
+    border-right: 1px solid hsl(var(--win-face-light));
+    border-bottom: 1px solid hsl(var(--win-face-light));
+    box-shadow:
+      inset  1px  1px 0 hsl(var(--win-face-shadow)),
+      inset -1px -1px 0 hsl(var(--win-face));
+  }
+
+  /* Thin group frame (like rollout separators) */
+  .bevel-group {
+    border-top: 1px solid hsl(var(--win-face-dark));
+    border-left: 1px solid hsl(var(--win-face-dark));
+    border-right: 1px solid hsl(var(--win-face-light));
+    border-bottom: 1px solid hsl(var(--win-face-light));
+  }
+
+  .bevel-inset {
+    border-top: 1px solid hsl(var(--win-face-shadow));
+    border-left: 1px solid hsl(var(--win-face-shadow));
+    border-right: 1px solid hsl(var(--win-face-light));
+    border-bottom: 1px solid hsl(var(--win-face-light));
+  }
+
+  /* Pressed = sunken visual for active toolbar toggles */
+  .bevel-pressed {
+    background: hsl(var(--win-face));
+    border-top: 1px solid hsl(var(--win-face-dark));
+    border-left: 1px solid hsl(var(--win-face-dark));
+    border-right: 1px solid hsl(var(--win-face-light));
+    border-bottom: 1px solid hsl(var(--win-face-light));
+    background-image:
+      repeating-linear-gradient(
+        45deg,
+        hsl(var(--win-face)) 0px,
+        hsl(var(--win-face)) 1px,
+        hsl(var(--win-face-shadow)) 1px,
+        hsl(var(--win-face-shadow)) 2px
+      );
+  }
+
+  .titlebar-gradient {
+    background: var(--gradient-title);
+    color: hsl(var(--win-title-fg));
+  }
+
+  .panel-scroll::-webkit-scrollbar { width: 16px; }
   .panel-scroll::-webkit-scrollbar-track {
-    background: hsl(var(--panel-bg));
+    background: hsl(var(--win-face));
+    border-left: 1px solid hsl(var(--win-face-dark));
   }
-
   .panel-scroll::-webkit-scrollbar-thumb {
-    background: hsl(var(--panel-border));
-    border-radius: 4px;
+    background: hsl(var(--win-face));
+    border-top: 1px solid hsl(var(--win-face-light));
+    border-left: 1px solid hsl(var(--win-face-light));
+    border-right: 1px solid hsl(var(--win-face-dark));
+    border-bottom: 1px solid hsl(var(--win-face-dark));
   }
-
   .panel-scroll::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground));
-  }
-
-  /* Remove default canvas outline */
-  canvas {
-    outline: none;
+    background: hsl(var(--win-face-2));
   }
 }
