@@ -1,21 +1,29 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ModifierControls } from './ModifierControls';
-import { 
-  Box, 
-  Circle, 
-  Cylinder, 
-  Triangle, 
+import { cn } from '@/lib/utils';
+import {
+  Box,
+  Circle,
+  Cylinder,
+  Triangle,
   Torus,
   Square,
   Lightbulb,
   Camera,
   Settings,
-  Palette
+  Palette,
+  Wrench,
+  Move3d,
+  Eye,
+  GitBranch,
+  Spline,
+  Waves,
+  Sparkles,
 } from 'lucide-react';
 
 interface SidePanelProps {
