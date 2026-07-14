@@ -547,6 +547,36 @@ export const Studio3D = () => {
     toast.success('Modifier removed');
   }, []);
 
+  const toggleModifier = useCallback((objectId: string, modifierId: string) => {
+    setObjects(prev => prev.map(obj =>
+      obj.id === objectId
+        ? {
+            ...obj,
+            modifiers: obj.modifiers?.map(m =>
+              m.id === modifierId ? { ...m, active: !m.active } : m
+            ) || [],
+          }
+        : obj
+    ));
+  }, []);
+
+  const reorderModifier = useCallback((objectId: string, modifierId: string, direction: -1 | 1) => {
+    setObjects(prev => prev.map(obj => {
+      if (obj.id !== objectId || !obj.modifiers) return obj;
+      const mods = [...obj.modifiers];
+      const idx = mods.findIndex(m => m.id === modifierId);
+      if (idx < 0) return obj;
+      const swap = idx + direction;
+      if (swap < 0 || swap >= mods.length) return obj;
+      [mods[idx], mods[swap]] = [mods[swap], mods[idx]];
+      return { ...obj, modifiers: mods };
+    }));
+  }, []);
+
+  const renameObject = useCallback((objectId: string, name: string) => {
+    setObjects(prev => prev.map(obj => (obj.id === objectId ? { ...obj, name } : obj)));
+  }, []);
+
   const updateObjectGeometry = useCallback((objectId: string, params: any) => {
     setObjects(prev => prev.map(obj => 
       obj.id === objectId 
@@ -554,6 +584,7 @@ export const Studio3D = () => {
         : obj
     ));
   }, []);
+
 
   const handleSelectObject = useCallback((id: string | null) => {
     setSelectedObject(id);
