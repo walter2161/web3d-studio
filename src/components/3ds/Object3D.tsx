@@ -751,10 +751,12 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </lineSegments>
       )}
 
-      {/* Extrude segment rings — visible loop divisions along the extrude axis */}
-      {extrudeRings && !isGhost && (
+      {/* Extrude segment rings — only shown while the object is selected, as
+          an editing helper. Hidden on unselected objects and during renders so
+          the mesh appears as a solid extrusion. */}
+      {extrudeRings && !isGhost && isSelected && (renderMode === 'wireframe' || renderMode === 'edged') && (
         <lineSegments geometry={extrudeRings} renderOrder={998}>
-          <lineBasicMaterial color={isSelected ? '#00bfff' : '#333333'} transparent opacity={0.8} depthTest={true} />
+          <lineBasicMaterial color="#00bfff" transparent opacity={0.8} depthTest={true} />
         </lineSegments>
       )}
 
