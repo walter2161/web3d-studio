@@ -1162,6 +1162,8 @@ export const Studio3D = () => {
           onLayerManager={() => toast.info('Layer Manager — coming next sprint')}
           onSelectByName={() => setSelectByNameOpen(true)}
           onRenderSetup={() => setRenderSetupOpen(true)}
+          onOpenHierarchy={() => setHierarchyWindowOpen(true)}
+          onOpenLibrary={() => setLibraryWindowOpen(true)}
           viewportLayout={viewportLayout}
           onToggleViewportLayout={() => setViewportLayout((v) => v === 'quad' ? 'single' : 'quad')}
         />
