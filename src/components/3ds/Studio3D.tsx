@@ -4,6 +4,7 @@ import { Viewport } from './Viewport';
 import { SidePanel } from './SidePanel';
 import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
 import { MaterialEditor } from './MaterialEditor';
+import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
