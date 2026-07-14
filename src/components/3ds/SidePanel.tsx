@@ -48,7 +48,7 @@ export const SidePanel = ({
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
 
 
   const standardPrimitives = [
@@ -111,8 +111,24 @@ export const SidePanel = ({
     standard: 'Standard Primitives',
     extended: 'Extended Primitives',
     shapes: 'Shapes',
-    lights: 'Lights & Cameras',
+    lights: 'Lights',
+    cameras: 'Cameras',
   };
+
+  const lightSubtypes = [
+    { type: 'light_omni',     label: 'Omni' },
+    { type: 'light_spot',     label: 'Target Spot' },
+    { type: 'light_spot_free',label: 'Free Spot' },
+    { type: 'light_direct',   label: 'Target Direct' },
+    { type: 'light_direct_free', label: 'Free Direct' },
+    { type: 'light_skylight', label: 'Skylight' },
+    { type: 'light_ambient',  label: 'Ambient' },
+  ];
+  const cameraSubtypes = [
+    { type: 'camera_target', label: 'Target Camera' },
+    { type: 'camera_free',   label: 'Free Camera' },
+  ];
+
 
   return (
     <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto">
@@ -136,8 +152,10 @@ export const SidePanel = ({
               <option value="standard">Standard Primitives</option>
               <option value="extended">Extended Primitives</option>
               <option value="shapes">Shapes</option>
-              <option value="lights">Lights &amp; Cameras</option>
+              <option value="lights">Lights</option>
+              <option value="cameras">Cameras</option>
             </select>
+
 
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3">
@@ -193,30 +211,36 @@ export const SidePanel = ({
                 })}
 
 
-                {createCategory === 'lights' && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => onCreateObject('light')}
-                    >
-                      <Lightbulb className="w-6 h-6" />
-                      <span className="text-xs">Light</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover"
-                      onClick={() => onCreateObject('camera')}
-                    >
-                      <Camera className="w-6 h-6" />
-                      <span className="text-xs">Camera</span>
-                    </Button>
-                  </>
-                )}
+                {createCategory === 'lights' && lightSubtypes.map((l) => (
+                  <Button
+                    key={l.type}
+                    variant="outline"
+                    size="sm"
+                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
+                    onClick={() => onCreateObject(l.type)}
+                    title={`Create ${l.label}`}
+                  >
+                    <Lightbulb className="w-4 h-4" />
+                    <span>{l.label}</span>
+                  </Button>
+                ))}
+
+                {createCategory === 'cameras' && cameraSubtypes.map((c) => (
+                  <Button
+                    key={c.type}
+                    variant="outline"
+                    size="sm"
+                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
+                    onClick={() => onCreateObject(c.type)}
+                    title={`Create ${c.label}`}
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>{c.label}</span>
+                  </Button>
+                ))}
               </CardContent>
             </Card>
+
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0">

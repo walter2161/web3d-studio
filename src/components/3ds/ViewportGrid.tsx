@@ -26,16 +26,23 @@ interface ViewportGridProps {
   snapAngleDeg?: number;
   snapPercent?: number;
   showGrid?: boolean;
+  // Per-viewport camera view (R3 "View from Camera")
+  viewportCameras?: Record<string, string | null>;
+  onSetViewportCamera?: (vp: ViewportType, camId: string | null) => void;
+  availableCameras?: any[];
 }
 
 export const ViewportGrid = (props: ViewportGridProps) => {
-  const { layout, activeViewport, onActiveViewportChange, ...vp } = props;
+  const { layout, activeViewport, onActiveViewportChange, viewportCameras, onSetViewportCamera, availableCameras, ...vp } = props;
 
   const cell = (t: ViewportType) => (
     <Viewport
       type={t}
       isActive={activeViewport === t}
       onActivate={() => onActiveViewportChange(t)}
+      cameraObjectId={viewportCameras?.[t] ?? null}
+      onChangeCameraObject={(id) => onSetViewportCamera?.(t, id)}
+      availableCameras={availableCameras || []}
       {...vp}
     />
   );
@@ -44,7 +51,6 @@ export const ViewportGrid = (props: ViewportGridProps) => {
     return <div className="w-full h-full">{cell(activeViewport)}</div>;
   }
 
-  // 2x2 classic (Top / Front / Left / Perspective)
   return (
     <div className="w-full h-full grid grid-cols-2 grid-rows-2 gap-px bg-win-dark">
       <div className="min-w-0 min-h-0">{cell('top')}</div>

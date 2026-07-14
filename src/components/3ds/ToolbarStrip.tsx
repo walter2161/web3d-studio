@@ -2,8 +2,9 @@ import { cn } from '@/lib/utils';
 import {
   Undo2, Redo2, MousePointer2, Move, RotateCw, Maximize as ScaleIcon,
   Link2, Unlink, FlipHorizontal, AlignCenter, Layers, Palette, Camera,
-  Play, Magnet, Grid3x3, Percent, RotateCcw, Search,
+  Play, Magnet, Grid3x3, Percent, RotateCcw, Search, LayoutGrid, Square as SquareIcon,
 } from 'lucide-react';
+
 
 interface ToolButtonProps {
   title: string;
@@ -42,12 +43,16 @@ interface MainToolbarProps {
   onLayerManager?: () => void;
   onSelectByName?: () => void;
   onRenderSetup?: () => void;
+  viewportLayout?: 'single' | 'quad';
+  onToggleViewportLayout?: () => void;
 }
 
 export const MainToolbar = ({
   transformMode, onTransformMode, onUndo, onRedo, onOpenMaterialEditor, onQuickRender,
   onMirror, onAlign, onArray, onLayerManager, onSelectByName, onRenderSetup,
+  viewportLayout, onToggleViewportLayout,
 }: MainToolbarProps) => {
+
   return (
     <div className="bevel-raised px-1 py-0.5 flex items-center gap-0.5">
       <ToolButton title="Undo (Ctrl+Z)" onClick={onUndo}><Undo2 size={14} /></ToolButton>
@@ -70,9 +75,18 @@ export const MainToolbar = ({
       <Sep />
       <ToolButton title="Render Setup" onClick={onRenderSetup}><Camera size={14} /></ToolButton>
       <ToolButton title="Quick Render (Shift+Q)" onClick={onQuickRender}><Play size={14} /></ToolButton>
+      <Sep />
+      <ToolButton
+        title={viewportLayout === 'quad' ? 'Min/Max Toggle (W) — Single View' : 'Min/Max Toggle (W) — Quad View (Top/Front/Left/Perspective)'}
+        active={viewportLayout === 'quad'}
+        onClick={onToggleViewportLayout}
+      >
+        {viewportLayout === 'quad' ? <SquareIcon size={14} /> : <LayoutGrid size={14} />}
+      </ToolButton>
     </div>
   );
 };
+
 
 interface SnapsToolbarProps {
   snapEnabled?: boolean;

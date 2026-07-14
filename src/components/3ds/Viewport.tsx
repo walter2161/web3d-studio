@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
 import { Scene3D } from './Scene3D';
@@ -32,6 +32,9 @@ interface ViewportProps {
   snapAngleDeg?: number;
   snapPercent?: number;
   showGrid?: boolean;
+  cameraObjectId?: string | null;
+  onChangeCameraObject?: (id: string | null) => void;
+  availableCameras?: any[];
 }
 
 export const Viewport = ({
@@ -40,7 +43,9 @@ export const Viewport = ({
   animationTracks, selectedKeyframe, onUpdateKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing, snapAngleDeg, snapPercent, showGrid = true,
+  cameraObjectId, onChangeCameraObject, availableCameras = [],
 }: ViewportProps) => {
+
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [renderMode, setRenderMode] = useState<'solid' | 'wireframe' | 'semi-transparent'>('solid');
@@ -73,8 +78,23 @@ export const Viewport = ({
       )}
       onClick={onActivate}
     >
-      <div className="absolute top-1 left-1 z-10 px-1.5 py-0 bg-black/50 text-[10px] font-mono text-viewport-label uppercase tracking-wide select-none pointer-events-none">
-        [{type}]
+      <div className="absolute top-1 left-1 z-10 flex items-center gap-1 pointer-events-none">
+        <div className="px-1.5 py-0 bg-black/50 text-[10px] font-mono text-viewport-label uppercase tracking-wide select-none">
+          [{cameraObjectId ? (availableCameras.find((c) => c.id === cameraObjectId)?.name || 'Camera') : type}]
+        </div>
+        {availableCameras.length > 0 && (
+          <select
+            className="pointer-events-auto h-5 text-[10px] bg-black/70 text-viewport-label border border-viewport-border px-1"
+            value={cameraObjectId || '__view'}
+            onChange={(e) => onChangeCameraObject?.(e.target.value === '__view' ? null : e.target.value)}
+            title="View from camera (C)"
+          >
+            <option value="__view">View: {type}</option>
+            {availableCameras.map((c) => (
+              <option key={c.id} value={c.id}>Cam: {c.name || c.id}</option>
+            ))}
+          </select>
+        )}
       </div>
 
 
@@ -90,6 +110,7 @@ export const Viewport = ({
           </SelectContent>
         </Select>
       </div>
+
 
       <Canvas
         ref={canvasRef}
@@ -151,36 +172,47 @@ export const Viewport = ({
 
         <CreationController viewportType={type} isActive={isActive} />
 
+        {/* Camera-view driver: overrides the default camera each frame to follow a scene camera object. */}
+        {cameraObjectId && (
+          <CameraFollower
+            camObj={availableCameras.find((c) => c.id === cameraObjectId)}
+            targetPos={(() => {
+              const cam = availableCameras.find((c) => c.id === cameraObjectId);
+              const tid = cam?.cameraData?.targetObjectId;
+              const t = tid ? objects.find((o) => o.id === tid) : null;
+              return t ? (t.position as [number, number, number]) : null;
+            })()}
+          />
+        )}
 
-
-
-        {type === 'perspective' && (
+        {!cameraObjectId && type === 'perspective' && (
           <OrbitControls
             makeDefault
             enablePan enableZoom enableRotate panSpeed={1} rotateSpeed={1} zoomSpeed={1}
             onUpdate={(self) => { (window as any).__orbitControls = self; }}
           />
         )}
-        {type !== 'perspective' && (
+        {!cameraObjectId && type !== 'perspective' && (
           <OrbitControls
             makeDefault
             enablePan enableZoom enableRotate={false} panSpeed={1} zoomSpeed={1}
             onUpdate={(self) => { (window as any).__orbitControls = self; }}
           />
         )}
-        {type === 'perspective' && (
+        {type === 'perspective' && !cameraObjectId && (
           <GizmoHelper alignment="bottom-right" margin={[80, 80]}>
             <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="white" />
           </GizmoHelper>
         )}
+
       </Canvas>
     </div>
   );
 };
 
 // Syncs environment settings (background, fog) with the three.js scene each render.
-import { useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
+
 
 const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }: {
   backgroundColor: string; fogEnabled: boolean; fogColor: string; fogNear: number; fogFar: number;
@@ -206,5 +238,34 @@ const ViewportRegistrar = ({ vkey }: { vkey: string }) => {
   }, [vkey, gl, scene, camera]);
   return null;
 };
+
+/**
+ * Overrides the viewport's default camera each frame to match a scene Camera object.
+ * If the camera has a target, lookAt the target's position (R3 Target Camera).
+ */
+const CameraFollower = ({ camObj, targetPos }: { camObj: any; targetPos: [number, number, number] | null }) => {
+  const { camera } = useThree();
+  useFrame(() => {
+    if (!camObj) return;
+    const [px, py, pz] = camObj.position;
+    camera.position.set(px, py, pz);
+    if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+      const pc = camera as THREE.PerspectiveCamera;
+      const fov = camObj.cameraData?.fov ?? 45;
+      const near = camObj.cameraData?.near ?? 0.1;
+      const far = camObj.cameraData?.far ?? 1000;
+      if (pc.fov !== fov) { pc.fov = fov; pc.updateProjectionMatrix(); }
+      if (pc.near !== near || pc.far !== far) { pc.near = near; pc.far = far; pc.updateProjectionMatrix(); }
+    }
+    if (targetPos) {
+      camera.lookAt(targetPos[0], targetPos[1], targetPos[2]);
+    } else {
+      const [rx, ry, rz] = camObj.rotation;
+      camera.rotation.set(rx, ry, rz);
+    }
+  });
+  return null;
+};
+
 
 

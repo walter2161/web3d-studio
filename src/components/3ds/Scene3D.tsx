@@ -48,6 +48,13 @@ export const Scene3D = ({
     }
   }
 
+  // Lookup a target object's world position for target-camera / target-spot / target-direct.
+  const targetLookup = (id: string): [number, number, number] | null => {
+    const t = objects.find((o) => o.id === id);
+    if (!t) return null;
+    return [t.position[0], t.position[1], t.position[2]];
+  };
+
   return (
     <>
       {objects.map((object) => (
@@ -60,8 +67,10 @@ export const Scene3D = ({
           currentFrame={currentFrame}
           totalFrames={totalFrames}
           isPlaying={isPlaying}
+          targetLookup={targetLookup}
         />
       ))}
+
 
       {selectedObject && transformTarget && (
         <TransformControls

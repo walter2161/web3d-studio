@@ -37,7 +37,10 @@ interface Object3DData {
   type:
     | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported'
     | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
-    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix';
+    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix'
+    | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
+    | 'camera_target' | 'camera_free' | 'target_helper';
+
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
@@ -48,6 +51,9 @@ interface Object3DData {
   geometry?: any;
   modifiers?: Modifier[];
   ref?: React.MutableRefObject<any>;
+  lightData?: any;
+  cameraData?: any;
+
   // Sprint A additions
   groupId?: string;
   groupOpen?: boolean;
@@ -100,6 +106,10 @@ export const Studio3D = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
   const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+  const [viewportCameras, setViewportCameras] = useState<Record<string, string | null>>({
+    perspective: null, top: null, front: null, left: null,
+  });
+
   const [hierarchyCollapsed, setHierarchyCollapsed] = useState(false);
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
@@ -295,16 +305,80 @@ export const Studio3D = () => {
     const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'];
     const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
     const shapes = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
+    const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
+    const camTypes   = ['camera_target', 'camera_free'];
 
-    if (![...standard, ...extended, ...shapes].includes(type)) return;
+    if (![...standard, ...extended, ...shapes, ...lightTypes, ...camTypes].includes(type)) return;
 
     saveState();
 
-    // Sensible default parameter set per type so the object appears with
-    // usable dimensions on first click, matching R3's Create panel behavior.
+    // ------------- Lights & Cameras -------------------------------------------------
+    if (lightTypes.includes(type) || camTypes.includes(type)) {
+      const isTargeted = type === 'light_spot' || type === 'light_direct' || type === 'camera_target';
+      const baseKind = type === 'light_spot_free' ? 'light_spot'
+                     : type === 'light_direct_free' ? 'light_direct'
+                     : type;
+      const baseId = `${baseKind}_${Date.now()}`;
+      const namePrefix = baseKind.replace('light_', '').replace('camera_', 'Cam_');
+      const count = objects.filter((o) => o.type === baseKind).length + 1;
+      const newObjs: Object3DData[] = [];
+
+      let position: [number, number, number] = [0, 3, 0];
+      let rotation: [number, number, number] = [0, 0, 0];
+      let color = '#ffffff';
+      const lightData: any = { intensity: 1, distance: 0, decay: 2, castShadow: false };
+      const cameraData: any = { fov: 45, near: 0.1, far: 1000 };
+
+      if (baseKind === 'light_omni')     { position = [3, 5, 3]; color = '#fff2cc'; lightData.intensity = 1; }
+      if (baseKind === 'light_spot')     { position = [0, 6, 0]; color = '#ffffff'; lightData.angle = Math.PI / 6; lightData.penumbra = 0.2; lightData.distance = 20; }
+      if (baseKind === 'light_direct')   { position = [5, 8, 5]; color = '#ffffff'; lightData.distance = 30; }
+      if (baseKind === 'light_skylight') { position = [0, 8, 0]; color = '#a0c8ff'; lightData.skyColor = '#a0c8ff'; lightData.groundColor = '#4a3a2a'; lightData.intensity = 0.6; }
+      if (baseKind === 'light_ambient')  { position = [0, 5, 0]; color = '#404040'; lightData.intensity = 0.4; }
+      if (baseKind === 'camera_target' || baseKind === 'camera_free') { position = [8, 5, 8]; color = '#4488ff'; }
+
+      // Create target dummy for targeted variants
+      let targetId: string | undefined;
+      if (isTargeted) {
+        targetId = `target_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        newObjs.push({
+          id: targetId,
+          name: `${namePrefix}${count}.Target`,
+          type: 'target_helper' as any,
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: '#cccccc',
+          visible: true,
+          locked: false,
+          modifiers: [],
+          ref: { current: null } as any,
+        });
+        if (baseKind.startsWith('light_')) lightData.targetObjectId = targetId;
+        else cameraData.targetObjectId = targetId;
+      }
+
+      const entity: Object3DData = {
+        id: baseId,
+        name: `${namePrefix}${count.toString().padStart(2, '0')}`,
+        type: baseKind as any,
+        position, rotation, scale: [1, 1, 1],
+        color,
+        visible: true, locked: false, modifiers: [],
+        ref: { current: null } as any,
+        ...(baseKind.startsWith('light_') ? { lightData } : {}),
+        ...(baseKind.startsWith('camera_') ? { cameraData } : {}),
+      } as any;
+      newObjs.push(entity);
+
+      setObjects((prev) => [...prev, ...newObjs]);
+      setSelectedObject(baseId);
+      toast.success(`${namePrefix}${count} created`);
+      return;
+    }
+
+    // ------------- Geometric primitives / shapes -----------------------------------
     let defaultGeometry: any = undefined;
     if (extended.includes(type)) {
-      // Defaults live in extendedGeometry.ts and are auto-applied when geometry is empty.
       defaultGeometry = {};
     } else if (shapes.includes(type)) {
       defaultGeometry = {};
@@ -328,7 +402,8 @@ export const Studio3D = () => {
     setObjects(prev => [...prev, newObject]);
     setSelectedObject(newObject.id);
     toast.success(`${type} created`);
-  }, [saveState]);
+  }, [saveState, objects]);
+
 
   // Commit a ghost object from the interactive click-drag creation flow.
   // Pivot policy (matches 3ds Max R3):
@@ -974,7 +1049,10 @@ export const Studio3D = () => {
           onLayerManager={() => toast.info('Layer Manager — coming next sprint')}
           onSelectByName={() => setSelectByNameOpen(true)}
           onRenderSetup={() => setRenderSetupOpen(true)}
+          viewportLayout={viewportLayout}
+          onToggleViewportLayout={() => setViewportLayout((v) => v === 'quad' ? 'single' : 'quad')}
         />
+
       </div>
 
       {/* Snaps / secondary toolbar row */}
@@ -1047,6 +1125,9 @@ export const Studio3D = () => {
                 ...objects.filter(obj => obj.visible !== false && !obj.isGroup),
                 ...(ghost ? [ghost as any] : []),
               ]}
+              viewportCameras={viewportCameras}
+              onSetViewportCamera={(vp, camId) => setViewportCameras((prev) => ({ ...prev, [vp]: camId }))}
+              availableCameras={objects.filter((o) => o.type === 'camera_target' || o.type === 'camera_free')}
 
               selectedObject={selectedObject}
               selectedSubUuid={selectedSubUuid}
@@ -1064,6 +1145,7 @@ export const Studio3D = () => {
               snapAngleDeg={angleSnapEnabled ? snapCfg.angleSnap : 0}
               snapPercent={snapCfg.percentSnap}
             />
+
           </div>
         </div>
 
