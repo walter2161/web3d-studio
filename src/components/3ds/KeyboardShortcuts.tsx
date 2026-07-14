@@ -12,6 +12,9 @@ interface KeyboardShortcutsProps {
   onOpen: () => void;
   onNew: () => void;
   onViewportChange: (viewport: 'perspective' | 'top' | 'front' | 'left') => void;
+  onToggleMaximize?: () => void;
+  onToggleSnap?: () => void;
+  onOpenSelectByName?: () => void;
 }
 
 export const KeyboardShortcuts = ({
@@ -25,7 +28,10 @@ export const KeyboardShortcuts = ({
   onSave,
   onOpen,
   onNew,
-  onViewportChange
+  onViewportChange,
+  onToggleMaximize,
+  onToggleSnap,
+  onOpenSelectByName,
 }: KeyboardShortcutsProps) => {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -35,6 +41,13 @@ export const KeyboardShortcuts = ({
       }
 
       const { key, ctrlKey, shiftKey, altKey } = event;
+
+      // Alt+W → toggle maximize viewport
+      if (altKey && !ctrlKey && !shiftKey && key.toLowerCase() === 'w') {
+        event.preventDefault();
+        onToggleMaximize?.();
+        return;
+      }
 
       // Transform modes
       if (!ctrlKey && !shiftKey && !altKey) {
@@ -50,6 +63,14 @@ export const KeyboardShortcuts = ({
           case 'r':
             event.preventDefault();
             onTransformMode('scale');
+            break;
+          case 's':
+            event.preventDefault();
+            onToggleSnap?.();
+            break;
+          case 'h':
+            event.preventDefault();
+            onOpenSelectByName?.();
             break;
           case 'delete':
           case 'backspace':
