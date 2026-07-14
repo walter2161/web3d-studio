@@ -98,6 +98,7 @@ export const Viewport = ({
         }}
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
+        <ViewportRegistrar vkey={type} />
         <SceneEnvSync
           backgroundColor={env.backgroundColor}
           fogEnabled={env.fogEnabled}
