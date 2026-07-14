@@ -3,12 +3,13 @@ import { useFrame } from '@react-three/fiber';
 import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer } from 'three';
 import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
+import { buildExtendedPrimitive, buildShape, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 
 
 interface Object3DProps {
   object: {
     id: string;
-    type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported';
+    type: string;
     position: [number, number, number];
     rotation: [number, number, number];
     scale: [number, number, number];
@@ -97,7 +98,18 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
     const geom = geometry || {};
-    
+
+    // Sprint C — Extended Primitives
+    const extPrims: ExtPrimType[] = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
+    if (extPrims.includes(type as ExtPrimType)) {
+      return buildExtendedPrimitive(type as ExtPrimType, geom);
+    }
+    // Sprint C — Shapes
+    const shapes: ShapeType[] = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
+    if (shapes.includes(type as ShapeType)) {
+      return buildShape(type as ShapeType, geom);
+    }
+
     switch (type) {
       case 'box':
         return new THREE.BoxGeometry(
