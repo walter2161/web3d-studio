@@ -11,6 +11,11 @@ interface MenuBarProps {
   onFileOperation: (type: 'save' | 'open' | 'export' | 'import') => void;
   onViewportChange: (viewport: 'perspective' | 'top' | 'front' | 'left') => void;
   activeViewport: 'perspective' | 'top' | 'front' | 'left';
+  onQuickRender?: () => void;
+  onRenderSetup?: () => void;
+  onEnvironment?: () => void;
+  onMaterialBrowser?: () => void;
+  onViewImageFile?: () => void;
 }
 
 // R3 menu list. Underlined access-key hint via <u>.
