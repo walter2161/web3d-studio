@@ -51,6 +51,8 @@ export const Studio3D = () => {
     (initial?.objects || []).map((o: any) => ({ ...o, ref: { current: null } }))
   );
   const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
+  const [selectedSubUuid, setSelectedSubUuid] = useState<string | null>(null);
+
   const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
@@ -538,7 +540,9 @@ export const Studio3D = () => {
           <SceneHierarchy
             objects={objects}
             selectedObject={selectedObject}
-            onSelectObject={handleSelectObject}
+            selectedSubUuid={selectedSubUuid}
+            onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
+            onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
             onDeleteObject={deleteObject}
             onDuplicateObject={duplicateObject}
             onToggleVisibility={toggleVisibility}
@@ -546,6 +550,7 @@ export const Studio3D = () => {
             onRenameObject={renameObject}
           />
         </div>
+
 
         <div className="flex-1 flex flex-col min-h-0">
           <div className="h-12 bg-panel border-b border-panel-border flex items-center px-4 gap-2">
@@ -592,15 +597,20 @@ export const Studio3D = () => {
               onActivate={() => {}}
               objects={objects.filter(obj => obj.visible !== false)}
               selectedObject={selectedObject}
-              onSelectObject={handleSelectObject}
+              selectedSubUuid={selectedSubUuid}
+              onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
               onTransformObject={handleTransformObject}
               transformMode={transformMode}
               animationTracks={animationTracks}
               selectedKeyframe={selectedKeyframe}
               onUpdateKeyframe={updateKeyframe}
+              currentFrame={currentFrame}
+              totalFrames={totalFrames}
+              isPlaying={isPlaying}
             />
           </div>
         </div>
+
 
         <SidePanel
           onCreateObject={createObject}
