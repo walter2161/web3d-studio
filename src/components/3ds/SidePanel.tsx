@@ -522,38 +522,115 @@ export const SidePanel = ({
             )}
           </TabsContent>
 
-          <TabsContent value="hierarchy" className="mt-0">
+          <TabsContent value="hierarchy" className="mt-0 space-y-3">
             <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Scene Hierarchy</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">Hierarchy management coming soon...</p>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Pivot</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => onUpdateObjectGeometry(selectedObject?.id, { __pivotMode: 'affectPivot' })}>
+                  Affect Pivot Only
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => onUpdateObjectGeometry(selectedObject?.id, { __pivotMode: 'affectObject' })}>
+                  Affect Object Only
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => onUpdateObjectGeometry(selectedObject?.id, { __pivotMode: 'affectHierarchy' })}>
+                  Affect Hierarchy Only
+                </Button>
+                <div className="border-t border-panel-border my-1" />
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}>
+                  Center to Object
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}>
+                  Align to Object
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}>
+                  Align to World
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}>
+                  Reset Pivot
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-panel-border">
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Link Info</CardTitle></CardHeader>
+              <CardContent className="space-y-1 text-xs">
+                <div>Parent: <span className="text-muted-foreground">{selectedObject?.groupId || '— none —'}</span></div>
+                <div>Locks: Move X ☐ Y ☐ Z ☐</div>
+                <div>Locks: Rotate X ☐ Y ☐ Z ☐</div>
+                <div>Locks: Scale X ☐ Y ☐ Z ☐</div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="motion" className="mt-0">
+          <TabsContent value="motion" className="mt-0 space-y-3">
             <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Animation</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">Animation tools coming soon...</p>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Parameters</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-xs">Controllers per axis (R3):</div>
+                <div className="text-xs pl-2 space-y-1">
+                  <div>Position: <span className="font-mono">Bezier</span></div>
+                  <div>Rotation: <span className="font-mono">Euler XYZ</span></div>
+                  <div>Scale: <span className="font-mono">Bezier</span></div>
+                </div>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}>
+                  Assign Controller...
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-panel-border">
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Trajectories</CardTitle></CardHeader>
+              <CardContent className="text-xs text-muted-foreground">
+                Enable per-object trajectories from the Animation Timeline panel.
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="display" className="mt-0">
+          <TabsContent value="display" className="mt-0 space-y-3">
             <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Display Options</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">Display settings coming soon...</p>
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Hide</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'hideSelection' })}>
+                  Hide Selection
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'unhideAll' })}>
+                  Unhide All
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'hideUnselected' })}>
+                  Hide Unselected
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-panel-border">
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Freeze</CardTitle></CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'freezeSelection' })}>
+                  Freeze Selection
+                </Button>
+                <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
+                  onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'unfreezeAll' })}>
+                  Unfreeze All
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="bg-card border-panel-border">
+              <CardHeader className="pb-3"><CardTitle className="text-sm">Display Properties</CardTitle></CardHeader>
+              <CardContent className="space-y-1 text-xs">
+                <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Display as Box</label>
+                <label className="flex items-center gap-2"><input type="checkbox" /> Backface Cull</label>
+                <label className="flex items-center gap-2"><input type="checkbox" /> Edges Only</label>
+                <label className="flex items-center gap-2"><input type="checkbox" /> Vertex Ticks</label>
+                <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Trajectory</label>
               </CardContent>
             </Card>
           </TabsContent>
+
         </div>
       </Tabs>
     </div>
