@@ -11,6 +11,11 @@ interface MenuBarProps {
   onFileOperation: (type: 'save' | 'open' | 'export' | 'import') => void;
   onViewportChange: (viewport: 'perspective' | 'top' | 'front' | 'left') => void;
   activeViewport: 'perspective' | 'top' | 'front' | 'left';
+  onQuickRender?: () => void;
+  onRenderSetup?: () => void;
+  onEnvironment?: () => void;
+  onMaterialBrowser?: () => void;
+  onViewImageFile?: () => void;
 }
 
 // R3 menu list. Underlined access-key hint via <u>.
@@ -42,7 +47,7 @@ const renderLabel = (label: string, access: string) => {
   );
 };
 
-export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport }: MenuBarProps) => {
+export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport, onQuickRender, onRenderSetup, onEnvironment, onMaterialBrowser, onViewImageFile }: MenuBarProps) => {
   return (
     <div className="h-[22px] bg-win-face flex items-stretch px-1 border-b border-win-shadow">
       {menuItems.map((menu) => (
@@ -75,6 +80,11 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                   }`}
                   onClick={() => {
                     if (item.startsWith('Material Editor')) onOpenMaterialEditor();
+                    if (item.startsWith('Material/Map Browser')) onMaterialBrowser?.();
+                    if (item === 'Render...') onQuickRender?.();
+                    if (item.startsWith('Render Setup')) onRenderSetup?.();
+                    if (item.startsWith('Environment')) onEnvironment?.();
+                    if (item.startsWith('View Image File')) onViewImageFile?.();
                     if (item === 'Save' || item.startsWith('Save As')) onFileOperation('save');
                     if (item.startsWith('Open')) onFileOperation('open');
                     if (item.startsWith('Export')) onFileOperation('export');

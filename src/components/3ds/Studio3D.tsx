@@ -11,6 +11,10 @@ import { SceneHierarchy } from './SceneHierarchy';
 import { FileOperations } from './FileOperations';
 import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
+import { RenderSetup } from './r3/RenderSetup';
+import { EnvironmentDialog } from './r3/EnvironmentDialog';
+import { ViewImageFile } from './r3/ViewImageFile';
+import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
 import { toast } from 'sonner';
 
 
@@ -66,6 +70,10 @@ export const Studio3D = () => {
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
+  const [renderSetupOpen, setRenderSetupOpen] = useState(false);
+  const [environmentOpen, setEnvironmentOpen] = useState(false);
+  const [viewImageOpen, setViewImageOpen] = useState(false);
+  const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
@@ -610,6 +618,11 @@ export const Studio3D = () => {
         onFileOperation={openFileDialog}
         onViewportChange={setActiveViewport}
         activeViewport={activeViewport}
+        onQuickRender={() => setQuickRenderOpen(true)}
+        onRenderSetup={() => setRenderSetupOpen(true)}
+        onEnvironment={() => setEnvironmentOpen(true)}
+        onMaterialBrowser={() => setMaterialBrowserOpen(true)}
+        onViewImageFile={() => setViewImageOpen(true)}
       />
 
       {/* Main toolbar row (icons) */}
@@ -762,6 +775,15 @@ export const Studio3D = () => {
       />
 
       <QuickRender open={quickRenderOpen} onOpenChange={setQuickRenderOpen} />
+      <RenderSetup
+        open={renderSetupOpen}
+        onOpenChange={setRenderSetupOpen}
+        onRender={() => setQuickRenderOpen(true)}
+        currentFrame={currentFrame}
+      />
+      <EnvironmentDialog open={environmentOpen} onOpenChange={setEnvironmentOpen} />
+      <ViewImageFile open={viewImageOpen} onOpenChange={setViewImageOpen} />
+      <MaterialMapBrowser open={materialBrowserOpen} onOpenChange={setMaterialBrowserOpen} />
 
       <FileOperations
         open={fileDialogOpen}
