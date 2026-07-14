@@ -977,6 +977,10 @@ export const Studio3D = () => {
               currentFrame={currentFrame}
               totalFrames={totalFrames}
               isPlaying={isPlaying}
+              snapEnabled={snapEnabled}
+              snapGridSpacing={snapCfg.gridSpacing}
+              snapAngleDeg={angleSnapEnabled ? snapCfg.angleSnap : 0}
+              snapPercent={snapCfg.percentSnap}
             />
           </div>
         </div>
