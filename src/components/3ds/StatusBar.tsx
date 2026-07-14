@@ -21,6 +21,8 @@ interface StatusBarProps {
   onToggleViewportLayout: () => void;
   gridSpacing?: number;
   units?: { system: string; metric: string; us: string; precision: number };
+  timelineVisible?: boolean;
+  onToggleTimeline?: () => void;
 }
 
 const Tool = ({
