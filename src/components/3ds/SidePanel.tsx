@@ -37,20 +37,26 @@ interface SidePanelProps {
   onAddModifier: (objectId: string, modifierType: string) => void;
   onUpdateModifier: (objectId: string, modifierId: string, params: any) => void;
   onRemoveModifier: (objectId: string, modifierId: string) => void;
+  onToggleModifier?: (objectId: string, modifierId: string) => void;
+  onReorderModifier?: (objectId: string, modifierId: string, direction: -1 | 1) => void;
+  onRenameObject?: (objectId: string, name: string) => void;
   onUpdateObjectGeometry: (objectId: string, params: any) => void;
 }
 
-export const SidePanel = ({ 
+export const SidePanel = ({
   onCreateObject,
   onArmTool,
   armedTool,
   activeTab: activeTabProp,
   onActiveTabChange,
-  selectedObject, 
+  selectedObject,
   onOpenMaterialEditor,
   onAddModifier,
   onUpdateModifier,
   onRemoveModifier,
+  onToggleModifier,
+  onReorderModifier,
+  onRenameObject,
   onUpdateObjectGeometry
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
