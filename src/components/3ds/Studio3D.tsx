@@ -98,6 +98,14 @@ export const Studio3D = () => {
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
+  const [objectPropsOpen, setObjectPropsOpen] = useState(false);
+  const [unitsOpen, setUnitsOpen] = useState(false);
+  const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onOk: () => void; title?: string }>({ open: false, message: '', onOk: () => {} });
+  const [heldSnapshot, setHeldSnapshot] = useState<Object3DData[] | null>(null);
+  const [units, setUnits] = useState(() => loadUnits());
+  const [snapCfg, setSnapCfg] = useState(() => loadSnap());
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
