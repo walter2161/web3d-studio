@@ -56,226 +56,207 @@ export const SidePanel = ({
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
 
+  // R3 command-panel top tabs (icon buttons)
+  const panelTabs = [
+    { id: 'create', label: 'Create', icon: Sparkles },
+    { id: 'modify', label: 'Modify', icon: Wrench },
+    { id: 'hierarchy', label: 'Hierarchy', icon: GitBranch },
+    { id: 'motion', label: 'Motion', icon: Move3d },
+    { id: 'display', label: 'Display', icon: Eye },
+    { id: 'utilities', label: 'Utilities', icon: Settings },
+  ] as const;
 
-  const standardPrimitives = [
-    { type: 'box', icon: Box, label: 'Box' },
-    { type: 'sphere', icon: Circle, label: 'Sphere' },
-    { type: 'cylinder', icon: Cylinder, label: 'Cylinder' },
-    { type: 'cone', icon: Triangle, label: 'Cone' },
-    { type: 'torus', icon: Torus, label: 'Torus' },
-    { type: 'plane', icon: Square, label: 'Plane' },
-  ];
+  // R3 Create sub-categories (icon row)
+  const createCats = [
+    { id: 'geometry', label: 'Geometry',    icon: Box },
+    { id: 'shapes',   label: 'Shapes',      icon: Spline },
+    { id: 'lights',   label: 'Lights',      icon: Lightbulb },
+    { id: 'cameras',  label: 'Cameras',     icon: Camera },
+    { id: 'helpers',  label: 'Helpers',     icon: Triangle },
+    { id: 'warps',    label: 'Space Warps', icon: Waves },
+    { id: 'systems',  label: 'Systems',     icon: Settings },
+  ] as const;
 
-  const extendedPrimitives = [
-    { type: 'hedra',      label: 'Hedra' },
-    { type: 'chamferBox', label: 'ChamferBox' },
-    { type: 'chamferCyl', label: 'ChamferCyl' },
-    { type: 'oilTank',    label: 'OilTank' },
-    { type: 'spindle',    label: 'Spindle' },
-    { type: 'gengon',     label: 'Gengon' },
-    { type: 'torusKnot',  label: 'Torus Knot' },
-    { type: 'ringWave',   label: 'RingWave' },
-    { type: 'prism',      label: 'Prism' },
-  ];
+  const geometrySub = createCategory; // reuse existing standard/extended toggle
 
-  const shapes = [
-    { type: 'line',      label: 'Line' },
-    { type: 'rectangle', label: 'Rectangle' },
-    { type: 'circle',    label: 'Circle' },
-    { type: 'ellipse',   label: 'Ellipse' },
-    { type: 'arc',       label: 'Arc' },
-    { type: 'donut',     label: 'Donut' },
-    { type: 'ngon',      label: 'NGon' },
-    { type: 'star',      label: 'Star' },
-    { type: 'helix',     label: 'Helix' },
-  ];
-
-  const modifiers = [
-    { name: 'Bend', description: 'Entorta o objeto em torno de um eixo' },
-    { name: 'Twist', description: 'Torce o objeto em torno de um eixo' },
-    { name: 'Taper', description: 'Afunila a forma, estreitando ou expandindo' },
-    { name: 'Stretch', description: 'Estica ou comprime o objeto' },
-    { name: 'Skew', description: 'Inclina a geometria' },
-    { name: 'Noise', description: 'Adiciona irregularidades aleatórias na malha' },
-    { name: 'FFD', description: 'Deforma o objeto usando caixas de controle' },
-    { name: 'Shell', description: 'Adiciona espessura a superfícies planas' },
-    { name: 'Edit Poly', description: 'Permite editar vértices, arestas, polígonos' },
-    { name: 'Edit Mesh', description: 'Edição direta de malhas triangulares' },
-    { name: 'TurboSmooth', description: 'Suaviza e aumenta o número de polígonos' },
-    { name: 'MeshSmooth', description: 'Subdivide suavizando a malha' },
-    { name: 'Symmetry', description: 'Espelha o objeto em um eixo' },
-    { name: 'Mirror', description: 'Reflete a geometria' },
-    { name: 'UVW Map', description: 'Mapeamento simples de coordenadas de textura' },
-    { name: 'Unwrap UVW', description: 'Controle avançado de mapeamento UV' },
-    { name: 'Lathe', description: 'Revolve uma spline para criar formas cilíndricas' },
-    { name: 'Extrude', description: 'Extruda uma spline para gerar volume' },
-    { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados' },
-    { name: 'Slice', description: 'Corta o objeto em partes' }
-  ];
-
-  const categoryLabel: Record<typeof createCategory, string> = {
-    standard: 'Standard Primitives',
-    extended: 'Extended Primitives',
-    shapes: 'Shapes',
-    lights: 'Lights',
-    cameras: 'Cameras',
-  };
-
-  const lightSubtypes = [
-    { type: 'light_omni',     label: 'Omni' },
-    { type: 'light_spot',     label: 'Target Spot' },
-    { type: 'light_spot_free',label: 'Free Spot' },
-    { type: 'light_direct',   label: 'Target Direct' },
-    { type: 'light_direct_free', label: 'Free Direct' },
-    { type: 'light_skylight', label: 'Skylight' },
-    { type: 'light_ambient',  label: 'Ambient' },
-  ];
-  const cameraSubtypes = [
-    { type: 'camera_target', label: 'Target Camera' },
-    { type: 'camera_free',   label: 'Free Camera' },
-  ];
-
+  const R3TabBtn = ({ active, onClick, title, children }: any) => (
+    <button
+      title={title}
+      onClick={onClick}
+      className={cn(
+        'flex-1 min-w-0 h-[26px] flex items-center justify-center gap-1 text-[11px] text-win-text',
+        active ? 'bevel-sunken' : 'bevel-raised hover:brightness-105'
+      )}
+    >
+      {children}
+    </button>
+  );
 
   return (
     <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-        <TabsList className="grid w-full grid-cols-5 bg-panel-header">
-          <TabsTrigger value="create" className="text-xs">Create</TabsTrigger>
-          <TabsTrigger value="modify" className="text-xs">Modify</TabsTrigger>
-          <TabsTrigger value="hierarchy" className="text-xs">Hierarchy</TabsTrigger>
-          <TabsTrigger value="motion" className="text-xs">Motion</TabsTrigger>
-          <TabsTrigger value="display" className="text-xs">Display</TabsTrigger>
-        </TabsList>
-
-        <div className="p-3 space-y-4">
-          <TabsContent value="create" className="mt-0 space-y-3">
-            {/* R3-style category selector */}
-            <select
-              value={createCategory}
-              onChange={(e) => setCreateCategory(e.target.value as any)}
-              className="w-full h-7 text-xs bg-card border border-panel-border rounded px-2"
+      {/* R3-style command panel tab row */}
+      <div className="bevel-raised p-[2px] flex gap-[2px]">
+        {panelTabs.map((t) => {
+          const Icon = t.icon;
+          return (
+            <R3TabBtn
+              key={t.id}
+              active={activeTab === t.id}
+              onClick={() => setActiveTab(t.id)}
+              title={t.label}
             >
-              <option value="standard">Standard Primitives</option>
-              <option value="extended">Extended Primitives</option>
-              <option value="shapes">Shapes</option>
-              <option value="lights">Lights</option>
-              <option value="cameras">Cameras</option>
-            </select>
+              <Icon size={13} />
+            </R3TabBtn>
+          );
+        })}
+      </div>
 
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
 
-            <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">{categoryLabel[createCategory]}</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2">
-                {createCategory === 'standard' && standardPrimitives.map((primitive) => {
-                  const IconComponent = primitive.icon;
-                  const pressed = armedTool === primitive.type;
+        <div className="p-2 space-y-2">
+          <TabsContent value="create" className="mt-0 space-y-2">
+            {/* Category icon row (Geometry / Shapes / Lights / Cameras / Helpers / Warps / Systems) */}
+            <div className="bevel-raised p-[2px] flex gap-[2px]">
+              {createCats.map((c) => {
+                const Icon = c.icon;
+                const active = createCat === c.id;
+                return (
+                  <R3TabBtn
+                    key={c.id}
+                    active={active}
+                    onClick={() => {
+                      setCreateCat(c.id as any);
+                      if (c.id === 'geometry') setCreateCategory('standard');
+                      if (c.id === 'shapes')   setCreateCategory('shapes');
+                      if (c.id === 'lights')   setCreateCategory('lights');
+                      if (c.id === 'cameras')  setCreateCategory('cameras');
+                    }}
+                    title={c.label}
+                  >
+                    <Icon size={13} />
+                  </R3TabBtn>
+                );
+              })}
+            </div>
+
+            {/* Sub-category dropdown (Standard / Extended Primitives, etc.) */}
+            {createCat === 'geometry' && (
+              <select
+                value={createCategory === 'extended' ? 'extended' : 'standard'}
+                onChange={(e) => setCreateCategory(e.target.value as any)}
+                className="w-full h-[22px] text-[11px] bevel-sunken bg-win-face px-1 text-win-text"
+              >
+                <option value="standard">Standard Primitives</option>
+                <option value="extended">Extended Primitives</option>
+              </select>
+            )}
+
+            {/* Object Type rollout — R3-style beveled 2-column button grid */}
+            <div className="bevel-raised">
+              <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
+                Object Type
+              </div>
+              <div className="p-1 grid grid-cols-2 gap-[3px]">
+                {createCategory === 'standard' && standardPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
                   return (
-                    <Button
-                      key={primitive.type}
-                      variant="outline"
-                      size="sm"
-                      className={`h-16 flex-col gap-1 bg-gradient-button border-panel-border hover:bg-menu-hover ${pressed ? 'ring-2 ring-yellow-400 bevel-inset' : ''}`}
-                      onClick={() => (onArmTool ? onArmTool(primitive.type) : onCreateObject(primitive.type))}
-                      title={pressed ? 'Armed — click & drag in the viewport (ESC to cancel)' : `Create ${primitive.label}`}
+                    <button
+                      key={p.type}
+                      onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                      title={pressed ? 'Armed — click & drag in the viewport (ESC)' : `Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
                     >
-                      <IconComponent className="w-6 h-6" />
-                      <span className="text-xs">{primitive.label}</span>
-                    </Button>
+                      {p.label}
+                    </button>
                   );
                 })}
-
                 {createCategory === 'extended' && extendedPrimitives.map((p) => {
                   const pressed = armedTool === p.type;
                   return (
-                    <Button
+                    <button
                       key={p.type}
-                      variant="outline"
-                      size="sm"
-                      className={`h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px] ${pressed ? 'ring-2 ring-yellow-400 bevel-inset' : ''}`}
                       onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
                     >
                       {p.label}
-                    </Button>
+                    </button>
                   );
                 })}
-
                 {createCategory === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (
-                    <Button
+                    <button
                       key={s.type}
-                      variant="outline"
-                      size="sm"
-                      className={`h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px] ${pressed ? 'ring-2 ring-yellow-400 bevel-inset' : ''}`}
                       onClick={() => (onArmTool ? onArmTool(s.type) : onCreateObject(s.type))}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
                     >
                       {s.label}
-                    </Button>
+                    </button>
                   );
                 })}
-
-
                 {createCategory === 'lights' && lightSubtypes.map((l) => (
-                  <Button
+                  <button
                     key={l.type}
-                    variant="outline"
-                    size="sm"
-                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
                     onClick={() => onCreateObject(l.type)}
                     title={`Create ${l.label}`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
                   >
-                    <Lightbulb className="w-4 h-4" />
-                    <span>{l.label}</span>
-                  </Button>
+                    {l.label}
+                  </button>
                 ))}
-
                 {createCategory === 'cameras' && cameraSubtypes.map((c) => (
-                  <Button
+                  <button
                     key={c.type}
-                    variant="outline"
-                    size="sm"
-                    className="h-12 flex-col gap-0.5 bg-gradient-button border-panel-border hover:bg-menu-hover text-[11px]"
                     onClick={() => onCreateObject(c.type)}
                     title={`Create ${c.label}`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
                   >
-                    <Camera className="w-4 h-4" />
-                    <span>{c.label}</span>
-                  </Button>
+                    {c.label}
+                  </button>
                 ))}
-              </CardContent>
-            </Card>
-
+                {(createCat === 'helpers' || createCat === 'warps' || createCat === 'systems') && (
+                  <div className="col-span-2 text-[11px] text-win-text-disabled px-1 py-2 text-center">
+                    (Em desenvolvimento)
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0">
-            <Card className="bg-card border-panel-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Add Modifiers</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="bevel-raised">
+              <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
+                Modifier List
+              </div>
+              <div className="p-1 space-y-[2px] max-h-60 overflow-y-auto">
                 {modifiers.map((modifier) => (
-                  <Button
+                  <button
                     key={modifier.name}
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start text-left bg-gradient-button border-panel-border hover:bg-menu-hover"
-                    onClick={() => {
-                      if (selectedObject) {
-                        onAddModifier(selectedObject.id, modifier.name);
-                      }
-                    }}
                     disabled={!selectedObject}
+                    onClick={() => selectedObject && onAddModifier(selectedObject.id, modifier.name)}
                     title={modifier.description}
+                    className={cn(
+                      'w-full h-[22px] text-[11px] text-left px-2 truncate text-win-text',
+                      !selectedObject ? 'bevel-raised opacity-50 cursor-not-allowed' : 'bevel-raised hover:brightness-105'
+                    )}
                   >
                     {modifier.name}
-                  </Button>
+                  </button>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+
 
             {/* Applied Modifiers */}
             {selectedObject && selectedObject.modifiers && selectedObject.modifiers.length > 0 && (
