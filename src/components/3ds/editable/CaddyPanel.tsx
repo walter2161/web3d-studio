@@ -209,7 +209,7 @@ export const buildCaddy = (
           { key: 'height', label: 'Height', value: 0.2, step: 0.05 },
           { key: 'width', label: 'Width', value: 0, step: 0.01 },
         ],
-        onApply: () => ctx.toast('Extrude Edge/Border: coming in next phase'),
+        onApply: (v) => d('extrudeEdge', { height: v.height, width: v.width }),
       };
     case 'bridge':
       return {
