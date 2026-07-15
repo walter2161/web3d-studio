@@ -30,6 +30,9 @@ export interface AnimationRenderOptions {
    */
   resolveCameraPose?: (frame: number) => CameraPose | null;
   onProgress?: (done: number, total: number) => void;
+  /** Called with a data URL preview of each just-rendered frame so the UI
+   *  can show frame-by-frame progress while the sequence runs. */
+  onFramePreview?: (dataUrl: string, frame: number, index: number, total: number) => void;
 }
 
 /**
