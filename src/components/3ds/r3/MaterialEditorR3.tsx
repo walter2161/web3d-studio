@@ -459,10 +459,27 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
 
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Material Editor" width={880}>
-      <div className="flex gap-1">
-        {/* LEFT: 24 sample slots + preview shape picker */}
-        <div className="bevel-inset bg-win-face p-1" style={{ width: 280 }}>
-          <div className="grid grid-cols-4 gap-[2px]">
+      {/* TOP: sample slots — 2 visible rows with vertical scrollbar */}
+      <div className="bevel-inset bg-win-face p-1 mb-1">
+        <div className="flex items-center gap-1 mb-1">
+          <span className="text-[10px] text-win-text">Sample Slots · Preview:</span>
+          {(['sphere', 'cylinder', 'cube'] as PreviewShape[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setPreviewShape(s)}
+              className={`${previewShape === s ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] px-1`}
+              style={{ height: 18 }}
+              title={`Preview shape: ${s}`}
+            >{s === 'sphere' ? '● Sphere' : s === 'cylinder' ? '▮ Cylinder' : '◼ Cube'}</button>
+          ))}
+          <div className="flex-1" />
+          <span className="text-[10px] text-win-text-disabled">Slot {active + 1} / {SLOT_COUNT}</span>
+        </div>
+        <div
+          className="panel-scroll overflow-y-auto"
+          style={{ maxHeight: 2 * 76 + 8 /* 2 rows of ~76px cells + gap */ }}
+        >
+          <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(12, minmax(0, 1fr))' }}>
             {slots.map((m, i) => (
               <button
                 key={i}
@@ -472,28 +489,20 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                 onDragStart={(e) => { setActive(i); beginSlotDrag(i, e); }}
                 onDragEnd={endSlotDrag}
                 title={`${m.name} — drag onto an object to apply, or double-click to assign to selection`}
-                className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'} bg-black`}
+                className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'}`}
                 style={{ aspectRatio: '1', background: i === active ? '#000' : '#111' }}
               >
-                <SamplePreview mat={m} size={54} shape={previewShape} />
+                <SamplePreview mat={m} size={64} shape={previewShape} />
               </button>
             ))}
           </div>
-          <div className="mt-1 flex items-center gap-[2px]">
-            <span className="text-[10px] text-win-text mr-1">Preview:</span>
-            {(['sphere', 'cylinder', 'cube'] as PreviewShape[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setPreviewShape(s)}
-                className={`${previewShape === s ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[10px] px-1`}
-                style={{ height: 18 }}
-              >{s === 'sphere' ? '●' : s === 'cylinder' ? '▮' : '◼'}</button>
-            ))}
-          </div>
         </div>
+      </div>
 
-        {/* MIDDLE: vertical R3-style toolbar strip */}
+      <div className="flex gap-1">
+        {/* LEFT: vertical R3-style toolbar strip */}
         <div className="bevel-inset bg-win-face flex flex-col gap-[2px] p-[2px]" style={{ width: 22 }}>
+
           {[
             { l: 'Get from Sel', s: '⇦', fn: getFromScene },
             { l: 'Assign to Sel', s: '⇨', fn: assignToSelection },
