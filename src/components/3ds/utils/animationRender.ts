@@ -44,7 +44,7 @@ export interface AnimationRenderOptions {
  */
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress,
+    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview,
   } = opts;
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
