@@ -148,3 +148,202 @@ export function buildWall(geom: WallGeom): THREE.BufferGeometry {
   g.computeBoundingSphere();
   return g;
 }
+
+// -------------------------------------------------------------------------
+// Doors and Windows (Fase 2)
+// -------------------------------------------------------------------------
+//
+// Local coordinate convention for both door and window:
+//   +X = width  (opening extends from -W/2 to +W/2)
+//   +Y = height (bottom sits at Y=0, top at Y=H)
+//   +Z = depth  (frame is centered on Z=0, extends ±frameDepth/2)
+//
+// The pivot is at the CENTER OF BASE (Y=0, X=0, Z=0), matching 3ds Max's
+// R3 convention for architectural objects — makes them snap-to-floor when
+// dropped and easy to align with wall segments.
+
+export type DoorSubtype = 'pivot' | 'bifold' | 'sliding' | 'pocket';
+export type WindowSubtype = 'casement' | 'sliding' | 'awning' | 'fixed' | 'pivot';
+
+export interface DoorGeom {
+  subtype?: DoorSubtype;
+  width?: number;
+  height?: number;
+  thickness?: number;   // leaf thickness
+  frameDepth?: number;  // how deep the frame sits along Z (matches wall width)
+  frameSize?: number;   // jamb / head width around the opening
+  openPercentage?: number; // 0..1
+  parentWallId?: string;   // filled by Fase 3 (wall attachment)
+}
+
+export interface WindowGeom {
+  subtype?: WindowSubtype;
+  width?: number;
+  height?: number;
+  frameThickness?: number;
+  glassThickness?: number;
+  frameDepth?: number;
+  sillHeight?: number;
+  openPercentage?: number;
+  parentWallId?: string;
+}
+
+export const DOOR_DEFAULTS: Required<Omit<DoorGeom, 'parentWallId'>> = {
+  subtype: 'pivot',
+  width: 0.9,
+  height: 2.1,
+  thickness: 0.04,
+  frameDepth: 0.2,
+  frameSize: 0.05,
+  openPercentage: 0,
+};
+
+export const WINDOW_DEFAULTS: Required<Omit<WindowGeom, 'parentWallId'>> = {
+  subtype: 'casement',
+  width: 1.2,
+  height: 1.2,
+  frameThickness: 0.05,
+  glassThickness: 0.01,
+  frameDepth: 0.2,
+  sillHeight: 1.0,
+  openPercentage: 0,
+};
+
+// Helper: create a translated (+ optionally rotated) box and return its geometry.
+function box(w: number, h: number, d: number, tx: number, ty: number, tz: number, rotY = 0, hingeX = 0): THREE.BufferGeometry {
+  const g = new THREE.BoxGeometry(Math.max(0.001, w), Math.max(0.001, h), Math.max(0.001, d));
+  const m = new THREE.Matrix4();
+  if (rotY) {
+    // Rotate around a vertical axis passing through hingeX, then translate.
+    const t1 = new THREE.Matrix4().makeTranslation(-hingeX, 0, 0);
+    const r  = new THREE.Matrix4().makeRotationY(rotY);
+    const t2 = new THREE.Matrix4().makeTranslation(hingeX + tx, ty, tz);
+    m.multiplyMatrices(t2, r).multiply(t1);
+  } else {
+    m.makeTranslation(tx, ty, tz);
+  }
+  g.applyMatrix4(m);
+  return g;
+}
+
+// Build 3-sided frame (left jamb, right jamb, top head). Bottom is skipped so
+// the door meets the floor. For a window, we add a sill at Y=0 too.
+function buildFrame(W: number, H: number, D: number, JAMB: number, withSill: boolean): THREE.BufferGeometry[] {
+  const parts: THREE.BufferGeometry[] = [];
+  // Left jamb
+  parts.push(box(JAMB, H + JAMB, D, -W / 2 - JAMB / 2, (H + JAMB) / 2 - JAMB / 2, 0));
+  // Right jamb
+  parts.push(box(JAMB, H + JAMB, D, W / 2 + JAMB / 2, (H + JAMB) / 2 - JAMB / 2, 0));
+  // Head
+  parts.push(box(W + 2 * JAMB, JAMB, D, 0, H + JAMB / 2, 0));
+  if (withSill) parts.push(box(W + 2 * JAMB, JAMB, D, 0, -JAMB / 2, 0));
+  return parts;
+}
+
+export function buildDoor(geom: DoorGeom): THREE.BufferGeometry {
+  const g = geom || {};
+  const W = Math.max(0.1, g.width ?? DOOR_DEFAULTS.width);
+  const H = Math.max(0.1, g.height ?? DOOR_DEFAULTS.height);
+  const T = Math.max(0.005, g.thickness ?? DOOR_DEFAULTS.thickness);
+  const D = Math.max(0.02, g.frameDepth ?? DOOR_DEFAULTS.frameDepth);
+  const J = Math.max(0.01, g.frameSize ?? DOOR_DEFAULTS.frameSize);
+  const O = Math.max(0, Math.min(1, g.openPercentage ?? 0));
+  const sub: DoorSubtype = g.subtype ?? 'pivot';
+
+  const parts = buildFrame(W, H, D, J, false);
+
+  // Leaf(s). All leaves have Y=H/2 (vertical center), and Z=0 (centered).
+  if (sub === 'pivot') {
+    const ang = -O * (Math.PI / 2); // open into +Z (toward viewer)
+    // Hinge at -W/2. Leaf spans from -W/2 to +W/2 in X when closed.
+    parts.push(box(W, H, T, 0, H / 2, 0, ang, -W / 2));
+  } else if (sub === 'bifold') {
+    // Two half-width leaves. Left hinge at -W/2, right hinge at +W/2.
+    const hw = W / 2;
+    const ang = O * (Math.PI / 2);
+    parts.push(box(hw, H, T,  -hw / 2, H / 2, 0,  ang, -W / 2));
+    parts.push(box(hw, H, T,   hw / 2, H / 2, 0, -ang,  W / 2));
+  } else if (sub === 'sliding') {
+    // Slide along +X, offset in Z so it doesn't clip the frame.
+    parts.push(box(W, H, T, O * W, H / 2, D / 2 - T / 2));
+  } else /* pocket */ {
+    // Slide into the wall (offset behind the frame in Z=0 line).
+    parts.push(box(W, H, T, O * W, H / 2, 0));
+  }
+
+  const merged = mergeGeometries(parts, false) || parts[0];
+  merged.computeVertexNormals();
+  merged.computeBoundingBox();
+  merged.computeBoundingSphere();
+  return merged;
+}
+
+export function buildWindow(geom: WindowGeom): THREE.BufferGeometry {
+  const g = geom || {};
+  const W = Math.max(0.1, g.width ?? WINDOW_DEFAULTS.width);
+  const H = Math.max(0.1, g.height ?? WINDOW_DEFAULTS.height);
+  const D = Math.max(0.02, g.frameDepth ?? WINDOW_DEFAULTS.frameDepth);
+  const FT = Math.max(0.01, g.frameThickness ?? WINDOW_DEFAULTS.frameThickness);
+  const GT = Math.max(0.002, g.glassThickness ?? WINDOW_DEFAULTS.glassThickness);
+  const O = Math.max(0, Math.min(1, g.openPercentage ?? 0));
+  const sub: WindowSubtype = g.subtype ?? 'casement';
+
+  // Window frames have a sill so buildFrame withSill=true. Frame uses FT as
+  // the jamb width (thinner than door jambs typically).
+  const parts = buildFrame(W, H, D, FT, true);
+
+  // Inner glass panel dimensions (opening minus a small reveal so glass reads).
+  const gw = Math.max(0.02, W - 2 * FT * 0.4);
+  const gh = Math.max(0.02, H - 2 * FT * 0.4);
+
+  if (sub === 'casement') {
+    // Vertical hinge on the left, opens outward in +Z.
+    const ang = -O * (Math.PI / 2);
+    parts.push(box(gw, gh, GT, 0, H / 2, 0, ang, -W / 2));
+  } else if (sub === 'sliding') {
+    // Two panes, half-width each; right one slides.
+    const hw = gw / 2;
+    parts.push(box(hw, gh, GT, -hw / 2, H / 2, -GT));
+    parts.push(box(hw, gh, GT,  hw / 2 + O * hw, H / 2, GT));
+  } else if (sub === 'awning') {
+    // Horizontal hinge on the top edge; opens outward at bottom.
+    // We can't rotate around X easily with our helper — inline the transform.
+    const gg = new THREE.BoxGeometry(gw, gh, GT);
+    const hingeY = H;
+    const ang = O * (Math.PI / 3); // up to 60°
+    const m = new THREE.Matrix4();
+    const t1 = new THREE.Matrix4().makeTranslation(0, -hingeY, 0);
+    const r  = new THREE.Matrix4().makeRotationX(ang);
+    const t2 = new THREE.Matrix4().makeTranslation(0, hingeY - gh / 2 + H / 2 + gh / 2, 0); // place glass then move up
+    // Simpler: create glass centered at (0, H/2, 0) and rotate around (0, H, 0).
+    const place = new THREE.Matrix4().makeTranslation(0, H / 2, 0);
+    const hinge1 = new THREE.Matrix4().makeTranslation(0, -H, 0);
+    const rot = new THREE.Matrix4().makeRotationX(ang);
+    const hinge2 = new THREE.Matrix4().makeTranslation(0, H, 0);
+    m.multiplyMatrices(hinge2, rot).multiply(hinge1).multiply(place);
+    gg.applyMatrix4(m);
+    parts.push(gg);
+  } else if (sub === 'pivot') {
+    // Horizontal center axis: rotate glass around (Y = H/2, Z = 0) by openPct.
+    const gg = new THREE.BoxGeometry(gw, gh, GT);
+    const ang = O * (Math.PI / 2);
+    const m = new THREE.Matrix4();
+    const place = new THREE.Matrix4().makeTranslation(0, H / 2, 0);
+    const rot = new THREE.Matrix4().makeRotationX(ang);
+    m.multiplyMatrices(rot, place);
+    // Move up to Y=H/2 relative to origin
+    const finalT = new THREE.Matrix4().makeTranslation(0, 0, 0);
+    finalT.multiply(m);
+    gg.applyMatrix4(finalT);
+    parts.push(gg);
+  } else {
+    // fixed
+    parts.push(box(gw, gh, GT, 0, H / 2, 0));
+  }
+
+  const merged = mergeGeometries(parts, false) || parts[0];
+  merged.computeVertexNormals();
+  merged.computeBoundingBox();
+  merged.computeBoundingSphere();
+  return merged;
+}
