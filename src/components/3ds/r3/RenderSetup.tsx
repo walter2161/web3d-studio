@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
-import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose } from '../utils/animationRender';
+import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError } from '../utils/animationRender';
 import { toast } from 'sonner';
 
 interface CameraOption {
@@ -68,6 +68,7 @@ export const RenderSetup = ({
   const [framePreview, setFramePreview] = useState<string | null>(null);
   const [currentRenderFrame, setCurrentRenderFrame] = useState<number>(0);
   const [renderStartTs, setRenderStartTs] = useState<number>(0);
+  const renderAbortRef = useRef<AbortController | null>(null);
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
@@ -441,6 +442,8 @@ export const RenderSetup = ({
               setFramePreview(null);
               setCurrentRenderFrame(from);
               setRenderStartTs(performance.now());
+              const abort = new AbortController();
+              renderAbortRef.current = abort;
               const toastId = toast.loading('Rendering animation…');
               try {
                 const blob = await renderAnimation({
@@ -449,6 +452,7 @@ export const RenderSetup = ({
                   engine,
                   setFrame: setCurrentFrame,
                   resolveCameraPose,
+                  signal: abort.signal,
                   onProgress: (done, total) => setProgress({ done, total }),
                   onFramePreview: (dataUrl, frame) => {
                     setFramePreview(dataUrl);
@@ -460,9 +464,14 @@ export const RenderSetup = ({
                 setPreviewUrl(URL.createObjectURL(blob));
                 toast.success('Render complete — review the preview', { id: toastId });
               } catch (e: any) {
-                console.error('Animation render failed', e);
-                toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
+                if (e instanceof RenderCancelledError) {
+                  toast.warning('Render cancelled', { id: toastId });
+                } else {
+                  console.error('Animation render failed', e);
+                  toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
+                }
               } finally {
+                renderAbortRef.current = null;
                 setRendering(false);
                 setFramePreview(null);
               }
@@ -544,6 +553,18 @@ export const RenderSetup = ({
               all frames are done they will be encoded into a {videoFormat.toUpperCase()} video
               you can preview before saving.
             </div>
+
+            <Row>
+              <div className="flex-1" />
+              <R3Button
+                width={100}
+                onClick={() => {
+                  renderAbortRef.current?.abort();
+                }}
+              >
+                Cancel
+              </R3Button>
+            </Row>
           </div>
         </R3Dialog>
       )}

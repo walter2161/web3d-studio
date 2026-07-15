@@ -33,6 +33,13 @@ export interface AnimationRenderOptions {
   /** Called with a data URL preview of each just-rendered frame so the UI
    *  can show frame-by-frame progress while the sequence runs. */
   onFramePreview?: (dataUrl: string, frame: number, index: number, total: number) => void;
+  /** Optional abort signal. When aborted mid-render, the sequence stops
+   *  cleanly and renderAnimation rejects with a DOMException('AbortError'). */
+  signal?: AbortSignal;
+}
+
+export class RenderCancelledError extends Error {
+  constructor() { super('Render cancelled'); this.name = 'RenderCancelledError'; }
 }
 
 /**
@@ -44,8 +51,9 @@ export interface AnimationRenderOptions {
  */
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview,
+    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview, signal,
   } = opts;
+  const throwIfAborted = () => { if (signal?.aborted) throw new RenderCancelledError(); };
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
@@ -202,6 +210,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   try {
     let idx = 0;
     for (let f = from; f <= to; f += step) {
+      throwIfAborted();
       await setFrame(f);
       // Wait for the timeline state, animated object transforms, R3F scene refs,
       // mixers, lights, and camera view controllers to commit before capturing.
@@ -253,6 +262,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       // frames — without this, the main thread stays busy and the modal
       // appears frozen until the whole sequence finishes.
       await new Promise((r) => setTimeout(r, 0));
+      throwIfAborted();
     }
 
     encodeStream = (recCanvas as HTMLCanvasElement).captureStream(0);
@@ -283,6 +293,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
     recorder.start();
     for (const frame of renderedFrames) {
+      throwIfAborted();
       const bitmap = await createImageBitmap(frame);
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(bitmap, 0, 0, width, height);
