@@ -49,6 +49,7 @@ const STAGES: Record<CreatableTool, number> = {
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
   wall: 1, // multi-click, handled by dedicated branch below
+  door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
 };
 
 function buildGhost(
