@@ -1385,6 +1385,8 @@ export const Studio3D = () => {
           onToggleTrajectory={toggleTrajectory}
           onSelectKeyframe={setSelectedKeyframe}
           selectedKeyframe={selectedKeyframe}
+          loopPlayback={loopPlayback}
+          onToggleLoopPlayback={() => setLoopPlayback(v => !v)}
         />
       )}
 
