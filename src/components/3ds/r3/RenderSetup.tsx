@@ -75,6 +75,20 @@ export const RenderSetup = ({
     }
   }, [open]);
 
+  // When the dialog opens, default the "View to Render" picker to whatever
+  // camera the active viewport is currently looking through. If none, use the
+  // orbit view. Users can still change it via the dropdowns.
+  useEffect(() => {
+    if (!open) return;
+    if (activeViewportCameraId && cameras.some((c) => c.id === activeViewportCameraId)) {
+      setRenderCameraId(activeViewportCameraId);
+    } else {
+      setRenderCameraId(VIEWPORT_CAM_ID);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activeViewportCameraId]);
+
+
 
   // Renderer tab options
   const [antialiasing, setAntialiasing] = useState(true);
