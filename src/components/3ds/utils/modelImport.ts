@@ -41,8 +41,10 @@ function normalizeTransform(root: THREE.Object3D) {
   bbox.getSize(size);
   bbox.getCenter(center);
 
+  // Target ~50 units to match the app's default primitive scale (3ds Max-like units).
+  const TARGET_SIZE = 50;
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  const scale = 2 / maxDim;
+  const scale = TARGET_SIZE / maxDim;
 
   root.position.sub(center.multiplyScalar(1));
   root.position.multiplyScalar(scale);
