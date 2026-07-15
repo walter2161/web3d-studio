@@ -377,9 +377,6 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     }
     // AEC Extended
     if (type === 'wall') {
-      // Lazy import to keep this branch light on non-AEC scenes.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { buildWall } = require('./utils/aecGeometry');
       return buildWall(geom);
     }
 
