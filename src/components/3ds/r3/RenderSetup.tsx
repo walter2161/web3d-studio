@@ -65,6 +65,9 @@ export const RenderSetup = ({
   const [renderCameraId, setRenderCameraId] = useState<string>(VIEWPORT_CAM_ID);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [framePreview, setFramePreview] = useState<string | null>(null);
+  const [currentRenderFrame, setCurrentRenderFrame] = useState<number>(0);
+  const [renderStartTs, setRenderStartTs] = useState<number>(0);
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
