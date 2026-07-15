@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
+import { renderAnimation, downloadBlob, suggestFilename, VideoFormat } from '../utils/animationRender';
+import { toast } from 'sonner';
 
 interface RenderSetupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRender?: () => void;
   currentFrame?: number;
+  totalFrames?: number;
+  setCurrentFrame?: (f: number) => void;
 }
 
 type Tab = 'Common' | 'Renderer' | 'Raytracer' | 'Advanced Lighting';
