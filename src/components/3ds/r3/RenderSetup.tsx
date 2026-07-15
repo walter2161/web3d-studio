@@ -438,6 +438,9 @@ export const RenderSetup = ({
 
               setRendering(true);
               setProgress({ done: 0, total: 0 });
+              setFramePreview(null);
+              setCurrentRenderFrame(from);
+              setRenderStartTs(performance.now());
               const toastId = toast.loading('Rendering animation…');
               try {
                 const blob = await renderAnimation({
@@ -447,6 +450,10 @@ export const RenderSetup = ({
                   setFrame: setCurrentFrame,
                   resolveCameraPose,
                   onProgress: (done, total) => setProgress({ done, total }),
+                  onFramePreview: (dataUrl, frame) => {
+                    setFramePreview(dataUrl);
+                    setCurrentRenderFrame(frame);
+                  },
                 });
                 if (previewUrl) URL.revokeObjectURL(previewUrl);
                 setPreviewBlob(blob);
@@ -457,7 +464,9 @@ export const RenderSetup = ({
                 toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
               } finally {
                 setRendering(false);
+                setFramePreview(null);
               }
+
             }}
           >
             {rendering ? 'Rendering…' : 'Render'}
