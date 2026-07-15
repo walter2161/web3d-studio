@@ -4,18 +4,18 @@
  * mesh + selection. Ops are recorded in the modifier's `ops[]` so the
  * modifier stack stays non-destructive.
  */
-import { EditableMesh, FaceId, VertexId } from '../EditableMesh';
+import { EditableMesh, EMFace, FaceId, VertexId } from '../EditableMesh';
 import { Selection, selectionToVertexIds, faceIdsForSelection, grow, shrink, ring, loop } from '../selection';
 import * as THREE from 'three';
 
 export type OpKind =
   | 'move' | 'rotate' | 'scale'
   | 'delete' | 'detach' | 'attach'
-  | 'weld' | 'break' | 'chamfer'
-  | 'extrude' | 'bevel' | 'inset' | 'outline' | 'bridge' | 'flip'
-  | 'tessellate' | 'msmooth' | 'divide' | 'slice' | 'cut'
+  | 'weld' | 'targetWeld' | 'break' | 'chamfer' | 'chamferEdge' | 'removeEdge' | 'splitEdge'
+  | 'extrude' | 'bevel' | 'inset' | 'outline' | 'bridge' | 'flip' | 'cap' | 'hinge'
+  | 'connect' | 'tessellate' | 'msmooth' | 'divide' | 'slice' | 'cut' | 'quickSlice'
   | 'hide' | 'unhide' | 'hideUnselected'
-  | 'setMaterialId' | 'selectByMaterialId'
+  | 'setMaterialId' | 'selectByMaterialId' | 'createShapeFromEdges'
   | 'autoSmooth' | 'clearSmoothing' | 'setSmoothingGroup'
   | 'grow' | 'shrink' | 'ring' | 'loop'
   | 'makePlanar' | 'relax';
