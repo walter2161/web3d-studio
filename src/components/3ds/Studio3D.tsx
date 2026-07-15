@@ -613,6 +613,7 @@ export const Studio3D = () => {
   }, []);
 
   const updateModifier = useCallback((objectId: string, modifierId: string, params: any) => {
+    saveState();
     setObjects(prev => prev.map(obj => 
       obj.id === objectId 
         ? { 
@@ -623,7 +624,7 @@ export const Studio3D = () => {
           }
         : obj
     ));
-  }, []);
+  }, [saveState]);
 
   // Sub-object picking & op dispatch from viewport / modifier panel.
   useEffect(() => {
@@ -634,6 +635,8 @@ export const Studio3D = () => {
       };
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
+        setUndoStack((stack) => [...stack.slice(-9), prev]);
+        setRedoStack([]);
         return {
           ...obj,
           modifiers: (obj.modifiers ?? []).map((m: any) => {
@@ -654,6 +657,8 @@ export const Studio3D = () => {
       };
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
+        setUndoStack((stack) => [...stack.slice(-9), prev]);
+        setRedoStack([]);
         return {
           ...obj,
           modifiers: (obj.modifiers ?? []).map((m: any) => {
@@ -677,6 +682,7 @@ export const Studio3D = () => {
 
 
   const removeModifier = useCallback((objectId: string, modifierId: string) => {
+    saveState();
     setObjects(prev => prev.map(obj => 
       obj.id === objectId 
         ? { 
@@ -687,9 +693,10 @@ export const Studio3D = () => {
     ));
     
     toast.success('Modifier removed');
-  }, []);
+  }, [saveState]);
 
   const toggleModifier = useCallback((objectId: string, modifierId: string) => {
+    saveState();
     setObjects(prev => prev.map(obj =>
       obj.id === objectId
         ? {
@@ -700,9 +707,10 @@ export const Studio3D = () => {
           }
         : obj
     ));
-  }, []);
+  }, [saveState]);
 
   const reorderModifier = useCallback((objectId: string, modifierId: string, direction: -1 | 1) => {
+    saveState();
     setObjects(prev => prev.map(obj => {
       if (obj.id !== objectId || !obj.modifiers) return obj;
       const mods = [...obj.modifiers];
@@ -713,7 +721,7 @@ export const Studio3D = () => {
       [mods[idx], mods[swap]] = [mods[swap], mods[idx]];
       return { ...obj, modifiers: mods };
     }));
-  }, []);
+  }, [saveState]);
 
 
 
