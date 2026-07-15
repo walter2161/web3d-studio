@@ -205,7 +205,9 @@ export const SidePanel = ({
   onRenameObject,
   onUpdateObjectGeometry,
   onUpdateObjectLightData,
+  onUpdateObjectCameraData,
   onUpdateObjectColor,
+
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
