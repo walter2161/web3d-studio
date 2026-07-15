@@ -1584,7 +1584,7 @@ export const Studio3D = () => {
         onRender={() => setQuickRenderOpen(true)}
         currentFrame={currentFrame}
         totalFrames={totalFrames}
-        setCurrentFrame={setCurrentFrame}
+        setCurrentFrame={setAnimationRenderFrame}
         cameras={objects
           .filter((o) => o.type === 'camera_target' || o.type === 'camera_free')
           .map((o) => ({ id: o.id, name: o.name || o.type }))}
