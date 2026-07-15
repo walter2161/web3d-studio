@@ -479,6 +479,28 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCategory === 'aec' && aecPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      disabled={p.disabled}
+                      onClick={() => {
+                        if (p.disabled) return;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={p.disabled ? `${p.label} — em breve` : `Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        p.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
                 {createCategory === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (
