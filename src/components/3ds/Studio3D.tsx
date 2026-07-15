@@ -766,6 +766,8 @@ export const Studio3D = () => {
   }, []);
 
   const handleMaterialChange = useCallback((objectId: string, material: any) => {
+    // eslint-disable-next-line no-console
+    console.log('[handleMaterialChange]', objectId, 'hasMap=', !!material?.map, material);
     setObjects(prev => prev.map(obj => 
       obj.id === objectId ? { ...obj, material, color: material.color ?? obj.color } : obj
     ));
