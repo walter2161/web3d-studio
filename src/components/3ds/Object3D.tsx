@@ -992,19 +992,21 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           <cylinderGeometry args={[0.15, 0.2, 0.25, 12]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
-        {/* Target line — dashed line from camera to focal point */}
+        {/* Target line — line from camera to focal point (along local -Z) */}
         {targetId && targetDist > 0 && (
-          <line userData={{ __helper: true }}>
-            <bufferGeometry
-              attach="geometry"
-              onUpdate={(g) => {
-                const arr = new Float32Array([0, 0, 0, 0, 0, -targetDist]);
-                g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-                g.computeBoundingSphere();
-              }}
-            />
-            <lineDashedMaterial color={iconColor} dashSize={0.2} gapSize={0.15} />
-          </line>
+          <primitive
+            object={(() => {
+              const geom = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, -targetDist),
+              ]);
+              const mat = new THREE.LineDashedMaterial({ color: iconColor, dashSize: 0.2, gapSize: 0.15 });
+              const l = new THREE.Line(geom, mat);
+              l.computeLineDistances();
+              (l as any).userData = { __helper: true };
+              return l;
+            })()}
+          />
         )}
         {/* Frustum wireframe pyramid when selected */}
         {isSelected && (
