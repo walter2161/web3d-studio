@@ -49,6 +49,13 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const { scene, camera: viewCamera } = handle;
   const preset = ENGINES[engine];
 
+  // 2× supersampling: render the WebGL scene at double resolution, then
+  // downscale into a 2D canvas that feeds the recorder. This is the same
+  // quality boost Quick Render uses for stills.
+  const SS = 2;
+  const ssW = width * SS;
+  const ssH = height * SS;
+
   const offscreen = new THREE.WebGLRenderer({
     antialias: true,
     alpha: false,
@@ -56,7 +63,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     powerPreference: 'high-performance',
   });
   offscreen.setPixelRatio(1);
-  offscreen.setSize(width, height, false);
+  offscreen.setSize(ssW, ssH, false);
   offscreen.toneMapping = preset.toneMapping;
   offscreen.toneMappingExposure = preset.exposure;
   offscreen.outputColorSpace = THREE.SRGBColorSpace;
@@ -64,6 +71,15 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   offscreen.shadowMap.type = THREE.PCFSoftShadowMap;
   const bg = scene.background instanceof THREE.Color ? scene.background : null;
   if (bg) offscreen.setClearColor(bg);
+
+  // Recording canvas at the requested output resolution — the browser handles
+  // the high-quality bilinear downsample from the SS-rendered WebGL canvas.
+  const recCanvas = document.createElement('canvas');
+  recCanvas.width = width;
+  recCanvas.height = height;
+  const ctx = recCanvas.getContext('2d', { alpha: false })!;
+  (ctx as any).imageSmoothingEnabled = true;
+  (ctx as any).imageSmoothingQuality = 'high';
 
   // Dedicated render camera when resolveCameraPose is provided so we don't
   // fight OrbitControls / react-three-fiber over the viewport camera.
@@ -87,7 +103,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  // Force shadows on for the render
+  // Force shadows on for meshes so the render matches Quick Render output.
   const meshTouched: { mesh: THREE.Mesh; cast: boolean; receive: boolean }[] = [];
   scene.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -98,8 +114,27 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  const canvas = offscreen.domElement as HTMLCanvasElement;
-  const stream = canvas.captureStream(0);
+  // Beef up shadow-casting lights the same way Quick Render does.
+  const lightTouched: { light: any; cast: boolean; mapW?: number; mapH?: number; bias?: number }[] = [];
+  scene.traverse((obj) => {
+    const l = obj as any;
+    if (l.isDirectionalLight || l.isSpotLight || l.isPointLight) {
+      lightTouched.push({
+        light: l,
+        cast: l.castShadow,
+        mapW: l.shadow?.mapSize?.width,
+        mapH: l.shadow?.mapSize?.height,
+        bias: l.shadow?.bias,
+      });
+      l.castShadow = true;
+      if (l.shadow) {
+        l.shadow.mapSize.set(1024, 1024);
+        l.shadow.bias = -0.0005;
+      }
+    }
+  });
+
+  const stream = (recCanvas as HTMLCanvasElement).captureStream(0);
   const track = stream.getVideoTracks()[0] as any;
 
   const mimeCandidates =
@@ -111,8 +146,8 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const recorder = new MediaRecorder(
     stream,
     mime
-      ? { mimeType: mime, videoBitsPerSecond: 8_000_000 }
-      : { videoBitsPerSecond: 8_000_000 },
+      ? { mimeType: mime, videoBitsPerSecond: 12_000_000 }
+      : { videoBitsPerSecond: 12_000_000 },
   );
   const chunks: Blob[] = [];
   recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
@@ -155,6 +190,9 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       }
 
       offscreen.render(scene, renderTarget);
+      // Downsample WebGL canvas → recording canvas (2× → 1×), producing
+      // supersampled antialiasing and cleaner shadows in the video.
+      ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       if (typeof track.requestFrame === 'function') track.requestFrame();
       await new Promise((r) => setTimeout(r, targetDelayMs));
       idx++;
@@ -172,6 +210,13 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   meshTouched.forEach(({ mesh, cast, receive }) => {
     mesh.castShadow = cast;
     mesh.receiveShadow = receive;
+  });
+  lightTouched.forEach(({ light, cast, mapW, mapH, bias }) => {
+    light.castShadow = cast;
+    if (light.shadow) {
+      if (mapW && mapH) light.shadow.mapSize.set(mapW, mapH);
+      if (typeof bias === 'number') light.shadow.bias = bias;
+    }
   });
   if (viewPersp.isPerspectiveCamera && !resolveCameraPose) {
     viewPersp.aspect = origAspect;
