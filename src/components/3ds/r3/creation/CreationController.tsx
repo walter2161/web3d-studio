@@ -166,6 +166,16 @@ function buildGhost(
       geometry = { ...geometry, radius: r, size: r };
       break;
     }
+    case 'text': {
+      // Drag length → font size. Default 1 when click without drag.
+      const size = Math.max(0.1, baseDist || 1);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { ...geometry, text: 'LEDMKT', font: 'helvetiker', bold: false, size, kerning: 0, curveSegments: 6 };
+      break;
+    }
+
   }
 
 
