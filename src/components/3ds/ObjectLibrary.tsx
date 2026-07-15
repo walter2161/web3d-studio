@@ -172,12 +172,13 @@ export const ObjectLibrary = ({ onImportUrl }: Props) => {
                   className="bevel-raised bg-win-face hover:brightness-105 active:bevel-inset cursor-grab active:cursor-grabbing select-none flex flex-col items-center p-1"
                   title={`Drag to viewport or double-click to import\n${it.filename}`}
                 >
-                  <div
-                    className="w-full aspect-square bevel-inset flex items-center justify-center"
-                    style={{ background: meta?.color || '#c0c0c0' }}
-                  >
-                    <Icon size={24} className="text-white drop-shadow" strokeWidth={2} />
-                  </div>
+                  <LibraryThumb
+                    id={it.id}
+                    url={it.url}
+                    bg={meta?.color || '#c0c0c0'}
+                    fallback={<Icon size={24} className="text-white drop-shadow" strokeWidth={2} />}
+                  />
+
                   <div className="text-[10px] text-win-text mt-0.5 truncate w-full text-center leading-tight">
                     {it.name}
                   </div>
