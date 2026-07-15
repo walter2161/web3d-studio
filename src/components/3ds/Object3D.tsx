@@ -51,7 +51,10 @@ function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Text
 function MaterialWithMaps({
   material, color, renderMode, isGhost,
 }: { material: any; color: string; renderMode: string; isGhost: boolean }) {
-  const showMaps = renderMode === 'textured';
+  // Show maps in any shaded/textured/edged/transparent view — hide only in
+  // wireframe and bbox (Max behavior: bitmaps always visible once "Show Map
+  // in Viewport" is on, regardless of viewport shading mode).
+  const showMaps = renderMode !== 'wireframe' && renderMode !== 'bbox';
   const rawMap = useBitmapTexture(material?.map, true);
   const rawBump = useBitmapTexture(material?.bumpMap);
   const rawOpacity = useBitmapTexture(material?.opacityMap);
