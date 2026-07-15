@@ -253,48 +253,66 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   const mixerRef = useRef<AnimationMixer | null>(null);
   const actionRef = useRef<THREE.AnimationAction | null>(null);
   const clipDurationRef = useRef<number>(0);
+  const syncImportedClipRef = useRef<((frame: number, total: number) => void) | null>(null);
 
   useEffect(() => {
     if (!imported || imported.animations.length === 0) return;
     const mixer = new AnimationMixer(imported.root);
-    const action = mixer.clipAction(imported.animations[0]);
+    const clip = imported.animations[0];
+    const action = mixer.clipAction(clip);
+    action.reset();
+    action.enabled = true;
+    action.paused = false;
+    action.setEffectiveWeight(1);
+    action.setEffectiveTimeScale(1);
+    action.setLoop(THREE.LoopOnce, 0);
+    action.clampWhenFinished = true;
     action.play();
-    action.paused = true; // driven manually by timeline
     mixerRef.current = mixer;
     actionRef.current = action;
-    clipDurationRef.current = imported.animations[0].duration;
+    clipDurationRef.current = clip.duration;
     // Expose a sync hook so the offline animation renderer can advance the
     // mixer to the exact frame it is about to capture — useFrame is not
     // guaranteed to run between setFrame() and gl.render() during offline
     // rendering, which caused imported GLB characters to render frozen.
-    (imported.root as any).userData.__syncClipTime = (frame: number, total: number) => {
+    const syncClipTime = (frame: number, total: number) => {
       const duration = clipDurationRef.current || 0;
       if (duration <= 0) return;
-      const t = total > 0 ? (frame / total) : 0;
-      const clipTime = (t * duration) % duration;
-      action.time = clipTime;
-      mixer.update(0);
+      const safeTotal = Math.max(1, total || totalFrames || 1);
+      const timelineTime = THREE.MathUtils.clamp(frame / safeTotal, 0, 1);
+      const clipTime = THREE.MathUtils.clamp(timelineTime * duration, 0, duration);
+
+      action.enabled = true;
+      action.paused = false;
+      action.setEffectiveWeight(1);
+      action.setEffectiveTimeScale(1);
+      mixer.setTime(clipTime);
+      imported.root.updateMatrixWorld(true);
+      imported.root.traverse((child: any) => {
+        if (child.isSkinnedMesh && child.skeleton) {
+          child.updateMatrixWorld(true);
+          child.skeleton.update();
+        }
+      });
     };
+    syncImportedClipRef.current = syncClipTime;
+    (imported.root as any).userData.__syncClipTime = syncClipTime;
+    if (meshRef.current) (meshRef.current as any).userData.__syncClipTime = syncClipTime;
+    syncClipTime(currentFrame, totalFrames);
     return () => {
       mixer.stopAllAction();
       mixer.uncacheRoot(imported.root);
       mixerRef.current = null;
       actionRef.current = null;
+      syncImportedClipRef.current = null;
       delete (imported.root as any).userData.__syncClipTime;
+      if (meshRef.current) delete (meshRef.current as any).userData.__syncClipTime;
     };
   }, [imported]);
 
   // Drive animation from scene timeline
   useFrame(() => {
-    const mixer = mixerRef.current;
-    const action = actionRef.current;
-    if (!mixer || !action) return;
-    const duration = clipDurationRef.current || 0;
-    if (duration <= 0) return;
-    const t = totalFrames > 0 ? (currentFrame / totalFrames) : 0;
-    const clipTime = (t * duration) % duration;
-    action.time = clipTime;
-    mixer.update(0);
+    syncImportedClipRef.current?.(currentFrame, totalFrames);
   });
 
 
