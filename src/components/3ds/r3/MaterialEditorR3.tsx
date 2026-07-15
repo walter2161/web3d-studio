@@ -309,6 +309,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   const [pickMode, setPickMode] = useState(false);
   const [mapBrowserOpen, setMapBrowserOpen] = useState<null | keyof R3Material['maps']>(null);
   const [mapParamsOpen, setMapParamsOpen] = useState<null | keyof R3Material['maps']>(null);
+  const [typePopupOpen, setTypePopupOpen] = useState(false);
 
   useEffect(() => { if (open) setSlots(loadSlots()); }, [open]);
   useEffect(() => { saveSlots(slots); }, [slots]);
@@ -511,15 +512,15 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
               className="flex-1 bevel-inset bg-white px-1 h-[20px] text-[11px]"
             />
             <R3Button width={24}>?</R3Button>
-            <select
-              value={mat.type}
-              onChange={(e) => update({ type: e.target.value as any })}
-              className="bevel-inset bg-white h-[20px] text-[11px]"
+            <button
+              onClick={() => setTypePopupOpen(true)}
+              title="Material type / library"
+              className="bevel-raised bg-win-face h-[20px] text-[11px] px-2 flex items-center gap-1"
             >
-              {['Standard','Blend','Composite','Double Sided','Multi/Sub-Object','Raytrace','Matte/Shadow','Top/Bottom','Shellac','Morpher'].map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
+              <span className="truncate" style={{ maxWidth: 110 }}>{mat.type}</span>
+              <span className="text-[9px]">▼</span>
+            </button>
+
           </div>
 
           {/* Tabs */}
@@ -723,22 +724,6 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
           </div>
         </div>
 
-        {/* FAR RIGHT: preset library */}
-        <div className="bevel-inset bg-win-face p-1" style={{ width: 150 }}>
-          <div className="text-[11px] font-bold px-1 mb-1">Material Library</div>
-          <div className="overflow-y-auto" style={{ maxHeight: 440 }}>
-            {MATERIAL_LIBRARY.map((preset, i) => (
-              <button
-                key={i}
-                onClick={() => update(preset.patch)}
-                className="w-full flex items-center gap-1 px-1 py-[2px] hover:bg-win-highlight hover:text-white text-[11px] text-left"
-              >
-                <span className="w-3 h-3 border border-black inline-block" style={{ background: preset.patch.diffuse || '#888' }} />
-                <span className="truncate">{preset.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -783,6 +768,43 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
           onChangeType={() => { setMapParamsOpen(null); setMapBrowserOpen(mapParamsOpen); }}
           onClose={() => setMapParamsOpen(null)}
         />
+      )}
+
+      {typePopupOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setTypePopupOpen(false)}>
+          <div className="bevel-raised bg-win-face p-2" style={{ width: 360 }} onClick={(e) => e.stopPropagation()}>
+            <div className="h-[18px] flex items-center justify-between px-1 mb-1" style={{ background: 'linear-gradient(to right, #000080, #1084d0)' }}>
+              <span className="text-white text-[11px] font-bold">Material/Map Browser</span>
+              <button onClick={() => setTypePopupOpen(false)} className="text-white bevel-raised bg-win-face px-1 text-[10px]" style={{ color: 'black' }}>X</button>
+            </div>
+            <div className="flex gap-2">
+              <div className="bevel-inset bg-white overflow-y-auto flex-1" style={{ height: 320 }}>
+                <div className="text-[11px] font-bold px-1 py-[1px] bg-menu-hover text-menu-hover-fg">Materials</div>
+                {['Standard','Blend','Composite','Double Sided','Multi/Sub-Object','Raytrace','Matte/Shadow','Top/Bottom','Shellac','Morpher'].map((t) => (
+                  <div
+                    key={t}
+                    onClick={() => { update({ type: t as any }); setTypePopupOpen(false); }}
+                    className={`px-2 py-[2px] text-[11px] cursor-pointer ${mat.type === t ? 'bg-win-highlight text-white' : 'hover:bg-win-highlight hover:text-white'}`}
+                  >● {t}</div>
+                ))}
+                <div className="text-[11px] font-bold px-1 py-[1px] bg-menu-hover text-menu-hover-fg mt-1">Material Library</div>
+                {MATERIAL_LIBRARY.map((preset, i) => (
+                  <div
+                    key={i}
+                    onClick={() => { update(preset.patch); setTypePopupOpen(false); }}
+                    className="px-2 py-[2px] text-[11px] cursor-pointer hover:bg-win-highlight hover:text-white flex items-center gap-1"
+                  >
+                    <span className="w-3 h-3 border border-black inline-block" style={{ background: preset.patch.diffuse || '#888' }} />
+                    <span className="truncate">{preset.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 flex justify-end gap-1">
+              <R3Button width={70} onClick={() => setTypePopupOpen(false)}>Cancel</R3Button>
+            </div>
+          </div>
+        </div>
       )}
     </R3Dialog>
   );
