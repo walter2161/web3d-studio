@@ -316,7 +316,19 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       if (typeof normalBias === 'number') light.shadow.normalBias = normalBias;
     });
 
-    offscreen.dispose();
+    // Restore the live viewport renderer to its previous state so the editor
+    // resumes exactly as it was before the sequence.
+    try {
+      gl.setRenderTarget(prevRT);
+      gl.setScissorTest(prevScissorTest);
+      gl.autoClear = prevAutoClear;
+      gl.shadowMap.enabled = prevShadowsEnabled;
+      gl.shadowMap.type = prevShadowType;
+      gl.toneMapping = prevToneMapping;
+      gl.toneMappingExposure = prevExposure;
+      gl.setPixelRatio(prevPixelRatio);
+      gl.setSize(prevSize.x, prevSize.y, false);
+    } catch { /* ignore restore errors */ }
   }
 }
 
