@@ -446,23 +446,14 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
           <NumField label="Bubble" value={params.softBubble ?? 0} step={0.01} onChange={(v) => updateParam('softBubble', v)} />
         </Rollout>
 
-        <Rollout title="Edit Polygons">
-          <BtnRow>
-            <WinBtn onClick={() => dispatchOp('extrude', { amount: params.extrudeAmount ?? 0.2 })}>Extrude</WinBtn>
-            <WinBtn onClick={stub}>Outline</WinBtn>
-            <WinBtn onClick={stub}>Bevel</WinBtn>
-            <WinBtn onClick={stub}>Inset</WinBtn>
-            <WinBtn onClick={stub}>Bridge</WinBtn>
-            <WinBtn onClick={() => dispatchOp('flip')}>Flip</WinBtn>
-          </BtnRow>
-          <NumField label="Ext Amt" value={params.extrudeAmount ?? 0.2} step={0.05} onChange={(v) => updateParam('extrudeAmount', v)} />
-          <WinBtn onClick={stub} className="w-full mb-[3px]">Hinge From Edge</WinBtn>
-          <WinBtn onClick={stub} className="w-full mb-[3px]">Extrude Along Spline</WinBtn>
-        </Rollout>
-
+        <ContextualEditTools
+          level={activeLevel}
+          onOp={dispatchOp}
+          openCaddy={(kind) => setCaddy(buildCaddy(kind, { dispatch: dispatchOp, toast: (m) => toast(m) }))}
+        />
 
         <Rollout title="Edit Geometry" defaultOpen={false}>
-          <WinBtn onClick={stub} className="w-full mb-[3px]">Repeat Last</WinBtn>
+          <WinBtn onClick={() => toast('Repeat Last: coming next phase')} className="w-full mb-[3px]">Repeat Last</WinBtn>
           <Group title="Constraints">
             <div className="grid grid-cols-2 gap-[3px]">
               <WinBtn active={params.constraint === 'none' || !params.constraint} onClick={() => updateParam('constraint', 'none')}>None</WinBtn>
@@ -473,30 +464,10 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
           </Group>
           <CheckRow label="Preserve UVs" checked={!!params.preserveUVs} onChange={(v) => updateParam('preserveUVs', v)} />
           <BtnRow>
-            <WinBtn onClick={stub}>Create</WinBtn>
-            <WinBtn onClick={() => dispatchOp('weld', { threshold: params.weldThreshold ?? 0.01 })}>Weld</WinBtn>
-            <WinBtn onClick={stub}>Attach</WinBtn>
-            <WinBtn onClick={stub}>Detach</WinBtn>
-            <WinBtn onClick={() => dispatchOp('delete')}>Delete</WinBtn>
-            <WinBtn onClick={stub}>Split</WinBtn>
-            <WinBtn onClick={stub}>Slice</WinBtn>
-            <WinBtn onClick={stub}>Cut</WinBtn>
-            <WinBtn onClick={stub}>QuickSlice</WinBtn>
-            <WinBtn onClick={stub}>MSmooth</WinBtn>
-            <WinBtn onClick={stub}>Tessellate</WinBtn>
-          </BtnRow>
-          <NumField label="Weld Th" value={params.weldThreshold ?? 0.01} step={0.001} onChange={(v) => updateParam('weldThreshold', v)} />
-          <BtnRow>
-            <WinBtn onClick={() => dispatchOp('hide')}>Hide Selected</WinBtn>
+            <WinBtn onClick={() => dispatchOp('hide')}>Hide Sel.</WinBtn>
             <WinBtn onClick={() => dispatchOp('unhide')}>Unhide All</WinBtn>
             <WinBtn onClick={() => dispatchOp('hideUnselected')}>Hide Unsel.</WinBtn>
-            <WinBtn onClick={stub}>Relax</WinBtn>
-          </BtnRow>
-
-          <div className="text-[10px] text-win-text mt-[3px]">Named Selections:</div>
-          <BtnRow>
-            <WinBtn onClick={stub}>Copy</WinBtn>
-            <WinBtn onClick={stub}>Paste</WinBtn>
+            <WinBtn onClick={() => setCaddy(buildCaddy('makePlanar', { dispatch: dispatchOp, toast: (m) => toast(m) }))}>Make Planar</WinBtn>
           </BtnRow>
           <CheckRow label="Delete Isolated Vertices" checked={!!params.deleteIsolated} onChange={(v) => updateParam('deleteIsolated', v)} />
         </Rollout>
