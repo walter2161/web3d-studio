@@ -339,6 +339,7 @@ export const Viewport = ({
           animationTracks={animationTracks}
           selectedKeyframe={selectedKeyframe}
           onUpdateKeyframe={onUpdateKeyframe}
+          onSelectKeyframe={onSelectKeyframe}
           currentFrame={currentFrame}
           totalFrames={totalFrames}
           isPlaying={isPlaying}
