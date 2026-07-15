@@ -458,11 +458,13 @@ const CameraViewController = ({
   targetObj,
   isActive,
   onTransformObject,
+  isPlaying = false,
 }: {
   camObj: any;
   targetObj: any;
   isActive: boolean;
   onTransformObject: (id: string, transform: any) => void;
+  isPlaying?: boolean;
 }) => {
   const { camera, gl } = useThree();
   const controlsRef = useRef<any>(null);
@@ -470,6 +472,8 @@ const CameraViewController = ({
   const lastCamIdRef = useRef<string | null>(null);
 
   // Sync FOV/clip from the scene camera object every frame (cheap, idempotent).
+  // Also, during playback, drive the viewport camera pose from the animated
+  // scene camera object so keyframed camera moves are visible in the viewport.
   useFrame(() => {
     if (!camObj) return;
     const pc = camera as THREE.PerspectiveCamera;
@@ -479,6 +483,28 @@ const CameraViewController = ({
       const far = camObj.cameraData?.far ?? 1000;
       if (pc.fov !== fov) { pc.fov = fov; pc.updateProjectionMatrix(); }
       if (pc.near !== near || pc.far !== far) { pc.near = near; pc.far = far; pc.updateProjectionMatrix(); }
+    }
+
+    if (isPlaying) {
+      const controls = controlsRef.current;
+      suppressWriteRef.current = true;
+      const [px, py, pz] = camObj.position;
+      camera.position.set(px, py, pz);
+      if (targetObj) {
+        const [tx, ty, tz] = targetObj.position;
+        if (controls) controls.target.set(tx, ty, tz);
+        camera.lookAt(tx, ty, tz);
+      } else {
+        const [rx, ry, rz] = camObj.rotation;
+        camera.rotation.set(rx, ry, rz);
+        if (controls) {
+          const dist = camObj.cameraData?.targetDistance ?? 10;
+          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
+          const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+          controls.target.set(px + fwd.x * dist, py + fwd.y * dist, pz + fwd.z * dist);
+        }
+      }
+      if (controls) controls.update();
     }
   });
 
