@@ -425,6 +425,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (wallRef) {
+        if (wallRef.pts.length === 0) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        wallRef.pts[wallRef.pts.length - 1].copy(p);
+        setGhost(buildWallGhost(wallRef.pts, false));
+        return;
+      }
       if (lineRef) {
         if (lineRef.knots.length === 0) return;
         const p = raycastBase(e);
