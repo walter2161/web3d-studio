@@ -89,24 +89,40 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   // OrbitControls or R3F over the viewport camera.
   const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
 
-  // Hide viewport helpers / gizmo / selection wires using the same filtering
-  // as Quick Render, so the production video has no editor overlays.
-  const hidden: THREE.Object3D[] = [];
-  scene.traverse((obj) => {
-    const ud: any = obj.userData || {};
-    const t = obj.type || '';
-    const isHelper =
-      t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
-      t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
-      t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
-      t.endsWith('Helper');
-    const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
-    if (ud.__helper || ud.__selectionWire || isHelper || isTC) {
-      if (obj.visible) { hidden.push(obj); obj.visible = false; }
-    }
-  });
+  // Editor-only overlays (helpers, gizmos, selection wires, camera/light
+  // indicator geometry) are re-created by React every time `setFrame()`
+  // commits, so we CANNOT hide them once and be done — the references go
+  // stale and fresh overlays appear in later frames. Instead we hide them
+  // right before each offscreen.render() and restore them right after.
+  const hideEditorOverlays = (): THREE.Object3D[] => {
+    const hidden: THREE.Object3D[] = [];
+    scene.traverse((obj) => {
+      const ud: any = obj.userData || {};
+      const t = obj.type || '';
+      const isHelper =
+        t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
+        t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
+        t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
+        t.endsWith('Helper');
+      const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
+      // Line-based visualisations (camera frustum outlines, light cones,
+      // dashed target lines, selection wires) are Line / LineSegments /
+      // LineLoop objects. Hide those wholesale during the render — no
+      // production still should contain schematic line art.
+      const isLine =
+        (obj as any).isLine || (obj as any).isLineSegments || (obj as any).isLineLoop ||
+        t === 'Line' || t === 'LineSegments' || t === 'LineLoop' || t === 'Line2';
+      const isSprite = (obj as any).isSprite || t === 'Sprite';
+      if (ud.__helper || ud.__selectionWire || isHelper || isTC || isLine || isSprite) {
+        if (obj.visible) { hidden.push(obj); obj.visible = false; }
+      }
+    });
+    return hidden;
+  };
 
-  // Force shadows on for meshes (mirrors Quick Render).
+  // Meshes + lights only need their shadow flags forced once; the underlying
+  // Three.js objects survive across React re-renders even when their wrappers
+  // don't.
   const meshTouched: { mesh: THREE.Mesh; cast: boolean; receive: boolean }[] = [];
   scene.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -117,7 +133,6 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  // Enable shadow casting on all directional/spot/point lights.
   const lightTouched: {
     light: any;
     cast: boolean;
@@ -146,6 +161,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       l.castShadow = true;
     }
   });
+
 
   const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
   const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
@@ -183,13 +199,20 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         if (pose) { applyPose(pose); renderTarget = renderCam; }
       }
 
-      // Render one complete production still, then downsample + bake the same
-      // color-response filter shown in Quick Render into the encoded frame.
-      offscreen.render(scene, renderTarget);
+      // Hide editor overlays freshly right before the render so any helpers
+      // React just re-mounted for this frame are also hidden, then restore
+      // immediately so the viewport stays fully usable between frames.
+      const hiddenForFrame = hideEditorOverlays();
+      try {
+        offscreen.render(scene, renderTarget);
+      } finally {
+        hiddenForFrame.forEach((o) => { o.visible = true; });
+      }
       ctx.save();
       ctx.filter = preset.cssFilter || 'none';
       ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       ctx.restore();
+
 
       // Store the rendered still as a separate PNG frame in memory. Encoding
       // happens only after every requested animation frame has been rendered,
@@ -263,8 +286,8 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     renderedFrames.length = 0;
 
     // Restore scene state.
-    hidden.forEach((o) => { o.visible = true; });
     meshTouched.forEach(({ mesh, cast, receive }) => {
+
       mesh.castShadow = cast;
       mesh.receiveShadow = receive;
     });
