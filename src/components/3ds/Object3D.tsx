@@ -191,7 +191,7 @@ interface Object3DProps {
   };
   isSelected: boolean;
   onSelect: () => void;
-  renderMode: 'solid' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
+  renderMode: 'solid' | 'textured' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;

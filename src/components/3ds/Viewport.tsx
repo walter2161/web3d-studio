@@ -24,7 +24,7 @@ import { CreationController } from './r3/creation/CreationController';
 
 // Full R3-style view type set (7 orthographic directions + Perspective + User)
 type ViewType = 'perspective' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right' | 'user';
-type RenderMode = 'solid' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
+type RenderMode = 'solid' | 'textured' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   perspective: 'Perspective',
@@ -223,6 +223,7 @@ export const Viewport = ({
             <DropdownMenuLabel>Display</DropdownMenuLabel>
             {([
               ['solid', 'Smooth + Highlights'],
+              ['textured', 'Texture + Shadow'],
               ['wireframe', 'Wireframe  (F3)'],
               ['edged', 'Edged Faces  (F4)'],
               ['semi-transparent', 'Transparent'],
