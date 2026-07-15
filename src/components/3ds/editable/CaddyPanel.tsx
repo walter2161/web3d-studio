@@ -189,7 +189,7 @@ export const buildCaddy = (
           { key: 'amount', label: 'Amount', value: 0.05, step: 0.01 },
           { key: 'open', label: 'Open', type: 'check', value: false },
         ],
-        onApply: () => ctx.toast('Chamfer Vertex: coming in next phase'),
+        onApply: (v) => d('chamfer', { amount: v.amount, open: v.open }),
       };
     case 'chamferEdge':
       return {
@@ -199,7 +199,7 @@ export const buildCaddy = (
           { key: 'segments', label: 'Segments', value: 1, min: 1, max: 16, step: 1 },
           { key: 'open', label: 'Open', type: 'check', value: false },
         ],
-        onApply: () => ctx.toast('Chamfer Edge: coming in next phase'),
+        onApply: (v) => d('chamferEdge', { amount: v.amount, open: v.open }),
       };
     case 'extrudeEdge':
     case 'extrudeBorder':
