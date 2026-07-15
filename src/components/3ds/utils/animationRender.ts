@@ -46,34 +46,47 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
-  const { scene, camera: viewCamera } = handle;
+  const { scene, camera: viewCamera, gl } = handle;
   const preset = ENGINES[engine];
 
-  // 2× supersampling: render the WebGL scene at double resolution, then
-  // downscale into a 2D canvas that feeds the recorder. This is the same
-  // quality boost Quick Render uses for stills.
+  // 2× supersampling: render into an offscreen render-target at double
+  // resolution using the viewport's OWN WebGLRenderer, so all shadow maps,
+  // env maps, PBR shaders and material caches are reused exactly as seen
+  // in the live viewport. We then blit the target to a 2D canvas that feeds
+  // MediaRecorder.
   const SS = 2;
   const ssW = width * SS;
   const ssH = height * SS;
 
-  const offscreen = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: false,
-    preserveDrawingBuffer: true,
-    powerPreference: 'high-performance',
+  const rt = new THREE.WebGLRenderTarget(ssW, ssH, {
+    samples: 4, // MSAA on WebGL2
+    colorSpace: THREE.SRGBColorSpace,
+    type: THREE.UnsignedByteType,
+    format: THREE.RGBAFormat,
+    depthBuffer: true,
+    stencilBuffer: false,
   });
-  offscreen.setPixelRatio(1);
-  offscreen.setSize(ssW, ssH, false);
-  offscreen.toneMapping = preset.toneMapping;
-  offscreen.toneMappingExposure = preset.exposure;
-  offscreen.outputColorSpace = THREE.SRGBColorSpace;
-  offscreen.shadowMap.enabled = true;
-  offscreen.shadowMap.type = THREE.PCFSoftShadowMap;
-  const bg = scene.background instanceof THREE.Color ? scene.background : null;
-  if (bg) offscreen.setClearColor(bg);
 
-  // Recording canvas at the requested output resolution — the browser handles
-  // the high-quality bilinear downsample from the SS-rendered WebGL canvas.
+  // Save renderer state so we can restore R3F's live viewport afterwards.
+  const origToneMapping = gl.toneMapping;
+  const origExposure = gl.toneMappingExposure;
+  const origColorSpace = gl.outputColorSpace;
+  const origShadowEnabled = gl.shadowMap.enabled;
+  const origShadowType = gl.shadowMap.type;
+  const origClearColor = new THREE.Color();
+  gl.getClearColor(origClearColor);
+  const origClearAlpha = gl.getClearAlpha();
+
+  // Apply engine preset (matches Quick Render tone mapping/exposure).
+  gl.toneMapping = preset.toneMapping;
+  gl.toneMappingExposure = preset.exposure;
+  gl.outputColorSpace = THREE.SRGBColorSpace;
+  gl.shadowMap.enabled = true;
+  gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl.shadowMap.needsUpdate = true;
+  if (scene.background instanceof THREE.Color) gl.setClearColor(scene.background, 1);
+
+  // Recording canvas at the requested output resolution.
   const recCanvas = document.createElement('canvas');
   recCanvas.width = width;
   recCanvas.height = height;
@@ -81,17 +94,21 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   (ctx as any).imageSmoothingEnabled = true;
   (ctx as any).imageSmoothingQuality = 'high';
 
-  // Dedicated render camera when resolveCameraPose is provided so we don't
-  // fight OrbitControls / react-three-fiber over the viewport camera.
+  // A temporary display canvas the same size as the render target — we blit
+  // the render-target pixels here via readRenderTargetPixels, flip Y, then
+  // downscale into recCanvas.
+  const blitCanvas = document.createElement('canvas');
+  blitCanvas.width = ssW;
+  blitCanvas.height = ssH;
+  const blitCtx = blitCanvas.getContext('2d', { alpha: false })!;
+  const pixels = new Uint8ClampedArray(ssW * ssH * 4);
+
+  // Dedicated render camera when a scene camera is chosen so we don't fight
+  // OrbitControls or R3F over the viewport camera.
   const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
   const viewPersp = viewCamera as THREE.PerspectiveCamera;
-  const origAspect = viewPersp.aspect;
-  if (viewPersp.isPerspectiveCamera && !resolveCameraPose) {
-    viewPersp.aspect = width / height;
-    viewPersp.updateProjectionMatrix();
-  }
 
-  // Hide viewport helpers / transform gizmo / selection wires
+  // Hide viewport helpers / gizmo / selection wires so they don't show in the video.
   const hidden: THREE.Object3D[] = [];
   scene.traverse((obj) => {
     const ud: any = obj.userData || {};
@@ -103,7 +120,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  // Force shadows on for meshes so the render matches Quick Render output.
+  // Force shadows on for meshes (mirrors Quick Render).
   const meshTouched: { mesh: THREE.Mesh; cast: boolean; receive: boolean }[] = [];
   scene.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -114,23 +131,13 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  // Beef up shadow-casting lights the same way Quick Render does.
-  const lightTouched: { light: any; cast: boolean; mapW?: number; mapH?: number; bias?: number }[] = [];
+  // Enable shadow casting on all directional/spot/point lights.
+  const lightTouched: { light: any; cast: boolean }[] = [];
   scene.traverse((obj) => {
     const l = obj as any;
     if (l.isDirectionalLight || l.isSpotLight || l.isPointLight) {
-      lightTouched.push({
-        light: l,
-        cast: l.castShadow,
-        mapW: l.shadow?.mapSize?.width,
-        mapH: l.shadow?.mapSize?.height,
-        bias: l.shadow?.bias,
-      });
+      lightTouched.push({ light: l, cast: l.castShadow });
       l.castShadow = true;
-      if (l.shadow) {
-        l.shadow.mapSize.set(1024, 1024);
-        l.shadow.bias = -0.0005;
-      }
     }
   });
 
@@ -189,10 +196,24 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         if (pose) { applyPose(pose); renderTarget = renderCam; }
       }
 
-      offscreen.render(scene, renderTarget);
-      // Downsample WebGL canvas → recording canvas (2× → 1×), producing
-      // supersampled antialiasing and cleaner shadows in the video.
-      ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
+      // Render into the offscreen render target using the SAME renderer that
+      // drives the viewport — every material, envmap and shadow map is already
+      // uploaded and hot.
+      const prevRT = gl.getRenderTarget();
+      gl.setRenderTarget(rt);
+      gl.clear();
+      gl.render(scene, renderTarget);
+      gl.readRenderTargetPixels(rt, 0, 0, ssW, ssH, pixels);
+      gl.setRenderTarget(prevRT);
+
+      // Push pixels to blit canvas, flipping Y (WebGL is bottom-up).
+      const img = new ImageData(pixels, ssW, ssH);
+      blitCtx.putImageData(img, 0, 0);
+      ctx.save();
+      ctx.scale(1, -1);
+      ctx.drawImage(blitCanvas, 0, 0, ssW, ssH, 0, -height, width, height);
+      ctx.restore();
+
       if (typeof track.requestFrame === 'function') track.requestFrame();
       await new Promise((r) => setTimeout(r, targetDelayMs));
       idx++;
@@ -203,6 +224,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   } finally {
     if (recorder.state !== 'inactive') recorder.stop();
   }
+
 
   const blob = await stopped;
 
