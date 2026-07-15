@@ -983,16 +983,16 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
       <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
         {/* Body (wireframe) — invisible pickable box for click target */}
-        <mesh userData={{ __helper: true }} position={[0, 0, 0.5]} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} position={[0, 0, 0.8]} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.6, 0.4, 0.6]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
         {/* Lens (pointing -Z, R3 camera looks down -Z) */}
-        {/* Lens (pointing -Z, R3 camera looks down -Z) */}
-        <mesh userData={{ __helper: true }} position={[0, 0, -0.4]}>
+        <mesh userData={{ __helper: true }} position={[0, 0, -0.1]}>
           <boxGeometry args={[1, 1, 1]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
+
         {/* Target line — line from camera to focal point (along local -Z) */}
         {targetId && targetDist > 0 && (
           <primitive
