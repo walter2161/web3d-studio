@@ -607,7 +607,11 @@ export const Studio3D = () => {
         ? '#f2c744'
         : g.type === 'wall'
           ? '#c9bfae'
-          : randomMaxColor(),
+          : g.type === 'door'
+            ? '#8b5a2b'
+            : g.type === 'window'
+              ? '#a8c8e0'
+              : randomMaxColor(),
 
       visible: true,
       locked: false,
