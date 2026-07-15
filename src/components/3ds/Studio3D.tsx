@@ -596,12 +596,63 @@ export const Studio3D = () => {
   const commitGhostObject = useCallback((g: GhostObject) => {
     saveState();
     const id = `${g.type}_${Date.now()}`;
+
+    // ---- Magnetic wall snap for doors & windows ----
+    // If a wall is within reach, align the object to its segment (position on
+    // the centerline + rotation matching segment direction) and register a
+    // non-destructive opening on the wall.
+    let finalPosition = g.position;
+    let finalRotation = g.rotation;
+    let finalGeometry: any = g.geometry;
+    let wallOpeningEdit: { wallId: string; opening: WallOpening } | null = null;
+
+    if (g.type === 'door' || g.type === 'window') {
+      const walls = objects.filter((o) => o.type === 'wall');
+      const worldPos = new THREE.Vector3(g.position[0], g.position[1], g.position[2]);
+      // Reach: half a door-width plus a generous margin so the user doesn't
+      // have to be pixel-perfect. Skip snap if the wall list is empty.
+      const snap = walls.length > 0
+        ? snapDoorWindowToWall(worldPos, walls as any, Math.max(0.6, (g.geometry?.width ?? 1) * 0.9))
+        : null;
+
+      if (snap) {
+        finalPosition = [snap.position.x, snap.position.y, snap.position.z];
+        finalRotation = [g.rotation[0], snap.rotationY, g.rotation[2]];
+
+        const w = Math.max(0.1, g.geometry?.width ?? 0.9);
+        const h = Math.max(0.1, g.geometry?.height ?? 2.1);
+        const yBottom = g.type === 'window' ? Math.max(0, g.geometry?.sillHeight ?? 1.0) : 0;
+
+        // Clamp opening to fit inside the segment.
+        const halfW = w / 2;
+        const centerT = THREE.MathUtils.clamp(snap.t, halfW, snap.segmentLength - halfW);
+        const opening: WallOpening = {
+          id,
+          segmentIndex: snap.segmentIndex,
+          tStart: centerT - halfW,
+          tEnd: centerT + halfW,
+          yBottom,
+          yTop: yBottom + h,
+        };
+        wallOpeningEdit = { wallId: snap.wallId, opening };
+
+        finalGeometry = {
+          ...g.geometry,
+          parentWallId: snap.wallId,
+          wallSegmentIndex: snap.segmentIndex,
+          wallT: centerT,
+          // Match wall thickness so frame sits flush.
+          frameDepth: snap.wallWidth,
+        };
+      }
+    }
+
     const newObject: Object3DData = {
       id,
       name: `${g.type}${objects.filter((o) => o.type === g.type).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === g.type).length + 1}`,
       type: g.type as any,
-      position: g.position,
-      rotation: g.rotation,
+      position: finalPosition,
+      rotation: finalRotation,
       scale: g.scale,
       color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
              g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
@@ -617,13 +668,25 @@ export const Studio3D = () => {
       visible: true,
       locked: false,
       modifiers: [],
-      geometry: g.geometry,
+      geometry: finalGeometry,
       ref: { current: null } as any,
     };
-    setObjects((prev) => [...prev, newObject]);
+    setObjects((prev) => {
+      let next = [...prev, newObject];
+      // Register the opening on the target wall (rebuilds mesh with the hole).
+      if (wallOpeningEdit) {
+        next = next.map((o) => {
+          if (o.id !== wallOpeningEdit!.wallId) return o;
+          const wg: WallGeom = { ...(o.geometry || {}) };
+          const openings = [...(wg.openings || []), wallOpeningEdit!.opening];
+          return { ...o, geometry: { ...wg, openings } };
+        });
+      }
+      return next;
+    });
     setSelectedObject(id);
     setSidePanelTab('modify');
-    toast.success(`${g.type} created`);
+    toast.success(wallOpeningEdit ? `${g.type} snapped to wall` : `${g.type} created`);
   }, [objects, saveState]);
 
 
