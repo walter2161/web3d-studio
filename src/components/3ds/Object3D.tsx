@@ -241,7 +241,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // binds `object.ref` to its own group. Overwriting here with the (null) mesh
   // ref would break TransformControls attach for those entities.
   useEffect(() => {
-    if (isEntityType(object.type) || isHelperType(object.type)) return;
+    if (isEntityType(object.type)) return;
     if (object.ref) {
       object.ref.current = meshRef.current;
     }
