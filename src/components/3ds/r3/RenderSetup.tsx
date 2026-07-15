@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
-import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose } from '../utils/animationRender';
+import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError } from '../utils/animationRender';
 import { toast } from 'sonner';
 
 interface CameraOption {
