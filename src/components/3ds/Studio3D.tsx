@@ -156,6 +156,7 @@ export const Studio3D = () => {
   const [timelineVisible, setTimelineVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
+  const [loopPlayback, setLoopPlayback] = useState(false);
   const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
   const [viewportCameras, setViewportCameras] = useState<Record<string, string | null>>({
     perspective: null, top: null, front: null, left: null,
@@ -252,31 +253,39 @@ export const Studio3D = () => {
   // Playback loop
   useEffect(() => {
     if (isPlaying) {
-      const startTime = performance.now();
-      const startFrame = currentFrame;
+      let startTime = performance.now();
+      let startFrame = currentFrame >= totalFrames ? 0 : currentFrame;
+      if (currentFrame >= totalFrames) setCurrentFrame(0);
       const duration = 4000; // 4 seconds for full timeline
-      
+
       const animate = (time: number) => {
         const elapsed = time - startTime;
         const t = elapsed / duration;
         const frame = Math.round(startFrame + t * (totalFrames - startFrame));
-        
+
         if (frame >= totalFrames) {
+          if (loopPlayback) {
+            setCurrentFrame(0);
+            startTime = performance.now();
+            startFrame = 0;
+            playRef.current = requestAnimationFrame(animate);
+            return;
+          }
           setCurrentFrame(totalFrames);
           setIsPlaying(false);
           return;
         }
-        
+
         setCurrentFrame(frame);
         playRef.current = requestAnimationFrame(animate);
       };
-      
+
       playRef.current = requestAnimationFrame(animate);
       return () => {
         if (playRef.current) cancelAnimationFrame(playRef.current);
       };
     }
-  }, [isPlaying]);
+  }, [isPlaying, loopPlayback, totalFrames]);
 
   // Apply animation at current frame
   useEffect(() => {
@@ -1401,6 +1410,8 @@ export const Studio3D = () => {
         units={units}
         timelineVisible={timelineVisible}
         onToggleTimeline={() => setTimelineVisible(v => !v)}
+        loopPlayback={loopPlayback}
+        onToggleLoopPlayback={() => setLoopPlayback(v => !v)}
       />
 
 

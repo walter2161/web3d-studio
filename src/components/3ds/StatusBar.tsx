@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import {
   Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp,
+  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp, Repeat,
 } from 'lucide-react';
 
 interface StatusBarProps {
@@ -23,6 +23,8 @@ interface StatusBarProps {
   units?: { system: string; metric: string; us: string; precision: number };
   timelineVisible?: boolean;
   onToggleTimeline?: () => void;
+  loopPlayback?: boolean;
+  onToggleLoopPlayback?: () => void;
 }
 
 const Tool = ({
@@ -62,7 +64,7 @@ export const StatusBar = ({
   currentFrame, totalFrames, isPlaying, autoKey, onToggleAutoKey, onSetKey,
   onPlay, onPause, onStop, onFrameChange, selectedPosition, prompt = 'Click and drag to select and move objects',
   viewportLayout, onToggleViewportLayout, gridSpacing = 1.0, units,
-  timelineVisible = false, onToggleTimeline,
+  timelineVisible = false, onToggleTimeline, loopPlayback = false, onToggleLoopPlayback,
 }: StatusBarProps) => {
   const [x, y, z] = selectedPosition || [0, 0, 0];
   const suffix = !units || units.system === 'Generic' ? '' :
@@ -147,6 +149,16 @@ export const StatusBar = ({
         <div className="ml-1 bevel-sunken bg-white h-[18px] px-1 flex items-center min-w-[46px] text-[11px] font-mono">
           {currentFrame}/{totalFrames}
         </div>
+
+        {onToggleLoopPlayback && (
+          <Tool
+            title={loopPlayback ? 'Loop Playback: ON' : 'Loop Playback: OFF'}
+            onClick={onToggleLoopPlayback}
+            active={loopPlayback}
+          >
+            <Repeat size={12} />
+          </Tool>
+        )}
       </div>
 
       {/* Viewport navigation cluster (right) */}
