@@ -147,6 +147,9 @@ export const Scene3D = ({
             if (controls) controls.enabled = false;
             if (subGizmoActive && subProxyObj) {
               subDragStartRef.current = subProxyObj.position.clone();
+              subDragStartRotRef.current = subProxyObj.rotation.clone();
+              subDragStartScaleRef.current = subProxyObj.scale.clone();
+              subDragPivotRef.current = [subProxyObj.position.x, subProxyObj.position.y, subProxyObj.position.z];
               subDragOpKeyRef.current = `subdrag_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
               subDragMovedRef.current = false;
             }
@@ -154,30 +157,24 @@ export const Scene3D = ({
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
-            // Sub-object move: emit a Move op with the local-space delta.
-            if (subGizmoActive && subProxyObj && subDragStartRef.current && activeEditMod && selectedObject) {
-              const cur = subProxyObj.position;
-              const start = subDragStartRef.current;
-              const delta: [number, number, number] = [cur.x - start.x, cur.y - start.y, cur.z - start.z];
+            if (subGizmoActive && subProxyObj && activeEditMod && selectedObject) {
+              // Reset the proxy so the next drag starts from identity.
+              subProxyObj.rotation.set(0, 0, 0);
+              subProxyObj.scale.set(1, 1, 1);
               subDragStartRef.current = null;
-              const replaceKey = subDragOpKeyRef.current;
+              subDragStartRotRef.current = null;
+              subDragStartScaleRef.current = null;
+              subDragPivotRef.current = null;
               subDragOpKeyRef.current = null;
-              const len = Math.hypot(delta[0], delta[1], delta[2]);
-              if (transformMode === 'translate' && len > 1e-6 && !subDragMovedRef.current) {
-                window.dispatchEvent(new CustomEvent('r3-subobj-op', {
-                  detail: {
-                    objectId: selectedObject,
-                    modifierId: activeEditMod.id,
-                    op: { kind: 'move', params: { delta, __replaceKey: replaceKey } },
-                  },
-                }));
-              }
               subDragMovedRef.current = false;
             }
           }}
           onObjectChange={(e: any) => {
             if (subGizmoActive) {
-              if (subProxyObj && subDragStartRef.current && activeEditMod && selectedObject && transformMode === 'translate') {
+              if (!subProxyObj || !activeEditMod || !selectedObject) return;
+              const replaceKey = subDragOpKeyRef.current;
+              const pivot = subDragPivotRef.current ?? [0, 0, 0];
+              if (transformMode === 'translate' && subDragStartRef.current) {
                 const cur = subProxyObj.position;
                 const start = subDragStartRef.current;
                 const delta: [number, number, number] = [cur.x - start.x, cur.y - start.y, cur.z - start.z];
@@ -188,7 +185,37 @@ export const Scene3D = ({
                     detail: {
                       objectId: selectedObject,
                       modifierId: activeEditMod.id,
-                      op: { kind: 'move', params: { delta, __replaceKey: subDragOpKeyRef.current } },
+                      op: { kind: 'move', params: { delta, __replaceKey: replaceKey } },
+                    },
+                  }));
+                }
+              } else if (transformMode === 'rotate' && subDragStartRotRef.current) {
+                const rCur = subProxyObj.rotation;
+                const rStart = subDragStartRotRef.current;
+                const euler: [number, number, number] = [rCur.x - rStart.x, rCur.y - rStart.y, rCur.z - rStart.z];
+                if (Math.abs(euler[0]) + Math.abs(euler[1]) + Math.abs(euler[2]) > 1e-6) {
+                  subDragMovedRef.current = true;
+                  window.dispatchEvent(new CustomEvent('r3-subobj-op', {
+                    detail: {
+                      objectId: selectedObject,
+                      modifierId: activeEditMod.id,
+                      op: { kind: 'rotate', params: { euler, pivot, __replaceKey: replaceKey } },
+                    },
+                  }));
+                }
+              } else if (transformMode === 'scale' && subDragStartScaleRef.current) {
+                const sCur = subProxyObj.scale;
+                const sStart = subDragStartScaleRef.current;
+                const fx = sStart.x !== 0 ? sCur.x / sStart.x : 1;
+                const fy = sStart.y !== 0 ? sCur.y / sStart.y : 1;
+                const fz = sStart.z !== 0 ? sCur.z / sStart.z : 1;
+                if (Math.abs(fx - 1) + Math.abs(fy - 1) + Math.abs(fz - 1) > 1e-6) {
+                  subDragMovedRef.current = true;
+                  window.dispatchEvent(new CustomEvent('r3-subobj-op', {
+                    detail: {
+                      objectId: selectedObject,
+                      modifierId: activeEditMod.id,
+                      op: { kind: 'scale', params: { factor: [fx, fy, fz], pivot, __replaceKey: replaceKey } },
                     },
                   }));
                 }
