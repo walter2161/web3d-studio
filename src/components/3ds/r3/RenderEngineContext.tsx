@@ -33,36 +33,36 @@ export const ENGINES: Record<RenderEngine, EnginePreset> = {
     env: { level: 5, tint: '#ffffff', ambient: '#4a4a4a' },
   },
   vray: {
-    label: 'V-Ray',
-    description: 'V-Ray — physically-based, punchy contrast, rich reflections.',
+    label: 'RayFlux',
+    description: 'RayFlux — physically-based, punchy contrast, rich reflections.',
     toneMapping: THREE.ACESFilmicToneMapping,
     exposure: 1.15,
     cssFilter: 'contrast(1.12) saturate(1.15) brightness(1.02)',
     aiStyle:
-      'V-Ray photorealistic architectural render, physically based materials, VRaySun and VRaySky lighting, ' +
+      'photorealistic architectural render, physically based materials, sun and sky lighting, ' +
       'glossy reflections, subtle GI bounce, sharp contact shadows, ArchViz cinematic look',
     env: { level: 6, tint: '#fff4e0', ambient: '#3a3a44' },
   },
   corona: {
-    label: 'Corona',
-    description: 'Chaos Corona — path traced, soft cinematic tones, LightMix warmth.',
+    label: 'LumenPath',
+    description: 'LumenPath — path traced, soft cinematic tones, warm light balance.',
     toneMapping: THREE.CineonToneMapping,
     exposure: 1.05,
     cssFilter: 'contrast(1.05) saturate(1.08) brightness(1.04) sepia(0.05)',
     aiStyle:
-      'Chaos Corona unbiased path traced render, soft cinematic tone mapping, warm LightMix balance, ' +
+      'unbiased path traced render, soft cinematic tone mapping, warm light balance, ' +
       'creamy highlights, physically accurate soft shadows, artistic ArchViz mood',
     env: { level: 5.5, tint: '#ffe6c2', ambient: '#4a3f38' },
   },
   arnold: {
-    label: 'Arnold',
-    description: 'Autodesk Arnold — Monte Carlo ray tracing, filmic VFX cinema look.',
+    label: 'CineTrace',
+    description: 'CineTrace — Monte Carlo ray tracing, filmic VFX cinema look.',
     toneMapping: THREE.AgXToneMapping,
     exposure: 1.0,
     cssFilter: 'contrast(1.08) saturate(0.98) brightness(0.98)',
     aiStyle:
-      'Autodesk Arnold Monte Carlo ray traced render, filmic VFX cinema quality, subsurface scattering, ' +
-      'volumetric lighting, deep blacks, subtle grain, Hollywood studio VFX look',
+      'Monte Carlo ray traced render, filmic VFX cinema quality, subsurface scattering, ' +
+      'volumetric lighting, deep blacks, subtle grain, studio VFX look',
     env: { level: 5, tint: '#e6ecff', ambient: '#2f333d' },
   },
 };
