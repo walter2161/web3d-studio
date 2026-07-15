@@ -468,7 +468,7 @@ export const Studio3D = () => {
       position: [0, 0, 0],
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
-      color: shapes.includes(type) ? '#f2c744' : '#3b82f6',
+      color: shapes.includes(type) ? '#f2c744' : randomMaxColor(),
       visible: true,
       locked: false,
       modifiers: [],
