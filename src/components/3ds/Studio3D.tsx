@@ -650,14 +650,22 @@ export const Studio3D = () => {
       }
     }
 
+    // Helpers: normalize `helper_point` / `helper_dummy` / … → type='helper',
+    // and stash the subtype under geometry.helperKind (already set by the
+    // controller). Helpers never snap to walls and never carry a material.
+    const isHelperGhost = typeof g.type === 'string' && (g.type as string).startsWith('helper_');
+    const normalizedType: any = isHelperGhost ? 'helper' : (g.type as any);
+
     const newObject: Object3DData = {
       id,
-      name: `${g.type}${objects.filter((o) => o.type === g.type).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === g.type).length + 1}`,
-      type: g.type as any,
+      name: `${normalizedType}${objects.filter((o) => o.type === normalizedType).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === normalizedType).length + 1}`,
+      type: normalizedType,
       position: finalPosition,
       rotation: finalRotation,
       scale: g.scale,
-      color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
+      color: isHelperGhost
+        ? '#00e5ff'
+        : g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
              g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
         ? '#f2c744'
         : g.type === 'wall'
@@ -674,6 +682,7 @@ export const Studio3D = () => {
       geometry: finalGeometry,
       ref: { current: null } as any,
     };
+
     setObjects((prev) => {
       let next = [...prev, newObject];
       // Register the opening on the target wall (rebuilds mesh with the hole).
