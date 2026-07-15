@@ -60,9 +60,10 @@ export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: P
     setProps((p) => ({ ...p, [k]: v as any }));
 
   const commit = () => {
-    onSave(object.id, { name, properties: { ...props, wireframeColor: wireColor } });
+    onSave(object.id, { name, color: objColor, properties: { ...props, wireframeColor: wireColor } });
     onOpenChange(false);
   };
+
 
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Object Properties" width={480}>
