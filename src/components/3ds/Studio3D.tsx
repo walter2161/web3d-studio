@@ -1483,6 +1483,7 @@ export const Studio3D = () => {
               animationTracks={animationTracks}
               selectedKeyframe={selectedKeyframe}
               onUpdateKeyframe={updateKeyframe}
+              onSelectKeyframe={setSelectedKeyframe}
               currentFrame={currentFrame}
               totalFrames={totalFrames}
               isPlaying={isPlaying}

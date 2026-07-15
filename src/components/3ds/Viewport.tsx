@@ -85,6 +85,7 @@ interface ViewportProps {
   animationTracks?: AnimationTrack[];
   selectedKeyframe?: Keyframe | null;
   onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;
+  onSelectKeyframe?: (kf: Keyframe | null) => void;
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
@@ -101,7 +102,7 @@ interface ViewportProps {
 export const Viewport = ({
   type, isActive, onActivate, objects, selectedObject, selectedSubUuid,
   onSelectObject, onTransformObject, transformMode,
-  animationTracks, selectedKeyframe, onUpdateKeyframe,
+  animationTracks, selectedKeyframe, onUpdateKeyframe, onSelectKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing, snapAngleDeg, snapPercent, showGrid: showGridProp = true,
   cameraObjectId, onChangeCameraObject, availableCameras = [],
@@ -338,6 +339,7 @@ export const Viewport = ({
           animationTracks={animationTracks}
           selectedKeyframe={selectedKeyframe}
           onUpdateKeyframe={onUpdateKeyframe}
+          onSelectKeyframe={onSelectKeyframe}
           currentFrame={currentFrame}
           totalFrames={totalFrames}
           isPlaying={isPlaying}

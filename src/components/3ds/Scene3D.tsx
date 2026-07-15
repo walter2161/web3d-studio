@@ -18,6 +18,7 @@ interface Scene3DProps {
   animationTracks?: AnimationTrack[];
   selectedKeyframe?: Keyframe | null;
   onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;
+  onSelectKeyframe?: (kf: Keyframe | null) => void;
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
@@ -38,7 +39,7 @@ interface SubObjCentroid {
 export const Scene3D = ({
   objects, selectedObject, selectedSubUuid, onSelectObject, onTransformObject,
   viewportType, transformMode, renderMode,
-  animationTracks, selectedKeyframe, onUpdateKeyframe,
+  animationTracks, selectedKeyframe, onUpdateKeyframe, onSelectKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing = 1, snapAngleDeg = 5, snapPercent = 10,
   activeCameraId = null,
@@ -253,6 +254,7 @@ export const Scene3D = ({
           tracks={animationTracks}
           selectedKeyframe={selectedKeyframe || null}
           onUpdateKeyframe={onUpdateKeyframe}
+          onSelectKeyframe={onSelectKeyframe}
         />
       )}
     </>
