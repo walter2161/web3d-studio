@@ -1410,6 +1410,8 @@ export const Studio3D = () => {
         units={units}
         timelineVisible={timelineVisible}
         onToggleTimeline={() => setTimelineVisible(v => !v)}
+        loopPlayback={loopPlayback}
+        onToggleLoopPlayback={() => setLoopPlayback(v => !v)}
       />
 
 
