@@ -807,12 +807,18 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
   const ambientIntensity = isOn ? maxMultiplier : 0;
   const hemiIntensity = isOn ? maxMultiplier * 1.4 : 0;
 
-  // Track target — rotate the group to look at it every frame.
+  // Track target — rotate the group to look at it every frame. Uses camera
+  // convention (local -Z faces target) instead of Object3D.lookAt, which would
+  // point +Z at the target and render the camera symbol/frustum reversed.
   useFrame(() => {
     if (!targetId || !groupRef.current || !targetLookup) return;
     const tp = targetLookup(targetId);
     if (!tp) return;
-    groupRef.current.lookAt(tp[0], tp[1], tp[2]);
+    const g = groupRef.current;
+    const eye = g.getWorldPosition(new THREE.Vector3());
+    const tgt = new THREE.Vector3(tp[0], tp[1], tp[2]);
+    const m = new THREE.Matrix4().lookAt(eye, tgt, g.up);
+    g.quaternion.setFromRotationMatrix(m);
   });
 
   useFrame(() => {
