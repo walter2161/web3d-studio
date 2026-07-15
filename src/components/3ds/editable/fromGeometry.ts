@@ -13,6 +13,7 @@ export function fromGeometry(geometry: THREE.BufferGeometry, weldEpsilon = 1e-5)
   const mesh = new EditableMesh();
   const pos = geometry.getAttribute('position');
   if (!pos) return mesh;
+  const uvAttr = geometry.getAttribute('uv');
 
   const key = (x: number, y: number, z: number) => {
     const q = 1 / weldEpsilon;
@@ -26,7 +27,8 @@ export function fromGeometry(geometry: THREE.BufferGeometry, weldEpsilon = 1e-5)
     const k = key(x, y, z);
     let vid = lookup.get(k);
     if (vid === undefined) {
-      vid = mesh.addVertex(new THREE.Vector3(x, y, z));
+      const uv = uvAttr ? new THREE.Vector2(uvAttr.getX(i), uvAttr.getY(i)) : undefined;
+      vid = mesh.addVertex(new THREE.Vector3(x, y, z), uv);
       lookup.set(k, vid);
     }
     remap.push(vid);
