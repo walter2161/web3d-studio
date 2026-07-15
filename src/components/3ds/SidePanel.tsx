@@ -576,7 +576,6 @@ export const SidePanel = ({
                       return (
                         <div key={m.id}>
                         <div
-                          key={m.id}
                           className={cn(
                             'flex items-center gap-[3px] h-[18px] px-[2px] text-[11px] cursor-pointer',
                             selected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40'
