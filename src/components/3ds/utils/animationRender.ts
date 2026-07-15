@@ -262,6 +262,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       // frames — without this, the main thread stays busy and the modal
       // appears frozen until the whole sequence finishes.
       await new Promise((r) => setTimeout(r, 0));
+      throwIfAborted();
     }
 
     encodeStream = (recCanvas as HTMLCanvasElement).captureStream(0);
