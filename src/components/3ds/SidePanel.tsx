@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
 import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
+import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
@@ -832,202 +833,186 @@ export const SidePanel = ({
 
 
 
-                {/* Base Geometry Controls — schema-driven, real values from selectedObject.geometry */}
-                <Card className="bg-card border-panel-border mt-4">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">
-                      Geometry Parameters
-                      <span className="ml-2 text-[10px] text-muted-foreground font-mono">
-                        {selectedObject.type}
-                      </span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {(() => {
-                      const schema = GEOM_SCHEMA[selectedObject.type];
-                      if (!schema) {
-                        return (
-                          <div className="text-xs text-muted-foreground">
-                            No editable parameters for type <span className="font-mono">{selectedObject.type}</span>.
+                {/* 3ds Max-style Parameters rollout — right-aligned labels,
+                    spinner inputs, collapsible header. Wall / Door / Window
+                    render extra selectors above the numeric block. */}
+                {(() => {
+                  const schema = GEOM_SCHEMA[selectedObject.type];
+                  const geom = selectedObject.geometry || {};
+
+                  // Split schema into main dims vs segment counts (mimics 3ds Max
+                  // which stacks Length/Width/Height on top and *Segs below).
+                  const isSegKey = (k: string) =>
+                    k.toLowerCase().includes('seg') || k.toLowerCase().includes('sides');
+                  const mainParams = schema ? schema.filter((p) => !isSegKey(p.key)) : [];
+                  const segParams = schema ? schema.filter((p) => isSegKey(p.key)) : [];
+
+                  const renderSpinner = (p: ParamDef) => {
+                    const rawVal = geom[p.key];
+                    const val = rawVal !== undefined && rawVal !== null ? Number(rawVal) : p.default;
+                    return (
+                      <MaxSpinner
+                        key={p.key}
+                        label={p.label}
+                        value={val}
+                        isInt={p.kind === 'int'}
+                        step={p.step ?? (p.kind === 'int' ? 1 : 0.1)}
+                        min={p.min}
+                        onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { [p.key]: v })}
+                      />
+                    );
+                  };
+
+                  // ---- Line: read-only info ----
+                  if (selectedObject.type === 'line') {
+                    const knots = Array.isArray(geom.knots) ? geom.knots.length : 0;
+                    return (
+                      <MaxRollout title="Parameters" className="mt-4">
+                        <div className="text-[11px] font-mono space-y-[3px] py-1">
+                          <div>Vertices: <span className="text-foreground">{knots}</span></div>
+                          <div>Closed: <span className="text-foreground">{geom.closed ? 'Yes' : 'No'}</span></div>
+                          <div className="text-[10px] text-muted-foreground pt-1 font-sans">
+                            Line vertices are edited in sub-object mode.
                           </div>
-                        );
-                      }
-                      const geom = selectedObject.geometry || {};
-                      // Read-only badges for line: vertex count
-                      const isLine = selectedObject.type === 'line';
-                      if (isLine) {
-                        const knots = Array.isArray(geom.knots) ? geom.knots.length : 0;
-                        return (
-                          <div className="text-xs space-y-1 font-mono">
-                            <div>Vertices: <span className="text-foreground">{knots}</span></div>
-                            <div>Closed: <span className="text-foreground">{geom.closed ? 'Yes' : 'No'}</span></div>
-                            <div className="text-muted-foreground text-[10px] mt-1">
-                              Line vertices are edited in sub-object mode.
-                            </div>
-                          </div>
-                        );
-                      }
-                      // Text: string input, font family + bold, then numeric params.
-                      const isText = selectedObject.type === 'text';
-                      const numericGrid = (
-                        <div className="grid grid-cols-2 gap-2">
-                          {schema.map((p) => {
-                            const rawVal = geom[p.key];
-                            const displayVal = rawVal !== undefined && rawVal !== null ? rawVal : p.default;
-                            return (
-                              <div key={p.key}>
-                                <Label className="text-[10px]">{p.label}</Label>
-                                <Input
-                                  type="number"
-                                  value={displayVal}
-                                  onChange={(e) => {
-                                    const raw = e.target.value;
-                                    const parsed = p.kind === 'int' ? parseInt(raw, 10) : parseFloat(raw);
-                                    const next = Number.isFinite(parsed)
-                                      ? (p.min !== undefined ? Math.max(p.min, parsed) : parsed)
-                                      : p.default;
-                                    onUpdateObjectGeometry(selectedObject.id, { [p.key]: next });
-                                  }}
-                                  className="h-7 text-xs"
-                                  step={p.step ?? (p.kind === 'int' ? 1 : 0.1)}
-                                  min={p.min}
-                                />
-                              </div>
-                            );
-                          })}
                         </div>
-                      );
-                      if (isText) {
-                        const currentText = geom.text ?? 'Text';
-                        const currentFont = geom.font ?? 'helvetiker';
-                        const bold = !!geom.bold;
-                        return (
-                          <div className="space-y-2">
-                            <div>
-                              <Label className="text-[10px]">Text</Label>
-                              <textarea
-                                value={currentText}
-                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { text: e.target.value })}
-                                className="w-full h-16 text-xs bg-background border border-panel-border rounded px-2 py-1 font-mono resize-none"
-                                spellCheck={false}
-                              />
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label className="text-[10px]">Font</Label>
-                                <select
-                                  value={currentFont}
-                                  onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { font: e.target.value })}
-                                  className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1"
-                                >
-                                  <option value="helvetiker">Helvetiker</option>
-                                  <option value="gentilis">Gentilis</option>
-                                  <option value="optimer">Optimer</option>
-                                </select>
-                              </div>
-                              <div className="flex items-end">
-                                <label className="flex items-center gap-1 text-[11px] h-7">
-                                  <input
-                                    type="checkbox"
-                                    checked={bold}
-                                    onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { bold: e.target.checked })}
-                                  />
-                                  Bold
-                                </label>
-                              </div>
-                            </div>
-                            {numericGrid}
-                            <div className="text-[10px] text-muted-foreground leading-tight">
-                              Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
-                            </div>
+                      </MaxRollout>
+                    );
+                  }
+
+                  // ---- Text ----
+                  if (selectedObject.type === 'text') {
+                    const currentText = geom.text ?? 'Text';
+                    const currentFont = geom.font ?? 'helvetiker';
+                    const bold = !!geom.bold;
+                    return (
+                      <MaxRollout title="Parameters" className="mt-4">
+                        <div className="space-y-2">
+                          <div>
+                            <Label className="text-[10px]">Text</Label>
+                            <textarea
+                              value={currentText}
+                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { text: e.target.value })}
+                              className="w-full h-14 text-[11px] bg-background border border-panel-border rounded-[2px] px-1 py-1 font-mono resize-none outline-none"
+                              spellCheck={false}
+                            />
                           </div>
-                        );
-                      }
-                      // Wall: justification + closed on top, then numeric grid.
-                      const isWall = selectedObject.type === 'wall';
-                      if (isWall) {
-                        const just = geom.justification ?? 'center';
-                        const closed = !!geom.closed;
-                        const pathLen = Array.isArray(geom.path) ? geom.path.length : 0;
-                        return (
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label className="text-[10px]">Justification</Label>
-                                <select
-                                  value={just}
-                                  onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { justification: e.target.value })}
-                                  className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1"
-                                >
-                                  <option value="left">Left</option>
-                                  <option value="center">Center</option>
-                                  <option value="right">Right</option>
-                                </select>
-                              </div>
-                              <div className="flex items-end">
-                                <label className="flex items-center gap-1 text-[11px] h-7">
-                                  <input
-                                    type="checkbox"
-                                    checked={closed}
-                                    onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { closed: e.target.checked })}
-                                  />
-                                  Closed
-                                </label>
-                              </div>
-                            </div>
-                            {numericGrid}
-                            <div className="text-[10px] text-muted-foreground leading-tight">
-                              Vértices: <span className="font-mono">{pathLen}</span>. Portas/janelas paramétricas com corte automático virão nas próximas fases.
-                            </div>
+                          <MaxSelect
+                            label="Font"
+                            value={currentFont}
+                            options={[
+                              { value: 'helvetiker', label: 'Helvetiker' },
+                              { value: 'gentilis',   label: 'Gentilis' },
+                              { value: 'optimer',    label: 'Optimer' },
+                            ]}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { font: v })}
+                          />
+                          <MaxCheck label="Bold" checked={bold} onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { bold: v })} />
+                          {mainParams.map(renderSpinner)}
+                          <div className="text-[10px] text-muted-foreground leading-tight pt-1">
+                            Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
                           </div>
-                        );
-                      }
-                      // Door / Window: subtype selector + numeric grid + open slider.
-                      const isDoor = selectedObject.type === 'door';
-                      const isWindow = selectedObject.type === 'window';
-                      if (isDoor || isWindow) {
-                        const subtype = geom.subtype ?? (isDoor ? 'pivot' : 'casement');
-                        const doorSubs = ['pivot', 'bifold', 'sliding', 'pocket'];
-                        const winSubs  = ['casement', 'sliding', 'awning', 'fixed', 'pivot'];
-                        const subs = isDoor ? doorSubs : winSubs;
-                        const openPct = Math.round((geom.openPercentage ?? 0) * 100);
-                        return (
-                          <div className="space-y-2">
-                            <div>
-                              <Label className="text-[10px]">Type</Label>
-                              <select
-                                value={subtype}
-                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { subtype: e.target.value })}
-                                className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1 capitalize"
-                              >
-                                {subs.map((s) => (
-                                  <option key={s} value={s}>{s}</option>
-                                ))}
-                              </select>
-                            </div>
-                            {numericGrid}
-                            <div>
-                              <Label className="text-[10px]">Open — {openPct}%</Label>
-                              <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={openPct}
-                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { openPercentage: Number(e.target.value) / 100 })}
-                                className="w-full"
-                              />
-                            </div>
-                            <div className="text-[10px] text-muted-foreground leading-tight">
-                              O corte automático da parede aparece quando você aproxima uma porta/janela de uma wall (próxima fase).
-                            </div>
+                        </div>
+                      </MaxRollout>
+                    );
+                  }
+
+                  // ---- Wall ----
+                  if (selectedObject.type === 'wall') {
+                    const just = (geom.justification ?? 'center') as 'left' | 'center' | 'right';
+                    const closed = !!geom.closed;
+                    const pathLen = Array.isArray(geom.path) ? geom.path.length : 0;
+                    const openings = Array.isArray(geom.openings) ? geom.openings.length : 0;
+                    return (
+                      <MaxRollout title="Parameters" className="mt-4">
+                        <MaxSelect
+                          label="Justify"
+                          value={just}
+                          options={[
+                            { value: 'left',   label: 'Left' },
+                            { value: 'center', label: 'Center' },
+                            { value: 'right',  label: 'Right' },
+                          ]}
+                          onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { justification: v })}
+                        />
+                        {mainParams.map(renderSpinner)}
+                        <MaxCheck label="Closed" checked={closed} onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { closed: v })} />
+                        <div className="text-[10px] text-muted-foreground pt-1 leading-tight">
+                          Vertices: <span className="font-mono">{pathLen}</span> · Openings: <span className="font-mono">{openings}</span>
+                        </div>
+                      </MaxRollout>
+                    );
+                  }
+
+                  // ---- Door / Window ----
+                  const isDoor = selectedObject.type === 'door';
+                  const isWindow = selectedObject.type === 'window';
+                  if (isDoor || isWindow) {
+                    const subtype = geom.subtype ?? (isDoor ? 'pivot' : 'casement');
+                    const doorSubs = ['pivot', 'bifold', 'sliding', 'pocket'];
+                    const winSubs  = ['casement', 'sliding', 'awning', 'fixed', 'pivot'];
+                    const subs = isDoor ? doorSubs : winSubs;
+                    const openPct = Math.round((geom.openPercentage ?? 0) * 100);
+                    return (
+                      <MaxRollout title="Parameters" className="mt-4">
+                        <MaxSelect
+                          label="Type"
+                          value={String(subtype)}
+                          options={subs.map((s) => ({ value: s, label: s }))}
+                          onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { subtype: v })}
+                        />
+                        {mainParams.map(renderSpinner)}
+                        <div className="flex items-center gap-1 text-[11px] pt-[2px]">
+                          <label className="text-right pr-1 text-foreground/85" style={{ width: 74 }}>Open:</label>
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={1}
+                            value={openPct}
+                            onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { openPercentage: Number(e.target.value) / 100 })}
+                            className="flex-1 h-[19px]"
+                          />
+                          <span className="w-8 text-right tabular-nums">{openPct}%</span>
+                        </div>
+                        {geom.parentWallId && (
+                          <div className="text-[10px] text-muted-foreground pt-1 leading-tight">
+                            Snapped to wall · seg <span className="font-mono">{geom.wallSegmentIndex ?? 0}</span>
                           </div>
-                        );
-                      }
-                      return numericGrid;
-                    })()}
-                  </CardContent>
-                </Card>
+                        )}
+                      </MaxRollout>
+                    );
+                  }
+
+                  // ---- Standard primitives / shapes ----
+                  if (!schema) {
+                    return (
+                      <MaxRollout title="Parameters" className="mt-4">
+                        <div className="text-[11px] text-muted-foreground">
+                          No editable parameters for type <span className="font-mono">{selectedObject.type}</span>.
+                        </div>
+                      </MaxRollout>
+                    );
+                  }
+
+                  const genMap = geom.generateMappingCoords !== false;
+                  return (
+                    <MaxRollout title="Parameters" className="mt-4">
+                      {mainParams.map(renderSpinner)}
+                      {segParams.length > 0 && (
+                        <div className="pt-1 mt-1 border-t border-panel-border/60 space-y-[3px]">
+                          {segParams.map(renderSpinner)}
+                        </div>
+                      )}
+                      <div className="pt-1 mt-1 border-t border-panel-border/60">
+                        <MaxCheck
+                          label="Generate Mapping Coords."
+                          checked={genMap}
+                          onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { generateMappingCoords: v })}
+                        />
+                      </div>
+                    </MaxRollout>
+                  );
+                })()}
 
 
 
