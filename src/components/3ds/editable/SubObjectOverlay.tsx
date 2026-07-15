@@ -213,10 +213,11 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
               const fi = e.faceIndex;
               if (fi == null) return;
               const hitFid = faceOverlay.triFaceId[fi];
+              if (hitFid == null) return;
               const fid = level === 'polygon'
                 ? Math.min(...Array.from(coplanarPolygonFaceIds(mesh, hitFid)))
                 : hitFid;
-              if (fid != null) emitPick(objectId, modifierId, level, fid, e);
+              emitPick(objectId, modifierId, level, fid, e);
             }}
           >
             <meshBasicMaterial
