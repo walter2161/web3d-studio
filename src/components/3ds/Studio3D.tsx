@@ -32,6 +32,7 @@ import { CreationProvider, useCreation, GhostObject } from './r3/creation/Creati
 import { getViewportHandle } from './r3/viewportRegistry';
 import { toast } from 'sonner';
 import * as THREE from 'three';
+import { snapDoorWindowToWall, type WallOpening, type WallGeom } from './utils/aecGeometry';
 
 // 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
 const randomMaxColor = (): string => {
