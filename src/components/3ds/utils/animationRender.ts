@@ -69,6 +69,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       const fn = (obj as any).userData?.__syncClipTime;
       if (typeof fn === 'function') fn(frame, totalTimeline);
     });
+    handle.scene.updateMatrixWorld(true);
   };
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
