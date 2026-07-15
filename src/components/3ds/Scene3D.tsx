@@ -71,8 +71,10 @@ export const Scene3D = ({
           totalFrames={totalFrames}
           isPlaying={isPlaying}
           targetLookup={targetLookup}
+          isActiveViewCamera={!!activeCameraId && object.id === activeCameraId}
         />
       ))}
+
 
 
       {selectedObject && transformTarget && (
