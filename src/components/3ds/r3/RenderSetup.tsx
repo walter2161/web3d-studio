@@ -26,7 +26,9 @@ const OUTPUT_SIZES = [
   { label: '1280x1024', w: 1280, h: 1024 },
 ];
 
-export const RenderSetup = ({ open, onOpenChange, onRender, currentFrame = 0 }: RenderSetupProps) => {
+export const RenderSetup = ({
+  open, onOpenChange, onRender, currentFrame = 0, totalFrames = 100, setCurrentFrame,
+}: RenderSetupProps) => {
   const { engine, setEngine } = useRenderEngine();
   const [tab, setTab] = useState<Tab>('Common');
   const [timeMode, setTimeMode] = useState<'single' | 'active' | 'range' | 'frames'>('single');
@@ -39,6 +41,10 @@ export const RenderSetup = ({ open, onOpenChange, onRender, currentFrame = 0 }: 
   const [imageAspect, setImageAspect] = useState(1.333);
   const [viewport, setViewport] = useState<'Perspective' | 'Top' | 'Front' | 'Left'>('Perspective');
   const [renderer, setRenderer] = useState<'Default Scanline' | 'VUE File Renderer'>('Default Scanline');
+  const [videoFormat, setVideoFormat] = useState<VideoFormat>('mp4');
+  const [videoFps, setVideoFps] = useState(30);
+  const [rendering, setRendering] = useState(false);
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
 
   // Renderer tab options
   const [antialiasing, setAntialiasing] = useState(true);
