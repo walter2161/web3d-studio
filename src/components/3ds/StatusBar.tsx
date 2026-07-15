@@ -23,6 +23,8 @@ interface StatusBarProps {
   units?: { system: string; metric: string; us: string; precision: number };
   timelineVisible?: boolean;
   onToggleTimeline?: () => void;
+  loopPlayback?: boolean;
+  onToggleLoopPlayback?: () => void;
 }
 
 const Tool = ({
