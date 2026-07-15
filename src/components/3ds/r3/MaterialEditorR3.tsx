@@ -260,36 +260,48 @@ const MATERIAL_LIBRARY: Array<{ name: string; patch: Partial<R3Material> }> = [
   { name: 'Aluminum',         patch: { shader: 'Metal', diffuse: '#dcdcdc', glossiness: 45, specularLevel: 55, metalness: 1, roughness: 0.35 } },
 ];
 
-type PreviewShape = 'sphere' | 'cylinder' | 'cube';
+import { getMaterialPreview, PreviewShape } from '../utils/materialPreview';
 
+/**
+ * Real 3D preview of a sample slot: PBR sphere/cylinder/cube rendered by
+ * three.js with IBL reflections. Result is cached by material signature so
+ * scrolling the slot grid is instant.
+ */
 function SamplePreview({ mat, size = 60, shape = 'sphere' }: { mat: R3Material; size?: number; shape?: PreviewShape }) {
-  const gloss = mat.glossiness / 100;
-  const spec = mat.specularLevel / 100;
-  const specSize = Math.max(4, 22 - gloss * 18);
-  const specHardness = Math.max(4, 40 - gloss * 36);
-  const opacity = mat.opacity / 100;
-  const selfIll = mat.selfIllumination / 100;
-  const highlight = `rgba(255,255,255,${0.3 + spec * 0.7})`;
-  // Diffuse bitmap preview (Show Map behavior in the slot)
   const diffSlot = mat.maps?.diffuse;
   const bmpFile = diffSlot?.name === 'Bitmap' ? diffSlot.params?.filename : undefined;
   const bmpUrl = bmpFile ? ((window as any).__r3BitmapUrls?.[bmpFile] as string | undefined) : undefined;
-  const bgBase = bmpUrl
-    ? `url("${bmpUrl}") center/cover, ${mat.diffuse}`
-    : `radial-gradient(circle at 30% 28%, ${highlight} ${specSize * 0.15}%, ${mat.diffuse} ${specHardness}%, #000 130%)`;
-  const bg = bmpUrl
-    ? `radial-gradient(circle at 30% 28%, ${highlight} 0%, transparent ${specHardness}%), ${bgBase}`
-    : bgBase;
-  const shadow = selfIll > 0
-    ? `0 0 ${8 + selfIll * 14}px ${mat.diffuse}`
-    : 'inset -6px -8px 12px rgba(0,0,0,.35)';
-  if (shape === 'cube') {
-    return <div style={{ width: size, height: size, background: bg, opacity, boxShadow: shadow, transform: 'perspective(80px) rotateX(-18deg) rotateY(24deg)' }} />;
-  }
-  if (shape === 'cylinder') {
-    return <div style={{ width: size * 0.7, height: size, background: bg, opacity, boxShadow: shadow, borderRadius: `${size * 0.25}px / ${size * 0.08}px`, margin: '0 auto' }} />;
-  }
-  return <div className="rounded-full" style={{ width: size, height: size, background: bg, opacity, boxShadow: shadow }} />;
+
+  const input = useMemo(() => ({
+    shape,
+    color: mat.diffuse,
+    metalness: mat.metalness ?? 0,
+    roughness: mat.roughness ?? 0.5,
+    opacity: (mat.opacity ?? 100) / 100,
+    emissive: mat.diffuse,
+    emissiveIntensity: mat.selfIllumination > 0 ? (mat.selfIllumination / 100) * (mat.emissiveIntensity || 1) : 0,
+    bitmapUrl: bmpUrl || null,
+    size: Math.max(48, size),
+  }), [shape, mat.diffuse, mat.metalness, mat.roughness, mat.opacity, mat.selfIllumination, mat.emissiveIntensity, bmpUrl, size]);
+
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getMaterialPreview(input)
+      .then((u) => { if (!cancelled) setUrl(u); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [input]);
+
+  return (
+    <div style={{ width: size, height: size, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {url ? (
+        <img src={url} alt="" width={size} height={size} style={{ display: 'block' }} draggable={false} />
+      ) : (
+        <div style={{ width: size * 0.7, height: size * 0.7, borderRadius: shape === 'sphere' ? '50%' : 2, background: mat.diffuse, opacity: 0.4 }} />
+      )}
+    </div>
+  );
 }
 
 interface Props {
