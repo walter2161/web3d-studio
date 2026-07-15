@@ -1331,7 +1331,9 @@ export const Studio3D = () => {
             onRenameObject={renameObject}
             onUpdateObjectGeometry={updateObjectGeometry}
             onUpdateObjectLightData={updateObjectLightData}
+            onUpdateObjectCameraData={updateObjectCameraData}
             onUpdateObjectColor={updateObjectColor}
+
           />
 
 
