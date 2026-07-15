@@ -284,8 +284,8 @@ export const SidePanel = ({
   // implementado hoje; os demais ficam listados como "em breve".
   const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
     { type: 'wall',     label: 'Wall' },
-    { type: 'door',     label: 'Doors',    disabled: true },
-    { type: 'window',   label: 'Windows',  disabled: true },
+    { type: 'door',     label: 'Doors' },
+    { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
     { type: 'foliage',  label: 'Foliage',  disabled: true },
