@@ -632,6 +632,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       if (e.key === 'Escape') {
         if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
         if (wallRef) { wallRef.pts = []; }
+        if (tapeRef) { tapeRef.start = null; }
         stageRef.current = null;
         setGhost(null);
         disarm();
