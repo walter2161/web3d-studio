@@ -678,9 +678,23 @@ export const Studio3D = () => {
   const deleteObject = useCallback((id: string) => {
     saveState();
     const obj = objects.find(o => o.id === id);
-    setObjects(prev => prev.filter(o => o.id !== id));
-    setAnimationTracks(prev => prev.filter(t => t.objectId !== id));
-    if (selectedObject === id) setSelectedObject(null);
+    // Build cascade set: a target camera and its target_helper are the same logical object.
+    const idsToDelete = new Set<string>([id]);
+    if (obj) {
+      const linkedTargetId: string | undefined =
+        (obj as any).cameraData?.targetObjectId || (obj as any).lightData?.targetObjectId;
+      if (linkedTargetId) idsToDelete.add(linkedTargetId);
+      if (obj.type === 'target_helper') {
+        // Find any camera/light referencing this target and delete it too.
+        for (const o of objects) {
+          const tid = (o as any).cameraData?.targetObjectId || (o as any).lightData?.targetObjectId;
+          if (tid === id) idsToDelete.add(o.id);
+        }
+      }
+    }
+    setObjects(prev => prev.filter(o => !idsToDelete.has(o.id)));
+    setAnimationTracks(prev => prev.filter(t => !idsToDelete.has(t.objectId)));
+    if (selectedObject && idsToDelete.has(selectedObject)) setSelectedObject(null);
     // Clean up persisted blob for imported models.
     if (obj?.type === 'imported') {
       import('./utils/modelStorage').then(({ deleteModelBlob }) => {
