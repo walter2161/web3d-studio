@@ -4,6 +4,15 @@ import { ENGINES, RenderEngine } from '../r3/RenderEngineContext';
 
 export type VideoFormat = 'mp4' | 'webm' | 'webp';
 
+export interface CameraPose {
+  position: [number, number, number];
+  rotation?: [number, number, number];
+  target?: [number, number, number];
+  fov?: number;
+  near?: number;
+  far?: number;
+}
+
 export interface AnimationRenderOptions {
   from: number;
   to: number;
@@ -14,23 +23,30 @@ export interface AnimationRenderOptions {
   format: VideoFormat;
   engine: RenderEngine;
   setFrame: (frame: number) => void;
+  /**
+   * Resolves the camera pose to use for a given frame AFTER setFrame(frame)
+   * has been applied and React has committed. Return null to fall back to
+   * the current viewport camera (orbit view).
+   */
+  resolveCameraPose?: (frame: number) => CameraPose | null;
   onProgress?: (done: number, total: number) => void;
 }
 
 /**
  * Renders a range of animation frames offscreen and encodes them into a
- * downloadable video (WebM/MP4) using MediaRecorder, or into an animated WebP
- * (encoded as WebM with .webp fallback). Steps the shared timeline frame so
- * every keyframed track updates naturally between renders.
+ * downloadable video (WebM/MP4) using MediaRecorder. Steps the shared
+ * timeline frame so every keyframed track updates naturally between renders.
+ * If `resolveCameraPose` is provided, a dedicated render camera is posed each
+ * frame so scene-camera animations (target/free) are captured in the video.
  */
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, onProgress,
+    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress,
   } = opts;
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
-  const { scene, camera } = handle;
+  const { scene, camera: viewCamera } = handle;
   const preset = ENGINES[engine];
 
   const offscreen = new THREE.WebGLRenderer({
@@ -49,12 +65,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const bg = scene.background instanceof THREE.Color ? scene.background : null;
   if (bg) offscreen.setClearColor(bg);
 
-  // Aspect for output
-  const pcam = camera as THREE.PerspectiveCamera;
-  const origAspect = pcam.aspect;
-  if (pcam.isPerspectiveCamera) {
-    pcam.aspect = width / height;
-    pcam.updateProjectionMatrix();
+  // Dedicated render camera when resolveCameraPose is provided so we don't
+  // fight OrbitControls / react-three-fiber over the viewport camera.
+  const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+  const viewPersp = viewCamera as THREE.PerspectiveCamera;
+  const origAspect = viewPersp.aspect;
+  if (viewPersp.isPerspectiveCamera && !resolveCameraPose) {
+    viewPersp.aspect = width / height;
+    viewPersp.updateProjectionMatrix();
   }
 
   // Hide viewport helpers / transform gizmo / selection wires
@@ -69,7 +87,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  // Force shadows on
+  // Force shadows on for the render
   const meshTouched: { mesh: THREE.Mesh; cast: boolean; receive: boolean }[] = [];
   scene.traverse((obj) => {
     if ((obj as THREE.Mesh).isMesh) {
@@ -84,12 +102,9 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const stream = canvas.captureStream(0);
   const track = stream.getVideoTracks()[0] as any;
 
-  // Pick a mimeType supported by this browser matching the requested format.
   const mimeCandidates =
     format === 'mp4'
       ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-      : format === 'webp'
-      ? ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
       : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   const mime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
 
@@ -110,20 +125,42 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
   const targetDelayMs = 1000 / Math.max(1, fps);
 
+  const applyPose = (pose: CameraPose) => {
+    renderCam.position.set(pose.position[0], pose.position[1], pose.position[2]);
+    if (pose.target) {
+      renderCam.up.set(0, 1, 0);
+      renderCam.lookAt(pose.target[0], pose.target[1], pose.target[2]);
+    } else if (pose.rotation) {
+      renderCam.rotation.set(pose.rotation[0], pose.rotation[1], pose.rotation[2]);
+    }
+    renderCam.fov = pose.fov ?? 45;
+    renderCam.near = pose.near ?? 0.1;
+    renderCam.far = pose.far ?? 1000;
+    renderCam.aspect = width / height;
+    renderCam.updateProjectionMatrix();
+    renderCam.updateMatrixWorld(true);
+  };
+
   try {
     let idx = 0;
     for (let f = from; f <= to; f += step) {
       setFrame(f);
-      // Give React two frames to commit the state update and Object3D refs to update.
+      // Two rAFs so React state commit + Object3D refs update.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      offscreen.render(scene, camera);
+
+      let renderTarget: THREE.Camera = viewCamera;
+      if (resolveCameraPose) {
+        const pose = resolveCameraPose(f);
+        if (pose) { applyPose(pose); renderTarget = renderCam; }
+      }
+
+      offscreen.render(scene, renderTarget);
       if (typeof track.requestFrame === 'function') track.requestFrame();
-      // Pace so the recorded timeline matches the requested fps.
       await new Promise((r) => setTimeout(r, targetDelayMs));
       idx++;
       onProgress?.(idx, frameCount);
     }
-    // Let the recorder flush the last frame.
+    // Flush the last frame.
     await new Promise((r) => setTimeout(r, 250));
   } finally {
     if (recorder.state !== 'inactive') recorder.stop();
@@ -131,15 +168,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
   const blob = await stopped;
 
-  // Restore scene
   hidden.forEach((o) => { o.visible = true; });
   meshTouched.forEach(({ mesh, cast, receive }) => {
     mesh.castShadow = cast;
     mesh.receiveShadow = receive;
   });
-  if (pcam.isPerspectiveCamera) {
-    pcam.aspect = origAspect;
-    pcam.updateProjectionMatrix();
+  if (viewPersp.isPerspectiveCamera && !resolveCameraPose) {
+    viewPersp.aspect = origAspect;
+    viewPersp.updateProjectionMatrix();
   }
   offscreen.dispose();
 
@@ -157,16 +193,10 @@ export function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
-/**
- * Chooses a filename+extension based on the actual encoded blob type.
- * MP4 fallback to WebM when the browser can't encode H.264 in-browser
- * (common on Chromium Linux); WebP request also falls back to WebM.
- */
 export function suggestFilename(blob: Blob, requested: VideoFormat): string {
   const t = blob.type || '';
   let ext = 'webm';
   if (t.includes('mp4')) ext = 'mp4';
-  else if (requested === 'webp') ext = 'webm'; // Real animated-WebP encoding is not natively supported
-  const stamp = Date.now();
-  return `animation-${stamp}.${ext}`;
+  else if (requested === 'webp') ext = 'webm';
+  return `animation-${Date.now()}.${ext}`;
 }

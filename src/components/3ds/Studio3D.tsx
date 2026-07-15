@@ -197,6 +197,10 @@ export const Studio3D = () => {
   const [sidePanelTab, setSidePanelTab] = useState<string>('create');
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+  // Live ref used by the animation renderer to read up-to-date object poses
+  // (positions/rotations after each frame's keyframe interpolation).
+  const objectsRef = useRef<Object3DData[]>(objects);
+  useEffect(() => { objectsRef.current = objects; }, [objects]);
 
 
   // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
@@ -1432,6 +1436,10 @@ export const Studio3D = () => {
         currentFrame={currentFrame}
         totalFrames={totalFrames}
         setCurrentFrame={setCurrentFrame}
+        cameras={objects
+          .filter((o) => o.type === 'camera_target' || o.type === 'camera_free')
+          .map((o) => ({ id: o.id, name: o.name || o.type }))}
+        getObjects={() => objectsRef.current}
       />
       <EnvironmentDialog open={environmentOpen} onOpenChange={setEnvironmentOpen} />
       <ViewImageFile open={viewImageOpen} onOpenChange={setViewImageOpen} />
