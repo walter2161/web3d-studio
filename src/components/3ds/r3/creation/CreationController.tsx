@@ -430,6 +430,30 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       wallRef.pts = [];
     };
 
+    // -------- Tape helper: two-click distance measurement ----------------
+    const tapeRef: { start: THREE.Vector3 | null; cursor: THREE.Vector3 } | null =
+      armed === 'helper_tape' ? { start: null, cursor: new THREE.Vector3() } : null;
+
+    const buildTapeGhost = (a: THREE.Vector3, b: THREE.Vector3): GhostObject => ({
+      id: '__ghost',
+      type: 'helper_tape',
+      position: [a.x, a.y, a.z],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: COLOR_GHOST,
+      geometry: {
+        helperKind: 'tape',
+        endpointA: [0, 0, 0],
+        endpointB: [b.x - a.x, b.y - a.y, b.z - a.z],
+        specifyLength: false,
+        targetLength: 1,
+      },
+      visible: true,
+      __creating: true,
+    });
+
+
+
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
