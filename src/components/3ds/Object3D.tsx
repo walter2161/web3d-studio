@@ -351,7 +351,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       return buildExtendedPrimitive(type as ExtPrimType, geom);
     }
     // Sprint C — Shapes
-    const shapes: ShapeType[] = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
+    const shapes: ShapeType[] = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix', 'text'];
     if (shapes.includes(type as ShapeType)) {
       return buildShape(type as ShapeType, geom);
     }
