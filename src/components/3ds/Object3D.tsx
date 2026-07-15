@@ -11,6 +11,9 @@ import type { SubObjectLevel } from './editable/EditableMesh';
 import { fromGeometry } from './editable/fromGeometry';
 import { toGeometry } from './editable/toGeometry';
 import { replay, OpRecord } from './editable/ops';
+import { HelperGizmo } from './r3/HelperGizmo';
+import { isHelperType } from './utils/helpers';
+
 
 
 // R3-style entity types
