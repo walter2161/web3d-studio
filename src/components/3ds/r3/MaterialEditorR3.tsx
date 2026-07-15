@@ -189,6 +189,29 @@ const DEFAULT_MATERIAL: R3Material = {
 
 const SLOT_COUNT = 24;
 const STORAGE = '3dsled-mateditor-slots-v2';
+const BITMAP_STORAGE = '3dsled-mateditor-bitmaps-v1';
+
+/**
+ * Persistent bitmap store. Blob URLs from URL.createObjectURL do NOT survive
+ * a page reload, so any material referencing them would render blank after
+ * refresh. We store bitmaps as data URLs in localStorage keyed by filename
+ * and rehydrate `window.__r3BitmapUrls` on module load, so both the sample
+ * slot preview and the viewport texture keep working after refresh.
+ */
+function loadBitmapStore(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(BITMAP_STORAGE);
+    if (raw) return JSON.parse(raw) || {};
+  } catch {}
+  return {};
+}
+function saveBitmapStore(store: Record<string, string>) {
+  try { localStorage.setItem(BITMAP_STORAGE, JSON.stringify(store)); } catch {}
+}
+if (typeof window !== 'undefined') {
+  const existing = (window as any).__r3BitmapUrls || {};
+  (window as any).__r3BitmapUrls = { ...loadBitmapStore(), ...existing };
+}
 
 function loadSlots(): R3Material[] {
   try {
@@ -208,6 +231,7 @@ function loadSlots(): R3Material[] {
 function saveSlots(slots: R3Material[]) {
   try { localStorage.setItem(STORAGE, JSON.stringify(slots)); } catch {}
 }
+
 
 const MATERIAL_LIBRARY: Array<{ name: string; patch: Partial<R3Material> }> = [
   { name: 'Metal - Chrome',   patch: { shader: 'Metal', diffuse: '#c9d0d5', specular: '#ffffff', glossiness: 85, specularLevel: 90, metalness: 1, roughness: 0.05 } },
@@ -867,15 +891,27 @@ function MapParametersDialog({
     input.onchange = () => {
       const f = input.files?.[0];
       if (!f) return;
-      const url = URL.createObjectURL(f);
-      // stash the URL BEFORE state updates so any re-render immediately
-      // resolves the bitmap payload (matToThree → mapPayload reads this map).
-      (window as any).__r3BitmapUrls = { ...(window as any).__r3BitmapUrls, [f.name]: url };
-      onChange({ filename: f.name });
-      onChangeSlot({}); // trigger rerender
+      // Read as data URL so the bitmap survives page reloads (blob: URLs
+      // are lost when the page refreshes, blanking the texture on the object).
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = String(reader.result || '');
+        if (!url) return;
+        const next = { ...(window as any).__r3BitmapUrls, [f.name]: url };
+        (window as any).__r3BitmapUrls = next;
+        try {
+          localStorage.setItem('3dsled-mateditor-bitmaps-v1', JSON.stringify(next));
+        } catch {
+          // localStorage quota exceeded — texture still works this session.
+        }
+        onChange({ filename: f.name });
+        onChangeSlot({}); // trigger rerender
+      };
+      reader.readAsDataURL(f);
     };
     input.click();
   };
+
 
   return (
     <div className="fixed inset-0 z-[60] pointer-events-none">
