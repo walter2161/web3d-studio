@@ -157,6 +157,23 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'width',  label: 'Width',  kind: 'float', default: 0.2, min: 0.01, step: 0.05 },
     { key: 'height', label: 'Height', kind: 'float', default: 2.7, min: 0.01, step: 0.1 },
   ],
+  door: [
+    { key: 'width',       label: 'Width',       kind: 'float', default: 0.9, min: 0.1, step: 0.05 },
+    { key: 'height',      label: 'Height',      kind: 'float', default: 2.1, min: 0.1, step: 0.05 },
+    { key: 'frameDepth',  label: 'Frame Depth', kind: 'float', default: 0.2, min: 0.02, step: 0.02 },
+    { key: 'thickness',   label: 'Leaf Thick.', kind: 'float', default: 0.04, min: 0.005, step: 0.01 },
+    { key: 'frameSize',   label: 'Frame Size',  kind: 'float', default: 0.05, min: 0.01, step: 0.01 },
+    { key: 'openPercentage', label: 'Open %',   kind: 'float', default: 0, min: 0, step: 0.05 },
+  ],
+  window: [
+    { key: 'width',           label: 'Width',        kind: 'float', default: 1.2, min: 0.1, step: 0.05 },
+    { key: 'height',          label: 'Height',       kind: 'float', default: 1.2, min: 0.1, step: 0.05 },
+    { key: 'frameDepth',      label: 'Frame Depth',  kind: 'float', default: 0.2, min: 0.02, step: 0.02 },
+    { key: 'frameThickness',  label: 'Frame Thick.', kind: 'float', default: 0.05, min: 0.005, step: 0.01 },
+    { key: 'glassThickness',  label: 'Glass Thick.', kind: 'float', default: 0.01, min: 0.002, step: 0.005 },
+    { key: 'sillHeight',      label: 'Sill Height',  kind: 'float', default: 1.0, min: 0, step: 0.05 },
+    { key: 'openPercentage',  label: 'Open %',       kind: 'float', default: 0, min: 0, step: 0.05 },
+  ],
 };
 
 import {
