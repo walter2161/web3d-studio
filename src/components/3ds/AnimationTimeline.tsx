@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Play, Pause, Square, SkipBack, SkipForward, 
   Circle, Eye, EyeOff, ChevronLeft, ChevronRight,
-  Trash2, Copy
+  Trash2, Copy, Repeat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
