@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Play, Pause, Square, SkipBack, SkipForward, 
   Circle, Eye, EyeOff, ChevronLeft, ChevronRight,
-  Trash2, Copy
+  Trash2, Copy, Repeat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -42,6 +42,8 @@ interface AnimationTimelineProps {
   onToggleTrajectory: (objectId: string) => void;
   onSelectKeyframe: (keyframe: Keyframe | null) => void;
   selectedKeyframe: Keyframe | null;
+  loopPlayback?: boolean;
+  onToggleLoopPlayback?: () => void;
 }
 
 export const AnimationTimeline = ({
@@ -60,6 +62,8 @@ export const AnimationTimeline = ({
   onToggleTrajectory,
   onSelectKeyframe,
   selectedKeyframe,
+  loopPlayback = false,
+  onToggleLoopPlayback,
 }: AnimationTimelineProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
@@ -172,6 +176,22 @@ export const AnimationTimeline = ({
             onClick={() => onFrameChange(totalFrames)}>
             <SkipForward className="w-3 h-3" />
           </Button>
+          {onToggleLoopPlayback && (
+            <Button
+              size="sm"
+              variant={loopPlayback ? 'default' : 'outline'}
+              title={loopPlayback ? 'Loop Playback: ON' : 'Loop Playback: OFF'}
+              className={cn(
+                "h-7 w-7 p-0 border-panel-border",
+                loopPlayback
+                  ? "bg-primary hover:bg-primary/80 text-primary-foreground"
+                  : "bg-secondary hover:bg-menu-hover"
+              )}
+              onClick={onToggleLoopPlayback}
+            >
+              <Repeat className="w-3 h-3" />
+            </Button>
+          )}
         </div>
 
         {/* Frame Counter */}
