@@ -78,7 +78,14 @@ export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: P
           <Row label="Vertices:" labelWidth={80}><span className="text-[11px]">—</span></Row>
           <Row label="Faces:" labelWidth={80}><span className="text-[11px]">—</span></Row>
           <Row label="Parent:" labelWidth={80}><span className="text-[11px]">Scene Root</span></Row>
-          <Row label="Material:" labelWidth={80}><span className="text-[11px]">{object.color}</span></Row>
+          <Row label="Object Color:" labelWidth={80}>
+            <label className="bevel-inset cursor-pointer inline-block" style={{ width: 40, height: 16 }} title="Click to change object color">
+              <span className="block w-full h-full" style={{ background: objColor }} />
+              <input type="color" value={objColor} onChange={(e) => setObjColor(e.target.value)} className="hidden" />
+            </label>
+            <span className="text-[11px] ml-2">{objColor}</span>
+          </Row>
+
           <Row label="Layer:" labelWidth={80}><span className="text-[11px]">0 (default)</span></Row>
         </GroupBox>
 
