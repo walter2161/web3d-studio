@@ -625,6 +625,57 @@ export const Studio3D = () => {
     ));
   }, []);
 
+  // Sub-object picking & op dispatch from viewport / modifier panel.
+  useEffect(() => {
+    const onPick = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as {
+        objectId: string; modifierId: string; level: string;
+        id: number; additive?: boolean; remove?: boolean;
+      };
+      setObjects((prev) => prev.map((obj) => {
+        if (obj.id !== d.objectId) return obj;
+        return {
+          ...obj,
+          modifiers: (obj.modifiers ?? []).map((m: any) => {
+            if (m.id !== d.modifierId) return m;
+            const cur: number[] = Array.isArray(m.params?.selectedIds) ? m.params.selectedIds : [];
+            let next: number[];
+            if (d.remove) next = cur.filter((x) => x !== d.id);
+            else if (d.additive) next = cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id];
+            else next = [d.id];
+            return { ...m, params: { ...m.params, selectedIds: next, selectionLevel: d.level } };
+          }),
+        };
+      }));
+    };
+    const onOp = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as {
+        objectId: string; modifierId: string; op: { kind: string; params?: any };
+      };
+      setObjects((prev) => prev.map((obj) => {
+        if (obj.id !== d.objectId) return obj;
+        return {
+          ...obj,
+          modifiers: (obj.modifiers ?? []).map((m: any) => {
+            if (m.id !== d.modifierId) return m;
+            const level = (m.params?.selectionLevel ?? 'vertex').toLowerCase();
+            const ids: number[] = Array.isArray(m.params?.selectedIds) ? m.params.selectedIds : [];
+            const ops = Array.isArray(m.params?.ops) ? m.params.ops : [];
+            const opRec = { ...d.op, selection: { level, ids: ids.slice() } };
+            return { ...m, params: { ...m.params, ops: [...ops, opRec] } };
+          }),
+        };
+      }));
+    };
+    window.addEventListener('r3-subobj-select', onPick as any);
+    window.addEventListener('r3-subobj-op', onOp as any);
+    return () => {
+      window.removeEventListener('r3-subobj-select', onPick as any);
+      window.removeEventListener('r3-subobj-op', onOp as any);
+    };
+  }, []);
+
+
   const removeModifier = useCallback((objectId: string, modifierId: string) => {
     setObjects(prev => prev.map(obj => 
       obj.id === objectId 

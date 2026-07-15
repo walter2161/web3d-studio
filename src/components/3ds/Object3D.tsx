@@ -7,6 +7,10 @@ import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, Shape
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SubObjectOverlay } from './editable/SubObjectOverlay';
 import type { SubObjectLevel } from './editable/EditableMesh';
+import { fromGeometry } from './editable/fromGeometry';
+import { toGeometry } from './editable/toGeometry';
+import { replay, OpRecord } from './editable/ops';
+
 
 // R3-style entity types
 export const LIGHT_TYPES = ['light_omni', 'light_spot', 'light_direct', 'light_skylight', 'light_ambient'] as const;
@@ -729,56 +733,26 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
+  function applyEditableStack(geometry: BufferGeometry, params: any, triangulate: boolean): BufferGeometry {
+    const em = fromGeometry(geometry);
+    if (triangulate) em.triangulate();
+    const ops: OpRecord[] = Array.isArray(params?.ops) ? params.ops : [];
+    const level = ((params?.selectionLevel ?? 'vertex') as string).toLowerCase() as SubObjectLevel;
+    const initialSel = { level, ids: new Set<number>(params?.selectedIds ?? []) };
+    const { mesh } = replay(em, initialSel, ops);
+    const g = toGeometry(mesh);
+    g.computeVertexNormals();
+    return g;
+  }
+
   function applyEditPoly(geometry: BufferGeometry, params: any): BufferGeometry {
-    // Edit Poly modifier affects vertex segments and selection
-    const segmentsX = params.segmentsX || 1;
-    const segmentsY = params.segmentsY || 1;
-    const segmentsZ = params.segmentsZ || 1;
-    
-    // Create a new geometry with more segments if needed
-    if (segmentsX > 1 || segmentsY > 1 || segmentsZ > 1) {
-      const newGeometry = createBaseGeometry(object.type, {
-        ...object.geometry,
-        widthSegments: segmentsX,
-        heightSegments: segmentsY,
-        depthSegments: segmentsZ,
-        radialSegments: Math.max(segmentsX, segmentsY)
-      });
-      
-      // Copy positions from original if needed
-      newGeometry.computeVertexNormals();
-      return newGeometry;
-    }
-    
-    geometry.computeVertexNormals();
-    return geometry;
+    return applyEditableStack(geometry, params, false);
   }
 
   function applyEditMesh(geometry: BufferGeometry, params: any): BufferGeometry {
-    // Edit Mesh modifier affects tessellation and smoothing
-    const tessellation = params.tessellation || 1;
-    const smoothingGroups = params.smoothingGroups || 1;
-    
-    // Apply tessellation (simple subdivision)
-    if (tessellation > 1) {
-      for (let i = 0; i < tessellation; i++) {
-        const positionAttribute = geometry.getAttribute('position');
-        const positions = positionAttribute.array as Float32Array;
-        
-        // Simple mesh smoothing
-        for (let j = 0; j < positions.length; j += 3) {
-          positions[j] *= 0.99;
-          positions[j + 1] *= 0.99;
-          positions[j + 2] *= 0.99;
-        }
-        
-        positionAttribute.needsUpdate = true;
-      }
-    }
-    
-    geometry.computeVertexNormals();
-    return geometry;
+    return applyEditableStack(geometry, params, true);
   }
+
 
   // Render imported models as their full scene graph (preserves materials,
   // textures, skinning, and animations).
@@ -932,7 +906,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
             geometry={modifiedGeometry}
             level={level}
             selectedIds={selectedIds}
+            objectId={object.id}
+            modifierId={editMod.id}
           />
+
         );
       })()}
     </mesh>

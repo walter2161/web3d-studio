@@ -738,12 +738,14 @@ export const SidePanel = ({
                     <ModifierControls
                       key={activeModifier.id}
                       modifier={activeModifier}
+                      objectId={selectedObject.id}
                       onUpdateModifier={(params) => onUpdateModifier(selectedObject.id, activeModifier.id, params)}
                       onRemoveModifier={() => {
                         onRemoveModifier(selectedObject.id, activeModifier.id);
                         setSelectedStackItem('base');
                       }}
                     />
+
                   )}
                 </>
               );
