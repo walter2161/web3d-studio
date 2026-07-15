@@ -40,17 +40,20 @@ const DEFAULTS: Required<ObjectProperties> = {
 
 export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: Props) => {
   const [name, setName] = useState('');
+  const [objColor, setObjColor] = useState('#3b82f6');
   const [wireColor, setWireColor] = useState('#00bfff');
   const [props, setProps] = useState<Required<ObjectProperties>>(DEFAULTS);
 
   useEffect(() => {
     if (object) {
       setName(object.name || object.id);
+      setObjColor(object.color || '#3b82f6');
       const p = { ...DEFAULTS, ...(object.properties || {}) };
       setProps(p);
       setWireColor(p.wireframeColor);
     }
   }, [object]);
+
 
   if (!object) return null;
   const set = <K extends keyof ObjectProperties>(k: K, v: ObjectProperties[K]) =>
