@@ -94,24 +94,6 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   // commits, so we CANNOT hide them once and be done — the references go
   // stale and fresh overlays appear in later frames. Instead we hide them
   // right before each offscreen.render() and restore them right after.
-  const hasHelperAncestor = (obj: THREE.Object3D): boolean => {
-    let cur: THREE.Object3D | null = obj.parent;
-    while (cur) {
-      const ud: any = cur.userData || {};
-      if (ud.__helper || ud.__selectionWire) return true;
-      cur = cur.parent;
-    }
-    return false;
-  };
-
-  const isHelperMaterial = (mat: any): boolean => {
-    // Editor icons (light/camera indicators, trajectory dots) all use
-    // MeshBasicMaterial — no production mesh in the scene uses it.
-    if (!mat) return false;
-    const check = (m: any) => m && (m.isMeshBasicMaterial || m.type === 'MeshBasicMaterial');
-    if (Array.isArray(mat)) return mat.some(check);
-    return check(mat);
-  };
 
   const hideEditorOverlays = (): THREE.Object3D[] => {
     const hidden: THREE.Object3D[] = [];
