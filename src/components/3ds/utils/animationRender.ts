@@ -241,6 +241,9 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       // Hide editor overlays freshly right before the render so any helpers
       // React just re-mounted for this frame are also hidden, then restore
       // immediately so the viewport stays fully usable between frames.
+      // Advance imported-model AnimationMixers to this exact frame so
+      // GLB/FBX skeletal animation isn't frozen in the render.
+      syncImportedMixers(f);
       const hiddenForFrame = hideEditorOverlays();
       try {
         gl.setRenderTarget(null);
