@@ -49,7 +49,7 @@ export const Scene3D = ({
 
   // ---- Sub-object gizmo state -------------------------------------------------
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
-  const subProxyRef = useRef<THREE.Object3D>(null);
+  const [subProxyObj, setSubProxyObj] = useState<THREE.Object3D | null>(null);
   const subDragStartRef = useRef<THREE.Vector3 | null>(null);
 
   useEffect(() => {
