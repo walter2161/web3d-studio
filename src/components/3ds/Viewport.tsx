@@ -542,7 +542,7 @@ const CameraViewController = ({
   // Write orbit results back into the scene: camera position (both types),
   // target helper position (target camera), or camera rotation (free camera).
   const handleChange = () => {
-    if (!camObj || suppressWriteRef.current) return;
+    if (!camObj || suppressWriteRef.current || isPlaying) return;
     const controls = controlsRef.current;
     if (!controls) return;
     const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
