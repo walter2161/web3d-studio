@@ -574,6 +574,7 @@ export const SidePanel = ({
                       const enabled = m.active !== false;
                       const expanded = !!expandedStackItems[m.id];
                       return (
+                        <div key={m.id}>
                         <div
                           key={m.id}
                           className={cn(
