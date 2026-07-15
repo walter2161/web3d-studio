@@ -539,6 +539,30 @@ const CameraViewController = ({
     return () => clearTimeout(t);
   }, [camObj?.id, camera, targetObj?.id]);
 
+  // When playback stops, snap the orbit target back to the (now animated)
+  // camera pose and release write-suppression so user orbit works again.
+  useEffect(() => {
+    if (isPlaying) return;
+    const controls = controlsRef.current;
+    if (!camObj || !controls) return;
+    suppressWriteRef.current = true;
+    const [px, py, pz] = camObj.position;
+    camera.position.set(px, py, pz);
+    if (targetObj) {
+      const [tx, ty, tz] = targetObj.position;
+      controls.target.set(tx, ty, tz);
+    } else {
+      const dist = camObj.cameraData?.targetDistance ?? 10;
+      const [rx, ry, rz] = camObj.rotation;
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+      controls.target.set(px + fwd.x * dist, py + fwd.y * dist, pz + fwd.z * dist);
+    }
+    controls.update();
+    const t = setTimeout(() => { suppressWriteRef.current = false; }, 0);
+    return () => clearTimeout(t);
+  }, [isPlaying]);
+
   // Write orbit results back into the scene: camera position (both types),
   // target helper position (target camera), or camera rotation (free camera).
   const handleChange = () => {
