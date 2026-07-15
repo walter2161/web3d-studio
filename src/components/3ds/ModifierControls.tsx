@@ -1,5 +1,7 @@
 import { useState, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { CaddyWrapper, CaddySpec, buildCaddy } from './editable/CaddyPanel';
+import { toast } from 'sonner';
 
 /**
  * ModifierControls — 3ds Max Modify panel style
