@@ -286,8 +286,8 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     renderedFrames.length = 0;
 
     // Restore scene state.
-    hidden.forEach((o) => { o.visible = true; });
     meshTouched.forEach(({ mesh, cast, receive }) => {
+
       mesh.castShadow = cast;
       mesh.receiveShadow = receive;
     });
