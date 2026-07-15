@@ -124,21 +124,22 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
         t.endsWith('Helper');
       const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
-      const isLine =
-        (obj as any).isLine || (obj as any).isLineSegments || (obj as any).isLineLoop ||
-        t === 'Line' || t === 'LineSegments' || t === 'LineLoop' || t === 'Line2';
-      const isSprite = (obj as any).isSprite || t === 'Sprite';
-      const isHelperMesh =
-        (obj as any).isMesh && isHelperMaterial((obj as any).material);
+      // Match Quick Render's rules: hide ONLY things explicitly marked as
+      // editor overlays (grid, gizmos, selection wires, helper icons, camera
+      // frustums, light indicators, trajectory paths). Do NOT hide by
+      // "isLine/isSprite/MeshBasicMaterial" heuristics — those can catch
+      // user-created line/sprite objects, and hiding descendants of any group
+      // upstream can leak into lit meshes, producing the "no lights / no
+      // shadows" look reported by users.
       const hidden_by_marker =
-        ud.__helper || ud.__selectionWire || isHelper || isTC || isLine || isSprite || isHelperMesh;
-      const hidden_by_ancestor = !hidden_by_marker && hasHelperAncestor(obj);
-      if (hidden_by_marker || hidden_by_ancestor) {
+        ud.__helper || ud.__selectionWire || isHelper || isTC;
+      if (hidden_by_marker) {
         if (obj.visible) { hidden.push(obj); obj.visible = false; }
       }
     });
     return hidden;
   };
+
 
 
   // Meshes + lights only need their shadow flags forced once; the underlying
