@@ -68,6 +68,7 @@ export const RenderSetup = ({
   const [framePreview, setFramePreview] = useState<string | null>(null);
   const [currentRenderFrame, setCurrentRenderFrame] = useState<number>(0);
   const [renderStartTs, setRenderStartTs] = useState<number>(0);
+  const renderAbortRef = useRef<AbortController | null>(null);
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
