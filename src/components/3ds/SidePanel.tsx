@@ -994,7 +994,7 @@ export const SidePanel = ({
                     );
                   }
 
-                  const genMap = !!geom.generateMappingCoords ?? true;
+                  const genMap = geom.generateMappingCoords !== false;
                   return (
                     <MaxRollout title="Parameters" className="mt-4">
                       {mainParams.map(renderSpinner)}
