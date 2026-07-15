@@ -128,11 +128,13 @@ interface Object3DProps {
   totalFrames?: number;
   isPlaying?: boolean;
   targetLookup?: (id: string) => [number, number, number] | null;
+  isActiveViewCamera?: boolean;
 }
 
 
 
-export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup }: Object3DProps) => {
+export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false }: Object3DProps) => {
+
   const meshRef = useRef<Mesh>(null);
 
 
@@ -674,7 +676,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         onSelect={onSelect}
         meshRef={meshRef as any}
         targetLookup={targetLookup}
+        isActiveViewCamera={isActiveViewCamera}
       />
+
     );
   }
 
@@ -797,9 +801,11 @@ interface EntityRendererProps {
   onSelect: () => void;
   meshRef: React.MutableRefObject<any>;
   targetLookup?: (id: string) => [number, number, number] | null;
+  isActiveViewCamera?: boolean;
 }
 
-const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }: EntityRendererProps) => {
+const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, isActiveViewCamera = false }: EntityRendererProps) => {
+
   const groupRef = useRef<Group>(null);
   const pointLightRef = useRef<THREE.PointLight>(null);
   const spotLightRef = useRef<THREE.SpotLight>(null);
@@ -1000,8 +1006,8 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
 
-        {/* Target line — line from camera to focal point (along local -Z) */}
-        {targetId && targetDist > 0 && (
+        {/* Target line — hidden when this camera is the viewport view. */}
+        {!isActiveViewCamera && targetId && targetDist > 0 && (
           <primitive
             object={(() => {
               const geom = new THREE.BufferGeometry().setFromPoints([
@@ -1016,8 +1022,8 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
             })()}
           />
         )}
-        {/* Frustum pyramid symbol — always visible when showCone is on */}
-        {showCone && (
+        {/* Frustum pyramid — hidden when this camera is the viewport view. */}
+        {!isActiveViewCamera && showCone && (
           <group userData={{ __helper: true }} position={[0, 0, -1.5]}>
             <mesh userData={{ __helper: true }} rotation={[Math.PI / 2, Math.PI / 4, 0]}>
               <coneGeometry args={[1.2, 3, 4, 1, true]} />
@@ -1025,6 +1031,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
             </mesh>
           </group>
         )}
+
 
       </group>
     );
