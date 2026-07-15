@@ -87,8 +87,8 @@ export const Scene3D = ({
       });
     }
   }
-  if (subGizmoActive && subProxyRef.current) {
-    transformTarget = subProxyRef.current;
+  if (subGizmoActive && subProxyObj) {
+    transformTarget = subProxyObj;
   }
 
   // Lookup a target object's world position for target-camera / target-spot / target-direct.
@@ -123,7 +123,7 @@ export const Scene3D = ({
           rotation={selectedObjectData.rotation}
           scale={selectedObjectData.scale}
         >
-          <object3D ref={subProxyRef} position={subCentroid!.local!} />
+          <object3D ref={setSubProxyObj} position={subCentroid!.local!} />
         </group>
       )}
 
@@ -140,16 +140,16 @@ export const Scene3D = ({
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
-            if (subGizmoActive && subProxyRef.current) {
-              subDragStartRef.current = subProxyRef.current.position.clone();
+            if (subGizmoActive && subProxyObj) {
+              subDragStartRef.current = subProxyObj.position.clone();
             }
           }}
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
             // Sub-object move: emit a Move op with the local-space delta.
-            if (subGizmoActive && subProxyRef.current && subDragStartRef.current && activeEditMod && selectedObject) {
-              const cur = subProxyRef.current.position;
+            if (subGizmoActive && subProxyObj && subDragStartRef.current && activeEditMod && selectedObject) {
+              const cur = subProxyObj.position;
               const start = subDragStartRef.current;
               const delta: [number, number, number] = [cur.x - start.x, cur.y - start.y, cur.z - start.z];
               subDragStartRef.current = null;
