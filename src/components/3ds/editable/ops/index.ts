@@ -381,9 +381,16 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
       const newFaces = new Set<FaceId>();
       for (const f of selFaces) {
         const c = new THREE.Vector3();
-        f.verts.forEach((vid) => c.add(out.vertices.get(vid)!.position));
+        const cUV = new THREE.Vector2();
+        let uvCount = 0;
+        f.verts.forEach((vid) => {
+          const v = out.vertices.get(vid)!;
+          c.add(v.position);
+          if (v.uv) { cUV.add(v.uv); uvCount++; }
+        });
         c.multiplyScalar(1 / f.verts.length);
-        const cid = out.addVertex(c);
+        if (uvCount > 0) cUV.multiplyScalar(1 / uvCount);
+        const cid = out.addVertex(c, uvCount > 0 ? cUV : undefined);
         const matId = f.materialId; const sg = f.smoothingGroup;
         const verts = f.verts.slice();
         out.faces.delete(f.id);
