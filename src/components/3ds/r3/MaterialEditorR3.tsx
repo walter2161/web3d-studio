@@ -352,7 +352,31 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
       return;
     }
     onMaterialChange(selectedObject.id, matToThree(mat));
+    lastAppliedRef.current = `${selectedObject.id}:${active}`;
   };
+
+  // Reset the live-link binding whenever the selection or active slot changes.
+  useEffect(() => {
+    lastAppliedRef.current = null;
+  }, [selectedObject?.id, active]);
+
+  // Live-link: re-apply the current slot to the selected object whenever it
+  // changes — but only if the user has already assigned this slot to it.
+  // Also auto-assigns the first time a Bitmap gets a filename in the diffuse
+  // slot, so loading a texture is enough to see it on the object.
+  const diffuseFilename = mat?.maps?.diffuse?.name === 'Bitmap' ? mat?.maps?.diffuse?.params?.filename : '';
+  useEffect(() => {
+    if (!open || !selectedObject) return;
+    const key = `${selectedObject.id}:${active}`;
+    const alreadyBound = lastAppliedRef.current === key;
+    const hasBitmap = !!diffuseFilename;
+    if (alreadyBound || hasBitmap) {
+      onMaterialChange(selectedObject.id, matToThree(mat));
+      lastAppliedRef.current = key;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mat, selectedObject?.id, open]);
+
 
   // HTML5 drag: when a slot starts being dragged, stash the three material payload
   // on window so Object3D's onPointerUp can read it while raycasting the viewport.
