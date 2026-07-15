@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
-import { renderAnimation, downloadBlob, suggestFilename, VideoFormat } from '../utils/animationRender';
+import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose } from '../utils/animationRender';
 import { toast } from 'sonner';
+
+interface CameraOption {
+  id: string;
+  name: string;
+}
 
 interface RenderSetupProps {
   open: boolean;
@@ -11,6 +16,11 @@ interface RenderSetupProps {
   currentFrame?: number;
   totalFrames?: number;
   setCurrentFrame?: (f: number) => void;
+  /** Live cameras from the scene (id + display name). */
+  cameras?: CameraOption[];
+  /** Returns the live objects array — used by the animation renderer to
+   *  read the animated camera / target pose at each frame. */
+  getObjects?: () => any[];
 }
 
 type Tab = 'Common' | 'Renderer' | 'Raytracer' | 'Advanced Lighting';
@@ -26,8 +36,12 @@ const OUTPUT_SIZES = [
   { label: '1280x1024', w: 1280, h: 1024 },
 ];
 
+/** Special sentinel meaning "use the active viewport orbit camera". */
+const VIEWPORT_CAM_ID = '__viewport__';
+
 export const RenderSetup = ({
   open, onOpenChange, onRender, currentFrame = 0, totalFrames = 100, setCurrentFrame,
+  cameras = [], getObjects,
 }: RenderSetupProps) => {
   const { engine, setEngine } = useRenderEngine();
   const [tab, setTab] = useState<Tab>('Common');
@@ -45,6 +59,19 @@ export const RenderSetup = ({
   const [videoFps, setVideoFps] = useState(30);
   const [rendering, setRendering] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [renderCameraId, setRenderCameraId] = useState<string>(VIEWPORT_CAM_ID);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+
+  // Reset preview URL when dialog closes.
+  useEffect(() => {
+    if (!open && previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      setPreviewBlob(null);
+    }
+  }, [open]);
+
 
   // Renderer tab options
   const [antialiasing, setAntialiasing] = useState(true);
