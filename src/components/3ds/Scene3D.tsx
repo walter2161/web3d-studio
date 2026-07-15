@@ -254,6 +254,7 @@ export const Scene3D = ({
           tracks={animationTracks}
           selectedKeyframe={selectedKeyframe || null}
           onUpdateKeyframe={onUpdateKeyframe}
+          onSelectKeyframe={onSelectKeyframe}
         />
       )}
     </>
