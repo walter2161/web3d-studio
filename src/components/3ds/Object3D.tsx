@@ -100,8 +100,19 @@ interface Object3DProps {
       fov?: number;
       near?: number;
       far?: number;
+      lens?: number;              // focal length in mm (auto-linked to fov)
+      showCone?: boolean;
+      showHorizon?: boolean;
+      manualClip?: boolean;
+      nearRange?: number;         // environment range near
+      farRange?: number;          // environment range far
+      dofEnabled?: boolean;
+      focusDistance?: number;
+      aperture?: number;
+      targetDistance?: number;    // free camera only
       targetObjectId?: string;
     };
+
     modifiers?: Array<{
       id: string;
       type: string;
