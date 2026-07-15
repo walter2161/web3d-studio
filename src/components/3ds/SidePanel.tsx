@@ -222,6 +222,7 @@ export const SidePanel = ({
   const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
+  const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
@@ -566,40 +567,74 @@ export const SidePanel = ({
                     })()}
                   </select>
 
-                  {/* Modifier Stack */}
-                  <div className="bevel-inset bg-white">
+                  {/* Modifier Stack — 3ds Max style: eye toggle + expand arrow + name */}
+                  <div className="bevel-inset bg-white select-none">
                     {stackDisplay.map((m: any) => {
                       const selected = selectedStackItem === m.id;
+                      const enabled = m.active !== false;
+                      const expanded = !!expandedStackItems[m.id];
                       return (
                         <div
                           key={m.id}
                           className={cn(
-                            'flex items-center gap-1 h-[20px] px-1 text-[11px] text-win-text border-b border-win-shadow/40 cursor-pointer',
-                            selected ? 'bg-win-highlight text-white' : 'hover:bg-win-face-shadow/40'
+                            'flex items-center gap-[3px] h-[18px] px-[2px] text-[11px] cursor-pointer',
+                            selected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40'
                           )}
                           onClick={() => setSelectedStackItem(m.id)}
                         >
-                          <input
-                            type="checkbox"
-                            className="w-3 h-3"
-                            checked={m.active !== false}
-                            onChange={(e) => { e.stopPropagation(); onToggleModifier?.(selectedObject.id, m.id); }}
-                            onClick={(e) => e.stopPropagation()}
-                            title="Enable/disable modifier"
-                          />
+                          {/* Eye icon toggle (visibility / enable) */}
+                          <button
+                            type="button"
+                            className={cn(
+                              'w-[14px] h-[14px] flex items-center justify-center leading-none',
+                              selected ? 'text-white' : 'text-win-text'
+                            )}
+                            onClick={(e) => { e.stopPropagation(); onToggleModifier?.(selectedObject.id, m.id); }}
+                            title={enabled ? 'Modifier enabled (click to disable)' : 'Modifier disabled (click to enable)'}
+                          >
+                            {enabled ? (
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                                <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8Z" />
+                                <circle cx="8" cy="8" r="1.8" fill="currentColor" stroke="none" />
+                              </svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+                                <path d="M2 12 14 4" />
+                                <path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8s-2.5 4.5-6.5 4.5S1.5 8 1.5 8Z" opacity="0.55" />
+                              </svg>
+                            )}
+                          </button>
+                          {/* Expand arrow ▶ / ▼ */}
+                          <button
+                            type="button"
+                            className={cn(
+                              'w-[10px] h-[14px] flex items-center justify-center text-[9px] leading-none',
+                              selected ? 'text-white' : 'text-win-text'
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedStackItems((prev) => ({ ...prev, [m.id]: !prev[m.id] }));
+                            }}
+                            title={expanded ? 'Collapse' : 'Expand'}
+                          >
+                            {expanded ? '▼' : '▶'}
+                          </button>
                           <span className="flex-1 truncate">{m.type}</span>
                         </div>
                       );
                     })}
-                    {/* Base object row */}
+                    {/* Base object row — no eye/arrow, matches 3ds Max */}
                     <div
                       className={cn(
-                        'flex items-center gap-1 h-[20px] px-1 text-[11px] font-semibold text-win-text cursor-pointer',
-                        selectedStackItem === 'base' ? 'bg-win-highlight text-white' : 'hover:bg-win-face-shadow/40'
+                        'flex items-center gap-[3px] h-[18px] px-[2px] text-[11px] cursor-pointer',
+                        selectedStackItem === 'base'
+                          ? 'bg-win-highlight text-white'
+                          : 'text-win-text hover:bg-win-face-shadow/40'
                       )}
                       onClick={() => setSelectedStackItem('base')}
                     >
-                      <span className="w-3" />
+                      <span className="w-[14px]" />
+                      <span className="w-[10px]" />
                       <span className="flex-1 truncate">{baseLabel}</span>
                     </div>
                   </div>
