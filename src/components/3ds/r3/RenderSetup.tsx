@@ -324,10 +324,71 @@ export const RenderSetup = ({
             <label className="flex items-center gap-1"><input type="checkbox" />{label('Lock')}</label>
           </div>
         </GroupBox>
+        <GroupBox title="Animation Output">
+          <Row label="Format:" labelWidth={54}>
+            <select
+              value={videoFormat}
+              onChange={(e) => setVideoFormat(e.target.value as VideoFormat)}
+              className="bevel-inset bg-white text-[11px] h-[18px]"
+              style={{ width: 90 }}
+              disabled={timeMode === 'single'}
+            >
+              <option value="mp4">MP4</option>
+              <option value="webm">WebM</option>
+              <option value="webp">WebP</option>
+            </select>
+          </Row>
+          <Row label="FPS:" labelWidth={54}>
+            <Spinner value={videoFps} onChange={setVideoFps} min={1} max={120} width={56} />
+          </Row>
+          {rendering && (
+            <div className="text-[10px] text-muted-foreground mt-1">
+              Rendering frame {progress.done} / {progress.total}…
+            </div>
+          )}
+        </GroupBox>
         <div className="flex flex-col gap-1">
-          <R3Button width={100} onClick={() => { onRender?.(); onOpenChange(false); }}>Render</R3Button>
+          <R3Button
+            width={100}
+            onClick={async () => {
+              if (rendering) return;
+              // Single frame → open Quick Render preview (existing behavior).
+              if (timeMode === 'single') { onRender?.(); onOpenChange(false); return; }
+              if (!setCurrentFrame) {
+                toast.error('Animation render not available in this context');
+                return;
+              }
+              // Determine frame range.
+              let from = 0;
+              let to = totalFrames;
+              if (timeMode === 'range') { from = Math.min(rangeFrom, rangeTo); to = Math.max(rangeFrom, rangeTo); }
+              if (timeMode === 'frames') { from = 0; to = totalFrames; } // simple fallback
+
+              setRendering(true);
+              setProgress({ done: 0, total: 0 });
+              const toastId = toast.loading('Rendering animation…');
+              try {
+                const blob = await renderAnimation({
+                  from, to, step: Math.max(1, everyNth),
+                  width, height, fps: videoFps, format: videoFormat,
+                  engine,
+                  setFrame: setCurrentFrame,
+                  onProgress: (done, total) => setProgress({ done, total }),
+                });
+                downloadBlob(blob, suggestFilename(blob, videoFormat));
+                toast.success('Animation rendered', { id: toastId });
+              } catch (e: any) {
+                console.error('Animation render failed', e);
+                toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
+              } finally {
+                setRendering(false);
+              }
+            }}
+          >
+            {rendering ? 'Rendering…' : 'Render'}
+          </R3Button>
           <R3Button width={100} onClick={() => onOpenChange(false)}>Close</R3Button>
-          <R3Button width={100}>Cancel</R3Button>
+          <R3Button width={100} onClick={() => onOpenChange(false)}>Cancel</R3Button>
         </div>
       </div>
     </R3Dialog>
