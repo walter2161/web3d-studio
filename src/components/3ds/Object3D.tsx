@@ -31,16 +31,13 @@ interface MapPayload {
 }
 function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Texture | null {
   return useMemo(() => {
-    // eslint-disable-next-line no-console
-    console.log('[useBitmapTexture]', payload ? `has payload url=${!!payload.url} file=${payload.filename}` : 'no payload');
     if (!payload?.url) return null;
-    console.log('[useBitmapTexture] loading', payload.filename);
     const loader = new THREE.TextureLoader();
     const tex = loader.load(
       payload.url,
-      (t) => { console.log('[useBitmapTexture] LOADED', payload.filename, t.image?.width, t.image?.height); t.needsUpdate = true; },
+      (t) => { t.needsUpdate = true; },
       undefined,
-      (err) => { console.error('[useBitmapTexture] FAILED', payload.filename, err); },
+      (err) => { console.warn('[bitmap] failed to load', payload.filename, err); },
     );
     const wrapU = payload.mirrorU ? THREE.MirroredRepeatWrapping : (payload.tileU === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping);
     const wrapV = payload.mirrorV ? THREE.MirroredRepeatWrapping : (payload.tileV === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping);
