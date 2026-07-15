@@ -984,7 +984,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
         {/* Frustum wireframe pyramid when selected */}
         {isSelected && (
           <group userData={{ __helper: true }} position={[0, 0, -1.5]}>
-            <mesh userData={{ __helper: true }} rotation={[Math.PI / 2 + Math.PI / 4, 0, 0]}>
+            <mesh userData={{ __helper: true }} rotation={[Math.PI / 2, Math.PI / 4, 0]}>
               <coneGeometry args={[1.2, 3, 4, 1, true]} />
               <meshBasicMaterial color="#ffcc00" wireframe transparent opacity={0.6} />
             </mesh>
