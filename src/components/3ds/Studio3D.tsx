@@ -665,6 +665,9 @@ export const Studio3D = () => {
         ? { ...obj, cameraData: { ...(obj.cameraData || {}), ...params } }
         : obj
     ));
+  }, []);
+
+
 
 
   const updateObjectColor = useCallback((objectId: string, color: string) => {
