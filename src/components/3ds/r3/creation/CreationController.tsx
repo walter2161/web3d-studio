@@ -338,6 +338,34 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
+      if (wallRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (wallRef.pts.length === 0) {
+          // First corner + live preview.
+          wallRef.pts.push(p.clone(), p.clone());
+        } else {
+          const first = wallRef.pts[0];
+          const camDist = camera.position.distanceTo(first);
+          const tol = Math.max(0.05, camDist * 0.02);
+          if (wallRef.pts.length >= 3 && p.distanceTo(first) < tol) {
+            wallRef.pts[wallRef.pts.length - 1].copy(first);
+            commitWall(true);
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          // Commit preview corner, add new preview at the same spot.
+          wallRef.pts[wallRef.pts.length - 1].copy(p);
+          wallRef.pts.push(p.clone());
+        }
+        setGhost(buildWallGhost(wallRef.pts, false));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+
       if (lineRef) {
         const p = raycastBase(e);
         if (!p) return;
