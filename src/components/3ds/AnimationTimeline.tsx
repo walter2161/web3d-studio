@@ -176,6 +176,22 @@ export const AnimationTimeline = ({
             onClick={() => onFrameChange(totalFrames)}>
             <SkipForward className="w-3 h-3" />
           </Button>
+          {onToggleLoopPlayback && (
+            <Button
+              size="sm"
+              variant={loopPlayback ? 'default' : 'outline'}
+              title={loopPlayback ? 'Loop Playback: ON' : 'Loop Playback: OFF'}
+              className={cn(
+                "h-7 w-7 p-0 border-panel-border",
+                loopPlayback
+                  ? "bg-primary hover:bg-primary/80 text-primary-foreground"
+                  : "bg-secondary hover:bg-menu-hover"
+              )}
+              onClick={onToggleLoopPlayback}
+            >
+              <Repeat className="w-3 h-3" />
+            </Button>
+          )}
         </div>
 
         {/* Frame Counter */}
