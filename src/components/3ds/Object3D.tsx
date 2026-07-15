@@ -917,6 +917,24 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </lineSegments>
       )}
 
+      {/* Sub-object overlay — Vertex/Edge/Border/Face/Polygon/Element display
+          for Edit Poly / Edit Mesh. Follows mesh transform automatically. */}
+      {(() => {
+        if (isGhost || !isSelected) return null;
+        const editMod = (object as any).modifiers?.find(
+          (m: any) => m.active && (m.type === 'Edit Poly' || m.type === 'Edit Mesh')
+        );
+        if (!editMod) return null;
+        const level = ((editMod.params?.selectionLevel ?? 'vertex') as string).toLowerCase() as SubObjectLevel;
+        const selectedIds = new Set<number>(editMod.params?.selectedIds ?? []);
+        return (
+          <SubObjectOverlay
+            geometry={modifiedGeometry}
+            level={level}
+            selectedIds={selectedIds}
+          />
+        );
+      })()}
     </mesh>
 
   );
