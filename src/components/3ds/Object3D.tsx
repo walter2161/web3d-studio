@@ -932,7 +932,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
             geometry={modifiedGeometry}
             level={level}
             selectedIds={selectedIds}
+            objectId={object.id}
+            modifierId={editMod.id}
           />
+
         );
       })()}
     </mesh>
