@@ -51,10 +51,15 @@ function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Text
 function MaterialWithMaps({
   material, color, renderMode, isGhost,
 }: { material: any; color: string; renderMode: string; isGhost: boolean }) {
-  const map = useBitmapTexture(material?.map, true);
-  const bumpMap = useBitmapTexture(material?.bumpMap);
-  const opacityMap = useBitmapTexture(material?.opacityMap);
-  const emissiveMap = useBitmapTexture(material?.emissiveMap, true);
+  const showMaps = renderMode === 'textured';
+  const rawMap = useBitmapTexture(material?.map, true);
+  const rawBump = useBitmapTexture(material?.bumpMap);
+  const rawOpacity = useBitmapTexture(material?.opacityMap);
+  const rawEmissive = useBitmapTexture(material?.emissiveMap, true);
+  const map = showMaps ? rawMap : null;
+  const bumpMap = showMaps ? rawBump : null;
+  const opacityMap = showMaps ? rawOpacity : null;
+  const emissiveMap = showMaps ? rawEmissive : null;
   const baseOpacity = material?.opacity ?? 1;
   const transparent = renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || baseOpacity < 1 || !!opacityMap;
   const opacity = isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (renderMode === 'semi-transparent' ? 0.5 : baseOpacity));
