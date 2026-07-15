@@ -62,6 +62,8 @@ export const AnimationTimeline = ({
   onToggleTrajectory,
   onSelectKeyframe,
   selectedKeyframe,
+  loopPlayback = false,
+  onToggleLoopPlayback,
 }: AnimationTimelineProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
