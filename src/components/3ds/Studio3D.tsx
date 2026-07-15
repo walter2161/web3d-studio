@@ -441,7 +441,7 @@ export const Studio3D = () => {
     const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'];
     const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
     const shapes = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
-    const aec = ['wall'];
+    const aec = ['wall', 'door', 'window'];
     const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
     const camTypes   = ['camera_target', 'camera_free'];
 
@@ -553,6 +553,10 @@ export const Studio3D = () => {
           justification: 'center',
           closed: false,
         };
+      } else if (type === 'door') {
+        defaultGeometry = { subtype: 'pivot', width: 0.9, height: 2.1, thickness: 0.04, frameDepth: 0.2, frameSize: 0.05, openPercentage: 0 };
+      } else if (type === 'window') {
+        defaultGeometry = { subtype: 'casement', width: 1.2, height: 1.2, frameThickness: 0.05, glassThickness: 0.01, frameDepth: 0.2, sillHeight: 1.0, openPercentage: 0 };
       } else {
         defaultGeometry = {};
       }
@@ -603,7 +607,11 @@ export const Studio3D = () => {
         ? '#f2c744'
         : g.type === 'wall'
           ? '#c9bfae'
-          : randomMaxColor(),
+          : g.type === 'door'
+            ? '#8b5a2b'
+            : g.type === 'window'
+              ? '#a8c8e0'
+              : randomMaxColor(),
 
       visible: true,
       locked: false,
@@ -1031,6 +1039,68 @@ export const Studio3D = () => {
   }, []);
 
   const importModel = useCallback(async (file: File) => {
+    const nameLc = file.name.toLowerCase();
+
+    // DWG is proprietary Autodesk binary — cannot parse in-browser. Ask the
+    // user to convert to DXF (any free CAD tool does this).
+    if (nameLc.endsWith('.dwg')) {
+      toast.error('DWG não é suportado diretamente. Converta para DXF (LibreCAD, ODA File Converter ou o conversor online da Autodesk) e importe o .dxf.', { duration: 8000 });
+      return;
+    }
+
+    // DXF → creates parametric Wall objects from LINE / POLYLINE entities.
+    if (nameLc.endsWith('.dxf')) {
+      const loadingId = toast.loading(`Parsing ${file.name}...`);
+      try {
+        const { parseDxfFile } = await import('./utils/dxfImport');
+        const result = await parseDxfFile(file);
+        if (result.walls.length === 0) {
+          toast.dismiss(loadingId);
+          toast.error('Nenhuma LINE / POLYLINE encontrada no DXF.');
+          return;
+        }
+        saveState();
+        const now = Date.now();
+        const newObjs: Object3DData[] = result.walls.map((w, i) => ({
+          id: `wall_dxf_${now}_${i}`,
+          name: (w.layer ? `${w.layer}_` : 'DXF_') + `wall${i + 1}`,
+          type: 'wall' as any,
+          position: w.position,
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: '#c9bfae',
+          visible: true,
+          locked: false,
+          modifiers: [],
+          geometry: {
+            path: w.path,
+            width: 0.2,
+            height: 2.7,
+            justification: 'center',
+            closed: w.closed,
+          },
+          ref: { current: null } as any,
+        }));
+        setObjects((prev) => [...prev, ...newObjs]);
+        setSelectedObject(newObjs[0]?.id ?? null);
+        toast.dismiss(loadingId);
+        const bx = result.bounds.max[0] - result.bounds.min[0];
+        const by = result.bounds.max[1] - result.bounds.min[1];
+        const ignoredNote = Object.keys(result.ignoredEntities).length > 0
+          ? ` Ignorado: ${Object.entries(result.ignoredEntities).map(([k, v]) => `${k}×${v}`).join(', ')}.`
+          : '';
+        toast.success(
+          `DXF importado: ${result.walls.length} parede(s), ${bx.toFixed(1)}×${by.toFixed(1)}m (units: ${result.units}).${ignoredNote}`,
+          { duration: 7000 },
+        );
+      } catch (err: any) {
+        toast.dismiss(loadingId);
+        console.error('DXF import failed:', err);
+        toast.error(`DXF falhou: ${err?.message || 'unknown error'}`);
+      }
+      return;
+    }
+
     const loadingId = toast.loading(`Importing ${file.name}...`);
     try {
       const { importModelFile, setImportedModel } = await import('./utils/modelImport');

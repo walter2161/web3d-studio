@@ -49,6 +49,7 @@ const STAGES: Record<CreatableTool, number> = {
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
   wall: 1, // multi-click, handled by dedicated branch below
+  door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
 };
 
 function buildGhost(
@@ -174,6 +175,44 @@ function buildGhost(
       setBase(baseAxes[1], start[baseAxes[1]]);
       setH(start[heightAxis]);
       geometry = { ...geometry, text: 'LEDMKT', font: 'helvetiker', bold: false, size, kerning: 0, curveSegments: 6 };
+      break;
+    }
+    case 'door':
+    case 'window': {
+      // Same drag flow as Box: stage 0 sets the width × depth footprint,
+      // stage 1 sets the height. Object grows up from the base plane so its
+      // pivot sits on the floor (matches 3ds Max AEC convention).
+      let w: number, d: number, cA: number, cB: number;
+      if (stage === 0) {
+        w = Math.max(0.05, Math.abs(dBaseA));
+        d = Math.max(0.02, Math.abs(dBaseB));
+        cA = start[baseAxes[0]] + dBaseA / 2;
+        cB = start[baseAxes[1]] + dBaseB / 2;
+      } else {
+        w = prev?.geometry?.width ?? 0.9;
+        d = prev?.geometry?.frameDepth ?? 0.2;
+        const bIdxA = baseAxes[0] === 'x' ? 0 : baseAxes[0] === 'y' ? 1 : 2;
+        const bIdxB = baseAxes[1] === 'x' ? 0 : baseAxes[1] === 'y' ? 1 : 2;
+        cA = prev?.position[bIdxA] ?? 0;
+        cB = prev?.position[bIdxB] ?? 0;
+      }
+      setBase(baseAxes[0], cA);
+      setBase(baseAxes[1], cB);
+      const h = stage >= 1
+        ? Math.max(0.1, Math.abs(dHeight))
+        : (tool === 'door' ? 2.1 : 1.2);
+      // Pivot sits at the base — grow upward from start[heightAxis].
+      setH(start[heightAxis]);
+      geometry = {
+        ...geometry,
+        width: w,
+        frameDepth: d,
+        height: h,
+        openPercentage: 0,
+        ...(tool === 'door'
+          ? { subtype: geometry.subtype ?? 'pivot', thickness: 0.04, frameSize: 0.05 }
+          : { subtype: geometry.subtype ?? 'casement', frameThickness: 0.05, glassThickness: 0.01, sillHeight: 1.0 }),
+      };
       break;
     }
 

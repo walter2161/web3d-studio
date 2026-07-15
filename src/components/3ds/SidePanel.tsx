@@ -157,6 +157,23 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'width',  label: 'Width',  kind: 'float', default: 0.2, min: 0.01, step: 0.05 },
     { key: 'height', label: 'Height', kind: 'float', default: 2.7, min: 0.01, step: 0.1 },
   ],
+  door: [
+    { key: 'width',       label: 'Width',       kind: 'float', default: 0.9, min: 0.1, step: 0.05 },
+    { key: 'height',      label: 'Height',      kind: 'float', default: 2.1, min: 0.1, step: 0.05 },
+    { key: 'frameDepth',  label: 'Frame Depth', kind: 'float', default: 0.2, min: 0.02, step: 0.02 },
+    { key: 'thickness',   label: 'Leaf Thick.', kind: 'float', default: 0.04, min: 0.005, step: 0.01 },
+    { key: 'frameSize',   label: 'Frame Size',  kind: 'float', default: 0.05, min: 0.01, step: 0.01 },
+    { key: 'openPercentage', label: 'Open %',   kind: 'float', default: 0, min: 0, step: 0.05 },
+  ],
+  window: [
+    { key: 'width',           label: 'Width',        kind: 'float', default: 1.2, min: 0.1, step: 0.05 },
+    { key: 'height',          label: 'Height',       kind: 'float', default: 1.2, min: 0.1, step: 0.05 },
+    { key: 'frameDepth',      label: 'Frame Depth',  kind: 'float', default: 0.2, min: 0.02, step: 0.02 },
+    { key: 'frameThickness',  label: 'Frame Thick.', kind: 'float', default: 0.05, min: 0.005, step: 0.01 },
+    { key: 'glassThickness',  label: 'Glass Thick.', kind: 'float', default: 0.01, min: 0.002, step: 0.005 },
+    { key: 'sillHeight',      label: 'Sill Height',  kind: 'float', default: 1.0, min: 0, step: 0.05 },
+    { key: 'openPercentage',  label: 'Open %',       kind: 'float', default: 0, min: 0, step: 0.05 },
+  ],
 };
 
 import {
@@ -267,8 +284,8 @@ export const SidePanel = ({
   // implementado hoje; os demais ficam listados como "em breve".
   const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
     { type: 'wall',     label: 'Wall' },
-    { type: 'door',     label: 'Doors',    disabled: true },
-    { type: 'window',   label: 'Windows',  disabled: true },
+    { type: 'door',     label: 'Doors' },
+    { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
     { type: 'foliage',  label: 'Foliage',  disabled: true },
@@ -961,6 +978,48 @@ export const SidePanel = ({
                             {numericGrid}
                             <div className="text-[10px] text-muted-foreground leading-tight">
                               Vértices: <span className="font-mono">{pathLen}</span>. Portas/janelas paramétricas com corte automático virão nas próximas fases.
+                            </div>
+                          </div>
+                        );
+                      }
+                      // Door / Window: subtype selector + numeric grid + open slider.
+                      const isDoor = selectedObject.type === 'door';
+                      const isWindow = selectedObject.type === 'window';
+                      if (isDoor || isWindow) {
+                        const subtype = geom.subtype ?? (isDoor ? 'pivot' : 'casement');
+                        const doorSubs = ['pivot', 'bifold', 'sliding', 'pocket'];
+                        const winSubs  = ['casement', 'sliding', 'awning', 'fixed', 'pivot'];
+                        const subs = isDoor ? doorSubs : winSubs;
+                        const openPct = Math.round((geom.openPercentage ?? 0) * 100);
+                        return (
+                          <div className="space-y-2">
+                            <div>
+                              <Label className="text-[10px]">Type</Label>
+                              <select
+                                value={subtype}
+                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { subtype: e.target.value })}
+                                className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1 capitalize"
+                              >
+                                {subs.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {numericGrid}
+                            <div>
+                              <Label className="text-[10px]">Open — {openPct}%</Label>
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={openPct}
+                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { openPercentage: Number(e.target.value) / 100 })}
+                                className="w-full"
+                              />
+                            </div>
+                            <div className="text-[10px] text-muted-foreground leading-tight">
+                              O corte automático da parede aparece quando você aproxima uma porta/janela de uma wall (próxima fase).
                             </div>
                           </div>
                         );
