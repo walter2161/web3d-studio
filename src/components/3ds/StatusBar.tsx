@@ -149,6 +149,16 @@ export const StatusBar = ({
         <div className="ml-1 bevel-sunken bg-white h-[18px] px-1 flex items-center min-w-[46px] text-[11px] font-mono">
           {currentFrame}/{totalFrames}
         </div>
+
+        {onToggleLoopPlayback && (
+          <Tool
+            title={loopPlayback ? 'Loop Playback: ON' : 'Loop Playback: OFF'}
+            onClick={onToggleLoopPlayback}
+            active={loopPlayback}
+          >
+            <Repeat size={12} />
+          </Tool>
+        )}
       </div>
 
       {/* Viewport navigation cluster (right) */}
