@@ -430,6 +430,7 @@ const ViewportRegistrar = ({ vkey, isActive }: { vkey: string; isActive: boolean
       (window as any).__orbitControls = controls;
       (window as any).__activeOrbitControls = controls;
     }
+    if (isActive) (window as any).__r3Scene = scene;
   });
   useEffect(() => {
     registerViewport(vkey, { gl, scene, camera, controls: (state as any).controls });
