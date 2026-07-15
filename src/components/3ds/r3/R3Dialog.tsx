@@ -74,9 +74,11 @@ export const R3Dialog = ({ open, onClose, title, width = 480, children, initialP
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
       <div
+        ref={winRef}
         className="absolute pointer-events-auto bevel-raised bg-win-face shadow-lg"
         style={{ left: pos?.x ?? 0, top: pos?.y ?? 0, width }}
       >
+
         {/* Title bar */}
         <div
           className="h-[18px] flex items-center justify-between px-1 select-none cursor-move"
