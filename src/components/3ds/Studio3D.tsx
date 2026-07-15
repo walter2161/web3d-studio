@@ -1440,6 +1440,7 @@ export const Studio3D = () => {
           .filter((o) => o.type === 'camera_target' || o.type === 'camera_free')
           .map((o) => ({ id: o.id, name: o.name || o.type }))}
         getObjects={() => objectsRef.current}
+        activeViewportCameraId={viewportCameras[activeViewport] ?? null}
       />
       <EnvironmentDialog open={environmentOpen} onOpenChange={setEnvironmentOpen} />
       <ViewImageFile open={viewImageOpen} onOpenChange={setViewImageOpen} />

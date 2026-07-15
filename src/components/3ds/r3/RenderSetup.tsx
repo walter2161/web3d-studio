@@ -21,6 +21,9 @@ interface RenderSetupProps {
   /** Returns the live objects array — used by the animation renderer to
    *  read the animated camera / target pose at each frame. */
   getObjects?: () => any[];
+  /** Camera currently active in the perspective viewport (if any). Used as
+   *  the default selection when the Render Scene dialog opens. */
+  activeViewportCameraId?: string | null;
 }
 
 type Tab = 'Common' | 'Renderer' | 'Raytracer' | 'Advanced Lighting';
@@ -41,7 +44,7 @@ const VIEWPORT_CAM_ID = '__viewport__';
 
 export const RenderSetup = ({
   open, onOpenChange, onRender, currentFrame = 0, totalFrames = 100, setCurrentFrame,
-  cameras = [], getObjects,
+  cameras = [], getObjects, activeViewportCameraId = null,
 }: RenderSetupProps) => {
   const { engine, setEngine } = useRenderEngine();
   const [tab, setTab] = useState<Tab>('Common');
@@ -71,6 +74,20 @@ export const RenderSetup = ({
       setPreviewBlob(null);
     }
   }, [open]);
+
+  // When the dialog opens, default the "View to Render" picker to whatever
+  // camera the active viewport is currently looking through. If none, use the
+  // orbit view. Users can still change it via the dropdowns.
+  useEffect(() => {
+    if (!open) return;
+    if (activeViewportCameraId && cameras.some((c) => c.id === activeViewportCameraId)) {
+      setRenderCameraId(activeViewportCameraId);
+    } else {
+      setRenderCameraId(VIEWPORT_CAM_ID);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activeViewportCameraId]);
+
 
 
   // Renderer tab options
@@ -110,6 +127,28 @@ export const RenderSetup = ({
       <div className="bevel-inset bg-win-face p-2 space-y-2" style={{ minHeight: 380 }}>
         {tab === 'Common' && (
           <>
+            <GroupBox title="View to Render">
+              <Row label="Camera / View:" labelWidth={90}>
+                <select
+                  value={renderCameraId}
+                  onChange={(e) => setRenderCameraId(e.target.value)}
+                  className="bevel-inset bg-white text-[11px] h-[18px]"
+                  style={{ width: 300 }}
+                >
+                  <option value={VIEWPORT_CAM_ID}>Active Viewport (orbit)</option>
+                  {cameras.map((c) => (
+                    <option key={c.id} value={c.id}>Camera: {c.name}</option>
+                  ))}
+                </select>
+              </Row>
+              <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
+                {cameras.length === 0
+                  ? 'No scene cameras yet — create a Target/Free camera to render through it.'
+                  : renderCameraId === VIEWPORT_CAM_ID
+                  ? 'Renders through the current perspective orbit view.'
+                  : 'Renders through the selected camera and follows its animated path across the timeline.'}
+              </div>
+            </GroupBox>
             <GroupBox title="Time Output">
               <div className="space-y-[2px]">
                 <label className="flex items-center gap-1">
@@ -336,25 +375,8 @@ export const RenderSetup = ({
 
       {/* Bottom bar */}
       <div className="mt-2 flex items-end gap-2">
-        <GroupBox title="View to Render" className="flex-1">
-          <Row label="Source:" labelWidth={54}>
-            <select
-              value={renderCameraId}
-              onChange={(e) => setRenderCameraId(e.target.value)}
-              className="bevel-inset bg-white text-[11px] h-[18px] flex-1"
-            >
-              <option value={VIEWPORT_CAM_ID}>Active Viewport (Perspective)</option>
-              {cameras.map((c) => (
-                <option key={c.id} value={c.id}>Camera: {c.name}</option>
-              ))}
-            </select>
-          </Row>
-          <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
-            {renderCameraId === VIEWPORT_CAM_ID
-              ? 'Renders through the current orbit view.'
-              : 'Renders through the selected scene camera, following its animated path.'}
-          </div>
-        </GroupBox>
+        <div className="flex-1" />
+
         <GroupBox title="Animation Output">
           <Row label="Format:" labelWidth={54}>
             <select
