@@ -440,8 +440,45 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
   function applyExtrude(objectType: string | undefined, geom: any, params: any): BufferGeometry | null {
     if (!objectType || !geom) return null;
+
+    // Text is a shape composed of many sub-splines (one per glyph, each with
+    // its own holes for letter counters). We build ExtrudeGeometry directly
+    // from the font's shapes so O/B/D/e/a/o keep their interior cutouts.
+    if (objectType === 'text') {
+      const shapes = buildTextShapes(
+        geom.text ?? 'Text',
+        geom.font ?? 'helvetiker',
+        !!geom.bold,
+        geom.size ?? 1,
+        geom.kerning ?? 0,
+        geom.curveSegments ?? 6,
+      );
+      if (!shapes.length) return null;
+      const amount = params.amount ?? 0.2;
+      const segments = Math.max(1, Math.floor(params.segments ?? 1));
+      const bevelEnabled = !!params.bevelEnabled;
+      const extrGeo = new THREE.ExtrudeGeometry(shapes, {
+        depth: amount,
+        steps: segments,
+        bevelEnabled,
+        bevelThickness: params.bevelThickness ?? Math.min(0.05, amount * 0.1),
+        bevelSize: params.bevelSize ?? Math.min(0.03, amount * 0.05),
+        bevelSegments: Math.max(1, Math.floor(params.bevelSegments ?? 2)),
+        curveSegments: geom.curveSegments ?? 6,
+      });
+      // Match the flat-text preview (XZ ground plane, extrusion along +Y).
+      extrGeo.rotateX(-Math.PI / 2);
+      extrGeo.computeBoundingBox();
+      const bb = extrGeo.boundingBox!;
+      const cx = (bb.min.x + bb.max.x) / 2;
+      const cz = (bb.min.z + bb.max.z) / 2;
+      extrGeo.translate(-cx, 0, -cz);
+      return smoothExtrudeSides(extrGeo);
+    }
+
     const outline = getShapeOutline(objectType, geom);
     if (!outline || outline.pts3.length < 3) return null;
+
 
     const amount = params.amount ?? 1;
     const segments = Math.max(1, Math.floor(params.segments ?? 1));
