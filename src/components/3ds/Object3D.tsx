@@ -4,6 +4,7 @@ import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as Three
 import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
+import { buildWall } from './utils/aecGeometry';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SubObjectOverlay } from './editable/SubObjectOverlay';
 import type { SubObjectLevel } from './editable/EditableMesh';
@@ -373,6 +374,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const shapes: ShapeType[] = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix', 'text'];
     if (shapes.includes(type as ShapeType)) {
       return buildShape(type as ShapeType, geom);
+    }
+    // AEC Extended
+    if (type === 'wall') {
+      return buildWall(geom);
     }
 
     switch (type) {

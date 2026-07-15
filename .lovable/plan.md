@@ -1,92 +1,83 @@
-# Edit Mesh / Edit Poly funcionais — Plano em fases
+## AEC Extended — Objetos de Arquitetura Paramétricos
 
-Objetivo: sub-objeto real (Vertex/Edge/Border/Face/Polygon/Element), com seleção no viewport, gizmos, e todas as operações do painel Modify agindo sobre a malha do objeto — mantendo o stack de modificadores não-destrutivo (Edit Mesh/Poly grava operações que reconstroem o `BufferGeometry` acima do objeto base).
+Adicionar a categoria **AEC Extended** ao painel Create/Geometry com objetos paramétricos: Wall, Door, Window, Stairs, Railing e Foliage. Portas e janelas cortam a parede automaticamente e de forma **não-destrutiva**.
 
-Entrego uma fase por vez. Você aprova/testa, seguimos.
+Dado o tamanho, entrego em **fases**. Cada fase é utilizável ao final.
 
 ---
 
-## Arquitetura comum (base para todas as fases)
+### Fase 1 — Fundação: Wall (parede paramétrica)
 
-Nova camada em `src/components/3ds/editable/`:
+- Adicionar categoria `aec` no `SidePanel` (Create → Geometry) com os 6 botões (Wall / Doors / Windows / Stairs / Railing / Foliage).
+- Novo tipo `wall` com dados: `path: Vec3[]`, `width`, `height`, `justification: 'left'|'center'|'right'`, `closed`, `openings: WallOpening[]` (vazio nesta fase).
+- Fluxo de criação (via `CreationController`): clique-a-clique idêntico ao Line — clique adiciona vértice, ESC/botão-direito finaliza. Preview ao vivo com espessura + altura.
+- Geometria: para cada segmento do path, gerar um "box extrudado" ao longo do segmento com `width` e `height` respeitando `justification`. Cantos com miter join (interseção dos planos laterais adjacentes) para evitar sobreposição.
+- Parâmetros no painel Modify: `width`, `height`, `justification`, checkbox Closed.
+- Vértices editáveis: usar o mesmo padrão dos handles bezier de trajetória — âncoras arrastáveis no viewport quando um modo "Vertex" da wall estiver ativo no painel Modify. Mover vértice recalcula a mesh.
 
+### Fase 2 — Door e Window paramétricos (sem corte ainda)
+
+- Tipos `door` e `window` com subtipos:
+  - Door: `pivot`, `bifold`, `sliding`, `pocket`
+  - Window: `casement`, `sliding`, `awning`, `fixed`, `pivot`
+- Parâmetros: `width`, `height`, `thickness`, `frameDepth`, `openPercentage` (door); `frameThickness`, `glassThickness`, `openPercentage`, `sillHeight` (window).
+- Criação em 3 cliques (largura → profundidade → altura), como no 3ds Max.
+- Geometria gerada em TypeScript (batente + folha/vidro) com `openPercentage` animando a rotação/deslocamento da folha.
+
+### Fase 3 — Snap arquitetônico + Wall Opening não-destrutivo
+
+- Ao arrastar uma door/window com uma wall próxima, fazer raycast contra os segmentos da wall:
+  - Se distância < threshold → mostrar preview verde e "prender" à parede.
+  - Ao soltar, criar vínculo `parentWallId` na door/window e um registro `WallOpening { doorId, tAlong, width, height, elevation }` no array `openings` da wall.
+- Wall rebuild ignora regiões cobertas por openings ativos: gera a mesh com dois "tocos" acima/abaixo e nas laterais da abertura, mais o lintel e o parapeito. Corte é puramente paramétrico (rebuild da mesh a cada mudança), sem CSG.
+- Se a door/window for deletada ou desanexada, a opening é removida e a parede volta ao normal.
+- Door/Window vinculada trava a rotação para a normal do segmento e o movimento fica restrito ao eixo do segmento (translação `tAlong`) + altura.
+
+### Fase 4 — Stairs, Railing, Foliage (versão simples)
+
+- **Stairs** (straight): `width`, `totalHeight`, `steps`, `riser` e `tread` derivados; gera degraus como boxes.
+- **Railing**: posts + top rail + bottom rail ao longo de um path (parâmetros: `postSpacing`, `postHeight`, `railCount`).
+- **Foliage**: 3-4 presets simples (árvore genérica, arbusto, palmeira, pinheiro) — mesh procedural simplificada (tronco cilíndrico + copa esférica/cônica).
+
+---
+
+### Detalhes técnicos
+
+**Onde entra no código**
+- `src/components/3ds/utils/aecGeometry.ts` (novo): builders `buildWall`, `buildDoor`, `buildWindow`, `buildStairs`, `buildRailing`, `buildFoliage`.
+- `src/components/3ds/Object3D.tsx`: reconhecer novos tipos e chamar builders (análogo ao ramo `shapes`).
+- `src/components/3ds/SidePanel.tsx`: categoria `aec` com os botões + painéis de parâmetros em Modify.
+- `src/components/3ds/r3/creation/CreationController.tsx`: fluxos de criação (Wall = multi-clique tipo Line; Door/Window = 3 cliques com preview).
+- `src/components/3ds/Studio3D.tsx`: expor `openings`/`parentWall` no estado dos objetos e um efeito que reconstrói a wall quando a lista de openings, uma door/window vinculada, ou parâmetros da wall mudam.
+
+**Estrutura de dados (resumida)**
 ```text
-editable/
-  EditableMesh.ts       // estrutura half-edge-ish: vertices[], edges[], faces[] (tris ou n-gons)
-  fromGeometry.ts       // BufferGeometry -> EditableMesh
-  toGeometry.ts         // EditableMesh -> BufferGeometry (com groups p/ material IDs + smoothing)
-  ops/                  // uma função pura por operação (extrude, bevel, weld, chamfer, ...)
-  selection.ts          // Set<vId|eId|fId> + shrink/grow/ring/loop
+Wall.geometry = {
+  path: [x,y,z][],
+  width, height,
+  justification: 'left'|'center'|'right',
+  closed: boolean,
+  openings: [{ id, ownerId, segIndex, tAlong, width, height, elevation }]
+}
+Door.geometry = { subtype, width, height, thickness, frameDepth, openPct, parentWallId? }
+Window.geometry = { subtype, width, height, frameThickness, glassThickness, openPct, sillHeight, parentWallId? }
 ```
 
-- `Edit Poly` = n-gons preservados.
-- `Edit Mesh` = mesma estrutura, mas `toGeometry` força triangulação e Vertex/Face/Polygon/Element (sem Edge/Border como sub-objetos primários — Edge só em versões tardias).
-- O modifier guarda: `{ selectionLevel, selection: id[], ops: OpRecord[], smoothingGroups, materialIds }`. `ops` é replayed em cima do input geometry — assim continua não-destrutivo.
+**Rebuild não-destrutivo (Fase 3)**
+Para cada segmento da wall, gerar tiras horizontais em Y=[0, elevation], Y=[elevation, elevation+height], Y=[elevation+height, wall.height] nas regiões cobertas pela opening; fora da opening a tira ocupa Y=[0, wall.height]. Isso mantém o corte reativo e removível.
 
-Integração com o pipeline atual: em `Object3D.tsx`, quando o topo do stack (ou o modifier atualmente selecionado) é Edit Mesh/Poly, o viewport passa a renderizar a geometry resultante e habilita picking de sub-objeto.
-
----
-
-## Fase 1 — Infra + Seleção (ENTREGA AGORA nesta resposta? não: só planejo)
-
-- `EditableMesh` + conversores.
-- Overlay de sub-objeto no viewport: pontos p/ Vertex, linhas p/ Edge/Border, faces destacadas p/ Face/Polygon/Element.
-- Picking por raycaster respeitando `selectionLevel`.
-- Ignore Backfacing, By Vertex, By Angle, Shrink/Grow/Ring/Loop, Get Stack Selection.
-- Soft Selection (falloff/pinch/bubble) calculada e visualizada por gradiente de cor.
-- Botão "Show End Result" e "Pin Stack" ligados de verdade.
-
-## Fase 2 — Edit Geometry básico (mais usado)
-
-- Move/Rotate/Scale de sub-objeto usando os gizmos existentes.
-- Delete, Detach (→ novo objeto ou elemento), Attach (picker de outro objeto na cena).
-- Create (vertex/face), Collapse (weld por seleção), Break, Weld (threshold), Chamfer (vertex/edge).
-- Flip Normals, Unify Normals.
-- Hide Selected / Unhide All / Hide Unselected.
-
-## Fase 3 — Edit Polygons / Faces
-
-- Extrude (Group / Local Normal / By Polygon, height + interativo).
-- Bevel (height + outline).
-- Inset (Group / By Polygon).
-- Outline.
-- Bridge (2 seleções de face/edge/border).
-- Hinge From Edge, Extrude Along Spline.
-- Insert Vertex, Edit Triangulation, Retriangulate, Turn (Edit Mesh).
-
-## Fase 4 — Cortes e subdivisão
-
-- Slice Plane + Slice / Reset Plane / Split.
-- QuickSlice, Cut.
-- MSmooth (peso), Tessellate (edge/face-center), Divide.
-- Make Planar (X/Y/Z), View Align, Grid Align, Relax.
-
-## Fase 5 — Material IDs + Smoothing Groups + Named Selections
-
-- Painel Material IDs: Set ID / Select ID / Clear + `geometry.groups` reais por ID.
-- Smoothing Groups: matriz 1..32, Auto Smooth (threshold), Clear All, Select By SG. `computeVertexNormals` respeitando SG.
-- Named Selection Sets: Copy/Paste entre modificadores.
-
-## Fase 6 — Polimento
-
-- Constraints (Edge/Face/Normal) aplicadas durante transform de sub-objeto.
-- Preserve UVs.
-- Preview Selection (SubObj / Multi).
-- Undo/Redo por operação dentro do modifier.
-- Persistência: `ops[]` salva/carrega no arquivo do projeto.
+**Snap arquitetônico**
+Enquanto uma door/window está selecionada e sendo movida, projetar seu centro sobre o segmento de wall mais próximo dentro de `snapRadius` (config); se houver, aplicar transform corrigido e destacar a wall.
 
 ---
 
-## Detalhe técnico (para referência)
+### Fora do escopo (para depois)
 
-- Sem libs externas: escrevo half-edge minimalista em TS. Já temos three.js.
-- `toGeometry` produz um único `BufferGeometry` com `groups` = material IDs e `attributes.normal` calculado por smoothing group.
-- Overlay de sub-objeto = `Points` + `LineSegments` + `Mesh` com `depthTest` reduzido, filhos do próprio objeto para seguir transformações.
-- Gizmo reusa `TransformControls` atual, mas anexado a um `Object3D` proxy centrado na seleção; ao arrastar, aplico o delta a cada vId selecionado (com pesos de soft selection).
-- Cada operação = função pura `(mesh, selection, params) => { mesh, selection }`, gravada em `ops[]` do modifier — reexecutada quando parâmetros abaixo no stack mudam.
+- BIM real, IFC, DXF import/export.
+- Escadas em L / U / espiral (só straight na Fase 4).
+- Múltiplas paredes cortando-se entre si com T-junction avançado (miter simples só).
+- Portas/janelas em paredes curvas (só segmentos retos na Fase 3).
 
 ---
 
-## Próximo passo
-
-Ao aprovar, começo pela **Fase 1** (infra + seleção de sub-objetos no viewport com Soft Selection e Shrink/Grow/Ring/Loop). É a base sem a qual nenhum botão das outras fases faz sentido.
+Confirma este plano? Posso começar pela **Fase 1 (Wall + criação + edição de vértices)** já em seguida. As Fases 2 e 3 são as mais trabalhosas — se quiser reduzir o escopo inicial, sugiro entregar Fase 1 e Fase 3 (corte não-destrutivo) juntas com door/window básica (só `pivot`/`casement`) e adicionar os outros subtipos e Stairs/Railing/Foliage numa iteração seguinte.

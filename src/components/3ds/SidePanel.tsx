@@ -152,6 +152,11 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'kerning', label: 'Kerning', kind: 'float', default: SHAPE_DEFAULTS.text.kerning, step: 0.05 },
     { key: 'curveSegments', label: 'Curve Seg', kind: 'int', default: SHAPE_DEFAULTS.text.curveSegments, min: 1 },
   ],
+  // AEC Extended
+  wall: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: 0.2, min: 0.01, step: 0.05 },
+    { key: 'height', label: 'Height', kind: 'float', default: 2.7, min: 0.01, step: 0.1 },
+  ],
 };
 
 import {
@@ -219,7 +224,7 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -257,6 +262,18 @@ export const SidePanel = ({
     { type: 'text',      label: 'Text' },
     { type: 'helix',     label: 'Helix' },
   ];
+
+  // AEC Extended (Architecture / Engineering / Construction). Só Wall está
+  // implementado hoje; os demais ficam listados como "em breve".
+  const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'wall',     label: 'Wall' },
+    { type: 'door',     label: 'Doors',    disabled: true },
+    { type: 'window',   label: 'Windows',  disabled: true },
+    { type: 'stairs',   label: 'Stairs',   disabled: true },
+    { type: 'railing',  label: 'Railings', disabled: true },
+    { type: 'foliage',  label: 'Foliage',  disabled: true },
+  ];
+
 
 
   // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
@@ -415,12 +432,13 @@ export const SidePanel = ({
             {/* Sub-category dropdown (Standard / Extended Primitives, etc.) */}
             {createCat === 'geometry' && (
               <select
-                value={createCategory === 'extended' ? 'extended' : 'standard'}
+                value={createCategory === 'extended' ? 'extended' : createCategory === 'aec' ? 'aec' : 'standard'}
                 onChange={(e) => setCreateCategory(e.target.value as any)}
                 className="w-full h-[22px] text-[11px] bevel-sunken bg-win-face px-1 text-win-text"
               >
                 <option value="standard">Standard Primitives</option>
                 <option value="extended">Extended Primitives</option>
+                <option value="aec">AEC Extended</option>
               </select>
             )}
 
@@ -455,6 +473,28 @@ export const SidePanel = ({
                       className={cn(
                         'h-[22px] text-[11px] text-win-text px-1 truncate',
                         pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+                {createCategory === 'aec' && aecPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      disabled={p.disabled}
+                      onClick={() => {
+                        if (p.disabled) return;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={p.disabled ? `${p.label} — em breve` : `Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        p.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
                       )}
                     >
                       {p.label}
@@ -882,6 +922,45 @@ export const SidePanel = ({
                             {numericGrid}
                             <div className="text-[10px] text-muted-foreground leading-tight">
                               Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
+                            </div>
+                          </div>
+                        );
+                      }
+                      // Wall: justification + closed on top, then numeric grid.
+                      const isWall = selectedObject.type === 'wall';
+                      if (isWall) {
+                        const just = geom.justification ?? 'center';
+                        const closed = !!geom.closed;
+                        const pathLen = Array.isArray(geom.path) ? geom.path.length : 0;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-[10px]">Justification</Label>
+                                <select
+                                  value={just}
+                                  onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { justification: e.target.value })}
+                                  className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1"
+                                >
+                                  <option value="left">Left</option>
+                                  <option value="center">Center</option>
+                                  <option value="right">Right</option>
+                                </select>
+                              </div>
+                              <div className="flex items-end">
+                                <label className="flex items-center gap-1 text-[11px] h-7">
+                                  <input
+                                    type="checkbox"
+                                    checked={closed}
+                                    onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { closed: e.target.checked })}
+                                  />
+                                  Closed
+                                </label>
+                              </div>
+                            </div>
+                            {numericGrid}
+                            <div className="text-[10px] text-muted-foreground leading-tight">
+                              Vértices: <span className="font-mono">{pathLen}</span>. Portas/janelas paramétricas com corte automático virão nas próximas fases.
                             </div>
                           </div>
                         );

@@ -48,6 +48,7 @@ const STAGES: Record<CreatableTool, number> = {
   box: 2, plane: 1, cylinder: 2, cone: 2, sphere: 1, torus: 2,
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
+  wall: 1, // multi-click, handled by dedicated branch below
 };
 
 function buildGhost(
@@ -297,8 +298,73 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       outH: new THREE.Vector3(),
     });
 
+    // -------- Wall tool: multi-click polyline, no bezier handles ---------
+    // Each click drops a corner; a live preview segment tracks the cursor.
+    // Right-click or ESC finishes (open). Clicking near the first point
+    // closes the wall.
+    const wallRef: { pts: THREE.Vector3[] } | null =
+      armed === 'wall' ? { pts: [] } : null;
+
+    const buildWallGhost = (pts: THREE.Vector3[], closed: boolean): GhostObject => {
+      const centroid = new THREE.Vector3();
+      pts.forEach((p) => centroid.add(p));
+      centroid.multiplyScalar(1 / pts.length);
+      const local = pts.map((p) => [p.x - centroid.x, 0, p.z - centroid.z] as [number, number, number]);
+      return {
+        id: '__ghost',
+        type: 'wall',
+        position: [centroid.x, centroid.y, centroid.z],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry: { path: local, width: 0.2, height: 2.7, justification: 'center', closed },
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitWall = (closed: boolean) => {
+      if (!wallRef) return;
+      const real = wallRef.pts.slice(0, -1); // drop preview
+      if (real.length >= 2) {
+        commit(buildWallGhost(real, closed));
+      } else {
+        setGhost(null);
+      }
+      wallRef.pts = [];
+    };
+
+
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+
+      if (wallRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (wallRef.pts.length === 0) {
+          // First corner + live preview.
+          wallRef.pts.push(p.clone(), p.clone());
+        } else {
+          const first = wallRef.pts[0];
+          const camDist = camera.position.distanceTo(first);
+          const tol = Math.max(0.05, camDist * 0.02);
+          if (wallRef.pts.length >= 3 && p.distanceTo(first) < tol) {
+            wallRef.pts[wallRef.pts.length - 1].copy(first);
+            commitWall(true);
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          // Commit preview corner, add new preview at the same spot.
+          wallRef.pts[wallRef.pts.length - 1].copy(p);
+          wallRef.pts.push(p.clone());
+        }
+        setGhost(buildWallGhost(wallRef.pts, false));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
 
       if (lineRef) {
         const p = raycastBase(e);
@@ -359,6 +425,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (wallRef) {
+        if (wallRef.pts.length === 0) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        wallRef.pts[wallRef.pts.length - 1].copy(p);
+        setGhost(buildWallGhost(wallRef.pts, false));
+        return;
+      }
       if (lineRef) {
         if (lineRef.knots.length === 0) return;
         const p = raycastBase(e);
@@ -412,6 +486,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
+        if (wallRef) { wallRef.pts = []; }
         stageRef.current = null;
         setGhost(null);
         disarm();
@@ -420,8 +495,11 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      if (wallRef && wallRef.pts.length > 0) {
+        commitWall(false);
+        return;
+      }
       if (lineRef && lineRef.knots.length > 0) {
-        // Right-click finishes the line (open spline).
         commitLine(false);
         return;
       }

@@ -441,10 +441,11 @@ export const Studio3D = () => {
     const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'];
     const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
     const shapes = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
+    const aec = ['wall'];
     const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
     const camTypes   = ['camera_target', 'camera_free'];
 
-    if (![...standard, ...extended, ...shapes, ...lightTypes, ...camTypes].includes(type)) return;
+    if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes].includes(type)) return;
 
     saveState();
 
@@ -542,6 +543,19 @@ export const Studio3D = () => {
       defaultGeometry = {};
     } else if (shapes.includes(type)) {
       defaultGeometry = {};
+    } else if (aec.includes(type)) {
+      if (type === 'wall') {
+        // Sane default: a 4m straight wall along +X.
+        defaultGeometry = {
+          path: [[-2, 0, 0], [2, 0, 0]],
+          width: 0.2,
+          height: 2.7,
+          justification: 'center',
+          closed: false,
+        };
+      } else {
+        defaultGeometry = {};
+      }
     }
 
     const newObject: Object3DData = {
@@ -586,7 +600,10 @@ export const Studio3D = () => {
       scale: g.scale,
       color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
              g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
-        ? '#f2c744' : randomMaxColor(),
+        ? '#f2c744'
+        : g.type === 'wall'
+          ? '#c9bfae'
+          : randomMaxColor(),
 
       visible: true,
       locked: false,
