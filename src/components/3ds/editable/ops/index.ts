@@ -12,7 +12,7 @@ export type OpKind =
   | 'move' | 'rotate' | 'scale'
   | 'delete' | 'detach' | 'attach'
   | 'weld' | 'targetWeld' | 'break' | 'chamfer' | 'chamferEdge' | 'removeEdge' | 'splitEdge'
-  | 'extrude' | 'bevel' | 'inset' | 'outline' | 'bridge' | 'flip' | 'cap' | 'hinge'
+  | 'extrude' | 'extrudeEdge' | 'bevel' | 'inset' | 'outline' | 'bridge' | 'flip' | 'cap' | 'hinge'
   | 'connect' | 'tessellate' | 'msmooth' | 'divide' | 'slice' | 'cut' | 'quickSlice'
   | 'hide' | 'unhide' | 'hideUnselected'
   | 'setMaterialId' | 'selectByMaterialId' | 'createShapeFromEdges'
