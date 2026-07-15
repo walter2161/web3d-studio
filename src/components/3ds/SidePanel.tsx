@@ -147,7 +147,13 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
   line: [
     { key: '__knotCount', label: 'Vertices (read-only)', kind: 'int', default: 0 },
   ],
+  text: [
+    { key: 'size',    label: 'Size',    kind: 'float', default: SHAPE_DEFAULTS.text.size,    min: 0.01, step: 0.1 },
+    { key: 'kerning', label: 'Kerning', kind: 'float', default: SHAPE_DEFAULTS.text.kerning, step: 0.05 },
+    { key: 'curveSegments', label: 'Curve Seg', kind: 'int', default: SHAPE_DEFAULTS.text.curveSegments, min: 1 },
+  ],
 };
+
 import {
   Box,
   Circle,
@@ -247,8 +253,10 @@ export const SidePanel = ({
     { type: 'donut',     label: 'Donut' },
     { type: 'ngon',      label: 'NGon' },
     { type: 'star',      label: 'Star' },
+    { type: 'text',      label: 'Text' },
     { type: 'helix',     label: 'Helix' },
   ];
+
 
   // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
   // 'universal' → apply to anything geometric. 'converts' marks modifiers that
@@ -703,7 +711,9 @@ export const SidePanel = ({
                           </div>
                         );
                       }
-                      return (
+                      // Text: string input, font family + bold, then numeric params.
+                      const isText = selectedObject.type === 'text';
+                      const numericGrid = (
                         <div className="grid grid-cols-2 gap-2">
                           {schema.map((p) => {
                             const rawVal = geom[p.key];
@@ -731,9 +741,58 @@ export const SidePanel = ({
                           })}
                         </div>
                       );
+                      if (isText) {
+                        const currentText = geom.text ?? 'Text';
+                        const currentFont = geom.font ?? 'helvetiker';
+                        const bold = !!geom.bold;
+                        return (
+                          <div className="space-y-2">
+                            <div>
+                              <Label className="text-[10px]">Text</Label>
+                              <textarea
+                                value={currentText}
+                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { text: e.target.value })}
+                                className="w-full h-16 text-xs bg-background border border-panel-border rounded px-2 py-1 font-mono resize-none"
+                                spellCheck={false}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-[10px]">Font</Label>
+                                <select
+                                  value={currentFont}
+                                  onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { font: e.target.value })}
+                                  className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1"
+                                >
+                                  <option value="helvetiker">Helvetiker</option>
+                                  <option value="gentilis">Gentilis</option>
+                                  <option value="optimer">Optimer</option>
+                                </select>
+                              </div>
+                              <div className="flex items-end">
+                                <label className="flex items-center gap-1 text-[11px] h-7">
+                                  <input
+                                    type="checkbox"
+                                    checked={bold}
+                                    onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { bold: e.target.checked })}
+                                  />
+                                  Bold
+                                </label>
+                              </div>
+                            </div>
+                            {numericGrid}
+                            <div className="text-[10px] text-muted-foreground leading-tight">
+                              Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
+                            </div>
+                          </div>
+                        );
+                      }
+                      return numericGrid;
                     })()}
                   </CardContent>
                 </Card>
+
+
 
                 {/* Object Properties */}
                 <Card className="bg-card border-panel-border mt-4">

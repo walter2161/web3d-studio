@@ -47,7 +47,7 @@ const COLOR_GHOST = '#f5a742';
 const STAGES: Record<CreatableTool, number> = {
   box: 2, plane: 1, cylinder: 2, cone: 2, sphere: 1, torus: 2,
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
-  line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2,
+  line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
 };
 
 function buildGhost(
@@ -166,6 +166,16 @@ function buildGhost(
       geometry = { ...geometry, radius: r, size: r };
       break;
     }
+    case 'text': {
+      // Drag length → font size. Default 1 when click without drag.
+      const size = Math.max(0.1, baseDist || 1);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { ...geometry, text: 'LEDMKT', font: 'helvetiker', bold: false, size, kerning: 0, curveSegments: 6 };
+      break;
+    }
+
   }
 
 
