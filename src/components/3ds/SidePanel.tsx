@@ -147,7 +147,13 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
   line: [
     { key: '__knotCount', label: 'Vertices (read-only)', kind: 'int', default: 0 },
   ],
+  text: [
+    { key: 'size',    label: 'Size',    kind: 'float', default: SHAPE_DEFAULTS.text.size,    min: 0.01, step: 0.1 },
+    { key: 'kerning', label: 'Kerning', kind: 'float', default: SHAPE_DEFAULTS.text.kerning, step: 0.05 },
+    { key: 'curveSegments', label: 'Curve Seg', kind: 'int', default: SHAPE_DEFAULTS.text.curveSegments, min: 1 },
+  ],
 };
+
 import {
   Box,
   Circle,
