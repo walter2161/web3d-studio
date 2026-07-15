@@ -96,7 +96,18 @@ export const R3Dialog = ({ open, onClose, title, width = 480, children, initialP
             <X size={10} strokeWidth={3} />
           </button>
         </div>
-        <div className="p-2 text-[11px] text-win-text">{children}</div>
+        {/* Body: caps at the remaining viewport height below the title bar
+            and scrolls when the content would otherwise extend past the
+            bottom of the screen, so options never end up cut off. */}
+        <div
+          className="p-2 text-[11px] text-win-text overflow-auto"
+          style={{
+            maxHeight: typeof window !== 'undefined'
+              ? Math.max(120, window.innerHeight - (pos?.y ?? TOP_MIN) - 18 /* title */ - 24 /* safety */)
+              : undefined,
+          }}
+        >{children}</div>
+
       </div>
     </div>
   );
