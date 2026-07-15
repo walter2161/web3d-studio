@@ -476,7 +476,80 @@ export const RenderSetup = ({
         </div>
       </div>
 
+      {/* Frame-by-frame render progress modal (3ds Max Rendering dialog). */}
+      {rendering && (
+        <R3Dialog
+          open={rendering}
+          onClose={() => { /* prevent closing mid-render */ }}
+          title="Rendering…"
+          width={640}
+        >
+          <div className="space-y-2">
+            <div
+              className="bevel-inset bg-black flex items-center justify-center overflow-hidden"
+              style={{ height: 320 }}
+            >
+              {framePreview ? (
+                <img
+                  src={framePreview}
+                  alt={`Frame ${currentRenderFrame}`}
+                  className="max-w-full max-h-full"
+                  style={{ imageRendering: 'auto' }}
+                />
+              ) : (
+                <span className="text-white text-[11px] opacity-70">Preparing scene…</span>
+              )}
+            </div>
+
+            <GroupBox title="Progress">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span>
+                    Frame {currentRenderFrame} · {progress.done} / {progress.total || '—'}
+                  </span>
+                  <span>
+                    {progress.total > 0
+                      ? `${Math.round((progress.done / progress.total) * 100)}%`
+                      : '0%'}
+                  </span>
+                </div>
+                <div className="bevel-inset bg-white h-[14px] overflow-hidden">
+                  <div
+                    className="h-full bg-[#000080] transition-[width] duration-100"
+                    style={{
+                      width: progress.total > 0
+                        ? `${(progress.done / progress.total) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground pt-1">
+                  <div>Resolution: {width} × {height}</div>
+                  <div>FPS: {videoFps}</div>
+                  <div>
+                    Elapsed: {((performance.now() - renderStartTs) / 1000).toFixed(1)}s
+                    {progress.done > 0 && progress.total > 0 && (
+                      <> · ETA: {(
+                        ((performance.now() - renderStartTs) / progress.done) *
+                        (progress.total - progress.done) / 1000
+                      ).toFixed(1)}s</>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </GroupBox>
+
+            <div className="text-[10px] text-muted-foreground leading-tight">
+              Each frame is rendered individually with production quality. When
+              all frames are done they will be encoded into a {videoFormat.toUpperCase()} video
+              you can preview before saving.
+            </div>
+          </div>
+        </R3Dialog>
+      )}
+
       {/* Preview dialog — the user must confirm before the file is saved. */}
+
       {previewUrl && previewBlob && (
         <R3Dialog
           open={!!previewUrl}
