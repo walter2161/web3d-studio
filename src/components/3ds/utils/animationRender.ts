@@ -49,33 +49,38 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
-  const { scene, camera: viewCamera } = handle;
+  const { scene, camera: viewCamera, gl } = handle;
   const preset = ENGINES[engine];
 
-  // Production sequence render: each timeline frame is applied, committed, and
-  // rendered as its own high-quality still with the SAME render settings used
-  // by Quick Render (dedicated antialiased WebGLRenderer, selected engine tone
-  // mapping / exposure, post CSS filter, soft shadows, helper cleanup). The
-  // still is then drawn into the encoder canvas; after all requested frames are
-  // rendered, MediaRecorder compacts the exact rendered sequence into video.
+  // Render each animation frame using the SAME WebGLRenderer that drives the
+  // live viewport. This keeps shadow maps, PMREM environment maps, textures
+  // and every GPU-side resource intact when we step through frames — a fresh
+  // offscreen renderer would lose all of that and produce flat / unlit frames
+  // after switching engines mid-session.
   const SS = 2;
   const ssW = width * SS;
   const ssH = height * SS;
 
-  const offscreen = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: false,
-    preserveDrawingBuffer: true,
-    powerPreference: 'high-performance',
-  });
-  offscreen.setPixelRatio(1);
-  offscreen.setSize(ssW, ssH, false);
-  offscreen.toneMapping = preset.toneMapping;
-  offscreen.toneMappingExposure = preset.exposure;
-  offscreen.outputColorSpace = THREE.SRGBColorSpace;
-  offscreen.shadowMap.enabled = true;
-  offscreen.shadowMap.type = THREE.PCFSoftShadowMap;
-  if (scene.background instanceof THREE.Color) offscreen.setClearColor(scene.background, 1);
+  // Save current renderer state so we can restore the viewport exactly after
+  // the sequence is done.
+  const prevSize = new THREE.Vector2();
+  gl.getSize(prevSize);
+  const prevPixelRatio = gl.getPixelRatio();
+  const prevToneMapping = gl.toneMapping;
+  const prevExposure = gl.toneMappingExposure;
+  const prevShadowsEnabled = gl.shadowMap.enabled;
+  const prevShadowType = gl.shadowMap.type;
+  const prevAutoClear = gl.autoClear;
+  const prevScissorTest = gl.getScissorTest();
+  const prevRT = gl.getRenderTarget();
+
+  gl.setPixelRatio(1);
+  gl.setSize(ssW, ssH, false);
+  gl.toneMapping = preset.toneMapping;
+  gl.toneMappingExposure = preset.exposure;
+  gl.shadowMap.enabled = true;
+  gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl.shadowMap.needsUpdate = true;
 
   // Recording canvas at the requested output resolution.
   const recCanvas = document.createElement('canvas');
