@@ -133,8 +133,9 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
         }
         vNormals.forEach((n, vid) => {
           if (n.lengthSq() > 0) n.normalize();
-          const p = out.vertices.get(vid)!.position;
-          vmap.set(vid, out.addVertex(p.clone().add(n.clone().multiplyScalar(amount))));
+          const srcV = out.vertices.get(vid)!;
+          const p = srcV.position;
+          vmap.set(vid, out.addVertex(p.clone().add(n.clone().multiplyScalar(amount)), srcV.uv?.clone()));
         });
         const edgeUse = new Map<string, { a: VertexId; b: VertexId; count: number }>();
         for (const f of faces) {
