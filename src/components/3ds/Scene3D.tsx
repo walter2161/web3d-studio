@@ -51,6 +51,9 @@ export const Scene3D = ({
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
   const [subProxyObj, setSubProxyObj] = useState<THREE.Object3D | null>(null);
   const subDragStartRef = useRef<THREE.Vector3 | null>(null);
+  const subDragStartRotRef = useRef<THREE.Euler | null>(null);
+  const subDragStartScaleRef = useRef<THREE.Vector3 | null>(null);
+  const subDragPivotRef = useRef<[number, number, number] | null>(null);
   const subDragOpKeyRef = useRef<string | null>(null);
   const subDragMovedRef = useRef(false);
 
