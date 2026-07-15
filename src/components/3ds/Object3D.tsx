@@ -219,6 +219,19 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
   const meshRef = useRef<Mesh>(null);
 
+  // Modify-panel gate: Edit Mesh / Edit Poly sub-object overlay only appears
+  // when the user is on the Modify panel (matches 3ds Max behavior).
+  const [modifyPanelActive, setModifyPanelActive] = useState<boolean>(
+    typeof window !== 'undefined' ? !!(window as any).__r3_modifyPanelActive : false,
+  );
+  useEffect(() => {
+    const on = (ev: Event) => setModifyPanelActive(!!(ev as CustomEvent).detail?.active);
+    window.addEventListener('r3-modify-panel', on as any);
+    return () => window.removeEventListener('r3-modify-panel', on as any);
+  }, []);
+
+
+
 
   // Update object ref — skip for lights/cameras/helpers, whose EntityRenderer
   // binds `object.ref` to its own group. Overwriting here with the (null) mesh
