@@ -498,7 +498,7 @@ export const SidePanel = ({
                 Object Type
               </div>
               <div className="p-1 grid grid-cols-2 gap-[3px]">
-                {createCategory === 'standard' && standardPrimitives.map((p) => {
+                {createCat === 'geometry' && createCategory === 'standard' && standardPrimitives.map((p) => {
                   const pressed = armedTool === p.type;
                   return (
                     <button
@@ -514,7 +514,7 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCategory === 'extended' && extendedPrimitives.map((p) => {
+                {createCat === 'geometry' && createCategory === 'extended' && extendedPrimitives.map((p) => {
                   const pressed = armedTool === p.type;
                   return (
                     <button
@@ -529,7 +529,7 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCategory === 'aec' && aecPrimitives.map((p) => {
+                {createCat === 'geometry' && createCategory === 'aec' && aecPrimitives.map((p) => {
                   const pressed = armedTool === p.type;
                   return (
                     <button
@@ -551,7 +551,7 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCategory === 'shapes' && shapes.map((s) => {
+                {createCat === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (
                     <button
@@ -566,7 +566,7 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCategory === 'lights' && lightSubtypes.map((l) => (
+                {createCat === 'lights' && lightSubtypes.map((l) => (
                   <button
                     key={l.type}
                     onClick={() => onCreateObject(l.type)}
@@ -576,7 +576,7 @@ export const SidePanel = ({
                     {l.label}
                   </button>
                 ))}
-                {createCategory === 'cameras' && cameraSubtypes.map((c) => (
+                {createCat === 'cameras' && cameraSubtypes.map((c) => (
                   <button
                     key={c.type}
                     onClick={() => onCreateObject(c.type)}
