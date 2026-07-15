@@ -47,7 +47,7 @@ const COLOR_GHOST = '#f5a742';
 const STAGES: Record<CreatableTool, number> = {
   box: 2, plane: 1, cylinder: 2, cone: 2, sphere: 1, torus: 2,
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
-  line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2,
+  line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
 };
 
 function buildGhost(
