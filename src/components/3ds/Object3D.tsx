@@ -805,6 +805,27 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     );
   }
 
+  // Helpers (Point / Dummy / Tape / Grid / Compass) — non-renderable viewport
+  // gizmos, no material, no shadows, ignored by exporters.
+  if (isHelperType(object.type)) {
+    const ghostH = (object as any).__creating === true;
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={ghostH ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
+      >
+        <HelperGizmo data={object.geometry} selected={isSelected} ghost={ghostH} />
+        {/* Invisible pick-proxy so users can click helpers easily. */}
+        <mesh visible={false} raycast={ghostH ? () => null : undefined}>
+          <sphereGeometry args={[0.25, 6, 6]} />
+        </mesh>
+      </group>
+    );
+  }
+
   // Render lights and cameras as full-fledged scene entities with R3-style helpers.
 
   if (isEntityType(object.type)) {
@@ -820,6 +841,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
     );
   }
+
 
   const isGhost = (object as any).__creating === true;
 
