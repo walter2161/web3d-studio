@@ -228,23 +228,25 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
   const blob = await stopped;
 
+  // Restore scene state.
   hidden.forEach((o) => { o.visible = true; });
   meshTouched.forEach(({ mesh, cast, receive }) => {
     mesh.castShadow = cast;
     mesh.receiveShadow = receive;
   });
-  lightTouched.forEach(({ light, cast, mapW, mapH, bias }) => {
+  lightTouched.forEach(({ light, cast }) => {
     light.castShadow = cast;
-    if (light.shadow) {
-      if (mapW && mapH) light.shadow.mapSize.set(mapW, mapH);
-      if (typeof bias === 'number') light.shadow.bias = bias;
-    }
   });
-  if (viewPersp.isPerspectiveCamera && !resolveCameraPose) {
-    viewPersp.aspect = origAspect;
-    viewPersp.updateProjectionMatrix();
-  }
-  offscreen.dispose();
+
+  // Restore the live viewport renderer so R3F keeps rendering normally.
+  gl.toneMapping = origToneMapping;
+  gl.toneMappingExposure = origExposure;
+  gl.outputColorSpace = origColorSpace;
+  gl.shadowMap.enabled = origShadowEnabled;
+  gl.shadowMap.type = origShadowType;
+  gl.setClearColor(origClearColor, origClearAlpha);
+
+  rt.dispose();
 
   return blob;
 }
