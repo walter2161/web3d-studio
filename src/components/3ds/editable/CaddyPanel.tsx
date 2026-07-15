@@ -220,7 +220,7 @@ export const buildCaddy = (
           { key: 'bias', label: 'Bias', value: 0, step: 0.01 },
           { key: 'twist', label: 'Twist', value: 0, step: 1 },
         ],
-        onApply: () => ctx.toast('Bridge: coming in next phase'),
+        onApply: (v) => d('bridge', v),
       };
     case 'hinge':
       return {
