@@ -659,6 +659,14 @@ export const Studio3D = () => {
     ));
   }, []);
 
+  const updateObjectCameraData = useCallback((objectId: string, params: any) => {
+    setObjects(prev => prev.map(obj =>
+      obj.id === objectId
+        ? { ...obj, cameraData: { ...(obj.cameraData || {}), ...params } }
+        : obj
+    ));
+
+
   const updateObjectColor = useCallback((objectId: string, color: string) => {
     setObjects(prev => prev.map(obj => obj.id === objectId ? { ...obj, color } : obj));
   }, []);
