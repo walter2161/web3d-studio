@@ -14,8 +14,8 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { fromGeometry } from './fromGeometry';
-import { SubObjectLevel } from './EditableMesh';
-import { selectionToVertexIds } from './selection';
+import { EditableMesh, SubObjectLevel } from './EditableMesh';
+import { coplanarPolygonFaceIds, faceIdsForSelection, selectionToVertexIds } from './selection';
 import { ThreeEvent } from '@react-three/fiber';
 
 interface Props {
@@ -53,7 +53,10 @@ const emitPick = (
 };
 
 export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modifierId }: Props) => {
-  const mesh = useMemo(() => fromGeometry(geometry), [geometry]);
+  const mesh = useMemo(() => {
+    const editable = (geometry as any).userData?.editableMesh as EditableMesh | undefined;
+    return editable?.clone ? editable.clone() : fromGeometry(geometry);
+  }, [geometry]);
   const sel = selectedIds ?? new Set<number>();
 
   // Emit centroid on selection change so Scene3D can drive a gizmo.
@@ -114,17 +117,7 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
   const faceOverlay = useMemo(() => {
     if (level !== 'face' && level !== 'polygon' && level !== 'element') return null;
 
-    // For 'element' level, expand selection to whole connected component.
-    let effectiveSel = sel;
-    if (level === 'element' && sel.size > 0) {
-      const elements = mesh.elements();
-      const expanded = new Set<number>();
-      elements.forEach((comp) => {
-        const hit = Array.from(comp).some((fid) => sel.has(fid));
-        if (hit) comp.forEach((fid) => expanded.add(fid));
-      });
-      effectiveSel = expanded;
-    }
+    const effectiveSel = faceIdsForSelection(mesh, { level, ids: sel });
 
     const pickPos: number[] = [];
     const triFaceId: number[] = []; // one entry per triangle
@@ -222,8 +215,12 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
             onPointerDown={(e) => {
               const fi = e.faceIndex;
               if (fi == null) return;
-              const fid = faceOverlay.triFaceId[fi];
-              if (fid != null) emitPick(objectId, modifierId, level, fid, e);
+              const hitFid = faceOverlay.triFaceId[fi];
+              if (hitFid == null) return;
+              const fid = level === 'polygon'
+                ? Math.min(...Array.from(coplanarPolygonFaceIds(mesh, hitFid)))
+                : hitFid;
+              emitPick(objectId, modifierId, level, fid, e);
             }}
           >
             <meshBasicMaterial

@@ -625,8 +625,8 @@ export const SidePanel = ({
                         {expanded && (m.type === 'Edit Poly' || m.type === 'Edit Mesh') && (
                           <div>
                             {(m.type === 'Edit Poly'
-                              ? ['Vertex', 'Edge', 'Border', 'Polygon', 'Element']
-                              : ['Vertex', 'Face', 'Polygon', 'Element']
+                              ? ['Vertex', 'Edge', 'Border', 'Face', 'Polygon', 'Element']
+                              : ['Vertex', 'Edge', 'Face', 'Polygon', 'Element']
                             ).map((lvl) => {
                               const childId = `${m.id}:${lvl.toLowerCase()}`;
                               const childSelected = selectedStackItem === childId;
@@ -640,7 +640,7 @@ export const SidePanel = ({
                                   )}
                                   onClick={() => {
                                     setSelectedStackItem(childId);
-                                    onUpdateModifier(selectedObject.id, m.id, { ...(m.params || {}), selectionLevel: lvl.toLowerCase() });
+                                    onUpdateModifier(selectedObject.id, m.id, { ...(m.params || {}), selectionLevel: lvl.toLowerCase(), selectedIds: [] });
                                   }}
                                 >
                                   <span className={cn('w-[8px] h-[8px] inline-block', activeLvl ? 'bg-win-highlight border border-white' : 'border border-win-shadow')} />

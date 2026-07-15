@@ -197,6 +197,7 @@ export const Studio3D = () => {
   const [sidePanelTab, setSidePanelTab] = useState<string>('create');
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+  const subObjReplaceUndoKeysRef = useRef<Set<string>>(new Set());
   // Live ref used by the animation renderer to read up-to-date object poses
   // (positions/rotations after each frame's keyframe interpolation).
   const objectsRef = useRef<Object3DData[]>(objects);
@@ -613,6 +614,7 @@ export const Studio3D = () => {
   }, []);
 
   const updateModifier = useCallback((objectId: string, modifierId: string, params: any) => {
+    saveState();
     setObjects(prev => prev.map(obj => 
       obj.id === objectId 
         ? { 
@@ -623,7 +625,7 @@ export const Studio3D = () => {
           }
         : obj
     ));
-  }, []);
+  }, [saveState]);
 
   // Sub-object picking & op dispatch from viewport / modifier panel.
   useEffect(() => {
@@ -632,6 +634,10 @@ export const Studio3D = () => {
         objectId: string; modifierId: string; level: string;
         id: number; additive?: boolean; remove?: boolean;
       };
+      if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
+        setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        setRedoStack([]);
+      }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
         return {
@@ -652,6 +658,23 @@ export const Studio3D = () => {
       const d = (ev as CustomEvent).detail as {
         objectId: string; modifierId: string; op: { kind: string; params?: any };
       };
+      const replaceKey = d.op?.params?.__replaceKey;
+      const hasExistingReplace = !!replaceKey && objectsRef.current.some((obj) =>
+        obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) =>
+          m.id === d.modifierId && Array.isArray(m.params?.ops) && m.params.ops.some((op: any) => op?.params?.__replaceKey === replaceKey)
+        )
+      );
+      const replaceAlreadySaved = !!replaceKey && subObjReplaceUndoKeysRef.current.has(replaceKey);
+      if (!hasExistingReplace && !replaceAlreadySaved && objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
+        setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        setRedoStack([]);
+        if (replaceKey) {
+          subObjReplaceUndoKeysRef.current.add(replaceKey);
+          if (subObjReplaceUndoKeysRef.current.size > 200) {
+            subObjReplaceUndoKeysRef.current = new Set(Array.from(subObjReplaceUndoKeysRef.current).slice(-100));
+          }
+        }
+      }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
         return {
@@ -662,7 +685,10 @@ export const Studio3D = () => {
             const ids: number[] = Array.isArray(m.params?.selectedIds) ? m.params.selectedIds : [];
             const ops = Array.isArray(m.params?.ops) ? m.params.ops : [];
             const opRec = { ...d.op, selection: { level, ids: ids.slice() } };
-            return { ...m, params: { ...m.params, ops: [...ops, opRec] } };
+            const nextOps = replaceKey && ops.some((op: any) => op?.params?.__replaceKey === replaceKey)
+              ? ops.map((op: any) => op?.params?.__replaceKey === replaceKey ? opRec : op)
+              : [...ops, opRec];
+            return { ...m, params: { ...m.params, ops: nextOps } };
           }),
         };
       }));
@@ -677,6 +703,7 @@ export const Studio3D = () => {
 
 
   const removeModifier = useCallback((objectId: string, modifierId: string) => {
+    saveState();
     setObjects(prev => prev.map(obj => 
       obj.id === objectId 
         ? { 
@@ -687,9 +714,10 @@ export const Studio3D = () => {
     ));
     
     toast.success('Modifier removed');
-  }, []);
+  }, [saveState]);
 
   const toggleModifier = useCallback((objectId: string, modifierId: string) => {
+    saveState();
     setObjects(prev => prev.map(obj =>
       obj.id === objectId
         ? {
@@ -700,9 +728,10 @@ export const Studio3D = () => {
           }
         : obj
     ));
-  }, []);
+  }, [saveState]);
 
   const reorderModifier = useCallback((objectId: string, modifierId: string, direction: -1 | 1) => {
+    saveState();
     setObjects(prev => prev.map(obj => {
       if (obj.id !== objectId || !obj.modifiers) return obj;
       const mods = [...obj.modifiers];
@@ -713,7 +742,7 @@ export const Studio3D = () => {
       [mods[idx], mods[swap]] = [mods[swap], mods[idx]];
       return { ...obj, modifiers: mods };
     }));
-  }, []);
+  }, [saveState]);
 
 
 

@@ -5,7 +5,7 @@
  * modifier stack stays non-destructive.
  */
 import { EditableMesh, FaceId, VertexId } from '../EditableMesh';
-import { Selection, selectionToVertexIds, grow, shrink, ring, loop } from '../selection';
+import { Selection, selectionToVertexIds, faceIdsForSelection, grow, shrink, ring, loop } from '../selection';
 import * as THREE from 'three';
 
 export type OpKind =
@@ -53,8 +53,8 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
 
   switch (op.kind) {
     case 'flip': {
-      sel.ids.forEach((fid) => {
-        const f = out.faces.get(fid as number);
+      faceIdsForSelection(out, sel).forEach((fid) => {
+        const f = out.faces.get(fid);
         if (f) f.verts.reverse();
       });
       return { mesh: out, selection: sel };
@@ -62,7 +62,7 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
     case 'hide': {
       if (sel.level === 'vertex') sel.ids.forEach((id) => { const v = out.vertices.get(id as number); if (v) v.hidden = true; });
       else if (sel.level === 'face' || sel.level === 'polygon' || sel.level === 'element')
-        sel.ids.forEach((id) => { const f = out.faces.get(id as number); if (f) f.hidden = true; });
+        faceIdsForSelection(out, sel).forEach((id) => { const f = out.faces.get(id); if (f) f.hidden = true; });
       return { mesh: out, selection: sel };
     }
     case 'unhide': {
@@ -72,13 +72,14 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
     }
     case 'hideUnselected': {
       if (sel.level === 'face' || sel.level === 'polygon' || sel.level === 'element') {
-        out.faces.forEach((f) => { f.hidden = !sel.ids.has(f.id); });
+        const keep = faceIdsForSelection(out, sel);
+        out.faces.forEach((f) => { f.hidden = !keep.has(f.id); });
       }
       return { mesh: out, selection: sel };
     }
     case 'delete': {
       if (sel.level === 'face' || sel.level === 'polygon' || sel.level === 'element') {
-        sel.ids.forEach((fid) => out.faces.delete(fid as number));
+        faceIdsForSelection(out, sel).forEach((fid) => out.faces.delete(fid));
       } else if (sel.level === 'vertex') {
         const vids = new Set(sel.ids);
         const toDelete: FaceId[] = [];
@@ -90,12 +91,12 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
     }
     case 'setMaterialId': {
       const id = Math.max(1, Math.floor(op.params?.id ?? 1));
-      sel.ids.forEach((fid) => { const f = out.faces.get(fid as number); if (f) f.materialId = id; });
+      faceIdsForSelection(out, sel).forEach((fid) => { const f = out.faces.get(fid); if (f) f.materialId = id; });
       return { mesh: out, selection: sel };
     }
     case 'setSmoothingGroup': {
       const mask = op.params?.mask | 0;
-      sel.ids.forEach((fid) => { const f = out.faces.get(fid as number); if (f) f.smoothingGroup = mask; });
+      faceIdsForSelection(out, sel).forEach((fid) => { const f = out.faces.get(fid); if (f) f.smoothingGroup = mask; });
       return { mesh: out, selection: sel };
     }
     case 'move': {
@@ -116,7 +117,7 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
         return { mesh: out, selection: sel };
       }
       const amount = op.params?.amount ?? 0.2;
-      const selFaces = Array.from(sel.ids).map((fid) => out.faces.get(fid as number)).filter(Boolean) as any[];
+      const selFaces = Array.from(faceIdsForSelection(out, sel)).map((fid) => out.faces.get(fid)).filter(Boolean) as any[];
       if (!selFaces.length) return { mesh: out, selection: sel };
 
       // Vertex -> new vertex map (only for vertices touched by selection).

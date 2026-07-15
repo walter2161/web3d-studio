@@ -51,6 +51,8 @@ export const Scene3D = ({
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
   const [subProxyObj, setSubProxyObj] = useState<THREE.Object3D | null>(null);
   const subDragStartRef = useRef<THREE.Vector3 | null>(null);
+  const subDragOpKeyRef = useRef<string | null>(null);
+  const subDragMovedRef = useRef(false);
 
   useEffect(() => {
     const onCentroid = (ev: Event) => {
@@ -142,6 +144,8 @@ export const Scene3D = ({
             if (controls) controls.enabled = false;
             if (subGizmoActive && subProxyObj) {
               subDragStartRef.current = subProxyObj.position.clone();
+              subDragOpKeyRef.current = `subdrag_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+              subDragMovedRef.current = false;
             }
           }}
           onMouseUp={() => {
@@ -153,20 +157,41 @@ export const Scene3D = ({
               const start = subDragStartRef.current;
               const delta: [number, number, number] = [cur.x - start.x, cur.y - start.y, cur.z - start.z];
               subDragStartRef.current = null;
+              const replaceKey = subDragOpKeyRef.current;
+              subDragOpKeyRef.current = null;
               const len = Math.hypot(delta[0], delta[1], delta[2]);
-              if (transformMode === 'translate' && len > 1e-6) {
+              if (transformMode === 'translate' && len > 1e-6 && !subDragMovedRef.current) {
                 window.dispatchEvent(new CustomEvent('r3-subobj-op', {
                   detail: {
                     objectId: selectedObject,
                     modifierId: activeEditMod.id,
-                    op: { kind: 'move', params: { delta } },
+                    op: { kind: 'move', params: { delta, __replaceKey: replaceKey } },
                   },
                 }));
               }
+              subDragMovedRef.current = false;
             }
           }}
           onObjectChange={(e: any) => {
-            if (subGizmoActive) return; // handled on mouseUp
+            if (subGizmoActive) {
+              if (subProxyObj && subDragStartRef.current && activeEditMod && selectedObject && transformMode === 'translate') {
+                const cur = subProxyObj.position;
+                const start = subDragStartRef.current;
+                const delta: [number, number, number] = [cur.x - start.x, cur.y - start.y, cur.z - start.z];
+                const len = Math.hypot(delta[0], delta[1], delta[2]);
+                if (len > 1e-6) {
+                  subDragMovedRef.current = true;
+                  window.dispatchEvent(new CustomEvent('r3-subobj-op', {
+                    detail: {
+                      objectId: selectedObject,
+                      modifierId: activeEditMod.id,
+                      op: { kind: 'move', params: { delta, __replaceKey: subDragOpKeyRef.current } },
+                    },
+                  }));
+                }
+              }
+              return;
+            }
             if (e?.target?.object && !selectedSubUuid) {
               const obj = e.target.object;
               const { position, rotation, scale } = obj;
