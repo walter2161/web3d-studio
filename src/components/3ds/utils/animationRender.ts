@@ -106,7 +106,6 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   // Dedicated render camera when a scene camera is chosen so we don't fight
   // OrbitControls or R3F over the viewport camera.
   const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-  const viewPersp = viewCamera as THREE.PerspectiveCamera;
 
   // Hide viewport helpers / gizmo / selection wires so they don't show in the video.
   const hidden: THREE.Object3D[] = [];
