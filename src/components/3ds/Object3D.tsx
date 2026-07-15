@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as ThreeObject3D } from 'three';
 import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
-import { buildExtendedPrimitive, buildShape, ExtPrimType, ShapeType } from './utils/extendedGeometry';
+import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // R3-style entity types
