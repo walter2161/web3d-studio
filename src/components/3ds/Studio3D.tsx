@@ -772,15 +772,22 @@ export const Studio3D = () => {
     toast.success('Material applied');
   }, []);
 
-  // Drag & drop material from Material Editor onto a viewport object
+  // Drag & drop material from Material Editor onto a viewport object.
+  // Also accepts `name` lookups (from tests / macros) alongside raw ids.
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail?.id && detail?.material) handleMaterialChange(detail.id, detail.material);
+      if (!detail?.material) return;
+      let id: string | undefined = detail.id;
+      if (!id && detail.name) {
+        const match = objects.find((o) => o.name === detail.name);
+        id = match?.id;
+      }
+      if (id) handleMaterialChange(id, detail.material);
     };
     window.addEventListener('r3-apply-material', handler);
     return () => window.removeEventListener('r3-apply-material', handler);
-  }, [handleMaterialChange]);
+  }, [handleMaterialChange, objects]);
 
   // Undo/Redo
   const undo = useCallback(() => {
