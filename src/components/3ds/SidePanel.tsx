@@ -263,6 +263,18 @@ export const SidePanel = ({
     { type: 'helix',     label: 'Helix' },
   ];
 
+  // AEC Extended (Architecture / Engineering / Construction). Só Wall está
+  // implementado hoje; os demais ficam listados como "em breve".
+  const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'wall',     label: 'Wall' },
+    { type: 'door',     label: 'Doors',    disabled: true },
+    { type: 'window',   label: 'Windows',  disabled: true },
+    { type: 'stairs',   label: 'Stairs',   disabled: true },
+    { type: 'railing',  label: 'Railings', disabled: true },
+    { type: 'foliage',  label: 'Foliage',  disabled: true },
+  ];
+
+
 
   // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
   // 'universal' → apply to anything geometric. 'converts' marks modifiers that
