@@ -103,16 +103,18 @@ const readPerspectiveViewPose = (activeViewport: string) => {
     ? controls.target.clone()
     : position.clone().add(forward.multiplyScalar(8));
 
-  const look = new THREE.Object3D();
-  look.position.copy(position);
-  if (camera) look.up.copy(camera.up);
-  look.lookAt(target);
+  // Use camera-convention lookAt so local -Z faces the target (regular
+  // Object3D.lookAt would make +Z face target, spawning cameras backwards).
+  const up = camera ? camera.up.clone() : new THREE.Vector3(0, 1, 0);
+  const m = new THREE.Matrix4().lookAt(position, target, up);
+  const q = new THREE.Quaternion().setFromRotationMatrix(m);
+  const euler = new THREE.Euler().setFromQuaternion(q);
 
   const pc = camera as THREE.PerspectiveCamera | undefined;
   return {
     position: vectorTuple(position),
     target: vectorTuple(target),
-    rotation: [look.rotation.x, look.rotation.y, look.rotation.z] as [number, number, number],
+    rotation: [euler.x, euler.y, euler.z] as [number, number, number],
     fov: pc?.isPerspectiveCamera ? pc.fov : 45,
     near: pc?.isPerspectiveCamera ? pc.near : 0.1,
     far: pc?.isPerspectiveCamera ? pc.far : 1000,
