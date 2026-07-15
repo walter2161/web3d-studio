@@ -50,7 +50,10 @@ const STAGES: Record<CreatableTool, number> = {
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
   wall: 1, // multi-click, handled by dedicated branch below
   door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
+  // Helpers: single-click place. Tape uses its own 2-click branch below.
+  helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
 };
+
 
 function buildGhost(
   tool: CreatableTool,
