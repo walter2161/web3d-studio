@@ -199,13 +199,20 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         if (pose) { applyPose(pose); renderTarget = renderCam; }
       }
 
-      // Render one complete production still, then downsample + bake the same
-      // color-response filter shown in Quick Render into the encoded frame.
-      offscreen.render(scene, renderTarget);
+      // Hide editor overlays freshly right before the render so any helpers
+      // React just re-mounted for this frame are also hidden, then restore
+      // immediately so the viewport stays fully usable between frames.
+      const hiddenForFrame = hideEditorOverlays();
+      try {
+        offscreen.render(scene, renderTarget);
+      } finally {
+        hiddenForFrame.forEach((o) => { o.visible = true; });
+      }
       ctx.save();
       ctx.filter = preset.cssFilter || 'none';
       ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       ctx.restore();
+
 
       // Store the rendered still as a separate PNG frame in memory. Encoding
       // happens only after every requested animation frame has been rendered,
