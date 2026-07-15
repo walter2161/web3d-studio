@@ -505,5 +505,157 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
     }
   })();
 
-  return <div className="mt-[3px]">{body}</div>;
+  return (
+    <div className="mt-[3px]">
+      {body}
+      <CaddyWrapper spec={caddy} onClose={() => setCaddy(null)} />
+    </div>
+  );
+};
+
+// ---- Contextual toolset per sub-object level (matches 3ds Max tool matrix) ----
+
+interface CtxProps {
+  level: string;
+  onOp: (kind: string, params?: any) => void;
+  openCaddy: (kind: string) => void;
+}
+
+const CtxRollout = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div className="bevel-group bg-win-face-2/60 mb-[3px]">
+    <div className="w-full h-[16px] flex items-center px-[3px] text-[11px] font-semibold text-win-text bevel-raised">
+      <span className="flex-1 text-center tracking-tight">{title}</span>
+    </div>
+    <div className="px-[4px] py-[4px]">{children}</div>
+  </div>
+);
+
+const CtxBtn = ({ children, onClick, title }: { children: ReactNode; onClick: () => void; title?: string }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={title}
+    className={cn(
+      'h-[19px] px-[4px] text-[11px] text-win-text truncate flex items-center justify-center leading-none',
+      'bevel-raised hover:brightness-105',
+    )}
+  >{children}</button>
+);
+
+const ContextualEditTools = ({ level, onOp, openCaddy }: CtxProps) => {
+  // Tool availability matrix (from 3ds Max Edit Poly reference).
+  // A tool renders only in levels where it is enabled.
+  const grid = (items: { label: string; onClick: () => void; title?: string }[]) => (
+    <div className="grid grid-cols-2 gap-[3px] mb-[3px]">
+      {items.map((it) => (
+        <CtxBtn key={it.label} onClick={it.onClick} title={it.title}>{it.label}</CtxBtn>
+      ))}
+    </div>
+  );
+
+  const notYet = (name: string) => () => toast(`${name}: coming in next phase`);
+
+  if (level === 'vertex') {
+    return (
+      <CtxRollout title="Edit Vertices">
+        {grid([
+          { label: 'Weld', onClick: () => openCaddy('weld') },
+          { label: 'Target Weld', onClick: notYet('Target Weld') },
+          { label: 'Chamfer', onClick: () => openCaddy('chamferVertex') },
+          { label: 'Remove', onClick: () => onOp('delete') },
+          { label: 'Break', onClick: notYet('Break') },
+          { label: 'Connect', onClick: notYet('Connect Verts') },
+        ])}
+        <div className="grid grid-cols-2 gap-[3px] mb-[3px]">
+          <CtxBtn onClick={() => onOp('hide')}>Hide</CtxBtn>
+          <CtxBtn onClick={() => onOp('unhide')}>Unhide All</CtxBtn>
+        </div>
+      </CtxRollout>
+    );
+  }
+
+  if (level === 'edge') {
+    return (
+      <CtxRollout title="Edit Edges">
+        {grid([
+          { label: 'Insert Vertex', onClick: notYet('Insert Vertex') },
+          { label: 'Remove', onClick: notYet('Remove Edge') },
+          { label: 'Split', onClick: notYet('Split Edge') },
+          { label: 'Extrude', onClick: () => openCaddy('extrudeEdge') },
+          { label: 'Weld', onClick: () => openCaddy('weld') },
+          { label: 'Chamfer', onClick: () => openCaddy('chamferEdge') },
+          { label: 'Bridge', onClick: () => openCaddy('bridge') },
+          { label: 'Connect', onClick: () => openCaddy('connect') },
+          { label: 'Create Shape', onClick: notYet('Create Shape From Selection') },
+        ])}
+      </CtxRollout>
+    );
+  }
+
+  if (level === 'border') {
+    return (
+      <CtxRollout title="Edit Borders">
+        {grid([
+          { label: 'Extrude', onClick: () => openCaddy('extrudeBorder') },
+          { label: 'Chamfer', onClick: () => openCaddy('chamferEdge') },
+          { label: 'Cap', onClick: () => onOp('cap') },
+          { label: 'Bridge', onClick: () => openCaddy('bridge') },
+          { label: 'Connect', onClick: () => openCaddy('connect') },
+          { label: 'Create Shape', onClick: notYet('Create Shape From Selection') },
+        ])}
+      </CtxRollout>
+    );
+  }
+
+  if (level === 'face' || level === 'polygon') {
+    return (
+      <>
+        <CtxRollout title="Edit Polygons">
+          {grid([
+            { label: 'Extrude', onClick: () => openCaddy('extrude') },
+            { label: 'Outline', onClick: () => openCaddy('outline') },
+            { label: 'Bevel', onClick: () => openCaddy('bevel') },
+            { label: 'Inset', onClick: () => openCaddy('inset') },
+            { label: 'Bridge', onClick: () => openCaddy('bridge') },
+            { label: 'Flip', onClick: () => onOp('flip') },
+            { label: 'Hinge From Edge', onClick: () => openCaddy('hinge') },
+            { label: 'Extr. Along Spline', onClick: notYet('Extrude Along Spline') },
+            { label: 'Retriangulate', onClick: notYet('Retriangulate') },
+            { label: 'Edit Triangulation', onClick: notYet('Edit Triangulation') },
+          ])}
+        </CtxRollout>
+        <CtxRollout title="Polygon Geometry">
+          {grid([
+            { label: 'Tessellate', onClick: () => openCaddy('tessellate') },
+            { label: 'MSmooth', onClick: notYet('MSmooth') },
+            { label: 'Cut', onClick: notYet('Cut') },
+            { label: 'QuickSlice', onClick: notYet('QuickSlice') },
+            { label: 'Slice Plane', onClick: notYet('Slice Plane') },
+            { label: 'Make Planar', onClick: () => openCaddy('makePlanar') },
+            { label: 'Relax', onClick: () => openCaddy('relax') },
+            { label: 'Detach', onClick: notYet('Detach') },
+            { label: 'Attach', onClick: notYet('Attach') },
+            { label: 'Delete', onClick: () => onOp('delete') },
+          ])}
+        </CtxRollout>
+      </>
+    );
+  }
+
+  if (level === 'element') {
+    return (
+      <CtxRollout title="Edit Elements">
+        {grid([
+          { label: 'Attach', onClick: notYet('Attach') },
+          { label: 'Detach', onClick: notYet('Detach') },
+          { label: 'Delete', onClick: () => onOp('delete') },
+          { label: 'Flip', onClick: () => onOp('flip') },
+          { label: 'Hide', onClick: () => onOp('hide') },
+          { label: 'Unhide All', onClick: () => onOp('unhide') },
+        ])}
+      </CtxRollout>
+    );
+  }
+
+  return null;
 };
