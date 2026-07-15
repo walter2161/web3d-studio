@@ -458,7 +458,24 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
+      if (tapeRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (!tapeRef.start) {
+          tapeRef.start = p.clone();
+          tapeRef.cursor.copy(p);
+          setGhost(buildTapeGhost(p, p));
+        } else {
+          commit(buildTapeGhost(tapeRef.start, p));
+          tapeRef.start = null;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       if (wallRef) {
+
         const p = raycastBase(e);
         if (!p) return;
         if (wallRef.pts.length === 0) {
