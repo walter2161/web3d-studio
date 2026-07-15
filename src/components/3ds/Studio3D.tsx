@@ -1430,6 +1430,9 @@ export const Studio3D = () => {
         onOpenChange={setRenderSetupOpen}
         onRender={() => setQuickRenderOpen(true)}
         currentFrame={currentFrame}
+        totalFrames={totalFrames}
+        setCurrentFrame={setCurrentFrame}
+        currentFrame={currentFrame}
       />
       <EnvironmentDialog open={environmentOpen} onOpenChange={setEnvironmentOpen} />
       <ViewImageFile open={viewImageOpen} onOpenChange={setViewImageOpen} />
