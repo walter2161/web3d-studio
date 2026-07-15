@@ -397,12 +397,13 @@ export const RenderSetup = ({
           <Row label="FPS:" labelWidth={54}>
             <Spinner value={videoFps} onChange={setVideoFps} min={1} max={120} width={56} />
           </Row>
-          {rendering && (
-            <div className="text-[10px] text-muted-foreground mt-1">
-              Rendering frame {progress.done} / {progress.total}…
-            </div>
-          )}
         </GroupBox>
+        <div className="flex flex-col gap-1">
+          <R3Button
+            width={100}
+            onClick={async () => {
+              if (rendering) return;
+
 
               if (timeMode === 'single') { onRender?.(); onOpenChange(false); return; }
               if (!setCurrentFrame) {
