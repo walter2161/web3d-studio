@@ -197,6 +197,7 @@ export const Studio3D = () => {
   const [sidePanelTab, setSidePanelTab] = useState<string>('create');
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+  const subObjReplaceUndoKeysRef = useRef<Set<string>>(new Set());
   // Live ref used by the animation renderer to read up-to-date object poses
   // (positions/rotations after each frame's keyframe interpolation).
   const objectsRef = useRef<Object3DData[]>(objects);
@@ -663,9 +664,16 @@ export const Studio3D = () => {
           m.id === d.modifierId && Array.isArray(m.params?.ops) && m.params.ops.some((op: any) => op?.params?.__replaceKey === replaceKey)
         )
       );
-      if (!hasExistingReplace && objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
+      const replaceAlreadySaved = !!replaceKey && subObjReplaceUndoKeysRef.current.has(replaceKey);
+      if (!hasExistingReplace && !replaceAlreadySaved && objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
         setRedoStack([]);
+        if (replaceKey) {
+          subObjReplaceUndoKeysRef.current.add(replaceKey);
+          if (subObjReplaceUndoKeysRef.current.size > 200) {
+            subObjReplaceUndoKeysRef.current = new Set(Array.from(subObjReplaceUndoKeysRef.current).slice(-100));
+          }
+        }
       }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
