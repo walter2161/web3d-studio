@@ -676,7 +676,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         onSelect={onSelect}
         meshRef={meshRef as any}
         targetLookup={targetLookup}
+        isActiveViewCamera={isActiveViewCamera}
       />
+
     );
   }
 
