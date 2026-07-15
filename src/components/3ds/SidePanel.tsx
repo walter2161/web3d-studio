@@ -926,6 +926,45 @@ export const SidePanel = ({
                           </div>
                         );
                       }
+                      // Wall: justification + closed on top, then numeric grid.
+                      const isWall = selectedObject.type === 'wall';
+                      if (isWall) {
+                        const just = geom.justification ?? 'center';
+                        const closed = !!geom.closed;
+                        const pathLen = Array.isArray(geom.path) ? geom.path.length : 0;
+                        return (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-[10px]">Justification</Label>
+                                <select
+                                  value={just}
+                                  onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { justification: e.target.value })}
+                                  className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1"
+                                >
+                                  <option value="left">Left</option>
+                                  <option value="center">Center</option>
+                                  <option value="right">Right</option>
+                                </select>
+                              </div>
+                              <div className="flex items-end">
+                                <label className="flex items-center gap-1 text-[11px] h-7">
+                                  <input
+                                    type="checkbox"
+                                    checked={closed}
+                                    onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { closed: e.target.checked })}
+                                  />
+                                  Closed
+                                </label>
+                              </div>
+                            </div>
+                            {numericGrid}
+                            <div className="text-[10px] text-muted-foreground leading-tight">
+                              Vértices: <span className="font-mono">{pathLen}</span>. Portas/janelas paramétricas com corte automático virão nas próximas fases.
+                            </div>
+                          </div>
+                        );
+                      }
                       return numericGrid;
                     })()}
                   </CardContent>
