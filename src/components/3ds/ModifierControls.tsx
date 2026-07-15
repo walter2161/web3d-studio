@@ -11,9 +11,11 @@ import { cn } from '@/lib/utils';
 
 interface ModifierControlsProps {
   modifier: any;
+  objectId?: string;
   onUpdateModifier: (params: any) => void;
   onRemoveModifier: () => void;
 }
+
 
 // ------- Building blocks (win9x style) -------
 
@@ -208,10 +210,20 @@ const SelectRow = ({
 
 // ------- Modifier-specific rollouts -------
 
-export const ModifierControls = ({ modifier, onUpdateModifier, onRemoveModifier }: ModifierControlsProps) => {
+export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemoveModifier }: ModifierControlsProps) => {
   const params = modifier.params || {};
   const set = (patch: any) => onUpdateModifier({ ...params, ...patch });
   const updateParam = (k: string, v: any) => set({ [k]: v });
+  const dispatchOp = (kind: string, opParams?: any) => {
+    if (!objectId) return;
+    window.dispatchEvent(new CustomEvent('r3-subobj-op', {
+      detail: { objectId, modifierId: modifier.id, op: { kind, params: opParams } },
+    }));
+  };
+  const clearSelection = () => set({ selectedIds: [] });
+  const clearOps = () => set({ ops: [] });
+  const selCount = (params.selectedIds ?? []).length;
+
 
   const renderBend = () => (
     <Rollout title="Parameters">
