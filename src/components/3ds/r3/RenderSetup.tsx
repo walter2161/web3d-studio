@@ -553,6 +553,19 @@ export const RenderSetup = ({
               all frames are done they will be encoded into a {videoFormat.toUpperCase()} video
               you can preview before saving.
             </div>
+
+            <Row>
+              <div className="flex-1" />
+              <R3Button
+                width={100}
+                onClick={() => {
+                  renderAbortRef.current?.abort();
+                }}
+                disabled={!renderAbortRef.current}
+              >
+                Cancel
+              </R3Button>
+            </Row>
           </div>
         </R3Dialog>
       )}
