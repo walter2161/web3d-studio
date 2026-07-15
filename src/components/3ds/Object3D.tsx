@@ -741,6 +741,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const initialSel = { level, ids: new Set<number>(params?.selectedIds ?? []) };
     const { mesh } = replay(em, initialSel, ops);
     const g = toGeometry(mesh);
+    (g as any).userData.editableMesh = mesh;
     g.computeVertexNormals();
     return g;
   }
