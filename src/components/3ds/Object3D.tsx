@@ -1002,8 +1002,8 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
 
-        {/* Target line — line from camera to focal point (along local -Z) */}
-        {targetId && targetDist > 0 && (
+        {/* Target line — hidden when this camera is the viewport view. */}
+        {!isActiveViewCamera && targetId && targetDist > 0 && (
           <primitive
             object={(() => {
               const geom = new THREE.BufferGeometry().setFromPoints([
@@ -1018,8 +1018,8 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
             })()}
           />
         )}
-        {/* Frustum pyramid symbol — always visible when showCone is on */}
-        {showCone && (
+        {/* Frustum pyramid — hidden when this camera is the viewport view. */}
+        {!isActiveViewCamera && showCone && (
           <group userData={{ __helper: true }} position={[0, 0, -1.5]}>
             <mesh userData={{ __helper: true }} rotation={[Math.PI / 2, Math.PI / 4, 0]}>
               <coneGeometry args={[1.2, 3, 4, 1, true]} />
@@ -1027,6 +1027,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
             </mesh>
           </group>
         )}
+
 
       </group>
     );
