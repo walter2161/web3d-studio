@@ -988,8 +988,9 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
         {/* Lens (pointing -Z, R3 camera looks down -Z) */}
+        {/* Lens (pointing -Z, R3 camera looks down -Z) */}
         <mesh userData={{ __helper: true }} position={[0, 0, -0.4]}>
-          <cylinderGeometry args={[0.15, 0.2, 0.25, 12]} />
+          <boxGeometry args={[1, 1, 1]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
         {/* Target line — line from camera to focal point (along local -Z) */}
