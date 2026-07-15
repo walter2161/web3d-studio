@@ -219,7 +219,61 @@ function buildGhost(
       break;
     }
 
+    // Helpers — single-click placement (Point / Dummy / Grid / Compass).
+    // Tape is handled by its own two-click branch in the controller so it
+    // never enters buildGhost with a real ghost.
+    case 'helper_point': {
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = {
+        helperKind: 'point',
+        size: 0.2, showCross: true, showBox: false,
+        showAxisTripod: false, showCenterMarker: false, constantScreenSize: false,
+      };
+      break;
+    }
+    case 'helper_dummy': {
+      // Drag defines size on the base plane; height mirrors width.
+      const s = Math.max(0.01, baseDist || 0.5);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis] + s / 2);
+      geometry = { helperKind: 'dummy', length: s, width: s, height: s };
+      break;
+    }
+    case 'helper_grid': {
+      const s = Math.max(0.1, baseDist * 2 || 5);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { helperKind: 'grid', gridLength: s, gridWidth: s, gridSpacing: Math.max(0.05, s / 10) };
+      break;
+    }
+    case 'helper_compass': {
+      const r = Math.max(0.1, baseDist || 1);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { helperKind: 'compass', radius: r, showTicks: true };
+      break;
+    }
+    case 'helper_tape': {
+      // Two-click flow handled separately (see tapeRef branch). Fallback:
+      // a zero-length preview at the start point.
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = {
+        helperKind: 'tape',
+        endpointA: [0, 0, 0],
+        endpointB: [current.x - start.x, current.y - start.y, current.z - start.z],
+      };
+      break;
+    }
+
   }
+
 
 
   return {
