@@ -272,6 +272,31 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         }
       });
     }
+    // UVW fallback: any geometry without a uv attribute gets a box-projection UV
+    // (equivalent to a default UVW Map modifier). This makes bitmap textures show
+    // up on Shapes/Extruded geometry that would otherwise render solid color.
+    if (!geometry.getAttribute('uv') && geometry.getAttribute('position')) {
+      geometry.computeBoundingBox();
+      const bb = geometry.boundingBox!;
+      const sx = Math.max(1e-6, bb.max.x - bb.min.x);
+      const sy = Math.max(1e-6, bb.max.y - bb.min.y);
+      const sz = Math.max(1e-6, bb.max.z - bb.min.z);
+      const pos = geometry.getAttribute('position');
+      const uvs = new Float32Array(pos.count * 2);
+      // Project onto the two largest axes (planar-box style)
+      const dims = [
+        { k: 'x' as const, s: sx }, { k: 'y' as const, s: sy }, { k: 'z' as const, s: sz },
+      ].sort((a, b) => b.s - a.s);
+      const u = dims[0], v = dims[1];
+      for (let i = 0; i < pos.count; i++) {
+        const px = pos.getX(i), py = pos.getY(i), pz = pos.getZ(i);
+        const uc = u.k === 'x' ? px : u.k === 'y' ? py : pz;
+        const vc = v.k === 'x' ? px : v.k === 'y' ? py : pz;
+        uvs[i * 2] = (uc - (u.k === 'x' ? bb.min.x : u.k === 'y' ? bb.min.y : bb.min.z)) / u.s;
+        uvs[i * 2 + 1] = (vc - (v.k === 'x' ? bb.min.x : v.k === 'y' ? bb.min.y : bb.min.z)) / v.s;
+      }
+      geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    }
     return geometry;
   }, [object.id, object.type, object.geometry, object.modifiers]);
 
