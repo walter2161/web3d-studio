@@ -218,13 +218,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       // immediately so the viewport stays fully usable between frames.
       const hiddenForFrame = hideEditorOverlays();
       try {
-        offscreen.render(scene, renderTarget);
+        gl.setRenderTarget(null);
+        gl.render(scene, renderTarget);
       } finally {
         hiddenForFrame.forEach((o) => { o.visible = true; });
       }
       ctx.save();
       ctx.filter = preset.cssFilter || 'none';
-      ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
+      ctx.drawImage(gl.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       ctx.restore();
 
 
