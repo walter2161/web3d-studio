@@ -710,18 +710,13 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       }}
       geometry={modifiedGeometry}
     >
-      <meshStandardMaterial
+      <MaterialWithMaps
+        material={(object as any).material}
         color={(object as any).material?.color ?? object.color}
-        transparent={renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || ((object as any).material?.opacity ?? 1) < 1}
-        opacity={isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (renderMode === 'semi-transparent' ? 0.5 : ((object as any).material?.opacity ?? 1)))}
-        depthWrite={renderMode !== 'bbox'}
-        wireframe={renderMode === 'wireframe'}
-        metalness={(object as any).material?.metalness ?? 0.15}
-        roughness={(object as any).material?.roughness ?? 0.55}
-        emissive={(object as any).material?.emissive ?? '#000000'}
-        emissiveIntensity={(object as any).material?.emissiveIntensity ?? 0}
-        flatShading={false}
+        renderMode={renderMode}
+        isGhost={!!isGhost}
       />
+
 
       {/* Selection outline — silhouette edges plus internal subdivisions so
           segment/geometry-parameter changes are visible in solid mode. */}
