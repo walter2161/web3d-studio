@@ -46,45 +46,33 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
-  const { scene, camera: viewCamera, gl } = handle;
+  const { scene, camera: viewCamera } = handle;
   const preset = ENGINES[engine];
 
-  // 2× supersampling: render into an offscreen render-target at double
-  // resolution using the viewport's OWN WebGLRenderer, so all shadow maps,
-  // env maps, PBR shaders and material caches are reused exactly as seen
-  // in the live viewport. We then blit the target to a 2D canvas that feeds
-  // MediaRecorder.
+  // Production sequence render: each timeline frame is rendered as an isolated
+  // high-quality still with the SAME path used by Quick Render (dedicated
+  // antialiased WebGLRenderer, production tone mapping / exposure, soft
+  // shadows, helper cleanup). The still is then drawn into the encoder canvas;
+  // after all requested frames are rendered, MediaRecorder compacts them into
+  // the chosen video container.
   const SS = 2;
   const ssW = width * SS;
   const ssH = height * SS;
 
-  const rt = new THREE.WebGLRenderTarget(ssW, ssH, {
-    samples: 4, // MSAA on WebGL2
-    colorSpace: THREE.SRGBColorSpace,
-    type: THREE.UnsignedByteType,
-    format: THREE.RGBAFormat,
-    depthBuffer: true,
-    stencilBuffer: false,
+  const offscreen = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: false,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance',
   });
-
-  // Save renderer state so we can restore R3F's live viewport afterwards.
-  const origToneMapping = gl.toneMapping;
-  const origExposure = gl.toneMappingExposure;
-  const origColorSpace = gl.outputColorSpace;
-  const origShadowEnabled = gl.shadowMap.enabled;
-  const origShadowType = gl.shadowMap.type;
-  const origClearColor = new THREE.Color();
-  gl.getClearColor(origClearColor);
-  const origClearAlpha = gl.getClearAlpha();
-
-  // Apply engine preset (matches Quick Render tone mapping/exposure).
-  gl.toneMapping = preset.toneMapping;
-  gl.toneMappingExposure = preset.exposure;
-  gl.outputColorSpace = THREE.SRGBColorSpace;
-  gl.shadowMap.enabled = true;
-  gl.shadowMap.type = THREE.PCFSoftShadowMap;
-  gl.shadowMap.needsUpdate = true;
-  if (scene.background instanceof THREE.Color) gl.setClearColor(scene.background, 1);
+  offscreen.setPixelRatio(1);
+  offscreen.setSize(ssW, ssH, false);
+  offscreen.toneMapping = preset.toneMapping;
+  offscreen.toneMappingExposure = preset.exposure;
+  offscreen.outputColorSpace = THREE.SRGBColorSpace;
+  offscreen.shadowMap.enabled = true;
+  offscreen.shadowMap.type = THREE.PCFSoftShadowMap;
+  if (scene.background instanceof THREE.Color) offscreen.setClearColor(scene.background, 1);
 
   // Recording canvas at the requested output resolution.
   const recCanvas = document.createElement('canvas');
@@ -94,25 +82,21 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   (ctx as any).imageSmoothingEnabled = true;
   (ctx as any).imageSmoothingQuality = 'high';
 
-  // A temporary display canvas the same size as the render target — we blit
-  // the render-target pixels here via readRenderTargetPixels, flip Y, then
-  // downscale into recCanvas.
-  const blitCanvas = document.createElement('canvas');
-  blitCanvas.width = ssW;
-  blitCanvas.height = ssH;
-  const blitCtx = blitCanvas.getContext('2d', { alpha: false })!;
-  const pixels = new Uint8ClampedArray(ssW * ssH * 4);
-
   // Dedicated render camera when a scene camera is chosen so we don't fight
   // OrbitControls or R3F over the viewport camera.
   const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
 
-  // Hide viewport helpers / gizmo / selection wires so they don't show in the video.
+  // Hide viewport helpers / gizmo / selection wires using the same filtering
+  // as Quick Render, so the production video has no editor overlays.
   const hidden: THREE.Object3D[] = [];
   scene.traverse((obj) => {
     const ud: any = obj.userData || {};
     const t = obj.type || '';
-    const isHelper = /Helper$/.test(t);
+    const isHelper =
+      t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
+      t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
+      t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
+      t.endsWith('Helper');
     const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
     if (ud.__helper || ud.__selectionWire || isHelper || isTC) {
       if (obj.visible) { hidden.push(obj); obj.visible = false; }
@@ -131,40 +115,41 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   });
 
   // Enable shadow casting on all directional/spot/point lights.
-  const lightTouched: { light: any; cast: boolean }[] = [];
+  const lightTouched: {
+    light: any;
+    cast: boolean;
+    mapW?: number;
+    mapH?: number;
+    bias?: number;
+    normalBias?: number;
+  }[] = [];
   scene.traverse((obj) => {
     const l = obj as any;
     if (l.isDirectionalLight || l.isSpotLight || l.isPointLight) {
-      lightTouched.push({ light: l, cast: l.castShadow });
+      const touched: { light: any; cast: boolean; mapW?: number; mapH?: number; bias?: number; normalBias?: number } = {
+        light: l,
+        cast: l.castShadow,
+      };
+      if (l.shadow) {
+        touched.mapW = l.shadow.mapSize.width;
+        touched.mapH = l.shadow.mapSize.height;
+        touched.bias = l.shadow.bias;
+        touched.normalBias = l.shadow.normalBias;
+        l.shadow.mapSize.set(2048, 2048);
+        l.shadow.bias = -0.00035;
+        l.shadow.normalBias = 0.015;
+      }
+      lightTouched.push(touched);
       l.castShadow = true;
     }
   });
 
-  const stream = (recCanvas as HTMLCanvasElement).captureStream(0);
-  const track = stream.getVideoTracks()[0] as any;
-
-  const mimeCandidates =
-    format === 'mp4'
-      ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-      : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-  const mime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
-
-  const recorder = new MediaRecorder(
-    stream,
-    mime
-      ? { mimeType: mime, videoBitsPerSecond: 12_000_000 }
-      : { videoBitsPerSecond: 12_000_000 },
-  );
-  const chunks: Blob[] = [];
-  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-  const stopped = new Promise<Blob>((resolve) => {
-    recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
-  });
-
-  recorder.start();
-
+  const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
   const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
   const targetDelayMs = 1000 / Math.max(1, fps);
+  const renderedFrames: Blob[] = [];
+  let encodeStream: MediaStream | null = null;
+  let recorder: MediaRecorder | null = null;
 
   const applyPose = (pose: CameraPose) => {
     renderCam.position.set(pose.position[0], pose.position[1], pose.position[2]);
@@ -195,59 +180,91 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         if (pose) { applyPose(pose); renderTarget = renderCam; }
       }
 
-      // Render into the offscreen render target using the SAME renderer that
-      // drives the viewport — every material, envmap and shadow map is already
-      // uploaded and hot.
-      const prevRT = gl.getRenderTarget();
-      gl.setRenderTarget(rt);
-      gl.clear();
-      gl.render(scene, renderTarget);
-      gl.readRenderTargetPixels(rt, 0, 0, ssW, ssH, pixels);
-      gl.setRenderTarget(prevRT);
-
-      // Push pixels to blit canvas, flipping Y (WebGL is bottom-up).
-      const img = new ImageData(pixels, ssW, ssH);
-      blitCtx.putImageData(img, 0, 0);
+      // Render one complete production still, then downsample + bake the same
+      // color-response filter shown in Quick Render into the encoded frame.
+      offscreen.render(scene, renderTarget);
       ctx.save();
-      ctx.scale(1, -1);
-      ctx.drawImage(blitCanvas, 0, 0, ssW, ssH, 0, -height, width, height);
+      ctx.filter = preset.cssFilter || 'none';
+      ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       ctx.restore();
 
-      if (typeof track.requestFrame === 'function') track.requestFrame();
-      await new Promise((r) => setTimeout(r, targetDelayMs));
+      // Store the rendered still as a separate PNG frame in memory. Encoding
+      // happens only after every requested animation frame has been rendered,
+      // matching a real image-sequence flow without keeping huge decoded
+      // bitmaps alive for the whole render.
+      renderedFrames.push(await new Promise<Blob>((resolve, reject) => {
+        recCanvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to capture rendered frame'));
+        }, 'image/png');
+      }));
       idx++;
       onProgress?.(idx, frameCount);
     }
+
+    encodeStream = (recCanvas as HTMLCanvasElement).captureStream(0);
+    let track = encodeStream.getVideoTracks()[0] as any;
+    if (typeof track.requestFrame !== 'function') {
+      track.stop();
+      encodeStream = (recCanvas as HTMLCanvasElement).captureStream(Math.max(1, fps));
+      track = encodeStream.getVideoTracks()[0] as any;
+    }
+
+    const mimeCandidates =
+      format === 'mp4'
+        ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+        : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+
+    recorder = new MediaRecorder(
+      encodeStream,
+      mime
+        ? { mimeType: mime, videoBitsPerSecond: bitRate }
+        : { videoBitsPerSecond: bitRate },
+    );
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    const stopped = new Promise<Blob>((resolve) => {
+      recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder?.mimeType || 'video/webm' }));
+    });
+
+    recorder.start();
+    for (const frame of renderedFrames) {
+      const bitmap = await createImageBitmap(frame);
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      bitmap.close();
+      if (typeof track.requestFrame === 'function') track.requestFrame();
+      await new Promise((r) => setTimeout(r, targetDelayMs));
+    }
     // Flush the last frame.
     await new Promise((r) => setTimeout(r, 250));
-  } finally {
     if (recorder.state !== 'inactive') recorder.stop();
+    const blob = await stopped;
+    return blob;
+  } finally {
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    encodeStream?.getTracks().forEach((track) => track.stop());
+    renderedFrames.length = 0;
+
+    // Restore scene state.
+    hidden.forEach((o) => { o.visible = true; });
+    meshTouched.forEach(({ mesh, cast, receive }) => {
+      mesh.castShadow = cast;
+      mesh.receiveShadow = receive;
+    });
+    lightTouched.forEach(({ light, cast }) => {
+      light.castShadow = cast;
+    });
+    lightTouched.forEach(({ light, mapW, mapH, bias, normalBias }) => {
+      if (!light.shadow) return;
+      if (typeof mapW === 'number' && typeof mapH === 'number') light.shadow.mapSize.set(mapW, mapH);
+      if (typeof bias === 'number') light.shadow.bias = bias;
+      if (typeof normalBias === 'number') light.shadow.normalBias = normalBias;
+    });
+
+    offscreen.dispose();
   }
-
-
-  const blob = await stopped;
-
-  // Restore scene state.
-  hidden.forEach((o) => { o.visible = true; });
-  meshTouched.forEach(({ mesh, cast, receive }) => {
-    mesh.castShadow = cast;
-    mesh.receiveShadow = receive;
-  });
-  lightTouched.forEach(({ light, cast }) => {
-    light.castShadow = cast;
-  });
-
-  // Restore the live viewport renderer so R3F keeps rendering normally.
-  gl.toneMapping = origToneMapping;
-  gl.toneMappingExposure = origExposure;
-  gl.outputColorSpace = origColorSpace;
-  gl.shadowMap.enabled = origShadowEnabled;
-  gl.shadowMap.type = origShadowType;
-  gl.setClearColor(origClearColor, origClearAlpha);
-
-  rt.dispose();
-
-  return blob;
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
