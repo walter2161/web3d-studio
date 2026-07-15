@@ -503,7 +503,8 @@ export const Studio3D = () => {
       scale: g.scale,
       color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
              g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
-        ? '#f2c744' : '#3b82f6',
+        ? '#f2c744' : randomMaxColor(),
+
       visible: true,
       locked: false,
       modifiers: [],
