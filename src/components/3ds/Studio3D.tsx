@@ -553,6 +553,10 @@ export const Studio3D = () => {
           justification: 'center',
           closed: false,
         };
+      } else if (type === 'door') {
+        defaultGeometry = { subtype: 'pivot', width: 0.9, height: 2.1, thickness: 0.04, frameDepth: 0.2, frameSize: 0.05, openPercentage: 0 };
+      } else if (type === 'window') {
+        defaultGeometry = { subtype: 'casement', width: 1.2, height: 1.2, frameThickness: 0.05, glassThickness: 0.01, frameDepth: 0.2, sillHeight: 1.0, openPercentage: 0 };
       } else {
         defaultGeometry = {};
       }
