@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { SubObjectOverlay } from './editable/SubObjectOverlay';
+import type { SubObjectLevel } from './editable/EditableMesh';
 
 // R3-style entity types
 export const LIGHT_TYPES = ['light_omni', 'light_spot', 'light_direct', 'light_skylight', 'light_ambient'] as const;
