@@ -10,6 +10,7 @@
 // its `position`). Y in the path is ignored — the wall grows from y=0 to y=height.
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export type WallJustification = 'left' | 'center' | 'right';
 
