@@ -91,7 +91,7 @@ export const RenderSetup = ({
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="radio" checked={timeMode === 'active'} onChange={() => setTimeMode('active')} />
-                  {label('Active Time Segment: 0 To 100')}
+                  {label(`Active Time Segment: 0 To ${totalFrames}`)}
                 </label>
                 <label className="flex items-center gap-1">
                   <input type="radio" checked={timeMode === 'range'} onChange={() => setTimeMode('range')} />
