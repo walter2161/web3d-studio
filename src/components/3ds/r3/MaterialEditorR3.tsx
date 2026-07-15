@@ -724,22 +724,6 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
           </div>
         </div>
 
-        {/* FAR RIGHT: preset library */}
-        <div className="bevel-inset bg-win-face p-1" style={{ width: 150 }}>
-          <div className="text-[11px] font-bold px-1 mb-1">Material Library</div>
-          <div className="overflow-y-auto" style={{ maxHeight: 440 }}>
-            {MATERIAL_LIBRARY.map((preset, i) => (
-              <button
-                key={i}
-                onClick={() => update(preset.patch)}
-                className="w-full flex items-center gap-1 px-1 py-[2px] hover:bg-win-highlight hover:text-white text-[11px] text-left"
-              >
-                <span className="w-3 h-3 border border-black inline-block" style={{ background: preset.patch.diffuse || '#888' }} />
-                <span className="truncate">{preset.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
