@@ -246,7 +246,16 @@ function SamplePreview({ mat, size = 60, shape = 'sphere' }: { mat: R3Material; 
   const opacity = mat.opacity / 100;
   const selfIll = mat.selfIllumination / 100;
   const highlight = `rgba(255,255,255,${0.3 + spec * 0.7})`;
-  const bg = `radial-gradient(circle at 30% 28%, ${highlight} ${specSize * 0.15}%, ${mat.diffuse} ${specHardness}%, #000 130%)`;
+  // Diffuse bitmap preview (Show Map behavior in the slot)
+  const diffSlot = mat.maps?.diffuse;
+  const bmpFile = diffSlot?.name === 'Bitmap' ? diffSlot.params?.filename : undefined;
+  const bmpUrl = bmpFile ? ((window as any).__r3BitmapUrls?.[bmpFile] as string | undefined) : undefined;
+  const bgBase = bmpUrl
+    ? `url("${bmpUrl}") center/cover, ${mat.diffuse}`
+    : `radial-gradient(circle at 30% 28%, ${highlight} ${specSize * 0.15}%, ${mat.diffuse} ${specHardness}%, #000 130%)`;
+  const bg = bmpUrl
+    ? `radial-gradient(circle at 30% 28%, ${highlight} 0%, transparent ${specHardness}%), ${bgBase}`
+    : bgBase;
   const shadow = selfIll > 0
     ? `0 0 ${8 + selfIll * 14}px ${mat.diffuse}`
     : 'inset -6px -8px 12px rgba(0,0,0,.35)';
