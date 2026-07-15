@@ -229,7 +229,38 @@ export const buildCaddy = (
           { key: 'angle', label: 'Angle', value: 45, step: 1 },
           { key: 'segments', label: 'Segments', value: 1, min: 1, max: 32, step: 1 },
         ],
-        onApply: () => ctx.toast('Hinge From Edge: pick edge in next phase'),
+        onApply: (v) => d('hinge', { angle: v.angle, segments: v.segments }),
+      };
+    case 'slice':
+    case 'quickSlice':
+    case 'cut':
+      return {
+        title: 'Slice Plane',
+        fields: [
+          { key: 'py', label: 'Plane Y', value: 0, step: 0.05 },
+          { key: 'nx', label: 'Normal X', value: 0, step: 0.1 },
+          { key: 'ny', label: 'Normal Y', value: 1, step: 0.1 },
+          { key: 'nz', label: 'Normal Z', value: 0, step: 0.1 },
+        ],
+        onApply: (v) => d('slice', { point: [0, v.py, 0], normal: [v.nx, v.ny, v.nz] }),
+      };
+    case 'msmooth':
+      return {
+        title: 'MSmooth',
+        fields: [
+          { key: 'iterations', label: 'Iterations', value: 1, min: 1, max: 4, step: 1 },
+        ],
+        onApply: (v) => {
+          for (let i = 0; i < Math.max(1, Math.floor(v.iterations)); i++) d('msmooth');
+        },
+      };
+    case 'detach':
+      return {
+        title: 'Detach',
+        fields: [
+          { key: 'toElement', label: 'To Element', type: 'check', value: true },
+        ],
+        onApply: () => d('detach'),
       };
     case 'relax':
       return {
