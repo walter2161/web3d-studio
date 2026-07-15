@@ -58,9 +58,9 @@ export class EditableMesh {
   private nextEid = 1;
   private nextFid = 1;
 
-  addVertex(p: THREE.Vector3): VertexId {
+  addVertex(p: THREE.Vector3, uv?: THREE.Vector2): VertexId {
     const id = this.nextVid++;
-    this.vertices.set(id, { id, position: p.clone() });
+    this.vertices.set(id, { id, position: p.clone(), uv: uv?.clone() });
     return id;
   }
 
