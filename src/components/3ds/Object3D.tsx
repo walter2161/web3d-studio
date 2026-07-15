@@ -376,9 +376,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       return buildShape(type as ShapeType, geom);
     }
     // AEC Extended
-    if (type === 'wall') {
-      return buildWall(geom);
-    }
+    if (type === 'wall')   return buildWall(geom);
+    if (type === 'door')   return buildDoor(geom);
+    if (type === 'window') return buildWindow(geom);
 
     switch (type) {
       case 'box':
