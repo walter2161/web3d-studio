@@ -512,15 +512,15 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
               className="flex-1 bevel-inset bg-white px-1 h-[20px] text-[11px]"
             />
             <R3Button width={24}>?</R3Button>
-            <select
-              value={mat.type}
-              onChange={(e) => update({ type: e.target.value as any })}
-              className="bevel-inset bg-white h-[20px] text-[11px]"
+            <button
+              onClick={() => setTypePopupOpen(true)}
+              title="Material type / library"
+              className="bevel-raised bg-win-face h-[20px] text-[11px] px-2 flex items-center gap-1"
             >
-              {['Standard','Blend','Composite','Double Sided','Multi/Sub-Object','Raytrace','Matte/Shadow','Top/Bottom','Shellac','Morpher'].map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
+              <span className="truncate" style={{ maxWidth: 110 }}>{mat.type}</span>
+              <span className="text-[9px]">▼</span>
+            </button>
+
           </div>
 
           {/* Tabs */}
