@@ -422,29 +422,115 @@ const ViewportRegistrar = ({ vkey, isActive }: { vkey: string; isActive: boolean
 };
 
 /**
- * Overrides the viewport's default camera each frame to match a scene Camera object.
- * If the camera has a target, lookAt the target's position (R3 Target Camera).
+ * Camera-view controller: drives the viewport's active camera from a scene
+ * Camera object, and mounts an OrbitControls whose pivot is the camera's
+ * focal point (target helper for a Target Camera, or a virtual focal point
+ * at `targetDistance` in front of a Free Camera).
+ *
+ * Orbit / pan / zoom write back:
+ *   - Target camera: dragging orbits the camera around the target (target
+ *     stays put); panning moves both camera and target together; dolly moves
+ *     the camera along the view vector.
+ *   - Free camera: orbit rotates the camera in place around its own focal
+ *     point; the camera object stores the resulting Euler rotation.
  */
-const CameraFollower = ({ camObj, targetPos }: { camObj: any; targetPos: [number, number, number] | null }) => {
-  const { camera } = useThree();
+const CameraViewController = ({
+  camObj,
+  targetObj,
+  isActive,
+  onTransformObject,
+}: {
+  camObj: any;
+  targetObj: any;
+  isActive: boolean;
+  onTransformObject: (id: string, transform: any) => void;
+}) => {
+  const { camera, gl } = useThree();
+  const controlsRef = useRef<any>(null);
+  const suppressWriteRef = useRef(false);
+  const lastCamIdRef = useRef<string | null>(null);
+
+  // Sync FOV/clip from the scene camera object every frame (cheap, idempotent).
   useFrame(() => {
     if (!camObj) return;
-    const [px, py, pz] = camObj.position;
-    camera.position.set(px, py, pz);
-    if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
-      const pc = camera as THREE.PerspectiveCamera;
+    const pc = camera as THREE.PerspectiveCamera;
+    if (pc.isPerspectiveCamera) {
       const fov = camObj.cameraData?.fov ?? 45;
       const near = camObj.cameraData?.near ?? 0.1;
       const far = camObj.cameraData?.far ?? 1000;
       if (pc.fov !== fov) { pc.fov = fov; pc.updateProjectionMatrix(); }
       if (pc.near !== near || pc.far !== far) { pc.near = near; pc.far = far; pc.updateProjectionMatrix(); }
     }
-    if (targetPos) {
-      camera.lookAt(targetPos[0], targetPos[1], targetPos[2]);
-    } else {
-      const [rx, ry, rz] = camObj.rotation;
-      camera.rotation.set(rx, ry, rz);
-    }
   });
-  return null;
+
+  // On camera swap (or first mount), snap the viewport camera + orbit target
+  // to the scene camera's current pose. External changes to camObj.position /
+  // rotation while active are ignored — the orbit controls own the pose.
+  useEffect(() => {
+    if (!camObj) return;
+    const controls = controlsRef.current;
+    if (!controls) return;
+    suppressWriteRef.current = true;
+    const [px, py, pz] = camObj.position;
+    camera.position.set(px, py, pz);
+
+    if (targetObj) {
+      const [tx, ty, tz] = targetObj.position;
+      controls.target.set(tx, ty, tz);
+    } else {
+      // Free camera: focal point sits at targetDistance in front (local -Z).
+      const dist = camObj.cameraData?.targetDistance ?? 10;
+      const [rx, ry, rz] = camObj.rotation;
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(q);
+      controls.target.set(px + fwd.x * dist, py + fwd.y * dist, pz + fwd.z * dist);
+    }
+    camera.lookAt(controls.target);
+    controls.update();
+    lastCamIdRef.current = camObj.id;
+    // Release the write-suppression on the next tick so the initial `change`
+    // event fired by controls.update() doesn't clobber the scene camera.
+    const t = setTimeout(() => { suppressWriteRef.current = false; }, 0);
+    return () => clearTimeout(t);
+  }, [camObj?.id, camera, targetObj?.id]);
+
+  // Write orbit results back into the scene: camera position (both types),
+  // target helper position (target camera), or camera rotation (free camera).
+  const handleChange = () => {
+    if (!camObj || suppressWriteRef.current) return;
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const pos: [number, number, number] = [camera.position.x, camera.position.y, camera.position.z];
+    onTransformObject(camObj.id, { position: pos });
+
+    if (targetObj) {
+      const tp: [number, number, number] = [controls.target.x, controls.target.y, controls.target.z];
+      // Only push updates if it actually moved (pan).
+      const [ox, oy, oz] = targetObj.position;
+      if (Math.abs(tp[0] - ox) > 1e-6 || Math.abs(tp[1] - oy) > 1e-6 || Math.abs(tp[2] - oz) > 1e-6) {
+        onTransformObject(targetObj.id, { position: tp });
+      }
+    } else {
+      // Free camera: store the Euler rotation derived from the current view.
+      const e = new THREE.Euler().setFromQuaternion(camera.quaternion, 'XYZ');
+      onTransformObject(camObj.id, { rotation: [e.x, e.y, e.z] as [number, number, number] });
+    }
+  };
+
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      makeDefault
+      enablePan enableZoom enableRotate
+      panSpeed={1} rotateSpeed={1} zoomSpeed={1}
+      onChange={handleChange}
+      onUpdate={(self) => {
+        if (isActive) {
+          (window as any).__orbitControls = self;
+          (window as any).__activeOrbitControls = self;
+        }
+      }}
+    />
+  );
 };
+
