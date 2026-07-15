@@ -148,20 +148,22 @@ export const FileOperations = ({
           {type === 'import' && (
             <Card className="bg-card border-panel-border">
               <CardHeader>
-                <CardTitle className="text-sm">Import 3D Model</CardTitle>
+                <CardTitle className="text-sm">Import 3D Model / CAD</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Select model file</Label>
+                  <Label>Select model or CAD file</Label>
                   <Input
                     type="file"
-                    accept=".obj,.fbx,.gltf,.glb,.dae,.3ds,.max"
+                    accept=".obj,.fbx,.gltf,.glb,.dae,.3ds,.max,.dxf,.dwg"
                     onChange={(e) => handleFileUpload(e, 'model')}
                     className="bg-input border-panel-border"
                   />
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Supported formats: OBJ, FBX, GLTF, GLB, DAE, 3DS, MAX
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <div>3D: OBJ, FBX, GLTF, GLB, DAE, 3DS, MAX</div>
+                  <div>CAD (2D): <span className="font-mono">DXF</span> — LINE / POLYLINE viram paredes paramétricas.</div>
+                  <div className="opacity-70">DWG não é suportado direto (formato binário Autodesk). Converta para DXF em qualquer CAD gratuito.</div>
                 </div>
               </CardContent>
             </Card>
