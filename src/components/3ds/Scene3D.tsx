@@ -66,14 +66,25 @@ export const Scene3D = ({
     return () => window.removeEventListener('r3-subobj-centroid', onCentroid as any);
   }, []);
 
+  // Modify-panel gate: sub-object editing only activates on the Modify tab.
+  const [modifyActive, setModifyActive] = useState<boolean>(
+    typeof window !== 'undefined' ? !!(window as any).__r3_modifyPanelActive : false,
+  );
+  useEffect(() => {
+    const on = (ev: Event) => setModifyActive(!!(ev as CustomEvent).detail?.active);
+    window.addEventListener('r3-modify-panel', on as any);
+    return () => window.removeEventListener('r3-modify-panel', on as any);
+  }, []);
+
   // Only show sub-object gizmo when its centroid matches the current selection
-  // AND that object has an active Edit Poly/Mesh modifier.
+  // AND that object has an active Edit Poly/Mesh modifier AND the Modify panel
+  // is open (matches 3ds Max: sub-object edit lives inside the Modify panel).
   const activeEditMod = useMemo(() => {
-    if (!selectedObjectData) return null;
+    if (!selectedObjectData || !modifyActive) return null;
     return (selectedObjectData.modifiers ?? []).find(
       (m: any) => m.active && (m.type === 'Edit Poly' || m.type === 'Edit Mesh'),
     );
-  }, [selectedObjectData]);
+  }, [selectedObjectData, modifyActive]);
 
   const subGizmoActive =
     !!activeEditMod &&
@@ -81,6 +92,7 @@ export const Scene3D = ({
     subCentroid.objectId === selectedObject &&
     subCentroid.modifierId === activeEditMod.id &&
     !!subCentroid.local;
+
 
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
