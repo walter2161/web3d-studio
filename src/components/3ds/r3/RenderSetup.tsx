@@ -336,19 +336,23 @@ export const RenderSetup = ({
 
       {/* Bottom bar */}
       <div className="mt-2 flex items-end gap-2">
-        <GroupBox title="Viewport" className="flex-1">
-          <div className="flex items-center gap-1">
+        <GroupBox title="View to Render" className="flex-1">
+          <Row label="Source:" labelWidth={54}>
             <select
-              value={viewport}
-              onChange={(e) => setViewport(e.target.value as typeof viewport)}
+              value={renderCameraId}
+              onChange={(e) => setRenderCameraId(e.target.value)}
               className="bevel-inset bg-white text-[11px] h-[18px] flex-1"
             >
-              <option>Perspective</option>
-              <option>Top</option>
-              <option>Front</option>
-              <option>Left</option>
+              <option value={VIEWPORT_CAM_ID}>Active Viewport (Perspective)</option>
+              {cameras.map((c) => (
+                <option key={c.id} value={c.id}>Camera: {c.name}</option>
+              ))}
             </select>
-            <label className="flex items-center gap-1"><input type="checkbox" />{label('Lock')}</label>
+          </Row>
+          <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
+            {renderCameraId === VIEWPORT_CAM_ID
+              ? 'Renders through the current orbit view.'
+              : 'Renders through the selected scene camera, following its animated path.'}
           </div>
         </GroupBox>
         <GroupBox title="Animation Output">
@@ -379,17 +383,36 @@ export const RenderSetup = ({
             width={100}
             onClick={async () => {
               if (rendering) return;
-              // Single frame → open Quick Render preview (existing behavior).
               if (timeMode === 'single') { onRender?.(); onOpenChange(false); return; }
               if (!setCurrentFrame) {
                 toast.error('Animation render not available in this context');
                 return;
               }
-              // Determine frame range.
               let from = 0;
               let to = totalFrames;
               if (timeMode === 'range') { from = Math.min(rangeFrom, rangeTo); to = Math.max(rangeFrom, rangeTo); }
-              if (timeMode === 'frames') { from = 0; to = totalFrames; } // simple fallback
+              if (timeMode === 'frames') { from = 0; to = totalFrames; }
+
+              // Build a camera-pose resolver from the live objects when a
+              // scene camera is chosen. Otherwise fall back to the viewport.
+              let resolveCameraPose: ((f: number) => CameraPose | null) | undefined;
+              if (renderCameraId !== VIEWPORT_CAM_ID && getObjects) {
+                resolveCameraPose = () => {
+                  const objs = getObjects();
+                  const cam = objs.find((o) => o.id === renderCameraId);
+                  if (!cam) return null;
+                  const tid = cam.cameraData?.targetObjectId;
+                  const targetObj = tid ? objs.find((o) => o.id === tid) : null;
+                  return {
+                    position: cam.position,
+                    rotation: cam.rotation,
+                    target: targetObj ? targetObj.position : undefined,
+                    fov: cam.cameraData?.fov ?? 45,
+                    near: cam.cameraData?.near ?? 0.1,
+                    far: cam.cameraData?.far ?? 1000,
+                  };
+                };
+              }
 
               setRendering(true);
               setProgress({ done: 0, total: 0 });
@@ -400,10 +423,13 @@ export const RenderSetup = ({
                   width, height, fps: videoFps, format: videoFormat,
                   engine,
                   setFrame: setCurrentFrame,
+                  resolveCameraPose,
                   onProgress: (done, total) => setProgress({ done, total }),
                 });
-                downloadBlob(blob, suggestFilename(blob, videoFormat));
-                toast.success('Animation rendered', { id: toastId });
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+                setPreviewBlob(blob);
+                setPreviewUrl(URL.createObjectURL(blob));
+                toast.success('Render complete — review the preview', { id: toastId });
               } catch (e: any) {
                 console.error('Animation render failed', e);
                 toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
@@ -418,6 +444,55 @@ export const RenderSetup = ({
           <R3Button width={100} onClick={() => onOpenChange(false)}>Cancel</R3Button>
         </div>
       </div>
+
+      {/* Preview dialog — the user must confirm before the file is saved. */}
+      {previewUrl && previewBlob && (
+        <R3Dialog
+          open={!!previewUrl}
+          onClose={() => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            setPreviewUrl(null);
+            setPreviewBlob(null);
+          }}
+          title="Render Preview"
+          width={720}
+        >
+          <div className="bevel-inset bg-black mb-2 flex items-center justify-center" style={{ minHeight: 360 }}>
+            <video
+              src={previewUrl}
+              controls
+              autoPlay
+              loop
+              className="max-w-full max-h-[60vh]"
+            />
+          </div>
+          <div className="text-[11px] text-muted-foreground mb-2">
+            {(previewBlob.size / (1024 * 1024)).toFixed(2)} MB · {previewBlob.type || 'video'}
+          </div>
+          <div className="flex justify-end gap-1">
+            <R3Button
+              width={110}
+              onClick={() => {
+                if (!previewBlob) return;
+                downloadBlob(previewBlob, suggestFilename(previewBlob, videoFormat));
+                toast.success('Video saved');
+              }}
+            >
+              Save Video
+            </R3Button>
+            <R3Button
+              width={110}
+              onClick={() => {
+                if (previewUrl) URL.revokeObjectURL(previewUrl);
+                setPreviewUrl(null);
+                setPreviewBlob(null);
+              }}
+            >
+              Discard
+            </R3Button>
+          </div>
+        </R3Dialog>
+      )}
     </R3Dialog>
   );
 };
