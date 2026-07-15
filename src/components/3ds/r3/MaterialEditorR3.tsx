@@ -246,7 +246,16 @@ function SamplePreview({ mat, size = 60, shape = 'sphere' }: { mat: R3Material; 
   const opacity = mat.opacity / 100;
   const selfIll = mat.selfIllumination / 100;
   const highlight = `rgba(255,255,255,${0.3 + spec * 0.7})`;
-  const bg = `radial-gradient(circle at 30% 28%, ${highlight} ${specSize * 0.15}%, ${mat.diffuse} ${specHardness}%, #000 130%)`;
+  // Diffuse bitmap preview (Show Map behavior in the slot)
+  const diffSlot = mat.maps?.diffuse;
+  const bmpFile = diffSlot?.name === 'Bitmap' ? diffSlot.params?.filename : undefined;
+  const bmpUrl = bmpFile ? ((window as any).__r3BitmapUrls?.[bmpFile] as string | undefined) : undefined;
+  const bgBase = bmpUrl
+    ? `url("${bmpUrl}") center/cover, ${mat.diffuse}`
+    : `radial-gradient(circle at 30% 28%, ${highlight} ${specSize * 0.15}%, ${mat.diffuse} ${specHardness}%, #000 130%)`;
+  const bg = bmpUrl
+    ? `radial-gradient(circle at 30% 28%, ${highlight} 0%, transparent ${specHardness}%), ${bgBase}`
+    : bgBase;
   const shadow = selfIll > 0
     ? `0 0 ${8 + selfIll * 14}px ${mat.diffuse}`
     : 'inset -6px -8px 12px rgba(0,0,0,.35)';
@@ -301,6 +310,23 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     else setMapParamsOpen(key);
   };
 
+  const mapPayload = (slot?: R3MapSlot) => {
+    if (!slot || slot.name !== 'Bitmap' || !slot.params?.filename) return null;
+    const url = (window as any).__r3BitmapUrls?.[slot.params.filename];
+    if (!url) return null;
+    const c = slot.params.coords;
+    return {
+      url,
+      filename: slot.params.filename,
+      repeat: [c.tilingU, c.tilingV] as [number, number],
+      offset: [c.offsetU, c.offsetV] as [number, number],
+      rotation: ((c.angleW || 0) * Math.PI) / 180,
+      mirrorU: !!c.mirrorU, mirrorV: !!c.mirrorV,
+      tileU: c.tileU !== false, tileV: c.tileV !== false,
+      amount: (slot.amount ?? 100) / 100,
+    };
+  };
+
   const matToThree = (m: R3Material) => ({
     color: m.diffuse,
     metalness: m.metalness,
@@ -308,6 +334,11 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     opacity: m.opacity / 100,
     emissive: m.diffuse,
     emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
+    map: mapPayload(m.maps.diffuse),
+    bumpMap: mapPayload(m.maps.bump),
+    bumpScale: (m.maps.bump?.amount ?? 30) / 100,
+    opacityMap: mapPayload(m.maps.opacity),
+    emissiveMap: mapPayload(m.maps.selfIllum),
   });
 
   const assignToSelection = () => {
