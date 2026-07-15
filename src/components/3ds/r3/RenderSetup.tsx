@@ -375,25 +375,8 @@ export const RenderSetup = ({
 
       {/* Bottom bar */}
       <div className="mt-2 flex items-end gap-2">
-        <GroupBox title="View to Render" className="flex-1">
-          <Row label="Source:" labelWidth={54}>
-            <select
-              value={renderCameraId}
-              onChange={(e) => setRenderCameraId(e.target.value)}
-              className="bevel-inset bg-white text-[11px] h-[18px] flex-1"
-            >
-              <option value={VIEWPORT_CAM_ID}>Active Viewport (Perspective)</option>
-              {cameras.map((c) => (
-                <option key={c.id} value={c.id}>Camera: {c.name}</option>
-              ))}
-            </select>
-          </Row>
-          <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
-            {renderCameraId === VIEWPORT_CAM_ID
-              ? 'Renders through the current orbit view.'
-              : 'Renders through the selected scene camera, following its animated path.'}
-          </div>
-        </GroupBox>
+        <div className="flex-1" />
+
         <GroupBox title="Animation Output">
           <Row label="Format:" labelWidth={54}>
             <select
