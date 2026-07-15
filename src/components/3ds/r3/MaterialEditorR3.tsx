@@ -289,6 +289,11 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   useEffect(() => { if (open) setSlots(loadSlots()); }, [open]);
   useEffect(() => { saveSlots(slots); }, [slots]);
 
+  // Live-link (Max behavior): once a material has been assigned to the
+  // selected object, any change to that active slot re-applies to it in
+  // real time — including bitmap loads, tiling/offset tweaks, colors, etc.
+  const lastAppliedRef = useRef<string | null>(null);
+
   const mat = slots[active];
   const update = (patch: Partial<R3Material>) => {
     setSlots((prev) => prev.map((m, i) => (i === active ? { ...m, ...patch, ...(patch.diffuse && m.ambientLocked ? { ambient: patch.diffuse } : {}) } : m)));
