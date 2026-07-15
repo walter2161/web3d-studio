@@ -50,7 +50,10 @@ const STAGES: Record<CreatableTool, number> = {
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
   wall: 1, // multi-click, handled by dedicated branch below
   door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
+  // Helpers: single-click place. Tape uses its own 2-click branch below.
+  helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
 };
+
 
 function buildGhost(
   tool: CreatableTool,
@@ -216,7 +219,61 @@ function buildGhost(
       break;
     }
 
+    // Helpers — single-click placement (Point / Dummy / Grid / Compass).
+    // Tape is handled by its own two-click branch in the controller so it
+    // never enters buildGhost with a real ghost.
+    case 'helper_point': {
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = {
+        helperKind: 'point',
+        size: 0.2, showCross: true, showBox: false,
+        showAxisTripod: false, showCenterMarker: false, constantScreenSize: false,
+      };
+      break;
+    }
+    case 'helper_dummy': {
+      // Drag defines size on the base plane; height mirrors width.
+      const s = Math.max(0.01, baseDist || 0.5);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis] + s / 2);
+      geometry = { helperKind: 'dummy', length: s, width: s, height: s };
+      break;
+    }
+    case 'helper_grid': {
+      const s = Math.max(0.1, baseDist * 2 || 5);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { helperKind: 'grid', gridLength: s, gridWidth: s, gridSpacing: Math.max(0.05, s / 10) };
+      break;
+    }
+    case 'helper_compass': {
+      const r = Math.max(0.1, baseDist || 1);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { helperKind: 'compass', radius: r, showTicks: true };
+      break;
+    }
+    case 'helper_tape': {
+      // Two-click flow handled separately (see tapeRef branch). Fallback:
+      // a zero-length preview at the start point.
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = {
+        helperKind: 'tape',
+        endpointA: [0, 0, 0],
+        endpointB: [current.x - start.x, current.y - start.y, current.z - start.z],
+      };
+      break;
+    }
+
   }
+
 
 
   return {
@@ -373,11 +430,52 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       wallRef.pts = [];
     };
 
+    // -------- Tape helper: two-click distance measurement ----------------
+    const tapeRef: { start: THREE.Vector3 | null; cursor: THREE.Vector3 } | null =
+      armed === 'helper_tape' ? { start: null, cursor: new THREE.Vector3() } : null;
+
+    const buildTapeGhost = (a: THREE.Vector3, b: THREE.Vector3): GhostObject => ({
+      id: '__ghost',
+      type: 'helper_tape',
+      position: [a.x, a.y, a.z],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: COLOR_GHOST,
+      geometry: {
+        helperKind: 'tape',
+        endpointA: [0, 0, 0],
+        endpointB: [b.x - a.x, b.y - a.y, b.z - a.z],
+        specifyLength: false,
+        targetLength: 1,
+      },
+      visible: true,
+      __creating: true,
+    });
+
+
+
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
+      if (tapeRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (!tapeRef.start) {
+          tapeRef.start = p.clone();
+          tapeRef.cursor.copy(p);
+          setGhost(buildTapeGhost(p, p));
+        } else {
+          commit(buildTapeGhost(tapeRef.start, p));
+          tapeRef.start = null;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       if (wallRef) {
+
         const p = raycastBase(e);
         if (!p) return;
         if (wallRef.pts.length === 0) {
@@ -464,6 +562,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (tapeRef) {
+        if (!tapeRef.start) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        tapeRef.cursor.copy(p);
+        setGhost(buildTapeGhost(tapeRef.start, p));
+        return;
+      }
       if (wallRef) {
         if (wallRef.pts.length === 0) return;
         const p = raycastBase(e);
@@ -526,6 +632,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       if (e.key === 'Escape') {
         if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
         if (wallRef) { wallRef.pts = []; }
+        if (tapeRef) { tapeRef.start = null; }
         stageRef.current = null;
         setGhost(null);
         disarm();

@@ -11,6 +11,9 @@ import type { SubObjectLevel } from './editable/EditableMesh';
 import { fromGeometry } from './editable/fromGeometry';
 import { toGeometry } from './editable/toGeometry';
 import { replay, OpRecord } from './editable/ops';
+import { HelperGizmo } from './r3/HelperGizmo';
+import { isHelperType } from './utils/helpers';
+
 
 
 // R3-style entity types
@@ -238,11 +241,12 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // binds `object.ref` to its own group. Overwriting here with the (null) mesh
   // ref would break TransformControls attach for those entities.
   useEffect(() => {
-    if (isEntityType(object.type)) return;
+    if (isEntityType(object.type) || isHelperType(object.type)) return;
     if (object.ref) {
       object.ref.current = meshRef.current;
     }
   }, [object.ref, object.type]);
+
 
   // Imported model: cached scene graph + animations
   const imported = object.type === 'imported' ? getImportedModel(object.id) : undefined;
@@ -284,7 +288,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // Apply modifiers to geometry (only for primitive types)
   const modifiedGeometry = useMemo(() => {
     if (object.type === 'imported') return new THREE.BufferGeometry();
+    if (isHelperType(object.type)) return new THREE.BufferGeometry();
     let geometry: BufferGeometry = createBaseGeometry(object.type, object.geometry);
+
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
         if (modifier.active) {
@@ -799,6 +805,27 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     );
   }
 
+  // Helpers (Point / Dummy / Tape / Grid / Compass) — non-renderable viewport
+  // gizmos, no material, no shadows, ignored by exporters.
+  if (isHelperType(object.type)) {
+    const ghostH = (object as any).__creating === true;
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={ghostH ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
+      >
+        <HelperGizmo data={object.geometry} selected={isSelected} ghost={ghostH} />
+        {/* Invisible pick-proxy so users can click helpers easily. */}
+        <mesh visible={false} raycast={ghostH ? () => null : undefined}>
+          <sphereGeometry args={[0.25, 6, 6]} />
+        </mesh>
+      </group>
+    );
+  }
+
   // Render lights and cameras as full-fledged scene entities with R3-style helpers.
 
   if (isEntityType(object.type)) {
@@ -814,6 +841,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
     );
   }
+
 
   const isGhost = (object as any).__creating === true;
 

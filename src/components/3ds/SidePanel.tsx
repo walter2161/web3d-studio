@@ -292,6 +292,38 @@ export const SidePanel = ({
     { type: 'foliage',  label: 'Foliage',  disabled: true },
   ];
 
+  // Helpers — non-renderable viewport aids (see utils/helpers.ts).
+  const helperPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'helper_point',   label: 'Point' },
+    { type: 'helper_dummy',   label: 'Dummy' },
+    { type: 'helper_tape',    label: 'Tape' },
+    { type: 'helper_grid',    label: 'Grid' },
+    { type: 'helper_compass', label: 'Compass' },
+    { type: 'helper_protractor', label: 'Protractor', disabled: true },
+  ];
+
+  // Space Warps — Fase 2, ainda não implementados.
+  const warpPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'warp_gravity',   label: 'Gravity',   disabled: true },
+    { type: 'warp_wind',      label: 'Wind',      disabled: true },
+    { type: 'warp_ripple',    label: 'Ripple',    disabled: true },
+    { type: 'warp_wave',      label: 'Wave',      disabled: true },
+    { type: 'warp_bomb',      label: 'Bomb',      disabled: true },
+    { type: 'warp_ffd',       label: 'FFD',       disabled: true },
+    { type: 'warp_deflector', label: 'Deflector', disabled: true },
+    { type: 'warp_vortex',    label: 'Vortex',    disabled: true },
+  ];
+
+  // Systems — Fase 3, ainda não implementados.
+  const systemPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'sys_bones',    label: 'Bones',    disabled: true },
+    { type: 'sys_ring',     label: 'Ring Array', disabled: true },
+    { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
+    { type: 'sys_daylight', label: 'Daylight', disabled: true },
+    { type: 'sys_biped',    label: 'Biped',    disabled: true },
+  ];
+
+
 
 
   // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
@@ -554,11 +586,54 @@ export const SidePanel = ({
                     {c.label}
                   </button>
                 ))}
-                {(createCat === 'helpers' || createCat === 'warps' || createCat === 'systems') && (
-                  <div className="col-span-2 text-[11px] text-win-text-disabled px-1 py-2 text-center">
-                    (Em desenvolvimento)
+                {createCat === 'helpers' && helperPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      disabled={p.disabled}
+                      onClick={() => {
+                        if (p.disabled) return;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={p.disabled ? `${p.label} — em breve` : `Create ${p.label} helper`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        p.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+                {createCat === 'warps' && warpPrimitives.map((p) => (
+                  <button
+                    key={p.type}
+                    disabled
+                    title={`${p.label} — Fase 2 (Space Warps ainda em desenvolvimento)`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised opacity-40 cursor-not-allowed"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {createCat === 'systems' && systemPrimitives.map((p) => (
+                  <button
+                    key={p.type}
+                    disabled
+                    title={`${p.label} — Fase 3 (Systems ainda em desenvolvimento)`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised opacity-40 cursor-not-allowed"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {(createCat === 'warps' || createCat === 'systems') && (
+                  <div className="col-span-2 text-[10px] text-win-text-disabled px-1 pt-1 text-center italic">
+                    {createCat === 'warps' ? 'Space Warps — Fase 2 (em breve)' : 'Systems — Fase 3 (em breve)'}
                   </div>
                 )}
+
               </div>
             </div>
           </TabsContent>
@@ -983,7 +1058,108 @@ export const SidePanel = ({
                     );
                   }
 
+                  // ---- Helpers (Point / Dummy / Tape / Grid / Compass) ----
+                  if (selectedObject.type === 'helper') {
+                    const kind = geom.helperKind as string | undefined;
+                    if (kind === 'point') {
+                      return (
+                        <MaxRollout title="Parameters" className="mt-4">
+                          <MaxSpinner label="Size" value={geom.size ?? 0.2} step={0.05} min={0.001}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { size: v })} />
+                          <div className="pt-1 mt-1 border-t border-panel-border/60 space-y-[3px]">
+                            <MaxCheck label="Cross"          checked={geom.showCross ?? true}      onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { showCross: v })} />
+                            <MaxCheck label="Box"            checked={!!geom.showBox}              onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { showBox: v })} />
+                            <MaxCheck label="Axis Tripod"    checked={!!geom.showAxisTripod}       onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { showAxisTripod: v })} />
+                            <MaxCheck label="Center Marker"  checked={!!geom.showCenterMarker}     onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { showCenterMarker: v })} />
+                            <MaxCheck label="Constant Screen Size" checked={!!geom.constantScreenSize} onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { constantScreenSize: v })} />
+                          </div>
+                          <div className="text-[10px] text-muted-foreground pt-2 leading-tight">
+                            Point helpers do not render — used for pivots, targets and animation refs.
+                          </div>
+                        </MaxRollout>
+                      );
+                    }
+                    if (kind === 'dummy') {
+                      return (
+                        <MaxRollout title="Parameters" className="mt-4">
+                          <MaxSpinner label="Length" value={geom.length ?? 1} step={0.1} min={0.001}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { length: v })} />
+                          <MaxSpinner label="Width" value={geom.width ?? 1} step={0.1} min={0.001}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { width: v })} />
+                          <MaxSpinner label="Height" value={geom.height ?? 1} step={0.1} min={0.001}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { height: v })} />
+                          <div className="text-[10px] text-muted-foreground pt-2 leading-tight">
+                            Dummy: non-rendering box used to group and animate hierarchies.
+                          </div>
+                        </MaxRollout>
+                      );
+                    }
+                    if (kind === 'tape') {
+                      const a = geom.endpointA ?? [0, 0, 0];
+                      const b = geom.endpointB ?? [1, 0, 0];
+                      const dist = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+                      return (
+                        <MaxRollout title="Parameters" className="mt-4">
+                          <div className="text-[11px] font-mono py-1">
+                            Distance: <span className="text-foreground">{dist.toFixed(3)} m</span>
+                          </div>
+                          <MaxCheck label="Specify Length" checked={!!geom.specifyLength}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { specifyLength: v })} />
+                          {geom.specifyLength && (
+                            <MaxSpinner label="Length" value={geom.targetLength ?? 1} step={0.1} min={0.001}
+                              onChange={(v) => {
+                                const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+                                const cur = Math.hypot(dx, dy, dz) || 1;
+                                const k = v / cur;
+                                onUpdateObjectGeometry(selectedObject.id, {
+                                  targetLength: v,
+                                  endpointB: [a[0] + dx * k, a[1] + dy * k, a[2] + dz * k],
+                                });
+                              }} />
+                          )}
+                          <div className="text-[10px] text-muted-foreground pt-2 leading-tight">
+                            Two-click distance meter. Endpoint B is stored relative to the pivot.
+                          </div>
+                        </MaxRollout>
+                      );
+                    }
+                    if (kind === 'grid') {
+                      return (
+                        <MaxRollout title="Parameters" className="mt-4">
+                          <MaxSpinner label="Length" value={geom.gridLength ?? 5} step={0.1} min={0.1}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { gridLength: v })} />
+                          <MaxSpinner label="Width" value={geom.gridWidth ?? 5} step={0.1} min={0.1}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { gridWidth: v })} />
+                          <MaxSpinner label="Spacing" value={geom.gridSpacing ?? 0.5} step={0.05} min={0.01}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { gridSpacing: v })} />
+                          <div className="text-[10px] text-muted-foreground pt-2 leading-tight">
+                            Local construction grid. Rotate to align with inclined surfaces.
+                          </div>
+                        </MaxRollout>
+                      );
+                    }
+                    if (kind === 'compass') {
+                      return (
+                        <MaxRollout title="Parameters" className="mt-4">
+                          <MaxSpinner label="Radius" value={geom.radius ?? 1} step={0.1} min={0.05}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { radius: v })} />
+                          <MaxCheck label="Show N/E/S/W" checked={geom.showTicks ?? true}
+                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { showTicks: v })} />
+                          <div className="text-[10px] text-muted-foreground pt-2 leading-tight">
+                            Compass: reference direction for Sunlight / Daylight systems.
+                          </div>
+                        </MaxRollout>
+                      );
+                    }
+                    return (
+                      <MaxRollout title="Parameters" className="mt-4">
+                        <div className="text-[11px] text-muted-foreground">Unknown helper kind.</div>
+                      </MaxRollout>
+                    );
+                  }
+
                   // ---- Standard primitives / shapes ----
+
                   if (!schema) {
                     return (
                       <MaxRollout title="Parameters" className="mt-4">

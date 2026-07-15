@@ -55,8 +55,10 @@ interface Object3DData {
     | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
     | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
     | 'wall' | 'door' | 'window'
+    | 'helper'
     | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
     | 'camera_target' | 'camera_free' | 'target_helper';
+
 
   position: [number, number, number];
   rotation: [number, number, number];
@@ -447,7 +449,36 @@ export const Studio3D = () => {
     const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
     const camTypes   = ['camera_target', 'camera_free'];
 
-    if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes].includes(type)) return;
+    const helperTools = ['helper_point', 'helper_dummy', 'helper_tape', 'helper_grid', 'helper_compass'];
+    if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes, ...helperTools].includes(type)) return;
+
+    // Helpers: create directly at origin, no drag flow needed for click-only use.
+    if (helperTools.includes(type)) {
+      saveState();
+      const kind = type.replace('helper_', '') as any;
+      const { HELPER_DEFAULTS } = require('./utils/helpers');
+      const geom = { ...HELPER_DEFAULTS[kind] };
+      const id = `helper_${Date.now()}`;
+      const newObject: Object3DData = {
+        id,
+        name: `${kind}${objects.filter((o) => o.type === 'helper' && (o.geometry as any)?.helperKind === kind).length + 1}`,
+        type: 'helper' as any,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#00e5ff',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry: geom,
+        ref: { current: null } as any,
+      };
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedObject(id);
+      toast.success(`${kind} helper created`);
+      return;
+    }
+
 
     saveState();
 
@@ -648,14 +679,22 @@ export const Studio3D = () => {
       }
     }
 
+    // Helpers: normalize `helper_point` / `helper_dummy` / … → type='helper',
+    // and stash the subtype under geometry.helperKind (already set by the
+    // controller). Helpers never snap to walls and never carry a material.
+    const isHelperGhost = typeof g.type === 'string' && (g.type as string).startsWith('helper_');
+    const normalizedType: any = isHelperGhost ? 'helper' : (g.type as any);
+
     const newObject: Object3DData = {
       id,
-      name: `${g.type}${objects.filter((o) => o.type === g.type).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === g.type).length + 1}`,
-      type: g.type as any,
+      name: `${normalizedType}${objects.filter((o) => o.type === normalizedType).length + 1 < 10 ? '0' : ''}${objects.filter((o) => o.type === normalizedType).length + 1}`,
+      type: normalizedType,
       position: finalPosition,
       rotation: finalRotation,
       scale: g.scale,
-      color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
+      color: isHelperGhost
+        ? '#00e5ff'
+        : g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
              g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
         ? '#f2c744'
         : g.type === 'wall'
@@ -672,6 +711,7 @@ export const Studio3D = () => {
       geometry: finalGeometry,
       ref: { current: null } as any,
     };
+
     setObjects((prev) => {
       let next = [...prev, newObject];
       // Register the opening on the target wall (rebuilds mesh with the hole).
