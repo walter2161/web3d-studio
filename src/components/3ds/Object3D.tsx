@@ -288,7 +288,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // Apply modifiers to geometry (only for primitive types)
   const modifiedGeometry = useMemo(() => {
     if (object.type === 'imported') return new THREE.BufferGeometry();
+    if (isHelperType(object.type)) return new THREE.BufferGeometry();
     let geometry: BufferGeometry = createBaseGeometry(object.type, object.geometry);
+
     if (object.modifiers) {
       object.modifiers.forEach(modifier => {
         if (modifier.active) {
