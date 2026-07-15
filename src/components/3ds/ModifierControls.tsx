@@ -470,31 +470,25 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
           <CheckRow label="Preserve UVs" checked={!!params.preserveUVs} onChange={(v) => updateParam('preserveUVs', v)} />
           <BtnRow>
             <WinBtn onClick={stub}>Create</WinBtn>
-            <WinBtn onClick={stub}>Collapse</WinBtn>
+            <WinBtn onClick={() => dispatchOp('weld', { threshold: params.weldThreshold ?? 0.01 })}>Weld</WinBtn>
             <WinBtn onClick={stub}>Attach</WinBtn>
             <WinBtn onClick={stub}>Detach</WinBtn>
-            <WinBtn onClick={stub}>Slice Plane</WinBtn>
+            <WinBtn onClick={() => dispatchOp('delete')}>Delete</WinBtn>
             <WinBtn onClick={stub}>Split</WinBtn>
             <WinBtn onClick={stub}>Slice</WinBtn>
-            <WinBtn onClick={stub}>Reset Plane</WinBtn>
-            <WinBtn onClick={stub}>QuickSlice</WinBtn>
             <WinBtn onClick={stub}>Cut</WinBtn>
+            <WinBtn onClick={stub}>QuickSlice</WinBtn>
             <WinBtn onClick={stub}>MSmooth</WinBtn>
             <WinBtn onClick={stub}>Tessellate</WinBtn>
           </BtnRow>
-          <BtnCol3>
-            <WinBtn onClick={stub}>Make Planar</WinBtn>
-            <WinBtn onClick={stub}>X</WinBtn>
-            <WinBtn onClick={stub}>Y</WinBtn>
-          </BtnCol3>
+          <NumField label="Weld Th" value={params.weldThreshold ?? 0.01} step={0.001} onChange={(v) => updateParam('weldThreshold', v)} />
           <BtnRow>
-            <WinBtn onClick={stub}>View Align</WinBtn>
-            <WinBtn onClick={stub}>Grid Align</WinBtn>
+            <WinBtn onClick={() => dispatchOp('hide')}>Hide Selected</WinBtn>
+            <WinBtn onClick={() => dispatchOp('unhide')}>Unhide All</WinBtn>
+            <WinBtn onClick={() => dispatchOp('hideUnselected')}>Hide Unsel.</WinBtn>
             <WinBtn onClick={stub}>Relax</WinBtn>
-            <WinBtn onClick={stub}>Hide Selected</WinBtn>
-            <WinBtn onClick={stub}>Unhide All</WinBtn>
-            <WinBtn onClick={stub}>Hide Unselected</WinBtn>
           </BtnRow>
+
           <div className="text-[10px] text-win-text mt-[3px]">Named Selections:</div>
           <BtnRow>
             <WinBtn onClick={stub}>Copy</WinBtn>
@@ -505,9 +499,9 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
 
         <Rollout title="Polygon: Material IDs" defaultOpen={false}>
           <NumField label="Set ID" value={params.setId ?? 1} step={1} min={1} onChange={(v) => updateParam('setId', Math.max(1, Math.floor(v)))} />
-          <NumField label="Select ID" value={params.selectId ?? 1} step={1} min={1} onChange={(v) => updateParam('selectId', Math.max(1, Math.floor(v)))} />
-          <WinBtn onClick={stub} className="w-full mb-[2px]">Clear Selection</WinBtn>
+          <WinBtn onClick={() => dispatchOp('setMaterialId', { id: params.setId ?? 1 })} className="w-full mb-[2px]">Apply Material ID</WinBtn>
         </Rollout>
+
       </>
     );
   };
