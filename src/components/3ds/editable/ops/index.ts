@@ -208,12 +208,20 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
         const c = new THREE.Vector3();
         f.verts.forEach((vid) => c.add(out.vertices.get(vid)!.position));
         c.multiplyScalar(1 / f.verts.length);
+        // Face centroid UV (for inner ring UV interpolation).
+        const cUV = new THREE.Vector2();
+        let uvCount = 0;
+        f.verts.forEach((vid) => { const u = out.vertices.get(vid)!.uv; if (u) { cUV.add(u); uvCount++; } });
+        if (uvCount > 0) cUV.multiplyScalar(1 / uvCount);
         const inner: VertexId[] = f.verts.map((vid) => {
-          const p = out.vertices.get(vid)!.position;
+          const src = out.vertices.get(vid)!;
+          const p = src.position;
           const dir = new THREE.Vector3().subVectors(c, p);
           const len = dir.length();
-          if (len > 0) dir.multiplyScalar(Math.min(amount, len * 0.95) / len);
-          return out.addVertex(p.clone().add(dir));
+          const t = len > 0 ? Math.min(amount, len * 0.95) / len : 0;
+          if (t > 0) dir.multiplyScalar(t);
+          const newUV = src.uv && uvCount > 0 ? src.uv.clone().lerp(cUV, t) : src.uv?.clone();
+          return out.addVertex(p.clone().add(dir), newUV);
         });
         const matId = f.materialId; const sg = f.smoothingGroup;
         out.faces.delete(f.id);
