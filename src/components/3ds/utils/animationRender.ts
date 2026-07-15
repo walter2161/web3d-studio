@@ -147,7 +147,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
   const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
   const targetDelayMs = 1000 / Math.max(1, fps);
-  const renderedFrames: ImageBitmap[] = [];
+  const renderedFrames: Blob[] = [];
   let encodeStream: MediaStream | null = null;
   let recorder: MediaRecorder | null = null;
 
@@ -188,9 +188,16 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       ctx.restore();
 
-      // Store the rendered still. Encoding happens only after every requested
-      // animation frame has been rendered, matching a real image-sequence flow.
-      renderedFrames.push(await createImageBitmap(recCanvas));
+      // Store the rendered still as a separate PNG frame in memory. Encoding
+      // happens only after every requested animation frame has been rendered,
+      // matching a real image-sequence flow without keeping huge decoded
+      // bitmaps alive for the whole render.
+      renderedFrames.push(await new Promise<Blob>((resolve, reject) => {
+        recCanvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Failed to capture rendered frame'));
+        }, 'image/png');
+      }));
       idx++;
       onProgress?.(idx, frameCount);
     }
@@ -223,8 +230,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
     recorder.start();
     for (const frame of renderedFrames) {
+      const bitmap = await createImageBitmap(frame);
       ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(frame, 0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      bitmap.close();
       if (typeof track.requestFrame === 'function') track.requestFrame();
       await new Promise((r) => setTimeout(r, targetDelayMs));
     }
@@ -236,7 +245,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   } finally {
     if (recorder && recorder.state !== 'inactive') recorder.stop();
     encodeStream?.getTracks().forEach((track) => track.stop());
-    renderedFrames.forEach((frame) => frame.close());
+    renderedFrames.length = 0;
 
     // Restore scene state.
     hidden.forEach((o) => { o.visible = true; });
