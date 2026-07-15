@@ -582,6 +582,332 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
       drop.forEach((id) => out.faces.delete(id));
       return { mesh: out, selection: { level: 'vertex', ids: new Set() } };
     }
+    case 'chamfer': {
+      // Vertex chamfer: replace each selected vertex with N new vertices
+      // (one per incident edge partner), each pulled back along its edge by
+      // `amount`. Adjacent faces get their corner replaced by the two new
+      // verts on their incident edges. If `open` is false, cap the hole.
+      if (sel.level !== 'vertex') return { mesh: out, selection: sel };
+      const amount = Math.max(0, op.params?.amount ?? 0.05);
+      const openHole = !!op.params?.open;
+      const newSelVerts = new Set<number>();
+      for (const vidRaw of Array.from(sel.ids)) {
+        const vid = vidRaw as VertexId;
+        const vSrc = out.vertices.get(vid); if (!vSrc) continue;
+        const incidentFaces = out.facesOfVertex(vid);
+        if (incidentFaces.length === 0) continue;
+        const edgeToNewV = new Map<VertexId, VertexId>();
+        const partners = new Set<VertexId>();
+        for (const fid of incidentFaces) {
+          const f = out.faces.get(fid)!;
+          const i = f.verts.indexOf(vid);
+          partners.add(f.verts[(i - 1 + f.verts.length) % f.verts.length]);
+          partners.add(f.verts[(i + 1) % f.verts.length]);
+        }
+        partners.forEach((other) => {
+          const vo = out.vertices.get(other)!;
+          const dir = new THREE.Vector3().subVectors(vo.position, vSrc.position);
+          const len = dir.length();
+          const t = len > 0 ? Math.min(amount, len * 0.49) / len : 0;
+          const p = vSrc.position.clone().add(dir.multiplyScalar(t));
+          const uv = (vSrc.uv && vo.uv) ? vSrc.uv.clone().lerp(vo.uv, t) : vSrc.uv?.clone();
+          const nid = out.addVertex(p, uv);
+          edgeToNewV.set(other, nid);
+          newSelVerts.add(nid);
+        });
+        for (const fid of incidentFaces) {
+          const f = out.faces.get(fid)!;
+          const i = f.verts.indexOf(vid);
+          const prev = f.verts[(i - 1 + f.verts.length) % f.verts.length];
+          const next = f.verts[(i + 1) % f.verts.length];
+          const nPrev = edgeToNewV.get(prev)!;
+          const nNext = edgeToNewV.get(next)!;
+          const newRing = f.verts.slice();
+          newRing.splice(i, 1, nPrev, nNext);
+          const matId = f.materialId, sg = f.smoothingGroup;
+          out.faces.delete(f.id);
+          out.addFace(newRing, matId, sg);
+        }
+        if (!openHole && edgeToNewV.size >= 3) {
+          const capIds = Array.from(edgeToNewV.values());
+          const center = new THREE.Vector3();
+          capIds.forEach((nid) => center.add(out.vertices.get(nid)!.position));
+          center.multiplyScalar(1 / capIds.length);
+          const normal = new THREE.Vector3();
+          for (const fid of incidentFaces) { const f = out.faces.get(fid); if (f) normal.add(faceNormal(out, f)); }
+          if (normal.lengthSq() <= 0) normal.set(0, 1, 0);
+          normal.normalize();
+          const uAxis = new THREE.Vector3(1, 0, 0);
+          if (Math.abs(normal.dot(uAxis)) > 0.9) uAxis.set(0, 1, 0);
+          const xAxis = new THREE.Vector3().crossVectors(normal, uAxis).normalize();
+          const yAxis = new THREE.Vector3().crossVectors(normal, xAxis).normalize();
+          capIds.sort((a, b) => {
+            const pa = out.vertices.get(a)!.position, pb = out.vertices.get(b)!.position;
+            const ax = new THREE.Vector3().subVectors(pa, center);
+            const bx = new THREE.Vector3().subVectors(pb, center);
+            return Math.atan2(ax.dot(yAxis), ax.dot(xAxis)) - Math.atan2(bx.dot(yAxis), bx.dot(xAxis));
+          });
+          out.addFace(capIds, 1, 1);
+        }
+        out.vertices.delete(vid);
+      }
+      return { mesh: out, selection: { level: 'vertex', ids: newSelVerts } };
+    }
+    case 'chamferEdge': {
+      // Edge chamfer (1 segment): each selected edge becomes a quad strip.
+      if (sel.level !== 'edge' && sel.level !== 'border') return { mesh: out, selection: sel };
+      const amount = Math.max(0, op.params?.amount ?? 0.05);
+      const selEdgeIds = new Set<number>();
+      (sel.ids as Set<number>).forEach((id) => selEdgeIds.add(id));
+      const dupKey = (fid: FaceId, v: VertexId) => `${fid}_${v}`;
+      const dupMap = new Map<string, VertexId>();
+      const getDup = (fid: FaceId, v: VertexId, along: VertexId): VertexId => {
+        const k = dupKey(fid, v);
+        const cached = dupMap.get(k);
+        if (cached !== undefined) return cached;
+        const vs = out.vertices.get(v)!; const va = out.vertices.get(along)!;
+        const dir = new THREE.Vector3().subVectors(va.position, vs.position);
+        const len = dir.length();
+        const t = len > 0 ? Math.min(amount, len * 0.49) / len : 0;
+        const p = vs.position.clone().add(dir.multiplyScalar(t));
+        const uv = (vs.uv && va.uv) ? vs.uv.clone().lerp(va.uv, t) : vs.uv?.clone();
+        const nid = out.addVertex(p, uv);
+        dupMap.set(k, nid);
+        return nid;
+      };
+      const affectedFaces = new Set<FaceId>();
+      selEdgeIds.forEach((eid) => {
+        const e = out.edges.get(eid); if (!e) return;
+        e.faces.forEach((fid) => affectedFaces.add(fid));
+      });
+      // Build a quick edge-id lookup by key.
+      const edgeIdByKey = new Map<string, number>();
+      out.edges.forEach((e) => {
+        const k = e.a < e.b ? `${e.a}_${e.b}` : `${e.b}_${e.a}`;
+        edgeIdByKey.set(k, e.id);
+      });
+      const rebuilt: { faceId: FaceId; ring: VertexId[]; matId: number; sg: number }[] = [];
+      for (const fid of affectedFaces) {
+        const f = out.faces.get(fid); if (!f) continue;
+        const newRing: VertexId[] = [];
+        const N = f.verts.length;
+        for (let i = 0; i < N; i++) {
+          const v = f.verts[i];
+          const prev = f.verts[(i - 1 + N) % N];
+          const next = f.verts[(i + 1) % N];
+          const kPrev = v < prev ? `${v}_${prev}` : `${prev}_${v}`;
+          const kNext = v < next ? `${v}_${next}` : `${next}_${v}`;
+          const prevSel = selEdgeIds.has(edgeIdByKey.get(kPrev) ?? -1);
+          const nextSel = selEdgeIds.has(edgeIdByKey.get(kNext) ?? -1);
+          if (!prevSel && !nextSel) { newRing.push(v); continue; }
+          if (prevSel && !nextSel) newRing.push(getDup(fid, v, prev), v);
+          else if (!prevSel && nextSel) newRing.push(v, getDup(fid, v, next));
+          else newRing.push(getDup(fid, v, prev), getDup(fid, v, next));
+        }
+        rebuilt.push({ faceId: fid, ring: newRing, matId: f.materialId, sg: f.smoothingGroup });
+      }
+      for (const r of rebuilt) { out.faces.delete(r.faceId); out.addFace(r.ring, r.matId, r.sg); }
+      // Bridge quads for interior edges (both sides have duplicates).
+      selEdgeIds.forEach((eid) => {
+        const e = out.edges.get(eid); if (!e || e.faces.length < 2) return;
+        const [f0, f1] = e.faces;
+        const a0 = dupMap.get(dupKey(f0, e.a)); const b0 = dupMap.get(dupKey(f0, e.b));
+        const a1 = dupMap.get(dupKey(f1, e.a)); const b1 = dupMap.get(dupKey(f1, e.b));
+        if (a0 && b0 && a1 && b1) out.addFace([a0, b0, b1, a1], 1, 1);
+      });
+      // Prune orphan vertices.
+      const used = new Set<VertexId>();
+      out.faces.forEach((f) => f.verts.forEach((v) => used.add(v)));
+      const orig = new Set<VertexId>();
+      selEdgeIds.forEach((eid) => { const e = out.edges.get(eid); if (e) { orig.add(e.a); orig.add(e.b); } });
+      orig.forEach((v) => { if (!used.has(v)) out.vertices.delete(v); });
+      return { mesh: out, selection: { level: 'edge', ids: new Set() } };
+    }
+    case 'slice':
+    case 'cut':
+    case 'quickSlice': {
+      // Plane slice: params = { point:[x,y,z], normal:[x,y,z] }.
+      const p = op.params?.point ?? [0, 0, 0];
+      const n = op.params?.normal ?? [0, 1, 0];
+      const P = new THREE.Vector3(p[0], p[1], p[2]);
+      const N = new THREE.Vector3(n[0], n[1], n[2]);
+      if (N.lengthSq() <= 0) return { mesh: out, selection: sel };
+      N.normalize();
+      const dist = (v: THREE.Vector3) => new THREE.Vector3().subVectors(v, P).dot(N);
+      const restrictToSel = sel.level === 'face' || sel.level === 'polygon' || sel.level === 'element';
+      const targetFaces = restrictToSel ? faceIdsForSelection(out, sel) : new Set(out.faces.keys());
+      const midCache = new Map<string, VertexId>();
+      const rebuilt: { faceId: FaceId; a: VertexId[]; b: VertexId[]; matId: number; sg: number }[] = [];
+      targetFaces.forEach((fid) => {
+        const f = out.faces.get(fid); if (!f) return;
+        const ds = f.verts.map((v) => dist(out.vertices.get(v)!.position));
+        const hasPos = ds.some((d) => d > 1e-6);
+        const hasNeg = ds.some((d) => d < -1e-6);
+        if (!hasPos || !hasNeg) return;
+        const K = f.verts.length;
+        const posSide: VertexId[] = [];
+        const negSide: VertexId[] = [];
+        for (let i = 0; i < K; i++) {
+          const a = f.verts[i], b = f.verts[(i + 1) % K];
+          const da = ds[i], db = ds[(i + 1) % K];
+          if (da >= 0) posSide.push(a);
+          if (da <= 0) negSide.push(a);
+          if ((da > 0 && db < 0) || (da < 0 && db > 0)) {
+            const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+            let mid = midCache.get(key);
+            if (mid === undefined) {
+              const t = da / (da - db);
+              const va = out.vertices.get(a)!; const vb = out.vertices.get(b)!;
+              const mp = va.position.clone().lerp(vb.position, t);
+              const muv = (va.uv && vb.uv) ? va.uv.clone().lerp(vb.uv, t) : va.uv?.clone();
+              mid = out.addVertex(mp, muv);
+              midCache.set(key, mid);
+            }
+            posSide.push(mid); negSide.push(mid);
+          }
+        }
+        if (posSide.length >= 3 && negSide.length >= 3) {
+          rebuilt.push({ faceId: fid, a: posSide, b: negSide, matId: f.materialId, sg: f.smoothingGroup });
+        }
+      });
+      for (const r of rebuilt) {
+        out.faces.delete(r.faceId);
+        out.addFace(r.a, r.matId, r.sg);
+        out.addFace(r.b, r.matId, r.sg);
+      }
+      return { mesh: out, selection: sel };
+    }
+    case 'msmooth':
+    case 'divide': {
+      // Simplified 1-step Catmull-Clark-like subdivision on selected faces
+      // (or the whole mesh if not at face level).
+      const restrict = sel.level === 'face' || sel.level === 'polygon' || sel.level === 'element';
+      const targetFaces = restrict ? faceIdsForSelection(out, sel) : new Set(out.faces.keys());
+      const edgeMid = new Map<string, VertexId>();
+      const midOf = (a: VertexId, b: VertexId): VertexId => {
+        const k = a < b ? `${a}_${b}` : `${b}_${a}`;
+        const cached = edgeMid.get(k); if (cached !== undefined) return cached;
+        const va = out.vertices.get(a)!; const vb = out.vertices.get(b)!;
+        const mp = va.position.clone().add(vb.position).multiplyScalar(0.5);
+        const muv = (va.uv && vb.uv) ? va.uv.clone().add(vb.uv).multiplyScalar(0.5) : va.uv?.clone();
+        const id = out.addVertex(mp, muv);
+        edgeMid.set(k, id);
+        return id;
+      };
+      const newSel = new Set<FaceId>();
+      const toReplace: EMFace[] = [];
+      targetFaces.forEach((fid) => { const f = out.faces.get(fid); if (f) toReplace.push(f); });
+      for (const f of toReplace) {
+        const K = f.verts.length;
+        const c = new THREE.Vector3();
+        const cUV = new THREE.Vector2(); let uvCount = 0;
+        f.verts.forEach((v) => {
+          const vv = out.vertices.get(v)!;
+          c.add(vv.position);
+          if (vv.uv) { cUV.add(vv.uv); uvCount++; }
+        });
+        c.multiplyScalar(1 / K);
+        if (uvCount > 0) cUV.multiplyScalar(1 / uvCount);
+        const cid = out.addVertex(c, uvCount > 0 ? cUV : undefined);
+        const mids: VertexId[] = [];
+        for (let i = 0; i < K; i++) mids.push(midOf(f.verts[i], f.verts[(i + 1) % K]));
+        const matId = f.materialId, sg = f.smoothingGroup;
+        out.faces.delete(f.id);
+        for (let i = 0; i < K; i++) {
+          const v = f.verts[i];
+          const mPrev = mids[(i - 1 + K) % K];
+          const mNext = mids[i];
+          newSel.add(out.addFace([v, mNext, cid, mPrev], matId, sg));
+        }
+      }
+      return { mesh: out, selection: { level: sel.level, ids: newSel.size ? newSel : sel.ids } };
+    }
+    case 'detach': {
+      // In-place "Detach to element": duplicate the selected faces' verts.
+      if (sel.level !== 'face' && sel.level !== 'polygon' && sel.level !== 'element') return { mesh: out, selection: sel };
+      const faceIds = Array.from(faceIdsForSelection(out, sel));
+      if (!faceIds.length) return { mesh: out, selection: sel };
+      const vmap = new Map<VertexId, VertexId>();
+      const newSel = new Set<FaceId>();
+      for (const fid of faceIds) {
+        const f = out.faces.get(fid); if (!f) continue;
+        const newRing = f.verts.map((v) => {
+          if (!vmap.has(v)) {
+            const src = out.vertices.get(v)!;
+            vmap.set(v, out.addVertex(src.position.clone(), src.uv?.clone()));
+          }
+          return vmap.get(v)!;
+        });
+        const matId = f.materialId, sg = f.smoothingGroup;
+        out.faces.delete(f.id);
+        newSel.add(out.addFace(newRing, matId, sg));
+      }
+      return { mesh: out, selection: { level: sel.level, ids: newSel } };
+    }
+    case 'attach': {
+      // Attach another EditableMesh (params.mesh) into this one.
+      const other = op.params?.mesh as EditableMesh | undefined;
+      if (!other) return { mesh: out, selection: sel };
+      const vidMap = new Map<VertexId, VertexId>();
+      other.vertices.forEach((v) => vidMap.set(v.id, out.addVertex(v.position.clone(), v.uv?.clone())));
+      other.faces.forEach((f) => out.addFace(f.verts.map((v) => vidMap.get(v)!), f.materialId, f.smoothingGroup));
+      return { mesh: out, selection: sel };
+    }
+    case 'hinge': {
+      // Hinge selected face(s) around a chosen edge by angle°.
+      if (sel.level !== 'face' && sel.level !== 'polygon') return { mesh: out, selection: sel };
+      const angleDeg = op.params?.angle ?? 45;
+      let edgeId: number | undefined = op.params?.edgeId;
+      const faceIds = Array.from(faceIdsForSelection(out, sel));
+      if (!faceIds.length) return { mesh: out, selection: sel };
+      if (edgeId === undefined) {
+        const f0 = out.faces.get(faceIds[0])!;
+        const a = f0.verts[0]; const b = f0.verts[1];
+        const k = a < b ? `${a}_${b}` : `${b}_${a}`;
+        out.edges.forEach((e) => {
+          const kk = e.a < e.b ? `${e.a}_${e.b}` : `${e.b}_${e.a}`;
+          if (kk === k) edgeId = e.id;
+        });
+      }
+      const edge = edgeId !== undefined ? out.edges.get(edgeId) : undefined;
+      if (!edge) return { mesh: out, selection: sel };
+      const pA = out.vertices.get(edge.a)!.position.clone();
+      const pB = out.vertices.get(edge.b)!.position.clone();
+      const axis = new THREE.Vector3().subVectors(pB, pA);
+      if (axis.lengthSq() <= 0) return { mesh: out, selection: sel };
+      axis.normalize();
+      const hingeEnds = new Set<VertexId>([edge.a, edge.b]);
+      const rotVerts = new Set<VertexId>();
+      faceIds.forEach((fid) => { const f = out.faces.get(fid); if (!f) return; f.verts.forEach((v) => { if (!hingeEnds.has(v)) rotVerts.add(v); }); });
+      const angleRad = (angleDeg * Math.PI) / 180;
+      const vmap = new Map<VertexId, VertexId>();
+      rotVerts.forEach((v) => {
+        const src = out.vertices.get(v)!;
+        const p = src.position.clone().sub(pA);
+        p.applyAxisAngle(axis, angleRad);
+        p.add(pA);
+        vmap.set(v, out.addVertex(p, src.uv?.clone()));
+      });
+      const newSel = new Set<FaceId>();
+      faceIds.forEach((fid) => {
+        const f = out.faces.get(fid); if (!f) return;
+        const newRing = f.verts.map((v) => vmap.get(v) ?? v);
+        newSel.add(out.addFace(newRing, f.materialId, f.smoothingGroup));
+      });
+      // Bridge original face rings to rotated rings (skipping the hinge edge).
+      faceIds.forEach((fid) => {
+        const f = out.faces.get(fid); if (!f) return;
+        const K = f.verts.length;
+        for (let i = 0; i < K; i++) {
+          const a = f.verts[i]; const b = f.verts[(i + 1) % K];
+          if ((a === edge.a && b === edge.b) || (a === edge.b && b === edge.a)) continue;
+          const A = vmap.get(a) ?? a; const B = vmap.get(b) ?? b;
+          if (a === A && b === B) continue;
+          out.addFace([a, b, B, A], 1, 1);
+        }
+      });
+      return { mesh: out, selection: { level: 'face', ids: newSel } };
+    }
     case 'grow': return { mesh: out, selection: grow(out, sel) };
     case 'shrink': return { mesh: out, selection: shrink(out, sel) };
     case 'ring': return { mesh: out, selection: ring(out, sel) };
