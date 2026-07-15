@@ -109,6 +109,30 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
       });
       return { mesh: out, selection: sel };
     }
+    case 'rotate': {
+      const [ex, ey, ez] = op.params?.euler ?? [0, 0, 0];
+      const [px, py, pz] = op.params?.pivot ?? [0, 0, 0];
+      const vids = selectionToVertexIds(out, sel);
+      const pivot = new THREE.Vector3(px, py, pz);
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(ex, ey, ez, 'XYZ'));
+      vids.forEach((vid) => {
+        const v = out.vertices.get(vid); if (!v) return;
+        v.position.sub(pivot).applyQuaternion(q).add(pivot);
+      });
+      return { mesh: out, selection: sel };
+    }
+    case 'scale': {
+      const [sx, sy, sz] = op.params?.factor ?? [1, 1, 1];
+      const [px, py, pz] = op.params?.pivot ?? [0, 0, 0];
+      const vids = selectionToVertexIds(out, sel);
+      const pivot = new THREE.Vector3(px, py, pz);
+      const s = new THREE.Vector3(sx, sy, sz);
+      vids.forEach((vid) => {
+        const v = out.vertices.get(vid); if (!v) return;
+        v.position.sub(pivot).multiply(s).add(pivot);
+      });
+      return { mesh: out, selection: sel };
+    }
     case 'extrude': {
       // type: 'group' (single averaged normal), 'local' (per-vertex avg normal),
       // 'byPolygon' (each face independently). Default = local.
