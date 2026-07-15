@@ -309,6 +309,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   const [pickMode, setPickMode] = useState(false);
   const [mapBrowserOpen, setMapBrowserOpen] = useState<null | keyof R3Material['maps']>(null);
   const [mapParamsOpen, setMapParamsOpen] = useState<null | keyof R3Material['maps']>(null);
+  const [typePopupOpen, setTypePopupOpen] = useState(false);
 
   useEffect(() => { if (open) setSlots(loadSlots()); }, [open]);
   useEffect(() => { saveSlots(slots); }, [slots]);
