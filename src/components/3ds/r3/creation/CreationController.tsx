@@ -486,6 +486,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
+        if (wallRef) { wallRef.pts = []; }
         stageRef.current = null;
         setGhost(null);
         disarm();
@@ -494,8 +495,11 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      if (wallRef && wallRef.pts.length > 0) {
+        commitWall(false);
+        return;
+      }
       if (lineRef && lineRef.knots.length > 0) {
-        // Right-click finishes the line (open spline).
         commitLine(false);
         return;
       }
