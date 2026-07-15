@@ -102,7 +102,7 @@ interface ViewportProps {
 export const Viewport = ({
   type, isActive, onActivate, objects, selectedObject, selectedSubUuid,
   onSelectObject, onTransformObject, transformMode,
-  animationTracks, selectedKeyframe, onUpdateKeyframe,
+  animationTracks, selectedKeyframe, onUpdateKeyframe, onSelectKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing, snapAngleDeg, snapPercent, showGrid: showGridProp = true,
   cameraObjectId, onChangeCameraObject, availableCameras = [],
