@@ -247,8 +247,10 @@ export const SidePanel = ({
     { type: 'donut',     label: 'Donut' },
     { type: 'ngon',      label: 'NGon' },
     { type: 'star',      label: 'Star' },
+    { type: 'text',      label: 'Text' },
     { type: 'helix',     label: 'Helix' },
   ];
+
 
   // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
   // 'universal' → apply to anything geometric. 'converts' marks modifiers that
