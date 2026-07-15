@@ -216,6 +216,7 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
   const params = modifier.params || {};
   const set = (patch: any) => onUpdateModifier({ ...params, ...patch });
   const updateParam = (k: string, v: any) => set({ [k]: v });
+  const [caddy, setCaddy] = useState<CaddySpec | null>(null);
   const dispatchOp = (kind: string, opParams?: any) => {
     if (!objectId) return;
     window.dispatchEvent(new CustomEvent('r3-subobj-op', {
