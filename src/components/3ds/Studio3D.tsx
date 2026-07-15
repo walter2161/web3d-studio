@@ -449,7 +449,36 @@ export const Studio3D = () => {
     const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
     const camTypes   = ['camera_target', 'camera_free'];
 
-    if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes].includes(type)) return;
+    const helperTools = ['helper_point', 'helper_dummy', 'helper_tape', 'helper_grid', 'helper_compass'];
+    if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes, ...helperTools].includes(type)) return;
+
+    // Helpers: create directly at origin, no drag flow needed for click-only use.
+    if (helperTools.includes(type)) {
+      saveState();
+      const kind = type.replace('helper_', '') as any;
+      const { HELPER_DEFAULTS } = require('./utils/helpers');
+      const geom = { ...HELPER_DEFAULTS[kind] };
+      const id = `helper_${Date.now()}`;
+      const newObject: Object3DData = {
+        id,
+        name: `${kind}${objects.filter((o) => o.type === 'helper' && (o.geometry as any)?.helperKind === kind).length + 1}`,
+        type: 'helper' as any,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#00e5ff',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry: geom,
+        ref: { current: null } as any,
+      };
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedObject(id);
+      toast.success(`${kind} helper created`);
+      return;
+    }
+
 
     saveState();
 
