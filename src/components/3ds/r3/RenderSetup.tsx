@@ -127,6 +127,28 @@ export const RenderSetup = ({
       <div className="bevel-inset bg-win-face p-2 space-y-2" style={{ minHeight: 380 }}>
         {tab === 'Common' && (
           <>
+            <GroupBox title="View to Render">
+              <Row label="Camera / View:" labelWidth={90}>
+                <select
+                  value={renderCameraId}
+                  onChange={(e) => setRenderCameraId(e.target.value)}
+                  className="bevel-inset bg-white text-[11px] h-[18px]"
+                  style={{ width: 300 }}
+                >
+                  <option value={VIEWPORT_CAM_ID}>Active Viewport (orbit)</option>
+                  {cameras.map((c) => (
+                    <option key={c.id} value={c.id}>Camera: {c.name}</option>
+                  ))}
+                </select>
+              </Row>
+              <div className="text-[10px] text-muted-foreground mt-1 leading-tight">
+                {cameras.length === 0
+                  ? 'No scene cameras yet — create a Target/Free camera to render through it.'
+                  : renderCameraId === VIEWPORT_CAM_ID
+                  ? 'Renders through the current perspective orbit view.'
+                  : 'Renders through the selected camera and follows its animated path across the timeline.'}
+              </div>
+            </GroupBox>
             <GroupBox title="Time Output">
               <div className="space-y-[2px]">
                 <label className="flex items-center gap-1">
