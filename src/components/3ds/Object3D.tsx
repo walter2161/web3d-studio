@@ -708,12 +708,19 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         flatShading={false}
       />
 
-      {/* Selection outline via edges only (no wire overlay on the surface) */}
+      {/* Selection outline — silhouette edges plus internal subdivisions so
+          segment/geometry-parameter changes are visible in solid mode. */}
       {isSelected && renderMode !== 'wireframe' && !isGhost && (
-        <lineSegments renderOrder={999}>
-          <edgesGeometry args={[modifiedGeometry, 15]} />
-          <lineBasicMaterial color="#00bfff" transparent opacity={0.9} depthTest={false} />
-        </lineSegments>
+        <>
+          <lineSegments renderOrder={999}>
+            <edgesGeometry args={[modifiedGeometry, 15]} />
+            <lineBasicMaterial color="#00bfff" transparent opacity={0.9} depthTest={false} />
+          </lineSegments>
+          <lineSegments renderOrder={998}>
+            <wireframeGeometry args={[modifiedGeometry]} />
+            <lineBasicMaterial color="#00bfff" transparent opacity={0.25} depthTest={true} />
+          </lineSegments>
+        </>
       )}
 
       {/* Edged Faces (F4): show wire on top of solid */}
