@@ -982,6 +982,48 @@ export const SidePanel = ({
                           </div>
                         );
                       }
+                      // Door / Window: subtype selector + numeric grid + open slider.
+                      const isDoor = selectedObject.type === 'door';
+                      const isWindow = selectedObject.type === 'window';
+                      if (isDoor || isWindow) {
+                        const subtype = geom.subtype ?? (isDoor ? 'pivot' : 'casement');
+                        const doorSubs = ['pivot', 'bifold', 'sliding', 'pocket'];
+                        const winSubs  = ['casement', 'sliding', 'awning', 'fixed', 'pivot'];
+                        const subs = isDoor ? doorSubs : winSubs;
+                        const openPct = Math.round((geom.openPercentage ?? 0) * 100);
+                        return (
+                          <div className="space-y-2">
+                            <div>
+                              <Label className="text-[10px]">Type</Label>
+                              <select
+                                value={subtype}
+                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { subtype: e.target.value })}
+                                className="w-full h-7 text-xs bg-background border border-panel-border rounded px-1 capitalize"
+                              >
+                                {subs.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                            </div>
+                            {numericGrid}
+                            <div>
+                              <Label className="text-[10px]">Open — {openPct}%</Label>
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={openPct}
+                                onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { openPercentage: Number(e.target.value) / 100 })}
+                                className="w-full"
+                              />
+                            </div>
+                            <div className="text-[10px] text-muted-foreground leading-tight">
+                              O corte automático da parede aparece quando você aproxima uma porta/janela de uma wall (próxima fase).
+                            </div>
+                          </div>
+                        );
+                      }
                       return numericGrid;
                     })()}
                   </CardContent>
