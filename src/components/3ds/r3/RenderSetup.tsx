@@ -44,7 +44,7 @@ const VIEWPORT_CAM_ID = '__viewport__';
 
 export const RenderSetup = ({
   open, onOpenChange, onRender, currentFrame = 0, totalFrames = 100, setCurrentFrame,
-  cameras = [], getObjects,
+  cameras = [], getObjects, activeViewportCameraId = null,
 }: RenderSetupProps) => {
   const { engine, setEngine } = useRenderEngine();
   const [tab, setTab] = useState<Tab>('Common');
