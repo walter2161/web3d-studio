@@ -769,6 +769,43 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
           onClose={() => setMapParamsOpen(null)}
         />
       )}
+
+      {typePopupOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => setTypePopupOpen(false)}>
+          <div className="bevel-raised bg-win-face p-2" style={{ width: 360 }} onClick={(e) => e.stopPropagation()}>
+            <div className="h-[18px] flex items-center justify-between px-1 mb-1" style={{ background: 'linear-gradient(to right, #000080, #1084d0)' }}>
+              <span className="text-white text-[11px] font-bold">Material/Map Browser</span>
+              <button onClick={() => setTypePopupOpen(false)} className="text-white bevel-raised bg-win-face px-1 text-[10px]" style={{ color: 'black' }}>X</button>
+            </div>
+            <div className="flex gap-2">
+              <div className="bevel-inset bg-white overflow-y-auto flex-1" style={{ height: 320 }}>
+                <div className="text-[11px] font-bold px-1 py-[1px] bg-menu-hover text-menu-hover-fg">Materials</div>
+                {['Standard','Blend','Composite','Double Sided','Multi/Sub-Object','Raytrace','Matte/Shadow','Top/Bottom','Shellac','Morpher'].map((t) => (
+                  <div
+                    key={t}
+                    onClick={() => { update({ type: t as any }); setTypePopupOpen(false); }}
+                    className={`px-2 py-[2px] text-[11px] cursor-pointer ${mat.type === t ? 'bg-win-highlight text-white' : 'hover:bg-win-highlight hover:text-white'}`}
+                  >● {t}</div>
+                ))}
+                <div className="text-[11px] font-bold px-1 py-[1px] bg-menu-hover text-menu-hover-fg mt-1">Material Library</div>
+                {MATERIAL_LIBRARY.map((preset, i) => (
+                  <div
+                    key={i}
+                    onClick={() => { update(preset.patch); setTypePopupOpen(false); }}
+                    className="px-2 py-[2px] text-[11px] cursor-pointer hover:bg-win-highlight hover:text-white flex items-center gap-1"
+                  >
+                    <span className="w-3 h-3 border border-black inline-block" style={{ background: preset.patch.diffuse || '#888' }} />
+                    <span className="truncate">{preset.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-2 flex justify-end gap-1">
+              <R3Button width={70} onClick={() => setTypePopupOpen(false)}>Cancel</R3Button>
+            </div>
+          </div>
+        </div>
+      )}
     </R3Dialog>
   );
 };
