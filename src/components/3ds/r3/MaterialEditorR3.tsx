@@ -839,10 +839,11 @@ function MapParametersDialog({
       const f = input.files?.[0];
       if (!f) return;
       const url = URL.createObjectURL(f);
+      // stash the URL BEFORE state updates so any re-render immediately
+      // resolves the bitmap payload (matToThree → mapPayload reads this map).
+      (window as any).__r3BitmapUrls = { ...(window as any).__r3BitmapUrls, [f.name]: url };
       onChange({ filename: f.name });
       onChangeSlot({}); // trigger rerender
-      // stash the URL alongside for future rendering
-      (window as any).__r3BitmapUrls = { ...(window as any).__r3BitmapUrls, [f.name]: url };
     };
     input.click();
   };
