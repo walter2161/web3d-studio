@@ -21,6 +21,9 @@ interface RenderSetupProps {
   /** Returns the live objects array — used by the animation renderer to
    *  read the animated camera / target pose at each frame. */
   getObjects?: () => any[];
+  /** Camera currently active in the perspective viewport (if any). Used as
+   *  the default selection when the Render Scene dialog opens. */
+  activeViewportCameraId?: string | null;
 }
 
 type Tab = 'Common' | 'Renderer' | 'Raytracer' | 'Advanced Lighting';
