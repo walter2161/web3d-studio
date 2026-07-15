@@ -727,11 +727,11 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           segment/geometry-parameter changes are visible in solid mode. */}
       {isSelected && renderMode !== 'wireframe' && !isGhost && (
         <>
-          <lineSegments renderOrder={999}>
+          <lineSegments renderOrder={999} userData={{ __selectionWire: true }}>
             <edgesGeometry args={[modifiedGeometry, 15]} />
             <lineBasicMaterial color="#00bfff" transparent opacity={0.9} depthTest={false} />
           </lineSegments>
-          <lineSegments renderOrder={998}>
+          <lineSegments renderOrder={998} userData={{ __selectionWire: true }}>
             <wireframeGeometry args={[modifiedGeometry]} />
             <lineBasicMaterial color="#00bfff" transparent opacity={0.25} depthTest={true} />
           </lineSegments>
