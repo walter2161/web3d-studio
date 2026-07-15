@@ -14,6 +14,14 @@ const LS_PREFIX = 'lib-thumb-v1:';
 const memCache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
 
+// Serialize renders so we never fight for the single WebGL context.
+let queue: Promise<any> = Promise.resolve();
+function enqueue<T>(fn: () => Promise<T>): Promise<T> {
+  const next = queue.then(fn, fn);
+  queue = next.catch(() => {});
+  return next;
+}
+
 let renderer: THREE.WebGLRenderer | null = null;
 let loader: GLTFLoader | null = null;
 
