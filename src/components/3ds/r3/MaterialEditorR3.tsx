@@ -458,7 +458,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   ] as const), []);
 
   return (
-    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Material Editor" width={880}>
+    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Material Editor" width={640}>
       {/* TOP: sample slots — 2 visible rows with vertical scrollbar */}
       <div className="bevel-inset bg-win-face p-1 mb-1">
         <div className="flex items-center gap-1 mb-1">
