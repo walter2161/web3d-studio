@@ -32,8 +32,15 @@ interface MapPayload {
 function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Texture | null {
   return useMemo(() => {
     if (!payload?.url) return null;
+    // eslint-disable-next-line no-console
+    console.log('[MaterialWithMaps] loading texture', payload.filename, payload.url.slice(0, 40));
     const loader = new THREE.TextureLoader();
-    const tex = loader.load(payload.url);
+    const tex = loader.load(
+      payload.url,
+      (t) => { console.log('[MaterialWithMaps] texture loaded', payload.filename, t.image?.width, t.image?.height); t.needsUpdate = true; },
+      undefined,
+      (err) => { console.error('[MaterialWithMaps] texture failed', payload.filename, err); },
+    );
     const wrapU = payload.mirrorU ? THREE.MirroredRepeatWrapping : (payload.tileU === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping);
     const wrapV = payload.mirrorV ? THREE.MirroredRepeatWrapping : (payload.tileV === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping);
     tex.wrapS = wrapU; tex.wrapT = wrapV;
