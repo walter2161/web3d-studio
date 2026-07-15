@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { Object3D } from './Object3D';
@@ -28,6 +28,13 @@ interface Scene3DProps {
   activeCameraId?: string | null;
 }
 
+interface SubObjCentroid {
+  objectId: string;
+  modifierId: string;
+  level: string;
+  local: [number, number, number] | null;
+}
+
 export const Scene3D = ({
   objects, selectedObject, selectedSubUuid, onSelectObject, onTransformObject,
   viewportType, transformMode, renderMode,
@@ -40,6 +47,36 @@ export const Scene3D = ({
   const transformControlsRef = useRef<any>(null);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
+  // ---- Sub-object gizmo state -------------------------------------------------
+  const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
+  const [subProxyObj, setSubProxyObj] = useState<THREE.Object3D | null>(null);
+  const subDragStartRef = useRef<THREE.Vector3 | null>(null);
+
+  useEffect(() => {
+    const onCentroid = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as SubObjCentroid;
+      setSubCentroid(d.local ? d : null);
+    };
+    window.addEventListener('r3-subobj-centroid', onCentroid as any);
+    return () => window.removeEventListener('r3-subobj-centroid', onCentroid as any);
+  }, []);
+
+  // Only show sub-object gizmo when its centroid matches the current selection
+  // AND that object has an active Edit Poly/Mesh modifier.
+  const activeEditMod = useMemo(() => {
+    if (!selectedObjectData) return null;
+    return (selectedObjectData.modifiers ?? []).find(
+      (m: any) => m.active && (m.type === 'Edit Poly' || m.type === 'Edit Mesh'),
+    );
+  }, [selectedObjectData]);
+
+  const subGizmoActive =
+    !!activeEditMod &&
+    !!subCentroid &&
+    subCentroid.objectId === selectedObject &&
+    subCentroid.modifierId === activeEditMod.id &&
+    !!subCentroid.local;
+
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
   if (selectedObjectData?.type === 'imported' && selectedSubUuid) {
@@ -49,6 +86,9 @@ export const Scene3D = ({
         if (n.uuid === selectedSubUuid) transformTarget = n;
       });
     }
+  }
+  if (subGizmoActive && subProxyObj) {
+    transformTarget = subProxyObj;
   }
 
   // Lookup a target object's world position for target-camera / target-spot / target-direct.
@@ -75,7 +115,17 @@ export const Scene3D = ({
         />
       ))}
 
-
+      {/* Sub-object gizmo proxy: parented in a group that mirrors the mesh
+          transform, so proxy.position lives in mesh-local space. */}
+      {subGizmoActive && selectedObjectData && (
+        <group
+          position={selectedObjectData.position}
+          rotation={selectedObjectData.rotation}
+          scale={selectedObjectData.scale}
+        >
+          <object3D ref={setSubProxyObj} position={subCentroid!.local!} />
+        </group>
+      )}
 
       {selectedObject && transformTarget && (
         <TransformControls
@@ -90,12 +140,33 @@ export const Scene3D = ({
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
+            if (subGizmoActive && subProxyObj) {
+              subDragStartRef.current = subProxyObj.position.clone();
+            }
           }}
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
+            // Sub-object move: emit a Move op with the local-space delta.
+            if (subGizmoActive && subProxyObj && subDragStartRef.current && activeEditMod && selectedObject) {
+              const cur = subProxyObj.position;
+              const start = subDragStartRef.current;
+              const delta: [number, number, number] = [cur.x - start.x, cur.y - start.y, cur.z - start.z];
+              subDragStartRef.current = null;
+              const len = Math.hypot(delta[0], delta[1], delta[2]);
+              if (transformMode === 'translate' && len > 1e-6) {
+                window.dispatchEvent(new CustomEvent('r3-subobj-op', {
+                  detail: {
+                    objectId: selectedObject,
+                    modifierId: activeEditMod.id,
+                    op: { kind: 'move', params: { delta } },
+                  },
+                }));
+              }
+            }
           }}
           onObjectChange={(e: any) => {
+            if (subGizmoActive) return; // handled on mouseUp
             if (e?.target?.object && !selectedSubUuid) {
               const obj = e.target.object;
               const { position, rotation, scale } = obj;
