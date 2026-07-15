@@ -39,7 +39,7 @@ interface SubObjCentroid {
 export const Scene3D = ({
   objects, selectedObject, selectedSubUuid, onSelectObject, onTransformObject,
   viewportType, transformMode, renderMode,
-  animationTracks, selectedKeyframe, onUpdateKeyframe,
+  animationTracks, selectedKeyframe, onUpdateKeyframe, onSelectKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing = 1, snapAngleDeg = 5, snapPercent = 10,
   activeCameraId = null,
