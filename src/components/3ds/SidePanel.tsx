@@ -586,11 +586,54 @@ export const SidePanel = ({
                     {c.label}
                   </button>
                 ))}
-                {(createCat === 'helpers' || createCat === 'warps' || createCat === 'systems') && (
-                  <div className="col-span-2 text-[11px] text-win-text-disabled px-1 py-2 text-center">
-                    (Em desenvolvimento)
+                {createCat === 'helpers' && helperPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      disabled={p.disabled}
+                      onClick={() => {
+                        if (p.disabled) return;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={p.disabled ? `${p.label} — em breve` : `Create ${p.label} helper`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        p.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+                {createCat === 'warps' && warpPrimitives.map((p) => (
+                  <button
+                    key={p.type}
+                    disabled
+                    title={`${p.label} — Fase 2 (Space Warps ainda em desenvolvimento)`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised opacity-40 cursor-not-allowed"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {createCat === 'systems' && systemPrimitives.map((p) => (
+                  <button
+                    key={p.type}
+                    disabled
+                    title={`${p.label} — Fase 3 (Systems ainda em desenvolvimento)`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised opacity-40 cursor-not-allowed"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+                {(createCat === 'warps' || createCat === 'systems') && (
+                  <div className="col-span-2 text-[10px] text-win-text-disabled px-1 pt-1 text-center italic">
+                    {createCat === 'warps' ? 'Space Warps — Fase 2 (em breve)' : 'Systems — Fase 3 (em breve)'}
                   </div>
                 )}
+
               </div>
             </div>
           </TabsContent>
