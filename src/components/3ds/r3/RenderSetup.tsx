@@ -65,6 +65,9 @@ export const RenderSetup = ({
   const [renderCameraId, setRenderCameraId] = useState<string>(VIEWPORT_CAM_ID);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [framePreview, setFramePreview] = useState<string | null>(null);
+  const [currentRenderFrame, setCurrentRenderFrame] = useState<number>(0);
+  const [renderStartTs, setRenderStartTs] = useState<number>(0);
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
@@ -394,17 +397,14 @@ export const RenderSetup = ({
           <Row label="FPS:" labelWidth={54}>
             <Spinner value={videoFps} onChange={setVideoFps} min={1} max={120} width={56} />
           </Row>
-          {rendering && (
-            <div className="text-[10px] text-muted-foreground mt-1">
-              Rendering frame {progress.done} / {progress.total}…
-            </div>
-          )}
         </GroupBox>
         <div className="flex flex-col gap-1">
           <R3Button
             width={100}
             onClick={async () => {
               if (rendering) return;
+
+
               if (timeMode === 'single') { onRender?.(); onOpenChange(false); return; }
               if (!setCurrentFrame) {
                 toast.error('Animation render not available in this context');
@@ -438,6 +438,9 @@ export const RenderSetup = ({
 
               setRendering(true);
               setProgress({ done: 0, total: 0 });
+              setFramePreview(null);
+              setCurrentRenderFrame(from);
+              setRenderStartTs(performance.now());
               const toastId = toast.loading('Rendering animation…');
               try {
                 const blob = await renderAnimation({
@@ -447,6 +450,10 @@ export const RenderSetup = ({
                   setFrame: setCurrentFrame,
                   resolveCameraPose,
                   onProgress: (done, total) => setProgress({ done, total }),
+                  onFramePreview: (dataUrl, frame) => {
+                    setFramePreview(dataUrl);
+                    setCurrentRenderFrame(frame);
+                  },
                 });
                 if (previewUrl) URL.revokeObjectURL(previewUrl);
                 setPreviewBlob(blob);
@@ -457,7 +464,9 @@ export const RenderSetup = ({
                 toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
               } finally {
                 setRendering(false);
+                setFramePreview(null);
               }
+
             }}
           >
             {rendering ? 'Rendering…' : 'Render'}
@@ -467,7 +476,80 @@ export const RenderSetup = ({
         </div>
       </div>
 
+      {/* Frame-by-frame render progress modal (3ds Max Rendering dialog). */}
+      {rendering && (
+        <R3Dialog
+          open={rendering}
+          onClose={() => { /* prevent closing mid-render */ }}
+          title="Rendering…"
+          width={640}
+        >
+          <div className="space-y-2">
+            <div
+              className="bevel-inset bg-black flex items-center justify-center overflow-hidden"
+              style={{ height: 320 }}
+            >
+              {framePreview ? (
+                <img
+                  src={framePreview}
+                  alt={`Frame ${currentRenderFrame}`}
+                  className="max-w-full max-h-full"
+                  style={{ imageRendering: 'auto' }}
+                />
+              ) : (
+                <span className="text-white text-[11px] opacity-70">Preparing scene…</span>
+              )}
+            </div>
+
+            <GroupBox title="Progress">
+              <div className="space-y-1">
+                <div className="flex justify-between text-[11px]">
+                  <span>
+                    Frame {currentRenderFrame} · {progress.done} / {progress.total || '—'}
+                  </span>
+                  <span>
+                    {progress.total > 0
+                      ? `${Math.round((progress.done / progress.total) * 100)}%`
+                      : '0%'}
+                  </span>
+                </div>
+                <div className="bevel-inset bg-white h-[14px] overflow-hidden">
+                  <div
+                    className="h-full bg-[#000080] transition-[width] duration-100"
+                    style={{
+                      width: progress.total > 0
+                        ? `${(progress.done / progress.total) * 100}%`
+                        : '0%',
+                    }}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground pt-1">
+                  <div>Resolution: {width} × {height}</div>
+                  <div>FPS: {videoFps}</div>
+                  <div>
+                    Elapsed: {((performance.now() - renderStartTs) / 1000).toFixed(1)}s
+                    {progress.done > 0 && progress.total > 0 && (
+                      <> · ETA: {(
+                        ((performance.now() - renderStartTs) / progress.done) *
+                        (progress.total - progress.done) / 1000
+                      ).toFixed(1)}s</>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </GroupBox>
+
+            <div className="text-[10px] text-muted-foreground leading-tight">
+              Each frame is rendered individually with production quality. When
+              all frames are done they will be encoded into a {videoFormat.toUpperCase()} video
+              you can preview before saving.
+            </div>
+          </div>
+        </R3Dialog>
+      )}
+
       {/* Preview dialog — the user must confirm before the file is saved. */}
+
       {previewUrl && previewBlob && (
         <R3Dialog
           open={!!previewUrl}
