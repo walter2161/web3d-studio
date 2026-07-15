@@ -656,6 +656,16 @@ export const SidePanel = ({
                   />
                 )}
 
+                {/* Camera Parameters — R3-style panel for Target / Free cameras */}
+                {String(selectedObject.type || '').startsWith('camera_') && (
+                  <CameraParameters
+                    object={selectedObject}
+                    onUpdateCameraData={(patch) => onUpdateObjectCameraData?.(selectedObject.id, patch)}
+                  />
+                )}
+
+
+
 
 
                 {/* Base Geometry Controls — schema-driven, real values from selectedObject.geometry */}
