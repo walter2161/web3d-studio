@@ -442,6 +442,8 @@ export const RenderSetup = ({
               setFramePreview(null);
               setCurrentRenderFrame(from);
               setRenderStartTs(performance.now());
+              const abort = new AbortController();
+              renderAbortRef.current = abort;
               const toastId = toast.loading('Rendering animation…');
               try {
                 const blob = await renderAnimation({
@@ -450,6 +452,7 @@ export const RenderSetup = ({
                   engine,
                   setFrame: setCurrentFrame,
                   resolveCameraPose,
+                  signal: abort.signal,
                   onProgress: (done, total) => setProgress({ done, total }),
                   onFramePreview: (dataUrl, frame) => {
                     setFramePreview(dataUrl);
@@ -461,9 +464,14 @@ export const RenderSetup = ({
                 setPreviewUrl(URL.createObjectURL(blob));
                 toast.success('Render complete — review the preview', { id: toastId });
               } catch (e: any) {
-                console.error('Animation render failed', e);
-                toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
+                if (e instanceof RenderCancelledError) {
+                  toast.warning('Render cancelled', { id: toastId });
+                } else {
+                  console.error('Animation render failed', e);
+                  toast.error(`Render failed: ${e?.message || 'unknown error'}`, { id: toastId });
+                }
               } finally {
+                renderAbortRef.current = null;
                 setRendering(false);
                 setFramePreview(null);
               }
