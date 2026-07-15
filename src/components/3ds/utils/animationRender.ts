@@ -190,6 +190,9 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       }
 
       offscreen.render(scene, renderTarget);
+      // Downsample WebGL canvas → recording canvas (2× → 1×), producing
+      // supersampled antialiasing and cleaner shadows in the video.
+      ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       if (typeof track.requestFrame === 'function') track.requestFrame();
       await new Promise((r) => setTimeout(r, targetDelayMs));
       idx++;
@@ -207,6 +210,13 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   meshTouched.forEach(({ mesh, cast, receive }) => {
     mesh.castShadow = cast;
     mesh.receiveShadow = receive;
+  });
+  lightTouched.forEach(({ light, cast, mapW, mapH, bias }) => {
+    light.castShadow = cast;
+    if (light.shadow) {
+      if (mapW && mapH) light.shadow.mapSize.set(mapW, mapH);
+      if (typeof bias === 'number') light.shadow.bias = bias;
+    }
   });
   if (viewPersp.isPerspectiveCamera && !resolveCameraPose) {
     viewPersp.aspect = origAspect;
