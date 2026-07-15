@@ -94,6 +94,25 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   // commits, so we CANNOT hide them once and be done — the references go
   // stale and fresh overlays appear in later frames. Instead we hide them
   // right before each offscreen.render() and restore them right after.
+  const hasHelperAncestor = (obj: THREE.Object3D): boolean => {
+    let cur: THREE.Object3D | null = obj.parent;
+    while (cur) {
+      const ud: any = cur.userData || {};
+      if (ud.__helper || ud.__selectionWire) return true;
+      cur = cur.parent;
+    }
+    return false;
+  };
+
+  const isHelperMaterial = (mat: any): boolean => {
+    // Editor icons (light/camera indicators, trajectory dots) all use
+    // MeshBasicMaterial — no production mesh in the scene uses it.
+    if (!mat) return false;
+    const check = (m: any) => m && (m.isMeshBasicMaterial || m.type === 'MeshBasicMaterial');
+    if (Array.isArray(mat)) return mat.some(check);
+    return check(mat);
+  };
+
   const hideEditorOverlays = (): THREE.Object3D[] => {
     const hidden: THREE.Object3D[] = [];
     scene.traverse((obj) => {
@@ -105,20 +124,22 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
         t.endsWith('Helper');
       const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
-      // Line-based visualisations (camera frustum outlines, light cones,
-      // dashed target lines, selection wires) are Line / LineSegments /
-      // LineLoop objects. Hide those wholesale during the render — no
-      // production still should contain schematic line art.
       const isLine =
         (obj as any).isLine || (obj as any).isLineSegments || (obj as any).isLineLoop ||
         t === 'Line' || t === 'LineSegments' || t === 'LineLoop' || t === 'Line2';
       const isSprite = (obj as any).isSprite || t === 'Sprite';
-      if (ud.__helper || ud.__selectionWire || isHelper || isTC || isLine || isSprite) {
+      const isHelperMesh =
+        (obj as any).isMesh && isHelperMaterial((obj as any).material);
+      const hidden_by_marker =
+        ud.__helper || ud.__selectionWire || isHelper || isTC || isLine || isSprite || isHelperMesh;
+      const hidden_by_ancestor = !hidden_by_marker && hasHelperAncestor(obj);
+      if (hidden_by_marker || hidden_by_ancestor) {
         if (obj.visible) { hidden.push(obj); obj.visible = false; }
       }
     });
     return hidden;
   };
+
 
   // Meshes + lights only need their shadow flags forced once; the underlying
   // Three.js objects survive across React re-renders even when their wrappers
