@@ -298,6 +298,43 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       outH: new THREE.Vector3(),
     });
 
+    // -------- Wall tool: multi-click polyline, no bezier handles ---------
+    // Each click drops a corner; a live preview segment tracks the cursor.
+    // Right-click or ESC finishes (open). Clicking near the first point
+    // closes the wall.
+    const wallRef: { pts: THREE.Vector3[] } | null =
+      armed === 'wall' ? { pts: [] } : null;
+
+    const buildWallGhost = (pts: THREE.Vector3[], closed: boolean): GhostObject => {
+      const centroid = new THREE.Vector3();
+      pts.forEach((p) => centroid.add(p));
+      centroid.multiplyScalar(1 / pts.length);
+      const local = pts.map((p) => [p.x - centroid.x, 0, p.z - centroid.z] as [number, number, number]);
+      return {
+        id: '__ghost',
+        type: 'wall',
+        position: [centroid.x, centroid.y, centroid.z],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry: { path: local, width: 0.2, height: 2.7, justification: 'center', closed },
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitWall = (closed: boolean) => {
+      if (!wallRef) return;
+      const real = wallRef.pts.slice(0, -1); // drop preview
+      if (real.length >= 2) {
+        commit(buildWallGhost(real, closed));
+      } else {
+        setGhost(null);
+      }
+      wallRef.pts = [];
+    };
+
+
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
