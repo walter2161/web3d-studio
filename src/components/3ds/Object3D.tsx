@@ -17,6 +17,69 @@ export const isCameraType = (t: string): t is CameraType => (CAMERA_TYPES as rea
 export const isEntityType = (t: string) => isLightType(t) || isCameraType(t) || t === 'target_helper';
 
 /**
+ * Load a THREE.Texture from a bitmap payload emitted by the Material Editor.
+ * The payload lives at material.map / bumpMap / opacityMap / emissiveMap.
+ */
+interface MapPayload {
+  url: string;
+  filename?: string;
+  repeat?: [number, number];
+  offset?: [number, number];
+  rotation?: number;
+  mirrorU?: boolean; mirrorV?: boolean;
+  tileU?: boolean; tileV?: boolean;
+}
+function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Texture | null {
+  return useMemo(() => {
+    if (!payload?.url) return null;
+    const loader = new THREE.TextureLoader();
+    const tex = loader.load(payload.url);
+    const wrapU = payload.mirrorU ? THREE.MirroredRepeatWrapping : (payload.tileU === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping);
+    const wrapV = payload.mirrorV ? THREE.MirroredRepeatWrapping : (payload.tileV === false ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping);
+    tex.wrapS = wrapU; tex.wrapT = wrapV;
+    if (payload.repeat) tex.repeat.set(payload.repeat[0] || 1, payload.repeat[1] || 1);
+    if (payload.offset) tex.offset.set(payload.offset[0] || 0, payload.offset[1] || 0);
+    tex.rotation = payload.rotation || 0;
+    tex.center.set(0.5, 0.5);
+    tex.anisotropy = 8;
+    if (sRGB) (tex as any).colorSpace = (THREE as any).SRGBColorSpace ?? tex.colorSpace;
+    tex.needsUpdate = true;
+    return tex;
+  }, [payload?.url, payload?.repeat?.[0], payload?.repeat?.[1], payload?.offset?.[0], payload?.offset?.[1], payload?.rotation, payload?.mirrorU, payload?.mirrorV, payload?.tileU, payload?.tileV, sRGB]);
+}
+
+function MaterialWithMaps({
+  material, color, renderMode, isGhost,
+}: { material: any; color: string; renderMode: string; isGhost: boolean }) {
+  const map = useBitmapTexture(material?.map, true);
+  const bumpMap = useBitmapTexture(material?.bumpMap);
+  const opacityMap = useBitmapTexture(material?.opacityMap);
+  const emissiveMap = useBitmapTexture(material?.emissiveMap, true);
+  const baseOpacity = material?.opacity ?? 1;
+  const transparent = renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || baseOpacity < 1 || !!opacityMap;
+  const opacity = isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (renderMode === 'semi-transparent' ? 0.5 : baseOpacity));
+  return (
+    <meshStandardMaterial
+      color={color}
+      map={map || undefined}
+      bumpMap={bumpMap || undefined}
+      bumpScale={material?.bumpScale ?? 0.3}
+      alphaMap={opacityMap || undefined}
+      emissiveMap={emissiveMap || undefined}
+      transparent={transparent}
+      opacity={opacity}
+      depthWrite={renderMode !== 'bbox'}
+      wireframe={renderMode === 'wireframe'}
+      metalness={material?.metalness ?? 0.15}
+      roughness={material?.roughness ?? 0.55}
+      emissive={material?.emissive ?? '#000000'}
+      emissiveIntensity={material?.emissiveIntensity ?? 0}
+      flatShading={false}
+    />
+  );
+}
+
+/**
  * Reconstruct the 2D outline of a shape-type object as world-plane 3D points,
  * plus the axis that would be used as the extrude direction (smallest range).
  * Returned axis is one of 'x'|'y'|'z'; `pts3` lie approximately on the plane
