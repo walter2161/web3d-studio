@@ -562,6 +562,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (tapeRef) {
+        if (!tapeRef.start) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        tapeRef.cursor.copy(p);
+        setGhost(buildTapeGhost(tapeRef.start, p));
+        return;
+      }
       if (wallRef) {
         if (wallRef.pts.length === 0) return;
         const p = raycastBase(e);
