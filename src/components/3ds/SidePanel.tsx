@@ -1062,3 +1062,267 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
     </>
   );
 };
+
+// ---------------- Camera Parameters (R3-style) ----------------
+// Panel matching 3ds Max R3 Modify panel for Target / Free cameras:
+// Parameters (Lens, FOV, Show Cone/Horizon), Environment Ranges,
+// Clipping Planes, Multi-Pass Depth of Field.
+interface CameraParamsProps {
+  object: any;
+  onUpdateCameraData: (patch: any) => void;
+}
+
+// Standard 3ds Max lens<->fov relation (35mm film, ~43.27mm diagonal).
+// The Max R3 default is Lens 43.456 mm ≈ FOV 45° (horizontal).
+const APERTURE_WIDTH = 36; // mm (horizontal aperture, matches Max defaults)
+const lensToFov = (lens: number) =>
+  (2 * Math.atan(APERTURE_WIDTH / (2 * lens)) * 180) / Math.PI;
+const fovToLens = (fov: number) =>
+  APERTURE_WIDTH / (2 * Math.tan((fov * Math.PI) / 180 / 2));
+
+const CameraParameters = ({ object, onUpdateCameraData }: CameraParamsProps) => {
+  const t = object.type as string;
+  const isTarget = t === 'camera_target';
+  const cd = object.cameraData || {};
+  const fov = cd.fov ?? 45;
+  const lens = cd.lens ?? fovToLens(fov);
+  const near = cd.near ?? 0.1;
+  const far = cd.far ?? 1000;
+  const showCone = cd.showCone !== false;
+  const showHorizon = !!cd.showHorizon;
+  const manualClip = !!cd.manualClip;
+  const nearRange = cd.nearRange ?? 0;
+  const farRange = cd.farRange ?? 1000;
+  const dof = !!cd.dofEnabled;
+  const focus = cd.focusDistance ?? 100;
+  const aperture = cd.aperture ?? 2.0;
+  const targetDist = cd.targetDistance ?? 100;
+
+  const setFov = (v: number) => {
+    if (!Number.isFinite(v)) return;
+    const clamped = Math.max(1, Math.min(175, v));
+    onUpdateCameraData({ fov: clamped, lens: fovToLens(clamped) });
+  };
+  const setLens = (v: number) => {
+    if (!Number.isFinite(v) || v <= 0) return;
+    onUpdateCameraData({ lens: v, fov: lensToFov(v) });
+  };
+
+  // Stock 3ds Max R3 "Stock Lenses" buttons.
+  const stockLenses = [15, 20, 24, 28, 35, 50, 85, 135, 200];
+
+  return (
+    <>
+      <Card className="bg-card border-panel-border mt-4">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">
+            Parameters
+            <span className="ml-2 text-[10px] text-muted-foreground font-mono">
+              {isTarget ? 'Target Camera' : 'Free Camera'}
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <Label className="w-16">Lens:</Label>
+            <Input
+              type="number"
+              value={Number(lens.toFixed(3))}
+              step={0.5}
+              min={1}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => setLens(parseFloat(e.target.value))}
+            />
+            <span className="text-[10px] text-muted-foreground">mm</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-16">FOV:</Label>
+            <Input
+              type="number"
+              value={Number(fov.toFixed(2))}
+              step={1}
+              min={1}
+              max={175}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => setFov(parseFloat(e.target.value))}
+            />
+            <span className="text-[10px] text-muted-foreground">degrees</span>
+          </div>
+
+          <div className="pt-1">
+            <div className="text-[10px] text-muted-foreground mb-1">Stock Lenses</div>
+            <div className="grid grid-cols-3 gap-1">
+              {stockLenses.map((l) => (
+                <Button
+                  key={l}
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px] px-1 border-panel-border"
+                  onClick={() => setLens(l)}
+                >
+                  {l}mm
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-1 space-y-1">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showCone}
+                onChange={(e) => onUpdateCameraData({ showCone: e.target.checked })}
+              />
+              Show Cone
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showHorizon}
+                onChange={(e) => onUpdateCameraData({ showHorizon: e.target.checked })}
+              />
+              Show Horizon
+            </label>
+          </div>
+
+          {!isTarget && (
+            <div className="flex items-center gap-2 pt-1">
+              <Label className="w-24">Target Dist:</Label>
+              <Input
+                type="number"
+                value={targetDist}
+                step={1}
+                min={0.001}
+                className="h-6 w-24 text-xs"
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (Number.isFinite(v) && v > 0) onUpdateCameraData({ targetDistance: v });
+                }}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-panel-border mt-2">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Environment Ranges</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-xs">
+          <div className="flex items-center gap-2">
+            <Label className="w-20">Near Range:</Label>
+            <Input
+              type="number"
+              value={nearRange}
+              step={1}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isFinite(v)) onUpdateCameraData({ nearRange: v });
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-20">Far Range:</Label>
+            <Input
+              type="number"
+              value={farRange}
+              step={1}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isFinite(v)) onUpdateCameraData({ farRange: v });
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-panel-border mt-2">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Clipping Planes</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-xs">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={manualClip}
+              onChange={(e) => onUpdateCameraData({ manualClip: e.target.checked })}
+            />
+            Clip Manually
+          </label>
+          <div className="flex items-center gap-2">
+            <Label className="w-20">Near Clip:</Label>
+            <Input
+              type="number"
+              value={near}
+              step={0.1}
+              min={0.001}
+              disabled={!manualClip}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isFinite(v) && v > 0) onUpdateCameraData({ near: v });
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-20">Far Clip:</Label>
+            <Input
+              type="number"
+              value={far}
+              step={1}
+              min={0.01}
+              disabled={!manualClip}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isFinite(v) && v > 0) onUpdateCameraData({ far: v });
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-panel-border mt-2">
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Multi-Pass Depth of Field</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-xs">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={dof}
+              onChange={(e) => onUpdateCameraData({ dofEnabled: e.target.checked })}
+            />
+            Enable
+          </label>
+          <div className="flex items-center gap-2">
+            <Label className="w-24">Focus Dist:</Label>
+            <Input
+              type="number"
+              value={focus}
+              step={1}
+              min={0.001}
+              disabled={!dof}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isFinite(v) && v > 0) onUpdateCameraData({ focusDistance: v });
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="w-24">Aperture:</Label>
+            <Input
+              type="number"
+              value={aperture}
+              step={0.1}
+              min={0.1}
+              disabled={!dof}
+              className="h-6 w-24 text-xs"
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isFinite(v) && v > 0) onUpdateCameraData({ aperture: v });
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+};
