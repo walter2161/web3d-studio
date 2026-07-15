@@ -197,6 +197,10 @@ export const Studio3D = () => {
   const [sidePanelTab, setSidePanelTab] = useState<string>('create');
   const totalFrames = 100;
   const playRef = useRef<number | null>(null);
+  // Live ref used by the animation renderer to read up-to-date object poses
+  // (positions/rotations after each frame's keyframe interpolation).
+  const objectsRef = useRef<Object3DData[]>(objects);
+  useEffect(() => { objectsRef.current = objects; }, [objects]);
 
 
   // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
