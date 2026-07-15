@@ -144,32 +144,12 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     }
   });
 
-  const stream = (recCanvas as HTMLCanvasElement).captureStream(0);
-  const track = stream.getVideoTracks()[0] as any;
   const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
-
-  const mimeCandidates =
-    format === 'mp4'
-      ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
-      : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-  const mime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
-
-  const recorder = new MediaRecorder(
-    stream,
-    mime
-      ? { mimeType: mime, videoBitsPerSecond: bitRate }
-      : { videoBitsPerSecond: bitRate },
-  );
-  const chunks: Blob[] = [];
-  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
-  const stopped = new Promise<Blob>((resolve) => {
-    recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
-  });
-
-  recorder.start();
-
   const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
   const targetDelayMs = 1000 / Math.max(1, fps);
+  const renderedFrames: ImageBitmap[] = [];
+  let encodeStream: MediaStream | null = null;
+  let recorder: MediaRecorder | null = null;
 
   const applyPose = (pose: CameraPose) => {
     renderCam.position.set(pose.position[0], pose.position[1], pose.position[2]);
@@ -208,39 +188,74 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       ctx.drawImage(offscreen.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
       ctx.restore();
 
-      if (typeof track.requestFrame === 'function') track.requestFrame();
-      await new Promise((r) => setTimeout(r, targetDelayMs));
+      // Store the rendered still. Encoding happens only after every requested
+      // animation frame has been rendered, matching a real image-sequence flow.
+      renderedFrames.push(await createImageBitmap(recCanvas));
       idx++;
       onProgress?.(idx, frameCount);
     }
+
+    encodeStream = (recCanvas as HTMLCanvasElement).captureStream(0);
+    let track = encodeStream.getVideoTracks()[0] as any;
+    if (typeof track.requestFrame !== 'function') {
+      track.stop();
+      encodeStream = (recCanvas as HTMLCanvasElement).captureStream(Math.max(1, fps));
+      track = encodeStream.getVideoTracks()[0] as any;
+    }
+
+    const mimeCandidates =
+      format === 'mp4'
+        ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+        : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
+
+    recorder = new MediaRecorder(
+      encodeStream,
+      mime
+        ? { mimeType: mime, videoBitsPerSecond: bitRate }
+        : { videoBitsPerSecond: bitRate },
+    );
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    const stopped = new Promise<Blob>((resolve) => {
+      recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder?.mimeType || 'video/webm' }));
+    });
+
+    recorder.start();
+    for (const frame of renderedFrames) {
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(frame, 0, 0, width, height);
+      if (typeof track.requestFrame === 'function') track.requestFrame();
+      await new Promise((r) => setTimeout(r, targetDelayMs));
+    }
     // Flush the last frame.
     await new Promise((r) => setTimeout(r, 250));
-  } finally {
     if (recorder.state !== 'inactive') recorder.stop();
+    const blob = await stopped;
+    return blob;
+  } finally {
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    encodeStream?.getTracks().forEach((track) => track.stop());
+    renderedFrames.forEach((frame) => frame.close());
+
+    // Restore scene state.
+    hidden.forEach((o) => { o.visible = true; });
+    meshTouched.forEach(({ mesh, cast, receive }) => {
+      mesh.castShadow = cast;
+      mesh.receiveShadow = receive;
+    });
+    lightTouched.forEach(({ light, cast }) => {
+      light.castShadow = cast;
+    });
+    lightTouched.forEach(({ light, mapW, mapH, bias, normalBias }) => {
+      if (!light.shadow) return;
+      if (typeof mapW === 'number' && typeof mapH === 'number') light.shadow.mapSize.set(mapW, mapH);
+      if (typeof bias === 'number') light.shadow.bias = bias;
+      if (typeof normalBias === 'number') light.shadow.normalBias = normalBias;
+    });
+
+    offscreen.dispose();
   }
-
-
-  const blob = await stopped;
-
-  // Restore scene state.
-  hidden.forEach((o) => { o.visible = true; });
-  meshTouched.forEach(({ mesh, cast, receive }) => {
-    mesh.castShadow = cast;
-    mesh.receiveShadow = receive;
-  });
-  lightTouched.forEach(({ light, cast }) => {
-    light.castShadow = cast;
-  });
-  lightTouched.forEach(({ light, mapW, mapH, bias, normalBias }) => {
-    if (!light.shadow) return;
-    if (typeof mapW === 'number' && typeof mapH === 'number') light.shadow.mapSize.set(mapW, mapH);
-    if (typeof bias === 'number') light.shadow.bias = bias;
-    if (typeof normalBias === 'number') light.shadow.normalBias = normalBias;
-  });
-
-  offscreen.dispose();
-
-  return blob;
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
