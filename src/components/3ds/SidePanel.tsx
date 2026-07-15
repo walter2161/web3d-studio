@@ -432,12 +432,13 @@ export const SidePanel = ({
             {/* Sub-category dropdown (Standard / Extended Primitives, etc.) */}
             {createCat === 'geometry' && (
               <select
-                value={createCategory === 'extended' ? 'extended' : 'standard'}
+                value={createCategory === 'extended' ? 'extended' : createCategory === 'aec' ? 'aec' : 'standard'}
                 onChange={(e) => setCreateCategory(e.target.value as any)}
                 className="w-full h-[22px] text-[11px] bevel-sunken bg-win-face px-1 text-win-text"
               >
                 <option value="standard">Standard Primitives</option>
                 <option value="extended">Extended Primitives</option>
+                <option value="aec">AEC Extended</option>
               </select>
             )}
 
