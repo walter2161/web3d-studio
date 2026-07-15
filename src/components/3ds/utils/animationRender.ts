@@ -202,7 +202,19 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         }, 'image/png');
       }));
       idx++;
+      // Emit a JPEG data URL preview (smaller than PNG) so the UI can show
+      // the frame-by-frame progress while the sequence renders.
+      if (onFramePreview) {
+        try {
+          const dataUrl = recCanvas.toDataURL('image/jpeg', 0.7);
+          onFramePreview(dataUrl, f, idx, frameCount);
+        } catch { /* ignore preview failures */ }
+      }
       onProgress?.(idx, frameCount);
+      // Yield to the browser so React can repaint the progress UI between
+      // frames — without this, the main thread stays busy and the modal
+      // appears frozen until the whole sequence finishes.
+      await new Promise((r) => setTimeout(r, 0));
     }
 
     encodeStream = (recCanvas as HTMLCanvasElement).captureStream(0);
