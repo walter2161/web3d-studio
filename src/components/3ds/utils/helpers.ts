@@ -93,4 +93,4 @@ export const tapeDistance = (g: HelperGeom | undefined | null): number => {
 };
 
 /** Helpers do not render to the final image (no shadows, not exported). */
-export const isHelperType = (t: string) => t === 'helper';
+export const isHelperType = (t: string) => t === 'helper' || (typeof t === 'string' && t.startsWith('helper_'));
