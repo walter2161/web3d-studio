@@ -55,9 +55,21 @@ export class RenderCancelledError extends Error {
  */
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview, signal,
+    from, to, step, width, height, fps, format, engine, setFrame, totalFrames, resolveCameraPose, onProgress, onFramePreview, signal,
   } = opts;
   const throwIfAborted = () => { if (signal?.aborted) throw new RenderCancelledError(); };
+  const totalTimeline = totalFrames ?? Math.max(1, to);
+
+  // Walk the scene and pump every registered imported-model mixer so GLB/FBX
+  // skeletal animation matches the frame being rendered.
+  const syncImportedMixers = (frame: number) => {
+    const handle = getViewportHandle('perspective') ?? getViewportHandle();
+    if (!handle) return;
+    handle.scene.traverse((obj) => {
+      const fn = (obj as any).userData?.__syncClipTime;
+      if (typeof fn === 'function') fn(frame, totalTimeline);
+    });
+  };
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
