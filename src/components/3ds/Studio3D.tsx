@@ -441,10 +441,11 @@ export const Studio3D = () => {
     const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'];
     const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
     const shapes = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
+    const aec = ['wall'];
     const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
     const camTypes   = ['camera_target', 'camera_free'];
 
-    if (![...standard, ...extended, ...shapes, ...lightTypes, ...camTypes].includes(type)) return;
+    if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes].includes(type)) return;
 
     saveState();
 
