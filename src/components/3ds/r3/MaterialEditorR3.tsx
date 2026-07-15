@@ -458,7 +458,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
   ] as const), []);
 
   return (
-    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Material Editor" width={880}>
+    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Material Editor" width={640}>
       {/* TOP: sample slots — 2 visible rows with vertical scrollbar */}
       <div className="bevel-inset bg-win-face p-1 mb-1">
         <div className="flex items-center gap-1 mb-1">
@@ -477,7 +477,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
         </div>
         <div
           className="panel-scroll overflow-y-auto"
-          style={{ maxHeight: 2 * 132 + 6 /* 2 rows visible; rest scrolls */ }}
+          style={{ maxHeight: 2 * 70 + 6 /* 2 rows visible; rest scrolls */ }}
         >
           <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
             {slots.map((m, i) => (
@@ -492,7 +492,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                 className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'}`}
                 style={{ aspectRatio: '1', background: i === active ? '#000' : '#111' }}
               >
-                <SamplePreview mat={m} size={64} shape={previewShape} />
+                <SamplePreview mat={m} size={54} shape={previewShape} />
               </button>
             ))}
           </div>
