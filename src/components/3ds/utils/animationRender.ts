@@ -22,7 +22,7 @@ export interface AnimationRenderOptions {
   fps: number;
   format: VideoFormat;
   engine: RenderEngine;
-  setFrame: (frame: number) => void;
+  setFrame: (frame: number) => void | Promise<void>;
   /**
    * Resolves the camera pose to use for a given frame AFTER setFrame(frame)
    * has been applied and React has committed. Return null to fall back to
@@ -52,12 +52,12 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const { scene, camera: viewCamera } = handle;
   const preset = ENGINES[engine];
 
-  // Production sequence render: each timeline frame is rendered as an isolated
-  // high-quality still with the SAME path used by Quick Render (dedicated
-  // antialiased WebGLRenderer, production tone mapping / exposure, soft
-  // shadows, helper cleanup). The still is then drawn into the encoder canvas;
-  // after all requested frames are rendered, MediaRecorder compacts them into
-  // the chosen video container.
+  // Production sequence render: each timeline frame is applied, committed, and
+  // rendered as its own high-quality still with the SAME render settings used
+  // by Quick Render (dedicated antialiased WebGLRenderer, selected engine tone
+  // mapping / exposure, post CSS filter, soft shadows, helper cleanup). The
+  // still is then drawn into the encoder canvas; after all requested frames are
+  // rendered, MediaRecorder compacts the exact rendered sequence into video.
   const SS = 2;
   const ssW = width * SS;
   const ssH = height * SS;
@@ -190,12 +190,17 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     renderCam.updateMatrixWorld(true);
   };
 
+  const waitForSceneCommit = () => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+
   try {
     let idx = 0;
     for (let f = from; f <= to; f += step) {
-      setFrame(f);
-      // Two rAFs so React state commit + Object3D refs update.
-      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      await setFrame(f);
+      // Wait for the timeline state, animated object transforms, R3F scene refs,
+      // mixers, lights, and camera view controllers to commit before capturing.
+      await waitForSceneCommit();
 
       let renderTarget: THREE.Camera = viewCamera;
       if (resolveCameraPose) {

@@ -202,6 +202,8 @@ export const Studio3D = () => {
   // (positions/rotations after each frame's keyframe interpolation).
   const objectsRef = useRef<Object3DData[]>(objects);
   useEffect(() => { objectsRef.current = objects; }, [objects]);
+  const animationTracksRef = useRef<AnimationTrack[]>(animationTracks);
+  useEffect(() => { animationTracksRef.current = animationTracks; }, [animationTracks]);
 
   // Broadcast Modify-panel state so viewport gates sub-object editing on it.
   // Edit Mesh / Edit Poly sub-selection & gizmos only activate when the user
@@ -371,6 +373,63 @@ export const Studio3D = () => {
         : obj
     ));
   }
+
+  const sampleAnimationTrackAtFrame = useCallback((track: AnimationTrack, frame: number) => {
+    if (track.keyframes.length === 0) return null;
+    const kfs = [...track.keyframes].sort((a, b) => a.frame - b.frame);
+    const first = kfs[0];
+    const last = kfs[kfs.length - 1];
+    if (frame <= first.frame) {
+      return {
+        position: [...first.position] as [number, number, number],
+        rotation: [...first.rotation] as [number, number, number],
+        scale: [...first.scale] as [number, number, number],
+      };
+    }
+    if (frame >= last.frame) {
+      return {
+        position: [...last.position] as [number, number, number],
+        rotation: [...last.rotation] as [number, number, number],
+        scale: [...last.scale] as [number, number, number],
+      };
+    }
+
+    let prev = first;
+    let next = last;
+    for (let i = 0; i < kfs.length - 1; i++) {
+      if (frame >= kfs[i].frame && frame <= kfs[i + 1].frame) {
+        prev = kfs[i];
+        next = kfs[i + 1];
+        break;
+      }
+    }
+    const span = Math.max(1, next.frame - prev.frame);
+    return bezierInterpolate(prev, next, (frame - prev.frame) / span);
+  }, []);
+
+  const setAnimationRenderFrame = useCallback((frame: number) => {
+    const sampled = new Map<string, ReturnType<typeof sampleAnimationTrackAtFrame>>();
+    animationTracksRef.current.forEach((track) => {
+      sampled.set(track.objectId, sampleAnimationTrackAtFrame(track, frame));
+    });
+
+    setCurrentFrame(frame);
+    setObjects((prev) => {
+      let changed = false;
+      const next = prev.map((obj) => {
+        const pose = sampled.get(obj.id);
+        if (!pose) return obj;
+        changed = true;
+        return {
+          ...obj,
+          position: pose.position,
+          rotation: pose.rotation,
+          scale: pose.scale,
+        };
+      });
+      return changed ? next : prev;
+    });
+  }, [sampleAnimationTrackAtFrame]);
 
   // Save state for undo/redo
   const saveState = useCallback(() => {
@@ -1525,7 +1584,7 @@ export const Studio3D = () => {
         onRender={() => setQuickRenderOpen(true)}
         currentFrame={currentFrame}
         totalFrames={totalFrames}
-        setCurrentFrame={setCurrentFrame}
+        setCurrentFrame={setAnimationRenderFrame}
         cameras={objects
           .filter((o) => o.type === 'camera_target' || o.type === 'camera_free')
           .map((o) => ({ id: o.id, name: o.name || o.type }))}
