@@ -203,6 +203,16 @@ export const Studio3D = () => {
   const objectsRef = useRef<Object3DData[]>(objects);
   useEffect(() => { objectsRef.current = objects; }, [objects]);
 
+  // Broadcast Modify-panel state so viewport gates sub-object editing on it.
+  // Edit Mesh / Edit Poly sub-selection & gizmos only activate when the user
+  // is actually on the Modify tab (like 3ds Max's Modify panel).
+  useEffect(() => {
+    const active = sidePanelTab === 'modify';
+    (window as any).__r3_modifyPanelActive = active;
+    window.dispatchEvent(new CustomEvent('r3-modify-panel', { detail: { active } }));
+  }, [sidePanelTab]);
+
+
 
   // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
   useEffect(() => {
