@@ -33,6 +33,13 @@ export interface AnimationRenderOptions {
   /** Called with a data URL preview of each just-rendered frame so the UI
    *  can show frame-by-frame progress while the sequence runs. */
   onFramePreview?: (dataUrl: string, frame: number, index: number, total: number) => void;
+  /** Optional abort signal. When aborted mid-render, the sequence stops
+   *  cleanly and renderAnimation rejects with a DOMException('AbortError'). */
+  signal?: AbortSignal;
+}
+
+export class RenderCancelledError extends Error {
+  constructor() { super('Render cancelled'); this.name = 'RenderCancelledError'; }
 }
 
 /**
@@ -44,8 +51,9 @@ export interface AnimationRenderOptions {
  */
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview,
+    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview, signal,
   } = opts;
+  const throwIfAborted = () => { if (signal?.aborted) throw new RenderCancelledError(); };
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
