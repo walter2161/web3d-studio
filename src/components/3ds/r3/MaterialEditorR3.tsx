@@ -492,7 +492,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                 className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'}`}
                 style={{ aspectRatio: '1', background: i === active ? '#000' : '#111' }}
               >
-                <SamplePreview mat={m} size={64} shape={previewShape} />
+                <SamplePreview mat={m} size={54} shape={previewShape} />
               </button>
             ))}
           </div>
