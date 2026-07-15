@@ -330,7 +330,9 @@ export const Viewport = ({
           snapGridSpacing={snapGridSpacing}
           snapAngleDeg={snapAngleDeg}
           snapPercent={snapPercent}
+          activeCameraId={cameraObjectId || null}
         />
+
 
         <CreationController viewportType={view === 'bottom' || view === 'back' || view === 'right' || view === 'user' ? 'perspective' : (view as any)} isActive={isActive} />
 
