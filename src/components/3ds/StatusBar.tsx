@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 import {
   Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp,
+  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp, Repeat,
 } from 'lucide-react';
 
 interface StatusBarProps {
