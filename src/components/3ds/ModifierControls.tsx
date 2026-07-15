@@ -335,6 +335,7 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
     const levels = isMesh
       ? [
           { key: 'vertex', icon: '·', label: 'Vertex' },
+          { key: 'edge', icon: '/', label: 'Edge' },
           { key: 'face', icon: '△', label: 'Face' },
           { key: 'polygon', icon: '▰', label: 'Polygon' },
           { key: 'element', icon: '◈', label: 'Element' },
@@ -343,6 +344,7 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
           { key: 'vertex', icon: '·', label: 'Vertex' },
           { key: 'edge', icon: '/', label: 'Edge' },
           { key: 'border', icon: '◌', label: 'Border' },
+          { key: 'face', icon: '△', label: 'Face' },
           { key: 'polygon', icon: '▰', label: 'Polygon' },
           { key: 'element', icon: '◈', label: 'Element' },
         ];
@@ -359,12 +361,12 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
         </Rollout>
 
         <Rollout title="Selection">
-          <div className={cn('grid gap-[3px] mb-[4px]', isMesh ? 'grid-cols-4' : 'grid-cols-5')}>
+          <div className={cn('grid gap-[3px] mb-[4px]', isMesh ? 'grid-cols-5' : 'grid-cols-6')}>
             {levels.map((l) => (
               <WinBtn
                 key={l.key}
                 active={activeLevel === l.key}
-                onClick={() => updateParam('selectionLevel', l.key)}
+                onClick={() => set({ selectionLevel: l.key, selectedIds: [] })}
                 title={l.label}
                 className="text-[13px]"
               >
