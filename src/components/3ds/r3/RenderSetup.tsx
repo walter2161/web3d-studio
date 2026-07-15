@@ -403,11 +403,7 @@ export const RenderSetup = ({
             </div>
           )}
         </GroupBox>
-        <div className="flex flex-col gap-1">
-          <R3Button
-            width={100}
-            onClick={async () => {
-              if (rendering) return;
+
               if (timeMode === 'single') { onRender?.(); onOpenChange(false); return; }
               if (!setCurrentFrame) {
                 toast.error('Animation render not available in this context');
