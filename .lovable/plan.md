@@ -1,103 +1,92 @@
-## Sprint F — Interactive Creation (Click-Drag no estilo 3ds Max R3)
+# Edit Mesh / Edit Poly funcionais — Plano em fases
 
-Hoje `createObject` spawna o objeto no `(0,0,0)` com dimensões default. Vou substituir por um fluxo modal de criação idêntico ao 3ds Max clássico: ferramenta ativa → cursor crosshair → clique → arrasta base → solta → arrasta altura → clique confirma → painel Modify abre com parâmetros vivos.
+Objetivo: sub-objeto real (Vertex/Edge/Border/Face/Polygon/Element), com seleção no viewport, gizmos, e todas as operações do painel Modify agindo sobre a malha do objeto — mantendo o stack de modificadores não-destrutivo (Edit Mesh/Poly grava operações que reconstroem o `BufferGeometry` acima do objeto base).
 
-### 1. Máquina de estados de criação (novo `CreationController`)
-
-Arquivo novo: `src/components/3ds/r3/creation/CreationController.tsx` + `useCreationTool.ts`.
-
-Estados:
-```text
-idle → armed(tool) → dragging-base → awaiting-height → dragging-height → committed
-              ↑                                                          │
-              └──────────────── ESC cancela em qualquer etapa ───────────┘
-```
-
-Contexto global (`CreationProvider`) expõe:
-- `armedTool: PrimitiveType | null`
-- `arm(tool)`, `disarm()`
-- estado atual + objeto "fantasma" em construção
-
-O `SidePanel` (Create tab) e o `MainToolbar` chamam `arm(type)` em vez de `createObject(type)` direto. Botão fica "pressed" enquanto armado.
-
-### 2. Pointer handling na Viewport
-
-Em `Viewport.tsx`, quando `armedTool` existe:
-- Cursor CSS: `crosshair`
-- `OrbitControls.enabled = false`
-- `onPointerDown/Move/Up` fazem raycast contra:
-  - plano da grid ativa (Top → XZ, Front → XY, Left → YZ, Perspective → XZ por default)
-  - se AutoGrid ligado, contra a face sob o cursor (normal define orientação do novo pivot)
-- Aplica snap (grid/vertex/edge/midpoint) usando `snapCfg` já existente.
-
-Dois estágios de arrasto por tipo (tabela abaixo). Durante cada estágio um objeto temporário é adicionado ao state com `geometry` sendo mutado a cada frame (throttled via `requestAnimationFrame`). ESC remove; clique/soltar avança.
-
-### 3. Fluxos por primitiva
-
-| Tipo         | Estágio 1 (drag base)          | Estágio 2 (mouse move) | Pivot          |
-|--------------|--------------------------------|------------------------|----------------|
-| Box          | width + length (2 cantos)      | height                 | centro da base |
-| Plane        | width + length                 | —                      | centro         |
-| Cylinder     | radius (raio a partir do click)| height                 | centro da base |
-| Cone         | radius base                    | height → radius top    | centro da base |
-| Sphere/GeoSphere | radius                     | —                      | centro         |
-| Torus        | radius principal               | radius secundário      | centro         |
-| Teapot       | radius                         | —                      | centro da base |
-| Pyramid      | width + depth                  | height                 | centro da base |
-| Tube         | outer radius                   | inner radius → height  | centro da base |
-| Hedra / TorusKnot / ChamferBox / ... | radius/size 1 canto  | segundo drag onde faz sentido | centro |
-| Shapes 2D (Line, Rectangle, Circle, ...) | fluxo próprio (line = múltiplos cliques até Enter/right-click) | — | centro |
-
-Cada primitiva ganha um handler pequeno em `creation/tools/<tool>.ts` que recebe `{ startPoint, currentPoint, stage }` e devolve `{ position, geometry }`. Isso mantém o controller genérico.
-
-### 4. Pivot policy
-
-Novo helper `pivotForType(type)` — base vs centro (tabela da mensagem do usuário). No commit: transladamos vértices para que a origem local do objeto fique no pivô correto, e ajustamos `position` para o ponto do mundo escolhido.
-
-### 5. Keyboard Entry (criação precisa)
-
-Na aba Create do `SidePanel`, quando uma ferramenta está armada, mostra rollout **"Keyboard Entry"** (X/Y/Z + parâmetros do tipo) + botão **Create**. Chama o mesmo commit do controller sem passar pelo drag.
-
-### 6. Snap "S" e AutoGrid
-
-- `S` já alterna `snapEnabled` — o controller já respeita.
-- Toolbar ganha toggle **AutoGrid** (já existente em Snaps? senão adiciono). Quando ligado, o raycast prioriza a face sob o cursor e alinha o novo objeto à normal.
-
-### 7. Pós-criação
-
-Após commit:
-- Objeto continua selecionado.
-- `SidePanel` troca automaticamente para tab **Modify** (`setSidePanelTab('modify')`).
-- Undo empurra estado anterior (já usa `saveState`).
-- ESC durante drag → não empurra undo, objeto some.
-
-### 8. SHIFT+Move = Clone
-
-Fora do fluxo de criação, mas pediram: no `TransformControls` `onMouseDown`, se `shiftKey`, abrir o `CloneDialog` (Copy / Instance / Reference) já no fim do drag e criar cópia com o delta aplicado. Novo `src/components/3ds/r3/CloneDialog.tsx`.
-
-### 9. Arquivos afetados
-
-**Novos:**
-- `src/components/3ds/r3/creation/CreationContext.tsx`
-- `src/components/3ds/r3/creation/CreationController.tsx` (raycast + pointer FSM)
-- `src/components/3ds/r3/creation/tools/{box,cylinder,cone,sphere,torus,plane,pyramid,tube,teapot,hedra,chamferBox,chamferCyl,oilTank,spindle,gengon,torusKnot,ringWave,prism,line,rectangle,circle,ellipse,arc,donut,ngon,star,helix}.ts` (agrupados em um único `toolRegistry.ts` para não explodir arquivos)
-- `src/components/3ds/r3/creation/pivot.ts`
-- `src/components/3ds/r3/CloneDialog.tsx`
-
-**Editados:**
-- `Studio3D.tsx` — envelopa em `<CreationProvider>`, substitui chamadas de `createObject` no Create panel por `arm()`, troca tab para Modify pós-commit.
-- `SidePanel.tsx` — botões de primitivas viram "armar ferramenta"; adiciona rollout Keyboard Entry.
-- `Viewport.tsx` — monta o `<CreationController>` dentro do Canvas; desativa OrbitControls quando armado; cursor crosshair.
-- `Scene3D.tsx` — nada (o objeto fantasma é apenas mais um item de `objects` com flag `__creating`).
-- `Object3D.tsx` — respeita flag `__creating` (sem raycast de seleção enquanto em construção).
-- `KeyboardShortcuts.tsx` — ESC cancela criação; Enter confirma Keyboard Entry.
-- `ToolbarStrip.tsx` — toggle AutoGrid.
-- `extendedGeometry.ts` — expõe função `applyDrag(type, stage, dims)` reutilizada pelo controller.
-
-### 10. Fora do escopo desta sprint
-
-Editable Poly (Extrude/Inset/Bevel/Chamfer interativos), Reset XForm real, Window vs Crossing selection direction-aware, Align (ALT+A). Ficam para Sprint G.
+Entrego uma fase por vez. Você aprova/testa, seguimos.
 
 ---
 
-Quer que eu implemente tudo isso agora, ou prefere que eu faça primeiro só os primitivos Standard (Box/Sphere/Cylinder/Cone/Torus/Plane) + ESC + Modify auto-switch, e deixe Extended/Shapes/Clone/AutoGrid/Keyboard Entry para uma etapa seguinte?
+## Arquitetura comum (base para todas as fases)
+
+Nova camada em `src/components/3ds/editable/`:
+
+```text
+editable/
+  EditableMesh.ts       // estrutura half-edge-ish: vertices[], edges[], faces[] (tris ou n-gons)
+  fromGeometry.ts       // BufferGeometry -> EditableMesh
+  toGeometry.ts         // EditableMesh -> BufferGeometry (com groups p/ material IDs + smoothing)
+  ops/                  // uma função pura por operação (extrude, bevel, weld, chamfer, ...)
+  selection.ts          // Set<vId|eId|fId> + shrink/grow/ring/loop
+```
+
+- `Edit Poly` = n-gons preservados.
+- `Edit Mesh` = mesma estrutura, mas `toGeometry` força triangulação e Vertex/Face/Polygon/Element (sem Edge/Border como sub-objetos primários — Edge só em versões tardias).
+- O modifier guarda: `{ selectionLevel, selection: id[], ops: OpRecord[], smoothingGroups, materialIds }`. `ops` é replayed em cima do input geometry — assim continua não-destrutivo.
+
+Integração com o pipeline atual: em `Object3D.tsx`, quando o topo do stack (ou o modifier atualmente selecionado) é Edit Mesh/Poly, o viewport passa a renderizar a geometry resultante e habilita picking de sub-objeto.
+
+---
+
+## Fase 1 — Infra + Seleção (ENTREGA AGORA nesta resposta? não: só planejo)
+
+- `EditableMesh` + conversores.
+- Overlay de sub-objeto no viewport: pontos p/ Vertex, linhas p/ Edge/Border, faces destacadas p/ Face/Polygon/Element.
+- Picking por raycaster respeitando `selectionLevel`.
+- Ignore Backfacing, By Vertex, By Angle, Shrink/Grow/Ring/Loop, Get Stack Selection.
+- Soft Selection (falloff/pinch/bubble) calculada e visualizada por gradiente de cor.
+- Botão "Show End Result" e "Pin Stack" ligados de verdade.
+
+## Fase 2 — Edit Geometry básico (mais usado)
+
+- Move/Rotate/Scale de sub-objeto usando os gizmos existentes.
+- Delete, Detach (→ novo objeto ou elemento), Attach (picker de outro objeto na cena).
+- Create (vertex/face), Collapse (weld por seleção), Break, Weld (threshold), Chamfer (vertex/edge).
+- Flip Normals, Unify Normals.
+- Hide Selected / Unhide All / Hide Unselected.
+
+## Fase 3 — Edit Polygons / Faces
+
+- Extrude (Group / Local Normal / By Polygon, height + interativo).
+- Bevel (height + outline).
+- Inset (Group / By Polygon).
+- Outline.
+- Bridge (2 seleções de face/edge/border).
+- Hinge From Edge, Extrude Along Spline.
+- Insert Vertex, Edit Triangulation, Retriangulate, Turn (Edit Mesh).
+
+## Fase 4 — Cortes e subdivisão
+
+- Slice Plane + Slice / Reset Plane / Split.
+- QuickSlice, Cut.
+- MSmooth (peso), Tessellate (edge/face-center), Divide.
+- Make Planar (X/Y/Z), View Align, Grid Align, Relax.
+
+## Fase 5 — Material IDs + Smoothing Groups + Named Selections
+
+- Painel Material IDs: Set ID / Select ID / Clear + `geometry.groups` reais por ID.
+- Smoothing Groups: matriz 1..32, Auto Smooth (threshold), Clear All, Select By SG. `computeVertexNormals` respeitando SG.
+- Named Selection Sets: Copy/Paste entre modificadores.
+
+## Fase 6 — Polimento
+
+- Constraints (Edge/Face/Normal) aplicadas durante transform de sub-objeto.
+- Preserve UVs.
+- Preview Selection (SubObj / Multi).
+- Undo/Redo por operação dentro do modifier.
+- Persistência: `ops[]` salva/carrega no arquivo do projeto.
+
+---
+
+## Detalhe técnico (para referência)
+
+- Sem libs externas: escrevo half-edge minimalista em TS. Já temos three.js.
+- `toGeometry` produz um único `BufferGeometry` com `groups` = material IDs e `attributes.normal` calculado por smoothing group.
+- Overlay de sub-objeto = `Points` + `LineSegments` + `Mesh` com `depthTest` reduzido, filhos do próprio objeto para seguir transformações.
+- Gizmo reusa `TransformControls` atual, mas anexado a um `Object3D` proxy centrado na seleção; ao arrastar, aplico o delta a cada vId selecionado (com pesos de soft selection).
+- Cada operação = função pura `(mesh, selection, params) => { mesh, selection }`, gravada em `ops[]` do modifier — reexecutada quando parâmetros abaixo no stack mudam.
+
+---
+
+## Próximo passo
+
+Ao aprovar, começo pela **Fase 1** (infra + seleção de sub-objetos no viewport com Soft Selection e Shrink/Grow/Ring/Loop). É a base sem a qual nenhum botão das outras fases faz sentido.

@@ -5,6 +5,8 @@ import * as THREE from 'three';
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { SubObjectOverlay } from './editable/SubObjectOverlay';
+import type { SubObjectLevel } from './editable/EditableMesh';
 
 // R3-style entity types
 export const LIGHT_TYPES = ['light_omni', 'light_spot', 'light_direct', 'light_skylight', 'light_ambient'] as const;
@@ -915,6 +917,24 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </lineSegments>
       )}
 
+      {/* Sub-object overlay — Vertex/Edge/Border/Face/Polygon/Element display
+          for Edit Poly / Edit Mesh. Follows mesh transform automatically. */}
+      {(() => {
+        if (isGhost || !isSelected) return null;
+        const editMod = (object as any).modifiers?.find(
+          (m: any) => m.active && (m.type === 'Edit Poly' || m.type === 'Edit Mesh')
+        );
+        if (!editMod) return null;
+        const level = ((editMod.params?.selectionLevel ?? 'vertex') as string).toLowerCase() as SubObjectLevel;
+        const selectedIds = new Set<number>(editMod.params?.selectedIds ?? []);
+        return (
+          <SubObjectOverlay
+            geometry={modifiedGeometry}
+            level={level}
+            selectedIds={selectedIds}
+          />
+        );
+      })()}
     </mesh>
 
   );
