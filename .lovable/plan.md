@@ -1,83 +1,82 @@
-## AEC Extended — Objetos de Arquitetura Paramétricos
+O escopo total de Helpers + Space Warps + Systems é enorme — Biped sozinho é meses de trabalho. Proponho entregar em 3 fases, cada uma navegável e útil por si só. Confirme e eu implemento a Fase 1 nesta mesma iteração.
 
-Adicionar a categoria **AEC Extended** ao painel Create/Geometry com objetos paramétricos: Wall, Door, Window, Stairs, Railing e Foliage. Portas e janelas cortam a parede automaticamente e de forma **não-destrutiva**.
+## Fase 1 — Helpers completos + esqueleto das outras duas abas
 
-Dado o tamanho, entrego em **fases**. Cada fase é utilizável ao final.
+**Novas abas no SidePanel** (Create):
+- `helpers`, `spaceWarps`, `systems` (ao lado das já existentes: standard/extended/shapes/aec/lights/cameras).
 
----
+**Helpers 100% funcionais** (não renderizam no output final — só aparecem na viewport):
+- **Point** — ícone `+` com opções Cross / Box / Axis Tripod / Center Marker, size, constant screen size
+- **Dummy** — wireframe box paramétrica (comprimento/largura/altura), pivô central, sem geometria renderizável
+- **Tape Measure** — 2 cliques (start/end); mostra `distance` no painel Modify, linha na viewport com endpoints
+- **Grid** — grid local retangular (length/width/spacing) que pode ser "ativado" como plano de construção
+- **Compass** — anel com marcações N/E/S/W (raio configurável); rotação Y aponta o "norte" da cena
 
-### Fase 1 — Fundação: Wall (parede paramétrica)
+Tudo isso renderiza com `<Line>`, `<Sprite>`, `<Html>` do drei — sem BufferGeometry pesada, e o exportador ignora esses tipos.
 
-- Adicionar categoria `aec` no `SidePanel` (Create → Geometry) com os 6 botões (Wall / Doors / Windows / Stairs / Railing / Foliage).
-- Novo tipo `wall` com dados: `path: Vec3[]`, `width`, `height`, `justification: 'left'|'center'|'right'`, `closed`, `openings: WallOpening[]` (vazio nesta fase).
-- Fluxo de criação (via `CreationController`): clique-a-clique idêntico ao Line — clique adiciona vértice, ESC/botão-direito finaliza. Preview ao vivo com espessura + altura.
-- Geometria: para cada segmento do path, gerar um "box extrudado" ao longo do segmento com `width` e `height` respeitando `justification`. Cantos com miter join (interseção dos planos laterais adjacentes) para evitar sobreposição.
-- Parâmetros no painel Modify: `width`, `height`, `justification`, checkbox Closed.
-- Vértices editáveis: usar o mesmo padrão dos handles bezier de trajetória — âncoras arrastáveis no viewport quando um modo "Vertex" da wall estiver ativo no painel Modify. Mover vértice recalcula a mesh.
+**Space Warps e Systems**: só a aba, botões desabilitados/tooltip "Em breve — Fase 2/3", para o usuário já ver o layout.
 
-### Fase 2 — Door e Window paramétricos (sem corte ainda)
+## Fase 2 — Space Warps mínimos
 
-- Tipos `door` e `window` com subtipos:
-  - Door: `pivot`, `bifold`, `sliding`, `pocket`
-  - Window: `casement`, `sliding`, `awning`, `fixed`, `pivot`
-- Parâmetros: `width`, `height`, `thickness`, `frameDepth`, `openPercentage` (door); `frameThickness`, `glassThickness`, `openPercentage`, `sillHeight` (window).
-- Criação em 3 cliques (largura → profundidade → altura), como no 3ds Max.
-- Geometria gerada em TypeScript (batente + folha/vidro) com `openPercentage` animando a rotação/deslocamento da folha.
+Sistema de binding + avaliação por frame:
+- Warps: **Gravity, Wind, Ripple, Bomb, FFD 2×2×2, Deflector**
+- Cada objeto ganha `boundWarps: string[]` (ids dos warps)
+- Botão "Bind to Space Warp" na toolbar Space Warps
+- Loop de avaliação por frame: warps geométricos (Ripple, FFD) deslocam vértices no `useFrame`; warps físicos (Gravity/Wind) só aplicam quando houver partículas — fica como stub visual até termos sistema de partículas
+- Deflector: plano ou volume, sem física real ainda (só visual)
 
-### Fase 3 — Snap arquitetônico + Wall Opening não-destrutivo
+## Fase 3 — Systems
 
-- Ao arrastar uma door/window com uma wall próxima, fazer raycast contra os segmentos da wall:
-  - Se distância < threshold → mostrar preview verde e "prender" à parede.
-  - Ao soltar, criar vínculo `parentWallId` na door/window e um registro `WallOpening { doorId, tAlong, width, height, elevation }` no array `openings` da wall.
-- Wall rebuild ignora regiões cobertas por openings ativos: gera a mesh com dois "tocos" acima/abaixo e nas laterais da abertura, mais o lintel e o parapeito. Corte é puramente paramétrico (rebuild da mesh a cada mudança), sem CSG.
-- Se a door/window for deletada ou desanexada, a opening é removida e a parede volta ao normal.
-- Door/Window vinculada trava a rotação para a normal do segmento e o movimento fica restrito ao eixo do segmento (translação `tAlong`) + altura.
+- **Bones**: cadeia clique-a-clique, cada osso é um `Object3D` filho do anterior, editável em sub-object mode
+- **Sunlight/Daylight**: cria um Directional Light + Compass helper com controles de latitude/longitude/hora/data que reposicionam o sol
+- **Ring Array**: assistente para replicar objeto selecionado em N cópias distribuídas em círculo (count/radius/angle)
+- **Bones + IK Chain**: solver de 2-bone IK simples (mão → braço)
+- **Biped**: fora de escopo — remover ou marcar como "requires Character Studio port"
 
-### Fase 4 — Stairs, Railing, Foliage (versão simples)
+## Detalhamento técnico da Fase 1
 
-- **Stairs** (straight): `width`, `totalHeight`, `steps`, `riser` e `tread` derivados; gera degraus como boxes.
-- **Railing**: posts + top rail + bottom rail ao longo de um path (parâmetros: `postSpacing`, `postHeight`, `railCount`).
-- **Foliage**: 3-4 presets simples (árvore genérica, arbusto, palmeira, pinheiro) — mesh procedural simplificada (tronco cilíndrico + copa esférica/cônica).
+**Novo tipo `helper`** com subtype: `point | dummy | tape | grid | compass`.
 
----
-
-### Detalhes técnicos
-
-**Onde entra no código**
-- `src/components/3ds/utils/aecGeometry.ts` (novo): builders `buildWall`, `buildDoor`, `buildWindow`, `buildStairs`, `buildRailing`, `buildFoliage`.
-- `src/components/3ds/Object3D.tsx`: reconhecer novos tipos e chamar builders (análogo ao ramo `shapes`).
-- `src/components/3ds/SidePanel.tsx`: categoria `aec` com os botões + painéis de parâmetros em Modify.
-- `src/components/3ds/r3/creation/CreationController.tsx`: fluxos de criação (Wall = multi-clique tipo Line; Door/Window = 3 cliques com preview).
-- `src/components/3ds/Studio3D.tsx`: expor `openings`/`parentWall` no estado dos objetos e um efeito que reconstrói a wall quando a lista de openings, uma door/window vinculada, ou parâmetros da wall mudam.
-
-**Estrutura de dados (resumida)**
 ```text
-Wall.geometry = {
-  path: [x,y,z][],
-  width, height,
-  justification: 'left'|'center'|'right',
-  closed: boolean,
-  openings: [{ id, ownerId, segIndex, tAlong, width, height, elevation }]
-}
-Door.geometry = { subtype, width, height, thickness, frameDepth, openPct, parentWallId? }
-Window.geometry = { subtype, width, height, frameThickness, glassThickness, openPct, sillHeight, parentWallId? }
+Object3DData.type: adicionar 'helper'
+Object3DData.geometry.helperKind: 'point' | 'dummy' | ...
+Object3DData.geometry.helperParams: { size, showCross, showBox, ... }
 ```
 
-**Rebuild não-destrutivo (Fase 3)**
-Para cada segmento da wall, gerar tiras horizontais em Y=[0, elevation], Y=[elevation, elevation+height], Y=[elevation+height, wall.height] nas regiões cobertas pela opening; fora da opening a tira ocupa Y=[0, wall.height]. Isso mantém o corte reativo e removível.
+Renderização em `Object3D.tsx`:
+- Novo caminho `if (type === 'helper')` que retorna React children (não mesh):
+  - Point: `<group>` com 3 `<Line>` cruzadas + opção box wireframe
+  - Dummy: `<lineSegments>` a partir de `EdgesGeometry(BoxGeometry)`
+  - Tape: `<Line>` entre `p0` e `p1` + `<Html>` mostrando distância
+  - Grid: `<gridHelper>` do three com tamanho customizável
+  - Compass: `<Line>` circular + 4 marcações N/E/S/W
 
-**Snap arquitetônico**
-Enquanto uma door/window está selecionada e sendo movida, projetar seu centro sobre o segmento de wall mais próximo dentro de `snapRadius` (config); se houver, aplicar transform corrigido e destacar a wall.
+**Fluxo de criação (`CreationController.tsx`)**:
+- `point`, `dummy`, `compass`, `grid`: single-click (drag opcional para size)
+- `tape`: 2-click (start, end) — parecido com criar Wall
+- helpers não recebem material nem cor de wire — cor fixa amarela/ciano estilo Max
 
----
+**SidePanel Modify** ganha rollout específico por helperKind:
+- Point: Size spinner, checkboxes Cross/Box/Axis Tripod/Center Marker/Constant Screen Size
+- Dummy: Length/Width/Height spinners
+- Tape: Distance (read-only, computed), Specify Length checkbox + spinner
+- Grid: Length/Width/Spacing spinners, botão "Activate Grid"
+- Compass: Radius spinner
 
-### Fora do escopo (para depois)
+**Exportador/Render**: skipa objetos com `type === 'helper'` (não vão para gltf, USD nem renderização final).
 
-- BIM real, IFC, DXF import/export.
-- Escadas em L / U / espiral (só straight na Fase 4).
-- Múltiplas paredes cortando-se entre si com T-junction avançado (miter simples só).
-- Portas/janelas em paredes curvas (só segmentos retos na Fase 3).
+**Guardar linha "não renderiza" com clareza**: adicionar tag visual `[helper]` na hierarquia de cena e ícone diferenciado no browser.
 
----
+## Ordem de execução na Fase 1
 
-Confirma este plano? Posso começar pela **Fase 1 (Wall + criação + edição de vértices)** já em seguida. As Fases 2 e 3 são as mais trabalhosas — se quiser reduzir o escopo inicial, sugiro entregar Fase 1 e Fase 3 (corte não-destrutivo) juntas com door/window básica (só `pivot`/`casement`) e adicionar os outros subtipos e Stairs/Railing/Foliage numa iteração seguinte.
+1. Adicionar `helper` em `Object3DData.type` + `CreatableTool`.
+2. Criar `src/components/3ds/utils/helpers.ts` com defaults + tipos.
+3. Renderizar helpers em `Object3D.tsx` (retorno alternativo, sem mesh).
+4. Adicionar branches em `CreationController.tsx`.
+5. Adicionar 3 novas categorias (`helpers`, `spaceWarps`, `systems`) na `SidePanel`.
+6. Novo bloco Modify para helper kind selecionado.
+7. Marcar Systems/Space Warps buttons como disabled + tooltip.
+
+Isso mantém a Fase 1 sob controle e entregável agora. Fases 2 e 3 vão precisar de trabalho dedicado — cada Space Warp real e cada System (Bones, Daylight) merecem sua própria rodada porque envolvem loops de avaliação por frame, solvers e UI de binding.
+
+Confirme e eu já começo a Fase 1.
