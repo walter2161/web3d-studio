@@ -89,7 +89,8 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe }: {
   if (curvePoints.length < 2) return null;
 
   return (
-    <group>
+    <group userData={{ __helper: true }}>
+
       {/* Bezier curve path */}
       <Line
         points={curvePoints}
