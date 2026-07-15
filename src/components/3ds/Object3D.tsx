@@ -308,7 +308,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       delete (imported.root as any).userData.__syncClipTime;
       if (meshRef.current) delete (meshRef.current as any).userData.__syncClipTime;
     };
-  }, [imported, currentFrame, totalFrames]);
+  }, [imported]);
 
   // Drive animation from scene timeline
   useFrame(() => {
