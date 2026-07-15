@@ -543,6 +543,19 @@ export const Studio3D = () => {
       defaultGeometry = {};
     } else if (shapes.includes(type)) {
       defaultGeometry = {};
+    } else if (aec.includes(type)) {
+      if (type === 'wall') {
+        // Sane default: a 4m straight wall along +X.
+        defaultGeometry = {
+          path: [[-2, 0, 0], [2, 0, 0]],
+          width: 0.2,
+          height: 2.7,
+          justification: 'center',
+          closed: false,
+        };
+      } else {
+        defaultGeometry = {};
+      }
     }
 
     const newObject: Object3DData = {
