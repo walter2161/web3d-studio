@@ -1,8 +1,41 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Package, User, Car, Bird, Building2, Search,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getLibraryThumbnail } from './utils/thumbnailRenderer';
+
+/**
+ * Small thumbnail that lazily renders the GLB into a PNG data URL.
+ * Falls back to the category icon while loading or on error.
+ */
+const LibraryThumb = ({
+  id, url, fallback, bg,
+}: { id: string; url: string; fallback: React.ReactNode; bg: string }) => {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getLibraryThumbnail(id, url)
+      .then((dataUrl) => { if (!cancelled) setSrc(dataUrl); })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [id, url]);
+
+  return (
+    <div
+      className="w-full aspect-square bevel-inset flex items-center justify-center overflow-hidden"
+      style={{ background: bg }}
+    >
+      {src && !failed ? (
+        <img src={src} alt="" className="w-full h-full object-contain" draggable={false} />
+      ) : (
+        fallback
+      )}
+    </div>
+  );
+};
 
 /**
  * Object Library — curated set of ready-to-use 3D models pulled from the
@@ -139,12 +172,13 @@ export const ObjectLibrary = ({ onImportUrl }: Props) => {
                   className="bevel-raised bg-win-face hover:brightness-105 active:bevel-inset cursor-grab active:cursor-grabbing select-none flex flex-col items-center p-1"
                   title={`Drag to viewport or double-click to import\n${it.filename}`}
                 >
-                  <div
-                    className="w-full aspect-square bevel-inset flex items-center justify-center"
-                    style={{ background: meta?.color || '#c0c0c0' }}
-                  >
-                    <Icon size={24} className="text-white drop-shadow" strokeWidth={2} />
-                  </div>
+                  <LibraryThumb
+                    id={it.id}
+                    url={it.url}
+                    bg={meta?.color || '#c0c0c0'}
+                    fallback={<Icon size={24} className="text-white drop-shadow" strokeWidth={2} />}
+                  />
+
                   <div className="text-[10px] text-win-text mt-0.5 truncate w-full text-center leading-tight">
                     {it.name}
                   </div>
