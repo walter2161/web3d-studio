@@ -33,6 +33,16 @@ import { getViewportHandle } from './r3/viewportRegistry';
 import { toast } from 'sonner';
 import * as THREE from 'three';
 
+// 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
+const randomMaxColor = (): string => {
+  const h = Math.random();
+  const s = 0.55 + Math.random() * 0.35;
+  const l = 0.5 + Math.random() * 0.15;
+  return '#' + new THREE.Color().setHSL(h, s, l).getHexString();
+};
+
+
+
 
 
 interface Object3DData {
@@ -458,7 +468,7 @@ export const Studio3D = () => {
       position: [0, 0, 0],
       rotation: [0, 0, 0],
       scale: [1, 1, 1],
-      color: shapes.includes(type) ? '#f2c744' : '#3b82f6',
+      color: shapes.includes(type) ? '#f2c744' : randomMaxColor(),
       visible: true,
       locked: false,
       modifiers: [],
@@ -493,7 +503,8 @@ export const Studio3D = () => {
       scale: g.scale,
       color: g.type === 'line' || g.type === 'rectangle' || g.type === 'circle' || g.type === 'ellipse' ||
              g.type === 'arc' || g.type === 'donut' || g.type === 'ngon' || g.type === 'star' || g.type === 'helix'
-        ? '#f2c744' : '#3b82f6',
+        ? '#f2c744' : randomMaxColor(),
+
       visible: true,
       locked: false,
       modifiers: [],

@@ -40,26 +40,30 @@ const DEFAULTS: Required<ObjectProperties> = {
 
 export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: Props) => {
   const [name, setName] = useState('');
+  const [objColor, setObjColor] = useState('#3b82f6');
   const [wireColor, setWireColor] = useState('#00bfff');
   const [props, setProps] = useState<Required<ObjectProperties>>(DEFAULTS);
 
   useEffect(() => {
     if (object) {
       setName(object.name || object.id);
+      setObjColor(object.color || '#3b82f6');
       const p = { ...DEFAULTS, ...(object.properties || {}) };
       setProps(p);
       setWireColor(p.wireframeColor);
     }
   }, [object]);
 
+
   if (!object) return null;
   const set = <K extends keyof ObjectProperties>(k: K, v: ObjectProperties[K]) =>
     setProps((p) => ({ ...p, [k]: v as any }));
 
   const commit = () => {
-    onSave(object.id, { name, properties: { ...props, wireframeColor: wireColor } });
+    onSave(object.id, { name, color: objColor, properties: { ...props, wireframeColor: wireColor } });
     onOpenChange(false);
   };
+
 
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Object Properties" width={480}>
@@ -74,7 +78,14 @@ export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: P
           <Row label="Vertices:" labelWidth={80}><span className="text-[11px]">—</span></Row>
           <Row label="Faces:" labelWidth={80}><span className="text-[11px]">—</span></Row>
           <Row label="Parent:" labelWidth={80}><span className="text-[11px]">Scene Root</span></Row>
-          <Row label="Material:" labelWidth={80}><span className="text-[11px]">{object.color}</span></Row>
+          <Row label="Object Color:" labelWidth={80}>
+            <label className="bevel-inset cursor-pointer inline-block" style={{ width: 40, height: 16 }} title="Click to change object color">
+              <span className="block w-full h-full" style={{ background: objColor }} />
+              <input type="color" value={objColor} onChange={(e) => setObjColor(e.target.value)} className="hidden" />
+            </label>
+            <span className="text-[11px] ml-2">{objColor}</span>
+          </Row>
+
           <Row label="Layer:" labelWidth={80}><span className="text-[11px]">0 (default)</span></Row>
         </GroupBox>
 
