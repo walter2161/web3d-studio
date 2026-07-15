@@ -210,6 +210,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   try {
     let idx = 0;
     for (let f = from; f <= to; f += step) {
+      throwIfAborted();
       await setFrame(f);
       // Wait for the timeline state, animated object transforms, R3F scene refs,
       // mixers, lights, and camera view controllers to commit before capturing.
