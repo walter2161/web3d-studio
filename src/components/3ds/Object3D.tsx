@@ -128,11 +128,13 @@ interface Object3DProps {
   totalFrames?: number;
   isPlaying?: boolean;
   targetLookup?: (id: string) => [number, number, number] | null;
+  isActiveViewCamera?: boolean;
 }
 
 
 
-export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup }: Object3DProps) => {
+export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false }: Object3DProps) => {
+
   const meshRef = useRef<Mesh>(null);
 
 
