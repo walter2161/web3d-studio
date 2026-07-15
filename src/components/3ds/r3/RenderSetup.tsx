@@ -451,6 +451,7 @@ export const RenderSetup = ({
                   width, height, fps: videoFps, format: videoFormat,
                   engine,
                   setFrame: setCurrentFrame,
+                  totalFrames,
                   resolveCameraPose,
                   signal: abort.signal,
                   onProgress: (done, total) => setProgress({ done, total }),

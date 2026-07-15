@@ -263,11 +263,24 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     mixerRef.current = mixer;
     actionRef.current = action;
     clipDurationRef.current = imported.animations[0].duration;
+    // Expose a sync hook so the offline animation renderer can advance the
+    // mixer to the exact frame it is about to capture — useFrame is not
+    // guaranteed to run between setFrame() and gl.render() during offline
+    // rendering, which caused imported GLB characters to render frozen.
+    (imported.root as any).userData.__syncClipTime = (frame: number, total: number) => {
+      const duration = clipDurationRef.current || 0;
+      if (duration <= 0) return;
+      const t = total > 0 ? (frame / total) : 0;
+      const clipTime = (t * duration) % duration;
+      action.time = clipTime;
+      mixer.update(0);
+    };
     return () => {
       mixer.stopAllAction();
       mixer.uncacheRoot(imported.root);
       mixerRef.current = null;
       actionRef.current = null;
+      delete (imported.root as any).userData.__syncClipTime;
     };
   }, [imported]);
 

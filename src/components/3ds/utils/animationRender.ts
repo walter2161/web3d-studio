@@ -23,6 +23,10 @@ export interface AnimationRenderOptions {
   format: VideoFormat;
   engine: RenderEngine;
   setFrame: (frame: number) => void | Promise<void>;
+  /** Total timeline length (frames). Used to sync imported-model
+   *  AnimationMixers (GLB/FBX skeletal animation) to the frame being
+   *  rendered — without this, imported characters render frozen. */
+  totalFrames?: number;
   /**
    * Resolves the camera pose to use for a given frame AFTER setFrame(frame)
    * has been applied and React has committed. Return null to fall back to
@@ -51,9 +55,21 @@ export class RenderCancelledError extends Error {
  */
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, resolveCameraPose, onProgress, onFramePreview, signal,
+    from, to, step, width, height, fps, format, engine, setFrame, totalFrames, resolveCameraPose, onProgress, onFramePreview, signal,
   } = opts;
   const throwIfAborted = () => { if (signal?.aborted) throw new RenderCancelledError(); };
+  const totalTimeline = totalFrames ?? Math.max(1, to);
+
+  // Walk the scene and pump every registered imported-model mixer so GLB/FBX
+  // skeletal animation matches the frame being rendered.
+  const syncImportedMixers = (frame: number) => {
+    const handle = getViewportHandle('perspective') ?? getViewportHandle();
+    if (!handle) return;
+    handle.scene.traverse((obj) => {
+      const fn = (obj as any).userData?.__syncClipTime;
+      if (typeof fn === 'function') fn(frame, totalTimeline);
+    });
+  };
 
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) throw new Error('No active viewport to render');
@@ -225,6 +241,9 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       // Hide editor overlays freshly right before the render so any helpers
       // React just re-mounted for this frame are also hidden, then restore
       // immediately so the viewport stays fully usable between frames.
+      // Advance imported-model AnimationMixers to this exact frame so
+      // GLB/FBX skeletal animation isn't frozen in the render.
+      syncImportedMixers(f);
       const hiddenForFrame = hideEditorOverlays();
       try {
         gl.setRenderTarget(null);
