@@ -373,5 +373,31 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       const curve = new THREE.CatmullRomCurve3(pts3, false);
       return shapeToTube(curve, 512);
     }
+    case 'text': {
+      // Vectorise glyphs → flat, filled letters on the XZ ground plane. When
+      // the user adds an Extrude modifier, applyExtrude re-generates a proper
+      // ExtrudeGeometry (with letter holes) from the same font+text+size.
+      const shapes = buildTextShapes(
+        p.text ?? 'Text',
+        p.font ?? 'helvetiker',
+        !!p.bold,
+        p.size ?? 1,
+        p.kerning ?? 0,
+        p.curveSegments ?? 6,
+      );
+      if (!shapes.length) return new THREE.BufferGeometry();
+      const flat = new THREE.ShapeGeometry(shapes, p.curveSegments ?? 6);
+      // Lay the text flat on XZ (three's ShapeGeometry lives on XY, Y up).
+      flat.rotateX(-Math.PI / 2);
+      // Centre horizontally so the object's origin sits at the middle of the
+      // text baseline, matching how the other shapes are pivoted.
+      flat.computeBoundingBox();
+      const bb = flat.boundingBox!;
+      const cx = (bb.min.x + bb.max.x) / 2;
+      const cz = (bb.min.z + bb.max.z) / 2;
+      flat.translate(-cx, 0, -cz);
+      return flat;
+    }
   }
 }
+
