@@ -293,6 +293,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
     recorder.start();
     for (const frame of renderedFrames) {
+      throwIfAborted();
       const bitmap = await createImageBitmap(frame);
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(bitmap, 0, 0, width, height);
