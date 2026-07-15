@@ -180,7 +180,7 @@ export const buildCaddy = (
           { key: 'pinch', label: 'Pinch', value: 0, step: 0.01 },
           { key: 'slide', label: 'Slide', value: 0, step: 0.01 },
         ],
-        onApply: () => ctx.toast('Connect: coming in next phase'),
+        onApply: (v) => d('connect', v),
       };
     case 'chamferVertex':
       return {
@@ -209,7 +209,7 @@ export const buildCaddy = (
           { key: 'height', label: 'Height', value: 0.2, step: 0.05 },
           { key: 'width', label: 'Width', value: 0, step: 0.01 },
         ],
-        onApply: () => ctx.toast('Extrude Edge/Border: coming in next phase'),
+        onApply: (v) => d('extrudeEdge', { height: v.height, width: v.width }),
       };
     case 'bridge':
       return {
@@ -220,7 +220,7 @@ export const buildCaddy = (
           { key: 'bias', label: 'Bias', value: 0, step: 0.01 },
           { key: 'twist', label: 'Twist', value: 0, step: 1 },
         ],
-        onApply: () => ctx.toast('Bridge: coming in next phase'),
+        onApply: (v) => d('bridge', v),
       };
     case 'hinge':
       return {

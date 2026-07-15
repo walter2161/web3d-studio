@@ -19,6 +19,8 @@ export type FaceId = number;
 export interface EMVertex {
   id: VertexId;
   position: THREE.Vector3;
+  /** UV coordinate (per-vertex; ops interpolate it when creating new verts). */
+  uv?: THREE.Vector2;
   /** Per-vertex normal (recomputed on demand). */
   normal?: THREE.Vector3;
   /** True if vertex is currently "hidden" via Hide operation. */
@@ -56,9 +58,9 @@ export class EditableMesh {
   private nextEid = 1;
   private nextFid = 1;
 
-  addVertex(p: THREE.Vector3): VertexId {
+  addVertex(p: THREE.Vector3, uv?: THREE.Vector2): VertexId {
     const id = this.nextVid++;
-    this.vertices.set(id, { id, position: p.clone() });
+    this.vertices.set(id, { id, position: p.clone(), uv: uv?.clone() });
     return id;
   }
 
@@ -182,7 +184,7 @@ export class EditableMesh {
     const m = new EditableMesh();
     this.vertices.forEach((v) => m.vertices.set(v.id, {
       id: v.id, position: v.position.clone(), hidden: v.hidden,
-      normal: v.normal?.clone(),
+      uv: v.uv?.clone(), normal: v.normal?.clone(),
     }));
     this.faces.forEach((f) => m.faces.set(f.id, { ...f, verts: f.verts.slice() }));
     this.edges.forEach((e) => m.edges.set(e.id, { ...e, faces: e.faces.slice() }));
