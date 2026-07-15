@@ -292,6 +292,38 @@ export const SidePanel = ({
     { type: 'foliage',  label: 'Foliage',  disabled: true },
   ];
 
+  // Helpers — non-renderable viewport aids (see utils/helpers.ts).
+  const helperPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'helper_point',   label: 'Point' },
+    { type: 'helper_dummy',   label: 'Dummy' },
+    { type: 'helper_tape',    label: 'Tape' },
+    { type: 'helper_grid',    label: 'Grid' },
+    { type: 'helper_compass', label: 'Compass' },
+    { type: 'helper_protractor', label: 'Protractor', disabled: true },
+  ];
+
+  // Space Warps — Fase 2, ainda não implementados.
+  const warpPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'warp_gravity',   label: 'Gravity',   disabled: true },
+    { type: 'warp_wind',      label: 'Wind',      disabled: true },
+    { type: 'warp_ripple',    label: 'Ripple',    disabled: true },
+    { type: 'warp_wave',      label: 'Wave',      disabled: true },
+    { type: 'warp_bomb',      label: 'Bomb',      disabled: true },
+    { type: 'warp_ffd',       label: 'FFD',       disabled: true },
+    { type: 'warp_deflector', label: 'Deflector', disabled: true },
+    { type: 'warp_vortex',    label: 'Vortex',    disabled: true },
+  ];
+
+  // Systems — Fase 3, ainda não implementados.
+  const systemPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+    { type: 'sys_bones',    label: 'Bones',    disabled: true },
+    { type: 'sys_ring',     label: 'Ring Array', disabled: true },
+    { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
+    { type: 'sys_daylight', label: 'Daylight', disabled: true },
+    { type: 'sys_biped',    label: 'Biped',    disabled: true },
+  ];
+
+
 
 
   // category: 'shape' → apply only to SplineShape; 'mesh' → apply only to Mesh/Poly;
