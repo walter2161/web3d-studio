@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as ThreeObject3D } from 'three';
 import * as THREE from 'three';
@@ -218,6 +218,19 @@ interface Object3DProps {
 export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false }: Object3DProps) => {
 
   const meshRef = useRef<Mesh>(null);
+
+  // Modify-panel gate: Edit Mesh / Edit Poly sub-object overlay only appears
+  // when the user is on the Modify panel (matches 3ds Max behavior).
+  const [modifyPanelActive, setModifyPanelActive] = useState<boolean>(
+    typeof window !== 'undefined' ? !!(window as any).__r3_modifyPanelActive : false,
+  );
+  useEffect(() => {
+    const on = (ev: Event) => setModifyPanelActive(!!(ev as CustomEvent).detail?.active);
+    window.addEventListener('r3-modify-panel', on as any);
+    return () => window.removeEventListener('r3-modify-panel', on as any);
+  }, []);
+
+
 
 
   // Update object ref — skip for lights/cameras/helpers, whose EntityRenderer
@@ -895,7 +908,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       {/* Sub-object overlay — Vertex/Edge/Border/Face/Polygon/Element display
           for Edit Poly / Edit Mesh. Follows mesh transform automatically. */}
       {(() => {
-        if (isGhost || !isSelected) return null;
+        if (isGhost || !isSelected || !modifyPanelActive) return null;
+
         const editMod = (object as any).modifiers?.find(
           (m: any) => m.active && (m.type === 'Edit Poly' || m.type === 'Edit Mesh')
         );
