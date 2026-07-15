@@ -19,6 +19,8 @@ export type FaceId = number;
 export interface EMVertex {
   id: VertexId;
   position: THREE.Vector3;
+  /** UV coordinate (per-vertex; ops interpolate it when creating new verts). */
+  uv?: THREE.Vector2;
   /** Per-vertex normal (recomputed on demand). */
   normal?: THREE.Vector3;
   /** True if vertex is currently "hidden" via Hide operation. */
