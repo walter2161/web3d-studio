@@ -574,8 +574,8 @@ export const SidePanel = ({
                       const enabled = m.active !== false;
                       const expanded = !!expandedStackItems[m.id];
                       return (
+                        <div key={m.id}>
                         <div
-                          key={m.id}
                           className={cn(
                             'flex items-center gap-[3px] h-[18px] px-[2px] text-[11px] cursor-pointer',
                             selected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40'
@@ -621,6 +621,36 @@ export const SidePanel = ({
                           </button>
                           <span className="flex-1 truncate">{m.type}</span>
                         </div>
+                        {/* Sub-object children (3ds Max hierarchy under Edit Poly / Edit Mesh) */}
+                        {expanded && (m.type === 'Edit Poly' || m.type === 'Edit Mesh') && (
+                          <div>
+                            {(m.type === 'Edit Poly'
+                              ? ['Vertex', 'Edge', 'Border', 'Polygon', 'Element']
+                              : ['Vertex', 'Face', 'Polygon', 'Element']
+                            ).map((lvl) => {
+                              const childId = `${m.id}:${lvl.toLowerCase()}`;
+                              const childSelected = selectedStackItem === childId;
+                              const activeLvl = (m.params?.selectionLevel || '').toLowerCase() === lvl.toLowerCase();
+                              return (
+                                <div
+                                  key={childId}
+                                  className={cn(
+                                    'flex items-center gap-[3px] h-[16px] pl-[26px] pr-[2px] text-[11px] cursor-pointer',
+                                    childSelected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40'
+                                  )}
+                                  onClick={() => {
+                                    setSelectedStackItem(childId);
+                                    onUpdateModifier(selectedObject.id, m.id, { ...(m.params || {}), selectionLevel: lvl.toLowerCase() });
+                                  }}
+                                >
+                                  <span className={cn('w-[8px] h-[8px] inline-block', activeLvl ? 'bg-win-highlight border border-white' : 'border border-win-shadow')} />
+                                  <span className="flex-1 truncate">{lvl}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        </div>
                       );
                     })}
                     {/* Base object row — no eye/arrow, matches 3ds Max */}
@@ -639,36 +669,68 @@ export const SidePanel = ({
                     </div>
                   </div>
 
-                  {/* Stack action row */}
-                  <div className="flex items-center gap-[2px]">
+                  {/* Stack icon strip — 3ds Max style: pin stack, show end result, make unique, delete, config */}
+                  <div className="flex items-center gap-[3px] px-[2px] py-[2px] bevel-group bg-win-face-2/60">
                     <button
-                      className="flex-1 h-[20px] text-[11px] bevel-raised hover:brightness-105 text-win-text disabled:opacity-50"
-                      disabled={!activeModifier}
-                      title="Move modifier up (later in evaluation)"
-                      onClick={() => activeModifier && onReorderModifier?.(selectedObject.id, activeModifier.id, 1)}
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-40"
+                      title="Pin Stack"
+                      disabled
                     >
-                      ▲
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M8 2v6M4 8h8M6 8v5l2-1 2 1V8" /></svg>
                     </button>
                     <button
-                      className="flex-1 h-[20px] text-[11px] bevel-raised hover:brightness-105 text-win-text disabled:opacity-50"
-                      disabled={!activeModifier}
-                      title="Move modifier down (earlier in evaluation)"
-                      onClick={() => activeModifier && onReorderModifier?.(selectedObject.id, activeModifier.id, -1)}
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-40"
+                      title="Show End Result on/off toggle"
+                      disabled
                     >
-                      ▼
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2.5" y="4" width="11" height="8" /><path d="M2.5 8h11" /></svg>
                     </button>
                     <button
-                      className="flex-1 h-[20px] text-[11px] bevel-raised hover:brightness-105 text-win-text disabled:opacity-50"
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-40"
+                      title="Make Unique"
+                      disabled
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2" y="2" width="8" height="8" /><rect x="6" y="6" width="8" height="8" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-50"
                       disabled={!activeModifier}
-                      title="Delete modifier"
+                      title="Remove modifier from the stack"
                       onClick={() => {
                         if (!activeModifier) return;
                         onRemoveModifier(selectedObject.id, activeModifier.id);
                         setSelectedStackItem('base');
                       }}
                     >
-                      🗑
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.7 9.5h5.6L11.5 4" /></svg>
                     </button>
+                    <button
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-40"
+                      title="Configure Modifier Sets"
+                      disabled
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2.5" y="2.5" width="4" height="4" /><rect x="9.5" y="2.5" width="4" height="4" /><rect x="2.5" y="9.5" width="4" height="4" /><rect x="9.5" y="9.5" width="4" height="4" /></svg>
+                    </button>
+                    <div className="flex-1" />
+                    <button
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-50"
+                      disabled={!activeModifier}
+                      title="Move modifier up (later in evaluation)"
+                      onClick={() => activeModifier && onReorderModifier?.(selectedObject.id, activeModifier.id, 1)}
+                    >▲</button>
+                    <button
+                      type="button"
+                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-50"
+                      disabled={!activeModifier}
+                      title="Move modifier down (earlier in evaluation)"
+                      onClick={() => activeModifier && onReorderModifier?.(selectedObject.id, activeModifier.id, -1)}
+                    >▼</button>
                   </div>
 
                   {/* Selected modifier parameters */}
