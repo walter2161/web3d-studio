@@ -477,7 +477,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
         </div>
         <div
           className="panel-scroll overflow-y-auto"
-          style={{ maxHeight: 2 * 76 + 8 /* 2 rows of ~76px cells + gap */ }}
+          style={{ maxHeight: 2 * 132 + 6 /* 2 rows visible; rest scrolls */ }}
         >
           <div className="grid gap-[2px]" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
             {slots.map((m, i) => (
