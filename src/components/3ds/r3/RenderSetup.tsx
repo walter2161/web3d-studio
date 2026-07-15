@@ -561,7 +561,6 @@ export const RenderSetup = ({
                 onClick={() => {
                   renderAbortRef.current?.abort();
                 }}
-                disabled={!renderAbortRef.current}
               >
                 Cancel
               </R3Button>
