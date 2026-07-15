@@ -33,6 +33,16 @@ import { getViewportHandle } from './r3/viewportRegistry';
 import { toast } from 'sonner';
 import * as THREE from 'three';
 
+// 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
+const randomMaxColor = (): string => {
+  const h = Math.random();
+  const s = 0.55 + Math.random() * 0.35;
+  const l = 0.5 + Math.random() * 0.15;
+  return '#' + new THREE.Color().setHSL(h, s, l).getHexString();
+};
+
+
+
 
 
 interface Object3DData {
