@@ -633,10 +633,12 @@ export const Studio3D = () => {
         objectId: string; modifierId: string; level: string;
         id: number; additive?: boolean; remove?: boolean;
       };
+      if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
+        setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        setRedoStack([]);
+      }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
-        setUndoStack((stack) => [...stack.slice(-9), prev]);
-        setRedoStack([]);
         return {
           ...obj,
           modifiers: (obj.modifiers ?? []).map((m: any) => {
@@ -655,10 +657,12 @@ export const Studio3D = () => {
       const d = (ev as CustomEvent).detail as {
         objectId: string; modifierId: string; op: { kind: string; params?: any };
       };
+      if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
+        setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        setRedoStack([]);
+      }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
-        setUndoStack((stack) => [...stack.slice(-9), prev]);
-        setRedoStack([]);
         return {
           ...obj,
           modifiers: (obj.modifiers ?? []).map((m: any) => {
