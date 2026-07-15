@@ -184,7 +184,7 @@ export class EditableMesh {
     const m = new EditableMesh();
     this.vertices.forEach((v) => m.vertices.set(v.id, {
       id: v.id, position: v.position.clone(), hidden: v.hidden,
-      normal: v.normal?.clone(),
+      uv: v.uv?.clone(), normal: v.normal?.clone(),
     }));
     this.faces.forEach((f) => m.faces.set(f.id, { ...f, verts: f.verts.slice() }));
     this.edges.forEach((e) => m.edges.set(e.id, { ...e, faces: e.faces.slice() }));
