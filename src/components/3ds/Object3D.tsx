@@ -908,7 +908,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       {/* Sub-object overlay — Vertex/Edge/Border/Face/Polygon/Element display
           for Edit Poly / Edit Mesh. Follows mesh transform automatically. */}
       {(() => {
-        if (isGhost || !isSelected) return null;
+        if (isGhost || !isSelected || !modifyPanelActive) return null;
+
         const editMod = (object as any).modifiers?.find(
           (m: any) => m.active && (m.type === 'Edit Poly' || m.type === 'Edit Mesh')
         );
