@@ -891,15 +891,27 @@ function MapParametersDialog({
     input.onchange = () => {
       const f = input.files?.[0];
       if (!f) return;
-      const url = URL.createObjectURL(f);
-      // stash the URL BEFORE state updates so any re-render immediately
-      // resolves the bitmap payload (matToThree → mapPayload reads this map).
-      (window as any).__r3BitmapUrls = { ...(window as any).__r3BitmapUrls, [f.name]: url };
-      onChange({ filename: f.name });
-      onChangeSlot({}); // trigger rerender
+      // Read as data URL so the bitmap survives page reloads (blob: URLs
+      // are lost when the page refreshes, blanking the texture on the object).
+      const reader = new FileReader();
+      reader.onload = () => {
+        const url = String(reader.result || '');
+        if (!url) return;
+        const next = { ...(window as any).__r3BitmapUrls, [f.name]: url };
+        (window as any).__r3BitmapUrls = next;
+        try {
+          localStorage.setItem('3dsled-mateditor-bitmaps-v1', JSON.stringify(next));
+        } catch {
+          // localStorage quota exceeded — texture still works this session.
+        }
+        onChange({ filename: f.name });
+        onChangeSlot({}); // trigger rerender
+      };
+      reader.readAsDataURL(f);
     };
     input.click();
   };
+
 
   return (
     <div className="fixed inset-0 z-[60] pointer-events-none">
