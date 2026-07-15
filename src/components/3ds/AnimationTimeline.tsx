@@ -42,6 +42,8 @@ interface AnimationTimelineProps {
   onToggleTrajectory: (objectId: string) => void;
   onSelectKeyframe: (keyframe: Keyframe | null) => void;
   selectedKeyframe: Keyframe | null;
+  loopPlayback?: boolean;
+  onToggleLoopPlayback?: () => void;
 }
 
 export const AnimationTimeline = ({
