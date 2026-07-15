@@ -180,7 +180,7 @@ export const buildCaddy = (
           { key: 'pinch', label: 'Pinch', value: 0, step: 0.01 },
           { key: 'slide', label: 'Slide', value: 0, step: 0.01 },
         ],
-        onApply: () => ctx.toast('Connect: coming in next phase'),
+        onApply: (v) => d('connect', v),
       };
     case 'chamferVertex':
       return {
