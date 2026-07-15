@@ -19,20 +19,38 @@ interface R3DialogProps {
 export const R3Dialog = ({ open, onClose, title, width = 480, children, initialPosition }: R3DialogProps) => {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+  const winRef = useRef<HTMLDivElement | null>(null);
+
+  // Minimum Y: below the app's top bar (menu + toolbars). Keeps the title bar
+  // reachable so dialogs dragged upward can always be grabbed and moved back.
+  const TOP_MIN = 48;
+  const clampPos = (p: { x: number; y: number }) => {
+    if (typeof window === 'undefined') return p;
+    const w = winRef.current?.offsetWidth ?? width;
+    const h = winRef.current?.offsetHeight ?? 0;
+    const minX = -(w - 80); // keep at least 80px of the title bar visible
+    const maxX = window.innerWidth - 80;
+    const minY = TOP_MIN;
+    const maxY = window.innerHeight - 20; // keep title bar on-screen
+    return {
+      x: Math.min(maxX, Math.max(minX, p.x)),
+      y: Math.min(maxY, Math.max(minY, p.y)),
+    };
+  };
 
   useEffect(() => {
     if (open && pos === null && typeof window !== 'undefined') {
-      setPos(initialPosition ?? {
+      setPos(clampPos(initialPosition ?? {
         x: Math.max(20, Math.floor((window.innerWidth - width) / 2)),
-        y: Math.max(20, Math.floor(window.innerHeight * 0.12)),
-      });
+        y: Math.max(TOP_MIN, Math.floor(window.innerHeight * 0.12)),
+      }));
     }
   }, [open, pos, width, initialPosition]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
-      setPos({ x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy });
+      setPos(clampPos({ x: e.clientX - dragRef.current.dx, y: e.clientY - dragRef.current.dy }));
     };
     const onUp = () => { dragRef.current = null; };
     window.addEventListener('mousemove', onMove);
@@ -43,14 +61,24 @@ export const R3Dialog = ({ open, onClose, title, width = 480, children, initialP
     };
   }, []);
 
+  // Re-clamp on window resize so dialogs stay reachable.
+  useEffect(() => {
+    const onResize = () => setPos((p) => (p ? clampPos(p) : p));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
       <div
+        ref={winRef}
         className="absolute pointer-events-auto bevel-raised bg-win-face shadow-lg"
         style={{ left: pos?.x ?? 0, top: pos?.y ?? 0, width }}
       >
+
         {/* Title bar */}
         <div
           className="h-[18px] flex items-center justify-between px-1 select-none cursor-move"
