@@ -23,6 +23,10 @@ export interface AnimationRenderOptions {
   format: VideoFormat;
   engine: RenderEngine;
   setFrame: (frame: number) => void | Promise<void>;
+  /** Total timeline length (frames). Used to sync imported-model
+   *  AnimationMixers (GLB/FBX skeletal animation) to the frame being
+   *  rendered — without this, imported characters render frozen. */
+  totalFrames?: number;
   /**
    * Resolves the camera pose to use for a given frame AFTER setFrame(frame)
    * has been applied and React has committed. Return null to fall back to
