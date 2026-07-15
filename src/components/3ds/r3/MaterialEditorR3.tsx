@@ -310,6 +310,23 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     else setMapParamsOpen(key);
   };
 
+  const mapPayload = (slot?: R3MapSlot) => {
+    if (!slot || slot.name !== 'Bitmap' || !slot.params?.filename) return null;
+    const url = (window as any).__r3BitmapUrls?.[slot.params.filename];
+    if (!url) return null;
+    const c = slot.params.coords;
+    return {
+      url,
+      filename: slot.params.filename,
+      repeat: [c.tilingU, c.tilingV] as [number, number],
+      offset: [c.offsetU, c.offsetV] as [number, number],
+      rotation: ((c.angleW || 0) * Math.PI) / 180,
+      mirrorU: !!c.mirrorU, mirrorV: !!c.mirrorV,
+      tileU: c.tileU !== false, tileV: c.tileV !== false,
+      amount: (slot.amount ?? 100) / 100,
+    };
+  };
+
   const matToThree = (m: R3Material) => ({
     color: m.diffuse,
     metalness: m.metalness,
@@ -317,6 +334,11 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     opacity: m.opacity / 100,
     emissive: m.diffuse,
     emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
+    map: mapPayload(m.maps.diffuse),
+    bumpMap: mapPayload(m.maps.bump),
+    bumpScale: (m.maps.bump?.amount ?? 30) / 100,
+    opacityMap: mapPayload(m.maps.opacity),
+    emissiveMap: mapPayload(m.maps.selfIllum),
   });
 
   const assignToSelection = () => {
