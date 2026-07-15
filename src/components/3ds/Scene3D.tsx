@@ -25,6 +25,7 @@ interface Scene3DProps {
   snapGridSpacing?: number;
   snapAngleDeg?: number;
   snapPercent?: number;
+  activeCameraId?: string | null;
 }
 
 export const Scene3D = ({
@@ -33,7 +34,9 @@ export const Scene3D = ({
   animationTracks, selectedKeyframe, onUpdateKeyframe,
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing = 1, snapAngleDeg = 5, snapPercent = 10,
+  activeCameraId = null,
 }: Scene3DProps) => {
+
   const transformControlsRef = useRef<any>(null);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
