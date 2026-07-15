@@ -657,7 +657,13 @@ export const Studio3D = () => {
       const d = (ev as CustomEvent).detail as {
         objectId: string; modifierId: string; op: { kind: string; params?: any };
       };
-      if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
+      const replaceKey = d.op?.params?.__replaceKey;
+      const hasExistingReplace = !!replaceKey && objectsRef.current.some((obj) =>
+        obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) =>
+          m.id === d.modifierId && Array.isArray(m.params?.ops) && m.params.ops.some((op: any) => op?.params?.__replaceKey === replaceKey)
+        )
+      );
+      if (!hasExistingReplace && objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
         setRedoStack([]);
       }
@@ -671,7 +677,10 @@ export const Studio3D = () => {
             const ids: number[] = Array.isArray(m.params?.selectedIds) ? m.params.selectedIds : [];
             const ops = Array.isArray(m.params?.ops) ? m.params.ops : [];
             const opRec = { ...d.op, selection: { level, ids: ids.slice() } };
-            return { ...m, params: { ...m.params, ops: [...ops, opRec] } };
+            const nextOps = replaceKey && ops.some((op: any) => op?.params?.__replaceKey === replaceKey)
+              ? ops.map((op: any) => op?.params?.__replaceKey === replaceKey ? opRec : op)
+              : [...ops, opRec];
+            return { ...m, params: { ...m.params, ops: nextOps } };
           }),
         };
       }));
