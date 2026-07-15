@@ -118,7 +118,7 @@ export async function getLibraryThumbnail(id: string, url: string): Promise<stri
 
   if (inflight.has(id)) return inflight.get(id)!;
 
-  const p = renderThumbnail(url)
+  const p = enqueue(() => renderThumbnail(url))
     .then((dataUrl) => {
       memCache.set(id, dataUrl);
       try { localStorage.setItem(LS_PREFIX + id, dataUrl); } catch {}
