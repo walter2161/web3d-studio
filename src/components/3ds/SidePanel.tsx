@@ -184,7 +184,9 @@ interface SidePanelProps {
   onRenameObject?: (objectId: string, name: string) => void;
   onUpdateObjectGeometry: (objectId: string, params: any) => void;
   onUpdateObjectLightData?: (objectId: string, params: any) => void;
+  onUpdateObjectCameraData?: (objectId: string, params: any) => void;
   onUpdateObjectColor?: (objectId: string, color: string) => void;
+
 }
 
 export const SidePanel = ({
