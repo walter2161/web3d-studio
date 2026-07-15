@@ -18,6 +18,7 @@ interface Scene3DProps {
   animationTracks?: AnimationTrack[];
   selectedKeyframe?: Keyframe | null;
   onUpdateKeyframe?: (objectId: string, keyframeId: string, updates: Partial<Keyframe>) => void;
+  onSelectKeyframe?: (kf: Keyframe | null) => void;
   currentFrame?: number;
   totalFrames?: number;
   isPlaying?: boolean;
