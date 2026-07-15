@@ -364,6 +364,7 @@ export const Viewport = ({
               targetObj={targetObj}
               isActive={isActive}
               onTransformObject={onTransformObject}
+              isPlaying={!!isPlaying}
             />
           );
         })()}
