@@ -8,6 +8,7 @@ export interface ViewportHandle {
   gl: WebGLRenderer;
   scene: Scene;
   camera: Camera;
+  controls?: any;
 }
 
 const handles = new Map<string, ViewportHandle>();

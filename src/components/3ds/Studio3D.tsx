@@ -29,7 +29,9 @@ import { MirrorDialog } from './r3/MirrorDialog';
 import { ArrayDialog } from './r3/ArrayDialog';
 import { AlignDialog, AlignOpts } from './r3/AlignDialog';
 import { CreationProvider, useCreation, GhostObject } from './r3/creation/CreationContext';
+import { getViewportHandle } from './r3/viewportRegistry';
 import { toast } from 'sonner';
+import * as THREE from 'three';
 
 
 
@@ -83,6 +85,39 @@ interface Modifier {
   params: any;
   active: boolean;
 }
+
+const vectorTuple = (v: THREE.Vector3): [number, number, number] => [v.x, v.y, v.z];
+
+const readPerspectiveViewPose = (activeViewport: string) => {
+  const handle = getViewportHandle('perspective') ?? getViewportHandle(activeViewport) ?? getViewportHandle();
+  const camera = handle?.camera;
+  const controls = handle?.controls ?? (window as any).__activeOrbitControls ?? (window as any).__orbitControls;
+
+  const position = camera
+    ? camera.getWorldPosition(new THREE.Vector3())
+    : new THREE.Vector3(3, 3, 3);
+  const forward = camera
+    ? camera.getWorldDirection(new THREE.Vector3()).normalize()
+    : new THREE.Vector3(-1, -1, -1).normalize();
+  const target = controls?.target?.isVector3
+    ? controls.target.clone()
+    : position.clone().add(forward.multiplyScalar(8));
+
+  const look = new THREE.Object3D();
+  look.position.copy(position);
+  if (camera) look.up.copy(camera.up);
+  look.lookAt(target);
+
+  const pc = camera as THREE.PerspectiveCamera | undefined;
+  return {
+    position: vectorTuple(position),
+    target: vectorTuple(target),
+    rotation: [look.rotation.x, look.rotation.y, look.rotation.z] as [number, number, number],
+    fov: pc?.isPerspectiveCamera ? pc.fov : 45,
+    near: pc?.isPerspectiveCamera ? pc.near : 0.1,
+    far: pc?.isPerspectiveCamera ? pc.far : 1000,
+  };
+};
 
 export const Studio3D = () => {
   const STORAGE_KEY = '3dsled:scene:autosave:v1';
@@ -333,7 +368,12 @@ export const Studio3D = () => {
       let rotation: [number, number, number] = [0, 0, 0];
       let color = '#ffffff';
       const lightData: any = { intensity: 1, distance: 0, decay: 2, castShadow: false };
-      const cameraData: any = { fov: 45, near: 0.1, far: 1000 };
+      const viewPose = baseKind.startsWith('camera_') ? readPerspectiveViewPose(activeViewport) : null;
+      const cameraData: any = {
+        fov: viewPose?.fov ?? 45,
+        near: viewPose?.near ?? 0.1,
+        far: viewPose?.far ?? 1000,
+      };
 
       // Default distance the target sits below the light (matches 3ds Max R3
       // convention: newly-created directional lights always aim straight down).
@@ -344,7 +384,11 @@ export const Studio3D = () => {
       if (baseKind === 'light_direct')   { position = [0, 8, 0]; color = '#ffffff'; lightData.distance = 30; }
       if (baseKind === 'light_skylight') { position = [0, 8, 0]; color = '#a0c8ff'; lightData.skyColor = '#a0c8ff'; lightData.groundColor = '#4a3a2a'; lightData.intensity = 0.6; }
       if (baseKind === 'light_ambient')  { position = [0, 5, 0]; color = '#404040'; lightData.intensity = 0.4; }
-      if (baseKind === 'camera_target' || baseKind === 'camera_free') { position = [3, 3, 3]; color = '#4488ff'; }
+      if (baseKind === 'camera_target' || baseKind === 'camera_free') {
+        position = viewPose?.position ?? [3, 3, 3];
+        rotation = viewPose?.rotation ?? [0, 0, 0];
+        color = '#4488ff';
+      }
 
       // Free (non-targeted) spot/direct lights: nascem apontando para baixo (-Y).
       // Local -Z is the light forward, so rotate -90° around X to send -Z → -Y.
@@ -359,7 +403,7 @@ export const Studio3D = () => {
         const targetPos: [number, number, number] =
           baseKind.startsWith('light_')
             ? [position[0], Math.max(0, position[1] - defaultDist), position[2]]
-            : [0, 0, 0]; // camera target keeps origin default
+            : (viewPose?.target ?? [0, 0, 0]);
         targetId = `target_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
         newObjs.push({
           id: targetId,
@@ -423,7 +467,7 @@ export const Studio3D = () => {
     setObjects(prev => [...prev, newObject]);
     setSelectedObject(newObject.id);
     toast.success(`${type} created`);
-  }, [saveState, objects]);
+  }, [saveState, objects, activeViewport]);
 
 
   // Commit a ghost object from the interactive click-drag creation flow.

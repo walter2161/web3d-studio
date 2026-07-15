@@ -286,7 +286,7 @@ export const Viewport = ({
         }}
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
-        <ViewportRegistrar vkey={type} />
+        <ViewportRegistrar vkey={type} isActive={isActive} />
         <SceneEnvSync
           backgroundColor={env.backgroundColor}
           fogEnabled={env.fogEnabled}
@@ -351,14 +351,24 @@ export const Viewport = ({
           <OrbitControls
             makeDefault
             enablePan enableZoom enableRotate panSpeed={1} rotateSpeed={1} zoomSpeed={1}
-            onUpdate={(self) => { (window as any).__orbitControls = self; }}
+            onUpdate={(self) => {
+              if (isActive) {
+                (window as any).__orbitControls = self;
+                (window as any).__activeOrbitControls = self;
+              }
+            }}
           />
         )}
         {!cameraObjectId && orthographic && (
           <OrbitControls
             makeDefault
             enablePan enableZoom enableRotate={false} panSpeed={1} zoomSpeed={1}
-            onUpdate={(self) => { (window as any).__orbitControls = self; }}
+            onUpdate={(self) => {
+              if (isActive) {
+                (window as any).__orbitControls = self;
+                (window as any).__activeOrbitControls = self;
+              }
+            }}
           />
         )}
         {(view === 'perspective' || view === 'user') && !cameraObjectId && (
@@ -388,12 +398,21 @@ const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }
 
 // Registers this viewport's three.js primitives so the Quick Render dialog can
 // access them for a proper offline render.
-const ViewportRegistrar = ({ vkey }: { vkey: string }) => {
-  const { gl, scene, camera } = useThree();
+const ViewportRegistrar = ({ vkey, isActive }: { vkey: string; isActive: boolean }) => {
+  const state = useThree();
+  const { gl, scene, camera } = state;
+  useFrame(() => {
+    const controls = (state as any).controls;
+    registerViewport(vkey, { gl, scene, camera, controls });
+    if (isActive && controls) {
+      (window as any).__orbitControls = controls;
+      (window as any).__activeOrbitControls = controls;
+    }
+  });
   useEffect(() => {
-    registerViewport(vkey, { gl, scene, camera });
+    registerViewport(vkey, { gl, scene, camera, controls: (state as any).controls });
     return () => unregisterViewport(vkey);
-  }, [vkey, gl, scene, camera]);
+  }, [vkey, gl, scene, camera, state]);
   return null;
 };
 
