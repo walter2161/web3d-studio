@@ -967,20 +967,45 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup }:
     const fov = object.cameraData?.fov ?? 45;
     const near = object.cameraData?.near ?? 0.1;
     const far = object.cameraData?.far ?? 100;
-    // Build a small camera-shaped helper (body + lens)
+    // Distance to target (in local -Z), for the target line.
+    let targetDist = 0;
+    if (targetId && targetLookup) {
+      const tp = targetLookup(targetId);
+      if (tp) {
+        const dx = tp[0] - object.position[0];
+        const dy = tp[1] - object.position[1];
+        const dz = tp[2] - object.position[2];
+        targetDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      }
+    }
+    // Build a small camera-shaped helper (body + lens), fully wireframe.
     return (
       <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
-        {/* Body */}
+        {/* Body (wireframe) — invisible pickable box for click target */}
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.6, 0.4, 0.6]} />
-          <meshBasicMaterial color={iconColor} />
+          <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
         {/* Lens (pointing -Z, R3 camera looks down -Z) */}
         <mesh userData={{ __helper: true }} position={[0, 0, -0.4]}>
           <cylinderGeometry args={[0.15, 0.2, 0.25, 12]} />
-          <meshBasicMaterial color={iconColor} />
+          <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
+        {/* Target line — dashed line from camera to focal point */}
+        {targetId && targetDist > 0 && (
+          <line userData={{ __helper: true }}>
+            <bufferGeometry
+              attach="geometry"
+              onUpdate={(g) => {
+                const arr = new Float32Array([0, 0, 0, 0, 0, -targetDist]);
+                g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+                g.computeBoundingSphere();
+              }}
+            />
+            <lineDashedMaterial color={iconColor} dashSize={0.2} gapSize={0.15} />
+          </line>
+        )}
         {/* Frustum wireframe pyramid when selected */}
         {isSelected && (
           <group userData={{ __helper: true }} position={[0, 0, -1.5]}>
