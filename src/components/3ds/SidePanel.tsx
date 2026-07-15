@@ -152,6 +152,11 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'kerning', label: 'Kerning', kind: 'float', default: SHAPE_DEFAULTS.text.kerning, step: 0.05 },
     { key: 'curveSegments', label: 'Curve Seg', kind: 'int', default: SHAPE_DEFAULTS.text.curveSegments, min: 1 },
   ],
+  // AEC Extended
+  wall: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: 0.2, min: 0.01, step: 0.05 },
+    { key: 'height', label: 'Height', kind: 'float', default: 2.7, min: 0.01, step: 0.1 },
+  ],
 };
 
 import {
