@@ -4,7 +4,9 @@ export type CreatableTool =
   | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane'
   | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
   | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
-  | 'wall' | 'door' | 'window';
+  | 'wall' | 'door' | 'window'
+  | 'helper_point' | 'helper_dummy' | 'helper_tape' | 'helper_grid' | 'helper_compass';
+
 
 
 export interface GhostObject {
