@@ -401,6 +401,161 @@ export function applyOp(mesh: EditableMesh, incomingSel: Selection, op: OpRecord
       }
       return { mesh: out, selection: { level: sel.level, ids: newFaces } };
     }
+    case 'connect': {
+      // Edge Connect: for each selected edge, insert a midpoint vertex.
+      // For each face containing >=2 selected edges, split the face by
+      // connecting midpoints. Works cleanly for quads with 2 selected edges.
+      if (sel.level !== 'edge' && sel.level !== 'border') return { mesh: out, selection: sel };
+      const segments = Math.max(1, Math.floor(op.params?.segments ?? 1));
+      // Only 1 segment implemented cleanly for now.
+      const _seg = segments; // reserved
+      const selEdges = Array.from(sel.ids).map((id) => out.edges.get(id as number)).filter(Boolean) as any[];
+      if (!selEdges.length) return { mesh: out, selection: sel };
+      // Midpoint per selected edge (shared).
+      const midByEdge = new Map<number, VertexId>();
+      const midInFace = new Map<FaceId, VertexId[]>();
+      for (const e of selEdges) {
+        const va = out.vertices.get(e.a)!; const vb = out.vertices.get(e.b)!;
+        const mp = va.position.clone().add(vb.position).multiplyScalar(0.5);
+        const muv = (va.uv && vb.uv) ? va.uv.clone().add(vb.uv).multiplyScalar(0.5) : undefined;
+        const mid = out.addVertex(mp, muv);
+        midByEdge.set(e.id, mid);
+        for (const fid of e.faces) {
+          const arr = midInFace.get(fid) ?? [];
+          arr.push(mid);
+          midInFace.set(fid, arr);
+        }
+      }
+      // Rebuild each affected face: walk verts, insert midpoint after each selected-edge start vert.
+      const newSelIds = new Set<number>();
+      midInFace.forEach((_, fid) => {
+        const f = out.faces.get(fid); if (!f) return;
+        const seq: VertexId[] = [];
+        const mids: VertexId[] = [];
+        for (let i = 0; i < f.verts.length; i++) {
+          const a = f.verts[i]; const b = f.verts[(i + 1) % f.verts.length];
+          seq.push(a);
+          const eKey = a < b ? `${a}_${b}` : `${b}_${a}`;
+          // Find the edge in our selection matching this face-edge.
+          let mid: VertexId | undefined;
+          for (const e of selEdges) {
+            const k = e.a < e.b ? `${e.a}_${e.b}` : `${e.b}_${e.a}`;
+            if (k === eKey) { mid = midByEdge.get(e.id); break; }
+          }
+          if (mid !== undefined) { seq.push(mid); mids.push(mid); }
+        }
+        // If exactly 2 midpoints -> split face into two along their connector.
+        if (mids.length === 2 && f.verts.length === 4) {
+          const i0 = seq.indexOf(mids[0]);
+          const i1 = seq.indexOf(mids[1]);
+          const partA: VertexId[] = [];
+          const partB: VertexId[] = [];
+          for (let k = 0; k < seq.length; k++) {
+            const idx = (i0 + k) % seq.length;
+            partA.push(seq[idx]);
+            if (seq[idx] === mids[1]) break;
+          }
+          for (let k = 0; k < seq.length; k++) {
+            const idx = (i1 + k) % seq.length;
+            partB.push(seq[idx]);
+            if (seq[idx] === mids[0]) break;
+          }
+          const matId = f.materialId; const sg = f.smoothingGroup;
+          out.faces.delete(f.id);
+          out.addFace(partA, matId, sg);
+          out.addFace(partB, matId, sg);
+        } else {
+          // Fall back: just insert midpoints into the ring (subdivides edges).
+          const matId = f.materialId; const sg = f.smoothingGroup;
+          out.faces.delete(f.id);
+          out.addFace(seq, matId, sg);
+        }
+      });
+      selEdges.forEach((e) => { const m = midByEdge.get(e.id); if (m !== undefined) newSelIds.add(m); });
+      return { mesh: out, selection: { level: 'vertex', ids: newSelIds } };
+    }
+    case 'extrudeEdge': {
+      // Extrude selected edges outward along the averaged normal of their
+      // adjacent faces. Creates a quad strip per edge. Works for both edge
+      // and border levels; border edges use their single face normal.
+      if (sel.level !== 'edge' && sel.level !== 'border') return { mesh: out, selection: sel };
+      const height = op.params?.height ?? 0.2;
+      const width = op.params?.width ?? 0;
+      const selEdges = Array.from(sel.ids).map((id) => out.edges.get(id as number)).filter(Boolean) as any[];
+      // For each vertex touched by selection, average the normals of its
+      // adjacent faces to produce a consistent extrusion direction.
+      const vDirs = new Map<VertexId, THREE.Vector3>();
+      for (const e of selEdges) {
+        for (const vid of [e.a, e.b]) {
+          if (vDirs.has(vid)) continue;
+          const dir = new THREE.Vector3();
+          e.faces.forEach((fid: FaceId) => { const n = faceNormal(out, out.faces.get(fid)!); if (n) dir.add(n); });
+          if (dir.lengthSq() > 0) dir.normalize();
+          vDirs.set(vid, dir);
+        }
+      }
+      // Duplicate vertices along their direction.
+      const vmap = new Map<VertexId, VertexId>();
+      vDirs.forEach((dir, vid) => {
+        const src = out.vertices.get(vid)!;
+        vmap.set(vid, out.addVertex(src.position.clone().add(dir.multiplyScalar(height)), src.uv?.clone()));
+      });
+      const newSel = new Set<number>();
+      // Widen: shift new verts outward in-plane if width != 0 (approximation).
+      // Create the extruded quad per edge.
+      for (const e of selEdges) {
+        const A = vmap.get(e.a)!; const B = vmap.get(e.b)!;
+        out.addFace([e.a, e.b, B, A], 1, 1);
+        // Track new edge (A,B) — will be re-registered by addFace above.
+      }
+      // Optional widening (uses e.a->e.b direction rotated by face normal).
+      if (width !== 0) {
+        // Skipped: precise widening needs full loop analysis; parameter kept for parity.
+      }
+      // Return new border edges as selection (approximation: pick edges of new verts).
+      out.edges.forEach((edge) => {
+        const isA = Array.from(vmap.values()).includes(edge.a);
+        const isB = Array.from(vmap.values()).includes(edge.b);
+        if (isA && isB && edge.faces.length === 1) newSel.add(edge.id);
+      });
+      return { mesh: out, selection: { level: sel.level, ids: newSel } };
+    }
+    case 'bridge': {
+      // Bridge two selections: connect boundary loops with quad strips.
+      // Simple case implemented: exactly 2 faces selected with the same
+      // vertex count -> delete both, connect corresponding verts.
+      if (sel.level === 'face' || sel.level === 'polygon') {
+        const faceIds = Array.from(faceIdsForSelection(out, sel));
+        if (faceIds.length !== 2) return { mesh: out, selection: sel };
+        const [fa, fb] = faceIds.map((id) => out.faces.get(id)!);
+        if (fa.verts.length !== fb.verts.length) return { mesh: out, selection: sel };
+        // Find best pairing offset that minimizes total distance (reverse b since it faces the other way).
+        const reversed = fb.verts.slice().reverse();
+        const N = fa.verts.length;
+        let bestOff = 0; let bestD = Infinity;
+        for (let off = 0; off < N; off++) {
+          let d = 0;
+          for (let i = 0; i < N; i++) {
+            const pa = out.vertices.get(fa.verts[i])!.position;
+            const pb = out.vertices.get(reversed[(i + off) % N])!.position;
+            d += pa.distanceToSquared(pb);
+          }
+          if (d < bestD) { bestD = d; bestOff = off; }
+        }
+        const matId = fa.materialId; const sg = fa.smoothingGroup;
+        out.faces.delete(fa.id); out.faces.delete(fb.id);
+        const newFaces = new Set<FaceId>();
+        for (let i = 0; i < N; i++) {
+          const a1 = fa.verts[i];
+          const a2 = fa.verts[(i + 1) % N];
+          const b1 = reversed[(i + bestOff) % N];
+          const b2 = reversed[(i + 1 + bestOff) % N];
+          newFaces.add(out.addFace([a1, a2, b2, b1], matId, sg));
+        }
+        return { mesh: out, selection: { level: 'face', ids: newFaces } };
+      }
+      return { mesh: out, selection: sel };
+    }
     case 'weld': {
       const th = op.params?.threshold ?? 0.01;
       if (sel.level !== 'vertex') return { mesh: out, selection: sel };
