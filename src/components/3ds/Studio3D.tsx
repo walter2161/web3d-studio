@@ -55,8 +55,10 @@ interface Object3DData {
     | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
     | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
     | 'wall' | 'door' | 'window'
+    | 'helper'
     | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
     | 'camera_target' | 'camera_free' | 'target_helper';
+
 
   position: [number, number, number];
   rotation: [number, number, number];
