@@ -1,4 +1,13 @@
 import * as THREE from 'three';
+import { Font } from 'three/examples/jsm/loaders/FontLoader.js';
+// Bundled Three.js fonts (vectorised TTF → typeface JSON) so text can be
+// rasterised into splines immediately, without an async fetch.
+import helvetikerRegular from 'three/examples/fonts/helvetiker_regular.typeface.json';
+import helvetikerBold from 'three/examples/fonts/helvetiker_bold.typeface.json';
+import gentilisRegular from 'three/examples/fonts/gentilis_regular.typeface.json';
+import gentilisBold from 'three/examples/fonts/gentilis_bold.typeface.json';
+import optimerRegular from 'three/examples/fonts/optimer_regular.typeface.json';
+import optimerBold from 'three/examples/fonts/optimer_bold.typeface.json';
 
 /**
  * Sprint C — Extended Primitives + Shapes.
@@ -27,7 +36,8 @@ export type ShapeType =
   | 'donut'
   | 'ngon'
   | 'star'
-  | 'helix';
+  | 'helix'
+  | 'text';
 
 export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   hedra:      { radius: 0.6, family: 0 },                              // 0=tetra 1=cube 2=octa 3=dodec 4=icosa
@@ -51,7 +61,98 @@ export const SHAPE_DEFAULTS: Record<ShapeType, any> = {
   ngon:      { radius: 0.5, sides: 6, circular: false },
   star:      { radius1: 0.5, radius2: 0.22, points: 5 },
   helix:     { radius1: 0.4, radius2: 0.4, height: 1, turns: 3, biasFactor: 0 },
+  text:      { text: 'LEDMKT', font: 'helvetiker', bold: false, size: 1, kerning: 0, curveSegments: 6 },
 };
+
+// ---------------- Fonts ----------------
+
+export const AVAILABLE_FONTS = ['helvetiker', 'gentilis', 'optimer'] as const;
+export type FontName = typeof AVAILABLE_FONTS[number];
+
+const FONT_CACHE = new Map<string, Font>();
+export function getFont(name: FontName | string = 'helvetiker', bold = false): Font {
+  const key = `${name}_${bold ? 'bold' : 'regular'}`;
+  const cached = FONT_CACHE.get(key);
+  if (cached) return cached;
+  let data: any;
+  switch (name) {
+    case 'gentilis': data = bold ? gentilisBold : gentilisRegular; break;
+    case 'optimer':  data = bold ? optimerBold  : optimerRegular;  break;
+    default:         data = bold ? helvetikerBold : helvetikerRegular; break;
+  }
+  const font = new Font(data as any);
+  FONT_CACHE.set(key, font);
+  return font;
+}
+
+/**
+ * Vectorise the input text into an array of `THREE.Shape` — one per glyph,
+ * with holes populated for letters like O, B, D, e, o, a, etc. Kerning
+ * shifts each glyph outward from its natural position. Returned shapes lie
+ * on the XY plane; use them directly with `THREE.ExtrudeGeometry` or copy
+ * their points to draw the vector outline.
+ */
+export function buildTextShapes(
+  text: string,
+  fontName: FontName | string = 'helvetiker',
+  bold = false,
+  size = 1,
+  kerning = 0,
+  curveSegments = 6
+): THREE.Shape[] {
+  if (!text) return [];
+  const font = getFont(fontName, bold);
+  const base = font.generateShapes(text, size);
+  if (!kerning || base.length <= 1) return base;
+  // Font.generateShapes already advances glyphs left→right; apply an extra
+  // per-character kerning offset by measuring cumulative widths of each
+  // character in isolation and re-positioning shapes accordingly.
+  let offset = 0;
+  const shifted: THREE.Shape[] = [];
+  let charIdx = 0;
+  for (const ch of Array.from(text)) {
+    if (ch === '\n' || ch === '\r') { charIdx += 1; continue; }
+    const glyphShapes = font.generateShapes(ch, size);
+    for (const s of glyphShapes) {
+      const clone = new THREE.Shape();
+      clone.curves = s.curves.map((c) => c.clone());
+      clone.holes = s.holes.map((h) => {
+        const p = new THREE.Path();
+        p.curves = h.curves.map((c) => c.clone());
+        return p;
+      });
+      // Shift by the kerning offset (positive kerning = wider spacing).
+      const shift = offset + kerning * charIdx;
+      const applyShift = (path: any) => {
+        for (const c of path.curves) {
+          if (c.v0) c.v0.x += shift;
+          if (c.v1) c.v1.x += shift;
+          if (c.v2) c.v2.x += shift;
+          if (c.v3) c.v3.x += shift;
+          if (c.aX !== undefined) c.aX += shift;
+        }
+      };
+      applyShift(clone);
+      clone.holes.forEach(applyShift);
+      shifted.push(clone);
+    }
+    // Measure natural advance of this char via a bounding box of its shapes.
+    if (glyphShapes.length) {
+      let maxX = -Infinity;
+      for (const s of glyphShapes) {
+        const pts = s.getPoints(4);
+        for (const p of pts) if (p.x > maxX) maxX = p.x;
+      }
+      if (Number.isFinite(maxX)) offset = Math.max(offset, maxX);
+    }
+    charIdx += 1;
+    // Advance in font's own coordinate system for spaces (font shapes for ' '
+    // are empty). Approximate space width as 0.35 * size.
+    if (glyphShapes.length === 0) offset += size * 0.35;
+  }
+  return shifted.length ? shifted : base;
+}
+
 
 // ---------------- Extended Primitive builders ----------------
 
