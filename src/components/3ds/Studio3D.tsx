@@ -1330,9 +1330,52 @@ export const Studio3D = () => {
   }, [selectedObject]);
 
   const openFileDialog = useCallback((type: 'save' | 'open' | 'export' | 'import') => {
+    if (!user) {
+      setPendingFileOp(() => () => { setFileDialogType(type); setFileDialogOpen(true); });
+      setLoginOpen(true);
+      toast.info('Login necessário');
+      return;
+    }
     setFileDialogType(type);
     setFileDialogOpen(true);
-  }, []);
+  }, [user]);
+
+  const buildScenePayload = useCallback(() => ({
+    version: '1.0',
+    objects,
+    animationTracks,
+    selectedObject,
+    currentFrame,
+    timestamp: new Date().toISOString(),
+  }), [objects, animationTracks, selectedObject, currentFrame]);
+
+  const applyScenePayload = useCallback((payload: any) => {
+    saveState();
+    setObjects(payload?.objects || []);
+    setAnimationTracks(payload?.animationTracks || []);
+    setSelectedObject(payload?.selectedObject || null);
+    setCurrentFrame(payload?.currentFrame || 0);
+  }, [saveState]);
+
+  const saveToCloud = useCallback(async (name: string) => {
+    if (!user) throw new Error('login required');
+    const { error } = await supabase.from('scenes').insert({
+      user_id: user.id,
+      name,
+      data: buildScenePayload(),
+    });
+    if (error) throw error;
+  }, [user, buildScenePayload]);
+
+  const gate = useCallback((run: () => void) => {
+    if (!user) {
+      setPendingFileOp(() => run);
+      setLoginOpen(true);
+      toast.info('Login necessário');
+      return;
+    }
+    run();
+  }, [user]);
 
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
