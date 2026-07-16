@@ -10,13 +10,17 @@ type Crumb = { id: string | null; name: string };
 
 interface Props {
   open: boolean;
-  mode: 'save' | 'open';
+  mode: 'save' | 'open' | 'export' | 'import';
   onOpenChange: (open: boolean) => void;
   onSave?: (name: string, folderId: string | null) => Promise<any> | any;
   onLoad?: (payload: any) => void;
+  /** For 'import' mode: payload parsed from a local file to upload into the cloud. */
+  importPayload?: any;
+  /** For 'import' mode: default filename (without extension). */
+  importDefaultName?: string;
 }
 
-export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: Props) => {
+export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, importPayload, importDefaultName }: Props) => {
   const [folders, setFolders] = useState<FolderRow[]>([]);
   const [scenes, setScenes] = useState<SceneRow[]>([]);
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, name: 'Home' }]);
@@ -36,7 +40,7 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: P
     setScenes((s.data || []) as SceneRow[]);
   }, []);
 
-  useEffect(() => { if (open) { refresh(); setSelected(null); } }, [open, refresh]);
+  useEffect(() => { if (open) { refresh(); setSelected(null); if (mode === 'import' && importDefaultName) setName(importDefaultName); } }, [open, refresh, mode, importDefaultName]);
 
   const childFolders = folders.filter((f) => (f.parent_id ?? null) === currentFolder);
   const childScenes = scenes.filter((s) => (s.folder_id ?? null) === currentFolder);
@@ -104,11 +108,50 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: P
     onOpenChange(false);
   };
 
+  const doExport = async (id?: string) => {
+    const targetId = id ?? (selected?.kind === 'scene' ? selected.id : null);
+    if (!targetId) return;
+    setBusy(true);
+    const { data, error } = await supabase.from('scenes').select('name, data').eq('id', targetId).maybeSingle();
+    setBusy(false);
+    if (error || !data) { toast.error('Falha ao exportar cena'); return; }
+    const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${data.name || 'scene'}.3dsled.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success('Exportado');
+    onOpenChange(false);
+  };
+
+  const doImport = async () => {
+    if (!name.trim()) { toast.error('Nome obrigatório'); return; }
+    if (!importPayload) { toast.error('Nenhum arquivo para importar'); return; }
+    setBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Login requerido');
+      const { error } = await supabase.from('scenes').insert({
+        user_id: user.id, name: name.trim(), folder_id: currentFolder, data: importPayload,
+      });
+      if (error) throw error;
+      toast.success('Importado para a nuvem');
+      onOpenChange(false);
+    } catch (e: any) { toast.error(e?.message || 'Falha ao importar'); }
+    finally { setBusy(false); }
+  };
+
+  const title =
+    mode === 'save' ? 'Save Cloud' :
+    mode === 'open' ? 'Open Cloud' :
+    mode === 'export' ? 'Export Cloud' : 'Import Cloud';
+
   return (
     <R3Dialog
       open={open}
       onClose={() => onOpenChange(false)}
-      title={mode === 'save' ? 'Save Cloud' : 'Open Cloud'}
+      title={title}
       width={520}
     >
       {/* Toolbar */}
@@ -180,7 +223,10 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: P
             <div
               key={s.id}
               onClick={() => { setSelected({ kind: 'scene', id: s.id }); if (mode === 'save') setName(s.name); }}
-              onDoubleClick={() => { if (mode === 'open') doOpen(s.id); }}
+              onDoubleClick={() => {
+                if (mode === 'open') doOpen(s.id);
+                else if (mode === 'export') doExport(s.id);
+              }}
               className={`flex items-center gap-1 px-2 py-0.5 text-[11px] cursor-default ${isSel ? 'bg-menu-hover text-menu-hover-fg' : ''}`}
             >
               <FileText size={12} className="text-blue-700" />
@@ -191,7 +237,7 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: P
         })}
       </div>
 
-      {mode === 'save' && (
+      {(mode === 'save' || mode === 'import') && (
         <Row label="Nome:" labelWidth={50}>
           <input
             value={name}
@@ -203,11 +249,10 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: P
       )}
 
       <div className="flex justify-end gap-1 mt-2">
-        {mode === 'save' ? (
-          <R3Button width={80} onClick={doSave} disabled={busy}>Salvar</R3Button>
-        ) : (
-          <R3Button width={80} onClick={() => doOpen()} disabled={busy || selected?.kind !== 'scene'}>Abrir</R3Button>
-        )}
+        {mode === 'save' && <R3Button width={80} onClick={doSave} disabled={busy}>Salvar</R3Button>}
+        {mode === 'open' && <R3Button width={80} onClick={() => doOpen()} disabled={busy || selected?.kind !== 'scene'}>Abrir</R3Button>}
+        {mode === 'export' && <R3Button width={90} onClick={() => doExport()} disabled={busy || selected?.kind !== 'scene'}>Exportar</R3Button>}
+        {mode === 'import' && <R3Button width={90} onClick={doImport} disabled={busy || !importPayload}>Importar aqui</R3Button>}
         <R3Button width={70} onClick={() => onOpenChange(false)}>Cancel</R3Button>
       </div>
     </R3Dialog>
