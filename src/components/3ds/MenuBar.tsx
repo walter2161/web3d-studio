@@ -88,8 +88,8 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item.startsWith('View Image File')) onViewImageFile?.();
                     if (item === 'Save' || item.startsWith('Save As')) onFileOperation('save');
                     if (item === 'Open...') onFileOperation('open');
-                    if (item.startsWith('Export')) onFileOperation('export');
-                    if (item.startsWith('Import')) onFileOperation('import');
+                    if (item === 'Export...') onFileOperation('export');
+                    if (item === 'Import...') onFileOperation('import');
                     if (item === 'Perspective') onViewportChange('perspective');
                     if (item === 'Top') onViewportChange('top');
                     if (item === 'Front') onViewportChange('front');
