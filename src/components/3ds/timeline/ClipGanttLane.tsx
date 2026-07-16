@@ -57,20 +57,18 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
       onChange(
         segments.map((s) => {
           if (s.id !== drag.id) return s;
-          let ns = s.origStart != null ? s : s; // (type appeasement)
           if (drag.mode === 'move') {
             const len = drag.origEnd - drag.origStart;
-            let start = Math.max(0, Math.min(totalFrames - len, drag.origStart + dFrame));
-            let end = start + len;
-            ns = { ...s, startFrame: start, endFrame: end };
-          } else if (drag.mode === 'resize-l') {
-            const start = Math.max(0, Math.min(drag.origEnd - 1, drag.origStart + dFrame));
-            ns = { ...s, startFrame: start };
-          } else {
-            const end = Math.max(drag.origStart + 1, Math.min(totalFrames, drag.origEnd + dFrame));
-            ns = { ...s, endFrame: end };
+            const start = Math.max(0, Math.min(totalFrames - len, drag.origStart + dFrame));
+            const end = start + len;
+            return { ...s, startFrame: start, endFrame: end };
           }
-          return ns;
+          if (drag.mode === 'resize-l') {
+            const start = Math.max(0, Math.min(drag.origEnd - 1, drag.origStart + dFrame));
+            return { ...s, startFrame: start };
+          }
+          const end = Math.max(drag.origStart + 1, Math.min(totalFrames, drag.origEnd + dFrame));
+          return { ...s, endFrame: end };
         }),
       );
     };
