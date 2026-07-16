@@ -50,7 +50,7 @@ export class EditableSpline {
     rectLength: number; rectWidth: number;
     interpolationSteps: number; adaptive: boolean; optimize: boolean;
   } = {
-    renderableViewport: true, renderableRender: true, renderRectangular: false,
+    renderableViewport: false, renderableRender: false, renderRectangular: false,
     thickness: 0.02, sides: 6, angle: 0, rectLength: 0.04, rectWidth: 0.02,
     interpolationSteps: 8, adaptive: true, optimize: false,
   };
@@ -363,8 +363,8 @@ export function paramsToEditableSpline(kind: string, params: any): EditableSplin
   const es = new EditableSpline();
   // Carry over shared render/interpolation params if present.
   const p = { ...(SHAPE_DEFAULTS as any)[kind], ...(params || {}) };
-  es.render.renderableViewport = p.renderableViewport ?? true;
-  es.render.renderableRender   = p.renderableRender   ?? true;
+  es.render.renderableViewport = p.renderableViewport ?? false;
+  es.render.renderableRender   = p.renderableRender   ?? false;
   es.render.renderRectangular  = p.renderRectangular  ?? false;
   es.render.thickness          = p.thickness          ?? 0.02;
   es.render.sides              = p.sides              ?? 6;
