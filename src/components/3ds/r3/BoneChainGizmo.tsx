@@ -147,10 +147,14 @@ const JointNode = ({ joints, index, data, color, objectId, selectedJointIndex, g
 };
 
 export const BoneChainGizmo = ({ data, selected, ghost, objectId }: Props) => {
+  // Live selection so the red-wine highlight updates the instant the user
+  // clicks a joint — without this, only Scene3D re-rendered on subscription.
+  const [sel, setSel] = useState<BoneJointSelection | null>(getSelectedJoint());
+  useEffect(() => subscribeSelectedJoint(setSel), []);
+
   if (!data || !data.joints || data.joints.length === 0) return null;
   const color = ghost ? GHOST : selected ? SEL : YELLOW;
-  const cur = getSelectedJoint();
-  const selectedJointIndex = cur && cur.objectId === objectId ? cur.jointIndex : null;
+  const selectedJointIndex = sel && sel.objectId === objectId ? sel.jointIndex : null;
   return (
     <JointNode
       joints={data.joints}
