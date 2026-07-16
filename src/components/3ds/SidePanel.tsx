@@ -216,6 +216,16 @@ interface SidePanelProps {
   onUpdateObjectCameraData?: (objectId: string, params: any) => void;
   onUpdateObjectColor?: (objectId: string, color: string) => void;
 
+  // Compound Objects (Boolean / ProBoolean / Loft / Scatter)
+  compoundState?: {
+    tool: 'boolean' | 'proboolean' | 'loft' | 'scatter' | null;
+    op: 'union' | 'subtract' | 'intersect';
+    picking: boolean;
+  };
+  onArmCompound?: (tool: 'boolean' | 'proboolean' | 'loft' | 'scatter' | null) => void;
+  onSetCompoundOp?: (op: 'union' | 'subtract' | 'intersect') => void;
+  onStartPickOperandB?: () => void;
+  onCancelCompound?: () => void;
 }
 
 export const SidePanel = ({
