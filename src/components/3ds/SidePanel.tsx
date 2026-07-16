@@ -341,9 +341,9 @@ export const SidePanel = ({
     { type: 'warp_vortex',    label: 'Vortex',    disabled: true },
   ];
 
-  // Systems — Fase 3, ainda não implementados.
+  // Systems — Bones habilitado (Fase 1). Demais em desenvolvimento.
   const systemPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
-    { type: 'sys_bones',    label: 'Bones',    disabled: true },
+    { type: 'sys_bones',    label: 'Bones' },
     { type: 'sys_ring',     label: 'Ring Array', disabled: true },
     { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
     { type: 'sys_daylight', label: 'Daylight', disabled: true },
