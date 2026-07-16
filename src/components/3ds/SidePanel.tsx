@@ -309,6 +309,16 @@ export const SidePanel = ({
     { type: 'foliage',  label: 'Foliage',  disabled: true },
   ];
 
+  // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
+  // 2D-path sweeping (Loft) or surface distribution (Scatter). Loft & Scatter
+  // are stubbed as "em breve"; Boolean and ProBoolean are fully wired.
+  const compoundTools: Array<{ id: 'boolean' | 'proboolean' | 'loft' | 'scatter'; label: string; disabled?: boolean }> = [
+    { id: 'boolean',    label: 'Boolean' },
+    { id: 'proboolean', label: 'ProBoolean' },
+    { id: 'loft',       label: 'Loft',    disabled: true },
+    { id: 'scatter',    label: 'Scatter', disabled: true },
+  ];
+
   // Helpers — non-renderable viewport aids (see utils/helpers.ts).
   const helperPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
     { type: 'helper_point',   label: 'Point' },
