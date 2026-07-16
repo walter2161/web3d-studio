@@ -2013,8 +2013,12 @@ export const Studio3D = () => {
             onSetCompoundOp={setCompoundOp}
             onStartPickOperandB={startPickOperandB}
             onCancelCompound={cancelCompound}
-
+            allObjects={objects}
+            onCreatePrintBed={() => createObject('sys_print_bed')}
+            onUpdatePrintBed={(id, patch) => setObjects((prev) => prev.map((o) => o.id === id ? { ...o, geometry: { ...(o.geometry || {}), ...patch } } : o))}
+            onTransformObject={handleTransformObject}
           />
+
 
 
         </div>
