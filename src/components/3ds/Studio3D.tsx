@@ -201,6 +201,10 @@ export const Studio3D = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [cloudSaveOpen, setCloudSaveOpen] = useState(false);
   const [cloudOpenOpen, setCloudOpenOpen] = useState(false);
+  const [cloudExportOpen, setCloudExportOpen] = useState(false);
+  const [cloudImportOpen, setCloudImportOpen] = useState(false);
+  const [cloudImportPayload, setCloudImportPayload] = useState<any>(null);
+  const [cloudImportName, setCloudImportName] = useState<string>('');
   const [pendingFileOp, setPendingFileOp] = useState<null | (() => void)>(null);
   const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
