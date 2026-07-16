@@ -246,6 +246,15 @@ export const Studio3D = () => {
     // AnimationMixer for imported models.
     (window as any).__bakedClipSets = bakedClipSets;
   }, [bakedClipSets]);
+  // Per-imported-object animation-clip switch cues.
+  // e.g. frame 0 → clip "Walk", frame 60 → clip "Run". Consumed by Object3D
+  // at runtime to swap the active AnimationAction on the mixer.
+  const [clipSwitchesByObject, setClipSwitchesByObject] = useState<
+    Record<string, Array<{ id: string; frame: number; clipIndex: number }>>
+  >({});
+  useEffect(() => {
+    (window as any).__clipSwitches = clipSwitchesByObject;
+  }, [clipSwitchesByObject]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
@@ -2205,6 +2214,14 @@ export const Studio3D = () => {
           if (!selectedObject) return;
           setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
         };
+        const clipSwitches = selectedObject ? (clipSwitchesByObject[selectedObject] || []) : [];
+        const setClipSwitches = (next: Array<{ id: string; frame: number; clipIndex: number }>) => {
+          if (!selectedObject) return;
+          setClipSwitchesByObject((prev) => ({
+            ...prev,
+            [selectedObject]: next.slice().sort((a, b) => a.frame - b.frame),
+          }));
+        };
         return (
           <AnimationTimeline
             tracks={animationTracks}
@@ -2228,6 +2245,8 @@ export const Studio3D = () => {
             bakedClipOptions={clipOptions}
             onBakeClip={clipOptions ? handleBake : undefined}
             onChangeBakedSet={handleChangeBakedSet}
+            clipSwitches={clipSwitches}
+            onClipSwitchesChange={clipOptions ? setClipSwitches : undefined}
           />
         );
       })()}
