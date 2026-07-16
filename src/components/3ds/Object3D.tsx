@@ -28,6 +28,46 @@ export type LightType = typeof LIGHT_TYPES[number];
 export type CameraType = typeof CAMERA_TYPES[number];
 export const isLightType = (t: string): t is LightType => (LIGHT_TYPES as readonly string[]).includes(t);
 export const isCameraType = (t: string): t is CameraType => (CAMERA_TYPES as readonly string[]).includes(t);
+
+/**
+ * Wireframe-mode raycast: hit only when the ray passes near a vertex, not a
+ * face. This makes selecting objects nested inside other objects trivial —
+ * click a wire vertex to grab the object, empty wire space passes through.
+ * Threshold scales with distance to give a roughly constant screen-space feel.
+ */
+function vertexOnlyRaycast(this: THREE.Mesh, raycaster: THREE.Raycaster, intersects: THREE.Intersection[]) {
+  const geom = this.geometry as THREE.BufferGeometry | undefined;
+  const pos = geom?.getAttribute?.('position') as THREE.BufferAttribute | undefined;
+  if (!pos) return;
+  this.updateMatrixWorld();
+  const mw = this.matrixWorld;
+  const v = new THREE.Vector3();
+  const worldV = new THREE.Vector3();
+  let bestDist = Infinity;
+  let bestPoint: THREE.Vector3 | null = null;
+  for (let i = 0; i < pos.count; i++) {
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
+    worldV.copy(v).applyMatrix4(mw);
+    const distAlongRay = raycaster.ray.origin.distanceTo(worldV);
+    // ~8px at typical FOV; scale with distance for consistent pick radius.
+    const threshold = Math.max(0.05, distAlongRay * 0.02);
+    const perp = raycaster.ray.distanceToPoint(worldV);
+    if (perp < threshold && distAlongRay < bestDist) {
+      bestDist = distAlongRay;
+      bestPoint = worldV.clone();
+    }
+  }
+  if (bestPoint) {
+    intersects.push({
+      distance: bestDist,
+      point: bestPoint,
+      object: this,
+      face: null,
+      faceIndex: undefined,
+      uv: undefined,
+    } as unknown as THREE.Intersection);
+  }
+}
 export const isEntityType = (t: string) => isLightType(t) || isCameraType(t) || t === 'target_helper';
 
 /**
@@ -945,7 +985,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       scale={object.scale}
       castShadow={!isGhost}
       receiveShadow={!isGhost}
-      raycast={isGhost ? () => null : undefined}
+      raycast={isGhost ? (() => null) as any : (renderMode === 'wireframe' ? (vertexOnlyRaycast as any) : undefined)}
       onClick={isGhost ? undefined : (e) => {
         e.stopPropagation();
         onSelect();
@@ -983,6 +1023,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
             <lineBasicMaterial color="#00bfff" transparent opacity={0.25} depthTest={true} />
           </lineSegments>
         </>
+      )}
+
+      {/* Wireframe pick markers — small vertex dots so users can visually
+          target the clickable points in wireframe mode. */}
+      {renderMode === 'wireframe' && !isGhost && (
+        <points renderOrder={997} raycast={() => null as any}>
+          <primitive object={modifiedGeometry} attach="geometry" />
+          <pointsMaterial
+            size={isSelected ? 7 : 5}
+            sizeAttenuation={false}
+            color={isSelected ? '#00bfff' : '#ffcc33'}
+            depthTest={false}
+            transparent
+            opacity={0.9}
+          />
+        </points>
       )}
 
       {/* Edged Faces (F4): show wire on top of solid */}
