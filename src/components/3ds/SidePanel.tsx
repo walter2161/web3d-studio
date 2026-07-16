@@ -8,6 +8,7 @@ import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
 import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
+import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
@@ -226,6 +227,12 @@ interface SidePanelProps {
   onSetCompoundOp?: (op: 'union' | 'subtract' | 'intersect') => void;
   onStartPickOperandB?: () => void;
   onCancelCompound?: () => void;
+
+  // Print3D toolkit (Utilities tab)
+  allObjects?: any[];
+  onCreatePrintBed?: () => void;
+  onUpdatePrintBed?: (bedId: string, patch: any) => void;
+  onTransformObject?: (id: string, patch: any) => void;
 }
 
 export const SidePanel = ({
@@ -251,6 +258,10 @@ export const SidePanel = ({
   onSetCompoundOp,
   onStartPickOperandB,
   onCancelCompound,
+  allObjects,
+  onCreatePrintBed,
+  onUpdatePrintBed,
+  onTransformObject,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
@@ -341,13 +352,14 @@ export const SidePanel = ({
     { type: 'warp_vortex',    label: 'Vortex',    disabled: true },
   ];
 
-  // Systems — Bones habilitado (Fase 1). Demais em desenvolvimento.
+  // Systems — Bones, Biped e Print3D habilitados. Demais em desenvolvimento.
   const systemPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
-    { type: 'sys_bones',    label: 'Bones' },
-    { type: 'sys_ring',     label: 'Ring Array', disabled: true },
-    { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
-    { type: 'sys_daylight', label: 'Daylight', disabled: true },
-    { type: 'sys_biped',    label: 'Biped' },
+    { type: 'sys_bones',     label: 'Bones' },
+    { type: 'sys_biped',     label: 'Biped' },
+    { type: 'sys_print_bed', label: 'Print3D' },
+    { type: 'sys_ring',      label: 'Ring Array', disabled: true },
+    { type: 'sys_sunlight',  label: 'Sunlight',   disabled: true },
+    { type: 'sys_daylight',  label: 'Daylight',   disabled: true },
   ];
 
 
@@ -686,11 +698,15 @@ export const SidePanel = ({
                       disabled={p.disabled}
                       onClick={() => {
                         if (p.disabled) return;
+                        // Print3D creates a bed immediately (no drag flow).
+                        if (p.type === 'sys_print_bed') { onCreateObject(p.type); return; }
                         onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
                       }}
                       title={p.disabled
                         ? `${p.label} — em desenvolvimento`
-                        : `Create ${p.label}: clique para iniciar a cadeia, clique novamente para adicionar juntas, RMB/ESC para finalizar.`}
+                        : p.type === 'sys_print_bed'
+                          ? 'Print3D Toolkit — cria a mesa de impressão virtual e abre o painel Utilities → Print Tools.'
+                          : `Create ${p.label}: clique para iniciar a cadeia, clique novamente para adicionar juntas, RMB/ESC para finalizar.`}
                       className={cn(
                         'h-[22px] text-[11px] text-win-text px-1 truncate',
                         p.disabled
@@ -1550,6 +1566,23 @@ export const SidePanel = ({
                 <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Trajectory</label>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="utilities" className="mt-0 space-y-2">
+            <div className="bevel-raised">
+              <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
+                3D Print Toolkit
+              </div>
+              <div className="p-1">
+                <PrintToolsPanel
+                  objects={(allObjects ?? []) as any}
+                  selectedObject={selectedObject as any}
+                  onCreateBed={() => onCreatePrintBed?.()}
+                  onUpdateBedGeometry={(id, patch) => onUpdatePrintBed?.(id, patch)}
+                  onTransformObject={(id, patch) => onTransformObject?.(id, patch)}
+                />
+              </div>
+            </div>
           </TabsContent>
 
         </div>

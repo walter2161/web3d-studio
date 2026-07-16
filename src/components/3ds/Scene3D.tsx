@@ -12,6 +12,7 @@ import {
   setSelectedJoint,
   subscribeSelectedJoint,
 } from './rig/boneJointRegistry';
+import { PrintBoundsOverlay } from './print3d/PrintBoundsOverlay';
 
 interface Scene3DProps {
   objects: any[];
@@ -163,6 +164,11 @@ export const Scene3D = ({
           isActiveViewCamera={!!activeCameraId && object.id === activeCameraId}
         />
       ))}
+
+      {/* Print3D — red bounding box around objects outside the active build volume. */}
+      <PrintBoundsOverlay objects={objects as any} />
+
+
 
       {/* Sub-object gizmo proxy: parented in a group that mirrors the mesh
           transform, so proxy.position lives in mesh-local space. */}
