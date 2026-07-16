@@ -339,13 +339,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       let activeIdx = 0;
       let anchorFrame = 0;
       let activeSegIdx = -1;
-      const hitIdx = segs.findIndex((s, idx) => {
-        const isLast = idx === segs.length - 1;
-        // Adjacent Gantt clips often share a boundary frame (Run ends at 30,
-        // Stop starts at 30). Prefer the new segment at that boundary so the
-        // character actually changes state instead of sticking to the old bar.
-        return frame >= s.startFrame && (frame < s.endFrame || (isLast && frame <= s.endFrame));
-      });
+      const hitIdx = segs.findIndex((s) => frame >= s.startFrame && frame <= s.endFrame);
       if (hitIdx >= 0) {
         activeIdx = segs[hitIdx].clipIndex;
         anchorFrame = segs[hitIdx].startFrame;
@@ -363,27 +357,29 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       if (activeSegIdx > 0) {
         const cur = segs[activeSegIdx];
         const prev = segs[activeSegIdx - 1];
-        // Only crossfade when the user explicitly set blendIn on the current
-        // segment (default on new segments = 15). Segments without blendIn
-        // (older segments, or explicit 0) hard-cut — this preserves the
-        // "switch clip immediately" behavior for anyone who didn't opt into
-        // the transition. Blend is also capped to half the segment (and half
-        // the previous segment) so the new clip always has time to play out
-        // clearly instead of being masked by the previous one.
+        // Auto-blend: if user didn't set blendIn but segments are adjacent
+        // (or overlap), apply a default 15-frame crossfade so movement isn't
+        // brutal. Explicit blendIn === 0 hard-cuts (opt-out).
         const explicit = cur.blendIn;
-        if (explicit !== undefined && explicit !== null && explicit > 0) {
-          const segLen = cur.endFrame - cur.startFrame;
-          const prevLen = Math.max(1, prev.endFrame - prev.startFrame);
-          const blen = Math.max(0, Math.min(explicit, Math.floor(segLen / 2), Math.floor(prevLen / 2)));
-          if (blen > 0 && frame < cur.startFrame + blen) {
-            let t = (frame - cur.startFrame) / blen;
-            if (t < 0) t = 0;
-            if (t > 1) t = 1;
-            // Smoothstep 3t² - 2t³ — ease-in-out weight ramp.
-            blendT = t * t * (3 - 2 * t);
-            prevClipIdx = prev.clipIndex;
-            prevAnchor = prev.startFrame;
-          }
+        let requested: number;
+        if (explicit === undefined || explicit === null) {
+          const adjacent = Math.abs(cur.startFrame - prev.endFrame) <= 1 || cur.startFrame < prev.endFrame;
+          requested = adjacent ? 15 : 0;
+        } else {
+          requested = explicit;
+        }
+        const segLen = cur.endFrame - cur.startFrame;
+        const prevLen = prev.endFrame - prev.startFrame;
+        const blen = Math.max(0, Math.min(requested, segLen, Math.max(1, prevLen)));
+        if (blen > 0 && frame < cur.startFrame + blen) {
+          let t = (frame - cur.startFrame) / blen;
+          if (t < 0) t = 0;
+          if (t > 1) t = 1;
+          // Smoothstep: 3t² - 2t³ — ease-in-out, standard for animation
+          // blending (matches Unreal's default cubic transition curve).
+          blendT = t * t * (3 - 2 * t);
+          prevClipIdx = prev.clipIndex;
+          prevAnchor = prev.startFrame;
         }
       }
 
@@ -395,20 +391,6 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
       const fps = 30;
 
-      const setSingleClipPose = () => {
-        for (let i = 0; i < actions.length; i++) {
-          const a = actions[i];
-          a.enabled = true;
-          a.paused = false;
-          a.setEffectiveTimeScale(1);
-          a.setEffectiveWeight(i === activeIdx ? 1 : 0);
-        }
-        const framesSinceAnchor = Math.max(0, frame - anchorFrame);
-        actions[activeIdx].time = (framesSinceAnchor / fps) % duration;
-        mixer.update(0);
-        lastActiveIdx = activeIdx;
-      };
-
       if (blendT >= 0 && prevClipIdx >= 0 && prevClipIdx !== activeIdx && actions[prevClipIdx] && imported.animations[prevClipIdx]) {
         // Weighted crossfade: both actions active, weights sum to 1, times
         // advanced independently so each clip continues its own local motion.
@@ -416,9 +398,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         const prevDur = prevClip.duration || 0;
         for (let i = 0; i < actions.length; i++) {
           const a = actions[i];
-          a.enabled = true;
+          a.enabled = i === activeIdx || i === prevClipIdx;
           a.paused = false;
-          a.setEffectiveTimeScale(1);
           if (i === activeIdx) a.setEffectiveWeight(blendT);
           else if (i === prevClipIdx) a.setEffectiveWeight(1 - blendT);
           else a.setEffectiveWeight(0);
@@ -430,12 +411,17 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         mixer.update(0);
         lastActiveIdx = activeIdx;
       } else {
-        // No transition: sample the selected clip directly. Do not use
-        // mixer.setTime() here because it drives the mixer's global clock for
-        // every action; after switching Gantt bars that can leave the old clip
-        // visually dominant. Setting the active action time + mixer.update(0)
-        // makes Run → Idle/Stop deterministic on every frame.
-        setSingleClipPose();
+        // No transition: single active clip.
+        for (let i = 0; i < actions.length; i++) {
+          actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+          actions[i].enabled = true;
+          actions[i].paused = false;
+        }
+        lastActiveIdx = activeIdx;
+        const framesSinceAnchor = Math.max(0, frame - anchorFrame);
+        const rawTime = framesSinceAnchor / fps;
+        const clipTime = rawTime % duration;
+        mixer.setTime(clipTime);
       }
 
       activeActionRef.current = action;
