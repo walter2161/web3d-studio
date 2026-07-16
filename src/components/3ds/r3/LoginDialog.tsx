@@ -7,9 +7,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  onRequestAccess?: () => void;
 }
 
-export const LoginDialog = ({ open, onOpenChange, onSuccess }: Props) => {
+export const LoginDialog = ({ open, onOpenChange, onSuccess, onRequestAccess }: Props) => {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
