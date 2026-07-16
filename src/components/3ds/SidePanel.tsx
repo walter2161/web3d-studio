@@ -2233,7 +2233,17 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
         <div className="space-y-[3px]">{specific}</div>
       </MaxRollout>
 
+      {onConvert && (
+        <MaxRollout title="Selection" className="mt-2">
+          <div className="text-[10px] text-muted-foreground pb-1 font-sans leading-snug">
+            Sub-Object Levels — clicking a level converts this shape to Editable Spline and enters that sub-object mode.
+          </div>
+          <SubObjectStack objectId={object.id} onConvert={onConvert} />
+        </MaxRollout>
+      )}
+
       <MaxRollout title="Rendering" className="mt-2">
+
         <div className="space-y-[3px]">
           <MaxCheck label="Enable In Viewport" checked={g.renderableViewport !== false}
             onChange={(v) => onUpdate({ renderableViewport: v })} />
