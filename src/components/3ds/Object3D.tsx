@@ -328,16 +328,20 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
     const syncClipTime = (frame: number, total: number) => {
       const safeTotal = Math.max(1, total || totalFrames || 1);
-      const cues = (((window as any).__clipSwitches || {}) as Record<string, Array<{ frame: number; clipIndex: number }>>)[object.id] || [];
-      const sorted = cues.slice().sort((a, b) => a.frame - b.frame);
+      // Look up Gantt segments for this object and find the one containing
+      // the current frame. If none matches, fall back to clip 0 anchored at
+      // frame 0 so the character still plays its default idle/walk loop.
+      const segMap = ((window as any).__clipSegments || {}) as Record<
+        string,
+        Array<{ startFrame: number; endFrame: number; clipIndex: number }>
+      >;
+      const segs = (segMap[object.id] || []).slice().sort((a, b) => a.startFrame - b.startFrame);
       let activeIdx = 0;
       let anchorFrame = 0;
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        if (sorted[i].frame <= frame) {
-          activeIdx = sorted[i].clipIndex;
-          anchorFrame = sorted[i].frame;
-          break;
-        }
+      const hit = segs.find((s) => frame >= s.startFrame && frame <= s.endFrame);
+      if (hit) {
+        activeIdx = hit.clipIndex;
+        anchorFrame = hit.startFrame;
       }
       const clip = imported.animations[activeIdx];
       const action = actions[activeIdx];

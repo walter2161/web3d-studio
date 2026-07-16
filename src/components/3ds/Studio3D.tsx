@@ -246,15 +246,15 @@ export const Studio3D = () => {
     // AnimationMixer for imported models.
     (window as any).__bakedClipSets = bakedClipSets;
   }, [bakedClipSets]);
-  // Per-imported-object animation-clip switch cues.
-  // e.g. frame 0 → clip "Walk", frame 60 → clip "Run". Consumed by Object3D
-  // at runtime to swap the active AnimationAction on the mixer.
-  const [clipSwitchesByObject, setClipSwitchesByObject] = useState<
-    Record<string, Array<{ id: string; frame: number; clipIndex: number }>>
+  // Per-imported-object animation-clip segments (Gantt style):
+  // each segment plays a specific clipIndex between startFrame..endFrame.
+  // Consumed by Object3D at runtime to drive the mixer.
+  const [clipSegmentsByObject, setClipSegmentsByObject] = useState<
+    Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>
   >({});
   useEffect(() => {
-    (window as any).__clipSwitches = clipSwitchesByObject;
-  }, [clipSwitchesByObject]);
+    (window as any).__clipSegments = clipSegmentsByObject;
+  }, [clipSegmentsByObject]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
@@ -2214,12 +2214,12 @@ export const Studio3D = () => {
           if (!selectedObject) return;
           setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
         };
-        const clipSwitches = selectedObject ? (clipSwitchesByObject[selectedObject] || []) : [];
-        const setClipSwitches = (next: Array<{ id: string; frame: number; clipIndex: number }>) => {
+        const clipSegments = selectedObject ? (clipSegmentsByObject[selectedObject] || []) : [];
+        const setClipSegments = (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>) => {
           if (!selectedObject) return;
-          setClipSwitchesByObject((prev) => ({
+          setClipSegmentsByObject((prev) => ({
             ...prev,
-            [selectedObject]: next.slice().sort((a, b) => a.frame - b.frame),
+            [selectedObject]: next.slice().sort((a, b) => a.startFrame - b.startFrame),
           }));
         };
         return (
@@ -2245,8 +2245,8 @@ export const Studio3D = () => {
             bakedClipOptions={clipOptions}
             onBakeClip={clipOptions ? handleBake : undefined}
             onChangeBakedSet={handleChangeBakedSet}
-            clipSwitches={clipSwitches}
-            onClipSwitchesChange={clipOptions ? setClipSwitches : undefined}
+            clipSegments={clipSegments}
+            onClipSegmentsChange={clipOptions ? setClipSegments : undefined}
           />
         );
       })()}
