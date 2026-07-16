@@ -886,7 +886,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         scale={object.scale}
         onClick={ghostB ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
       >
-        <BoneChainGizmo data={object.geometry} selected={isSelected} ghost={ghostB} />
+        <BoneChainGizmo data={object.geometry} selected={isSelected} ghost={ghostB} objectId={object.id} />
         {/* Invisible pick-proxy along the chain root for easy selection. */}
         <mesh visible={false} raycast={ghostB ? () => null : undefined}>
           <sphereGeometry args={[0.3, 6, 6]} />
