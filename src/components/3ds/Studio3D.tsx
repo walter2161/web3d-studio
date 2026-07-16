@@ -1339,6 +1339,18 @@ export const Studio3D = () => {
     }
     setObjects(prev => prev.filter(o => !idsToDelete.has(o.id)));
     setAnimationTracks(prev => prev.filter(t => !idsToDelete.has(t.objectId)));
+    // Purge per-object timeline state so a re-imported character starts clean
+    // (previous keys/baked bone tracks/clip-gantt segments won't leak onto it).
+    setBakedClipSets(prev => {
+      const next = { ...prev };
+      for (const did of idsToDelete) delete next[did];
+      return next;
+    });
+    setClipSegmentsByObject(prev => {
+      const next = { ...prev };
+      for (const did of idsToDelete) delete next[did];
+      return next;
+    });
     if (selectedObject && idsToDelete.has(selectedObject)) setSelectedObject(null);
     // NOTE: we intentionally do NOT purge the imported-model cache or the
     // persisted blob here. If we did, an Undo restoring this object would
