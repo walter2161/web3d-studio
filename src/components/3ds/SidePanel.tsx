@@ -698,8 +698,6 @@ export const SidePanel = ({
                       disabled={p.disabled}
                       onClick={() => {
                         if (p.disabled) return;
-                        // Print3D creates a bed immediately (no drag flow).
-                        if (p.type === 'sys_print_bed') { onCreateObject(p.type); return; }
                         onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
                       }}
                       title={p.disabled
