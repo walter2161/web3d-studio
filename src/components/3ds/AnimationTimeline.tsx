@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  Play, Pause, Square, SkipBack, SkipForward, 
+import {
+  Play, Pause, Square, SkipBack, SkipForward,
   Circle, Eye, EyeOff, ChevronLeft, ChevronRight,
-  Trash2, Copy, Repeat, Bone
+  Trash2, Copy, Repeat, Bone, Film, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TrackView } from './timeline/TrackView';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BakedClipSet } from './timeline/channelTracks';
 
 export interface Keyframe {
