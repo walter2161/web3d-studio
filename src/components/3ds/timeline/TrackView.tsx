@@ -47,6 +47,8 @@ export const TrackView = ({
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(() => new Set()); // key: `${uuid}:${channel}`
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
+  // Track which clipSet we've auto-expanded for, so re-baking resets defaults.
+  const autoExpandedForRef = useRef<string | null>(null);
 
   // Group tracks per (node -> channel -> axisTrack)
   const grouped = useMemo(() => {
