@@ -27,6 +27,8 @@ export type { RenderEngine };
  */
 const doOfflineRender = async (
   engine: RenderEngine,
+  overrideWidth?: number,
+  overrideHeight?: number,
 ): Promise<{ dataUrl: string; width: number; height: number } | null> => {
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) return null;
@@ -34,11 +36,13 @@ const doOfflineRender = async (
   const preset = ENGINES[engine];
 
   const canvasEl = gl.domElement;
-  const w = canvasEl.clientWidth || canvasEl.width;
-  const h = canvasEl.clientHeight || canvasEl.height;
-  const scale = Math.min(2, window.devicePixelRatio || 1);
-  const outW = Math.max(1, Math.floor(w * scale));
-  const outH = Math.max(1, Math.floor(h * scale));
+  const vw = canvasEl.clientWidth || canvasEl.width;
+  const vh = canvasEl.clientHeight || canvasEl.height;
+  // If the user chose a specific output resolution in Render Setup, honor it
+  // exactly — otherwise fall back to the current viewport size (Quick Render).
+  const useOverride = !!(overrideWidth && overrideHeight);
+  const outW = useOverride ? Math.max(1, Math.floor(overrideWidth!)) : Math.max(1, Math.floor(vw * Math.min(2, window.devicePixelRatio || 1)));
+  const outH = useOverride ? Math.max(1, Math.floor(overrideHeight!)) : Math.max(1, Math.floor(vh * Math.min(2, window.devicePixelRatio || 1)));
 
   const offscreen = new THREE.WebGLRenderer({
     antialias: true,
