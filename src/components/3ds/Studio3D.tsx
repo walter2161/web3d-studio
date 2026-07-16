@@ -197,6 +197,12 @@ export const Studio3D = () => {
   const [alignOpen, setAlignOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [cloudSaveOpen, setCloudSaveOpen] = useState(false);
+  const [cloudOpenOpen, setCloudOpenOpen] = useState(false);
+  const [pendingFileOp, setPendingFileOp] = useState<null | (() => void)>(null);
+  const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
