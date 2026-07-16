@@ -1024,6 +1024,7 @@ export const SidePanel = ({
                     {(() => {
                       const isShapeBase = SHAPE_TYPES.has(String(selectedObject.type));
                       const isEditableSpline = selectedObject.type === 'editable_spline';
+                      const canShowSplineLevels = isShapeBase || isEditableSpline;
                       const baseExpanded = !!expandedStackItems['__base'];
                       const currentLvl = getSplineSel(selectedObject.id).level;
                       return (
@@ -1038,7 +1039,7 @@ export const SidePanel = ({
                             onClick={() => setSelectedStackItem('base')}
                           >
                             <span className="w-[8px]" />
-                            {isShapeBase ? (
+                            {canShowSplineLevels ? (
                               <button
                                 type="button"
                                 className="w-[14px] h-[14px] flex items-center justify-center text-[9px] opacity-80 hover:opacity-100"
@@ -1055,10 +1056,10 @@ export const SidePanel = ({
                             )}
                             <span className="w-[10px]" />
                             <span className="flex-1 truncate font-semibold">
-                              {isShapeBase && !isEditableSpline ? `${baseLabel}  (Spline)` : baseLabel}
+                              {isShapeBase && !isEditableSpline ? `${baseLabel}  (Spline)` : isEditableSpline ? 'Editable Spline' : baseLabel}
                             </span>
                           </div>
-                          {isShapeBase && baseExpanded && (
+                          {canShowSplineLevels && baseExpanded && (
                             <div className="border-l border-dashed border-win-shadow ml-[14px]">
                               {(['Vertex', 'Segment', 'Spline'] as const).map((lvl) => {
                                 const key: SplineSubLevel =

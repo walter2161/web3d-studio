@@ -28,24 +28,53 @@ interface Props {
   onSelectSegment?: (id: number, additive: boolean) => void;
   onSelectSpline?: (id: number, additive: boolean) => void;
   onKnotMove?: (id: number, localPos: THREE.Vector3) => void;
+  onKnotHandleMove?: (id: number, which: 'in' | 'out', localOffset: THREE.Vector3) => void;
 }
 
 const KNOT_SIZE = 0.06;
+const HANDLE_SIZE = 0.045;
+
+function pointsGeometry(points: THREE.Vector3[]) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(points.flatMap((p) => [p.x, p.y, p.z]), 3));
+  return g;
+}
+
+function OverlayLine({
+  points, color, opacity = 1, onPointerDown,
+}: {
+  points: THREE.Vector3[];
+  color: string;
+  opacity?: number;
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
+}) {
+  const geometry = useMemo(() => pointsGeometry(points), [points.map((p) => `${p.x},${p.y},${p.z}`).join('|')]);
+  const line = useMemo(() => {
+    const material = new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity });
+    const obj = new THREE.Line(geometry, material);
+    obj.renderOrder = 998;
+    return obj;
+  }, [geometry, color, opacity]);
+  return (
+    <primitive object={line} onPointerDown={onPointerDown} />
+  );
+}
 
 export function SplineSubObjectOverlay({
   spline, level,
   parentPosition, parentRotation, parentScale,
   selectedKnots, selectedSegments, selectedSplines,
-  onSelectKnot, onSelectSegment, onSelectSpline, onKnotMove,
+  onSelectKnot, onSelectSegment, onSelectSpline, onKnotMove, onKnotHandleMove,
 }: Props) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera, gl } = useThree();
 
   // Convert client-space drag to a plane offset in world space; the plane is
   // aligned to the view (camera-facing) at the knot's initial position.
-  const drag = useRef<{ kid: number; startLocal: THREE.Vector3; plane: THREE.Plane; ptr: number } | null>(null);
+  const drag = useRef<{ kid: number; handle?: 'in' | 'out'; plane: THREE.Plane; ptr: number } | null>(null);
 
-  const knotArr = useMemo(() => Array.from(spline.knots.values()), [spline, spline.knots.size, level, selectedKnots.size]);
+  const selectedKey = useMemo(() => Array.from(selectedKnots).sort((a, b) => a - b).join(','), [selectedKnots]);
+  const knotArr = useMemo(() => Array.from(spline.knots.values()), [spline, spline.knots.size, level, selectedKey]);
   const segArr  = useMemo(() => spline.sampleSegmentPoints(12), [spline, spline.segments.size, spline.knots.size, level]);
 
   const parentMatrix = useMemo(() => {
@@ -71,9 +100,21 @@ export function SplineSubObjectOverlay({
     const k = spline.knots.get(kid); if (!k) return;
     const start = worldOf(k.pos);
     const normal = new THREE.Vector3().subVectors(camera.position, start).normalize();
-    drag.current = { kid, startLocal: k.pos.clone(), plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, start), ptr: e.pointerId };
+    drag.current = { kid, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, start), ptr: e.pointerId };
     (e.target as any)?.setPointerCapture?.(e.pointerId);
   };
+
+  const onHandleDown = (e: ThreeEvent<PointerEvent>, kid: number, handle: 'in' | 'out') => {
+    e.stopPropagation();
+    onSelectKnot?.(kid, false);
+    const k = spline.knots.get(kid); if (!k) return;
+    const localHandle = k.pos.clone().add(handle === 'in' ? k.inHandle : k.outHandle);
+    const start = worldOf(localHandle);
+    const normal = new THREE.Vector3().subVectors(camera.position, start).normalize();
+    drag.current = { kid, handle, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, start), ptr: e.pointerId };
+    (e.target as any)?.setPointerCapture?.(e.pointerId);
+  };
+
   const onKnotMoveEv = (e: ThreeEvent<PointerEvent>) => {
     if (!drag.current) return;
     const rc = new THREE.Raycaster();
@@ -87,7 +128,13 @@ export function SplineSubObjectOverlay({
     const hit = new THREE.Vector3();
     if (rc.ray.intersectPlane(drag.current.plane, hit)) {
       const local = localOf(hit);
-      onKnotMove?.(drag.current.kid, local);
+      if (drag.current.handle) {
+        const k = spline.knots.get(drag.current.kid);
+        if (!k) return;
+        onKnotHandleMove?.(drag.current.kid, drag.current.handle, local.sub(k.pos));
+      } else {
+        onKnotMove?.(drag.current.kid, local);
+      }
     }
   };
   const onKnotUp = (e: ThreeEvent<PointerEvent>) => {
@@ -108,29 +155,57 @@ export function SplineSubObjectOverlay({
         const seg = spline.segments.get(segId);
         const inSelSpline = seg ? selectedSplines.has(seg.splineId) : false;
         const color = isSel || inSelSpline ? '#ff2a2a' : '#ffffff';
-        const positions = new Float32Array(pts.flatMap((p) => [p.x, p.y, p.z]));
         return (
-          <line
+          <group
             key={segId}
-            onPointerDown={(e) => {
-              if (level !== 'ssegment' && level !== 'sspline') return;
-              e.stopPropagation();
-              if (level === 'ssegment') onSelectSegment?.(segId, e.shiftKey || e.ctrlKey || e.metaKey);
-              else onSelectSpline?.(seg!.splineId, e.shiftKey || e.ctrlKey || e.metaKey);
-            }}
           >
-            <bufferGeometry>
-              <bufferAttribute attach="attributes-position" args={[positions, 3]} count={pts.length} />
-            </bufferGeometry>
-            <lineBasicMaterial color={color} depthTest={false} transparent linewidth={2} />
-          </line>
+            <OverlayLine
+              points={pts}
+              color={color}
+              opacity={1}
+              onPointerDown={(e) => {
+                if (level !== 'ssegment' && level !== 'sspline') return;
+                e.stopPropagation();
+                if (level === 'ssegment') onSelectSegment?.(segId, e.shiftKey || e.ctrlKey || e.metaKey);
+                else if (seg) onSelectSpline?.(seg.splineId, e.shiftKey || e.ctrlKey || e.metaKey);
+              }}
+            />
+          </group>
         );
+      })}
+
+      {/* Bezier handles for selected knots. They are offsets from each knot,
+          matching the data model used by trajectory curves. */}
+      {level === 'sknot' && knotArr.filter((k) => selectedKnots.has(k.id) && k.type !== 'corner').flatMap((k) => {
+        const handles: Array<['in' | 'out', THREE.Vector3]> = [
+          ['in', k.inHandle],
+          ['out', k.outHandle],
+        ];
+        return handles.map(([which, offset]) => {
+          if (offset.lengthSq() < 1e-8) return null;
+          const endpoint = k.pos.clone().add(offset);
+          return (
+            <group key={`${k.id}-${which}`}>
+              <OverlayLine points={[k.pos, endpoint]} color="#ffcc33" opacity={0.95} />
+              <mesh
+                position={[endpoint.x, endpoint.y, endpoint.z]}
+                onPointerDown={(e) => onHandleDown(e, k.id, which)}
+                onPointerMove={onKnotMoveEv}
+                onPointerUp={onKnotUp}
+                renderOrder={1000}
+              >
+                <boxGeometry args={[HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE]} />
+                <meshBasicMaterial color="#ffcc33" depthTest={false} transparent />
+              </mesh>
+            </group>
+          );
+        });
       })}
 
       {/* Knots — coloured squares, larger and pulsing red when selected. */}
       {level === 'sknot' && knotArr.map((k) => {
         const isSel = selectedKnots.has(k.id);
-        const color = isSel ? '#ff2a2a' : KNOT_COLORS[k.type];
+        const color = isSel ? '#ff2a2a' : (KNOT_COLORS[k.type] ?? '#00ff33');
         return (
           <mesh
             key={k.id}
