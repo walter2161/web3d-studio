@@ -1424,6 +1424,7 @@ export const Studio3D = () => {
     setSelectedObject(null);
     setAnimationTracks([]);
     setCurrentFrame(0);
+    setCurrentCloudScene(null);
     toast.success('New scene');
   }, 'New Scene');
 
