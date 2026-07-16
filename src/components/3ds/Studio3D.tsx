@@ -2272,6 +2272,11 @@ export const Studio3D = () => {
           }));
         };
         return (
+          <div
+            onMouseEnter={() => { timelineHoveredRef.current = true; }}
+            onMouseLeave={() => { timelineHoveredRef.current = false; }}
+            className="contents"
+          >
           <AnimationTimeline
             tracks={animationTracks}
             currentFrame={currentFrame}
@@ -2297,6 +2302,7 @@ export const Studio3D = () => {
             clipSegments={clipSegments}
             onClipSegmentsChange={clipOptions ? setClipSegments : undefined}
           />
+          </div>
         );
       })()}
 
