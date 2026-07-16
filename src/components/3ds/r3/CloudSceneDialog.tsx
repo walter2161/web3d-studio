@@ -108,11 +108,50 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, imp
     onOpenChange(false);
   };
 
+  const doExport = async (id?: string) => {
+    const targetId = id ?? (selected?.kind === 'scene' ? selected.id : null);
+    if (!targetId) return;
+    setBusy(true);
+    const { data, error } = await supabase.from('scenes').select('name, data').eq('id', targetId).maybeSingle();
+    setBusy(false);
+    if (error || !data) { toast.error('Falha ao exportar cena'); return; }
+    const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${data.name || 'scene'}.3dsled.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast.success('Exportado');
+    onOpenChange(false);
+  };
+
+  const doImport = async () => {
+    if (!name.trim()) { toast.error('Nome obrigatório'); return; }
+    if (!importPayload) { toast.error('Nenhum arquivo para importar'); return; }
+    setBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Login requerido');
+      const { error } = await supabase.from('scenes').insert({
+        user_id: user.id, name: name.trim(), folder_id: currentFolder, data: importPayload,
+      });
+      if (error) throw error;
+      toast.success('Importado para a nuvem');
+      onOpenChange(false);
+    } catch (e: any) { toast.error(e?.message || 'Falha ao importar'); }
+    finally { setBusy(false); }
+  };
+
+  const title =
+    mode === 'save' ? 'Save Cloud' :
+    mode === 'open' ? 'Open Cloud' :
+    mode === 'export' ? 'Export Cloud' : 'Import Cloud';
+
   return (
     <R3Dialog
       open={open}
       onClose={() => onOpenChange(false)}
-      title={mode === 'save' ? 'Save Cloud' : 'Open Cloud'}
+      title={title}
       width={520}
     >
       {/* Toolbar */}
