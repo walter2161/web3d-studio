@@ -236,7 +236,14 @@ export const Studio3D = () => {
   // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
   const [bakedClipSets, setBakedClipSets] = useState<Record<string, BakedClipSet>>({});
   const bakedClipSetsRef = useRef<Record<string, BakedClipSet>>({});
-  useEffect(() => { bakedClipSetsRef.current = bakedClipSets; }, [bakedClipSets]);
+  useEffect(() => {
+    bakedClipSetsRef.current = bakedClipSets;
+    // Expose the current baked-set map + total frame count on window so
+    // Object3D's per-frame driver can prefer our editable tracks over the
+    // built-in AnimationMixer for imported models.
+    (window as any).__bakedClipSets = bakedClipSets;
+    (window as any).__timelineTotalFrames = totalFrames;
+  }, [bakedClipSets]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
