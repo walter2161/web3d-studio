@@ -50,7 +50,7 @@ export class EditableSpline {
     rectLength: number; rectWidth: number;
     interpolationSteps: number; adaptive: boolean; optimize: boolean;
   } = {
-    renderableViewport: true, renderableRender: true, renderRectangular: false,
+    renderableViewport: false, renderableRender: false, renderRectangular: false,
     thickness: 0.02, sides: 6, angle: 0, rectLength: 0.04, rectWidth: 0.02,
     interpolationSteps: 8, adaptive: true, optimize: false,
   };
