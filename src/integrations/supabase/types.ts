@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      registration_requests: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          reason: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          reason?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       scene_folders: {
         Row: {
           created_at: string
