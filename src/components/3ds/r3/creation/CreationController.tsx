@@ -728,6 +728,18 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onUp = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      if (bipedRef) {
+        if (bipedRef.start && bipedRef.height > 0.1) {
+          commitBiped(bipedRef.start, bipedRef.height);
+        } else {
+          setGhost(null);
+        }
+        bipedRef.start = null;
+        bipedRef.height = 0;
+        dom.releasePointerCapture?.(e.pointerId);
+        disarm();
+        return;
+      }
       if (lineRef) {
         // End of drag on an anchor; keep the anchor, wait for the next click.
         if (lineRef.draggingIdx >= 0) {
@@ -736,6 +748,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         }
         return;
       }
+
 
       const s = stageRef.current;
       if (!s) return;
