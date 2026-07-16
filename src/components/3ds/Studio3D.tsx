@@ -255,6 +255,37 @@ export const Studio3D = () => {
   useEffect(() => {
     (window as any).__clipSegments = clipSegmentsByObject;
   }, [clipSegmentsByObject]);
+
+  // ---- Timeline / TrackView scoped history ----
+  // The timeline keeps its own undo stack. When the pointer is over the
+  // timeline / Track View, Ctrl+Z rolls back the last timeline edit (keys,
+  // baked tracks, clip segments) instead of the scene graph — so undoing a
+  // bad keyframe or gantt tweak never wipes an imported character. When the
+  // timeline is not focused we fall through to the regular scene undo stack.
+  type TimelineSnapshot = {
+    animationTracks: AnimationTrack[];
+    bakedClipSets: Record<string, BakedClipSet>;
+    clipSegmentsByObject: Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>;
+  };
+  const timelineUndoRef = useRef<TimelineSnapshot[]>([]);
+  const timelineRedoRef = useRef<TimelineSnapshot[]>([]);
+  const timelineHoveredRef = useRef(false);
+  const isRestoringTimelineRef = useRef(false);
+  const prevTimelineSnapshotRef = useRef<TimelineSnapshot | null>(null);
+  useEffect(() => {
+    const current: TimelineSnapshot = { animationTracks, bakedClipSets, clipSegmentsByObject };
+    const prev = prevTimelineSnapshotRef.current;
+    prevTimelineSnapshotRef.current = current;
+    if (!prev) return; // first mount — no baseline to diff against
+    if (isRestoringTimelineRef.current) {
+      // This update came from undo/redo restoring a snapshot: don't push.
+      isRestoringTimelineRef.current = false;
+      return;
+    }
+    timelineUndoRef.current.push(prev);
+    if (timelineUndoRef.current.length > 50) timelineUndoRef.current.shift();
+    timelineRedoRef.current = [];
+  }, [animationTracks, bakedClipSets, clipSegmentsByObject]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
@@ -1415,6 +1446,18 @@ export const Studio3D = () => {
 
   // Undo/Redo
   const undo = useCallback(() => {
+    // Timeline / Track View has priority when it's the focused surface:
+    // this way undoing a bad keyframe never yanks scene objects with it.
+    if (timelineHoveredRef.current && timelineUndoRef.current.length > 0) {
+      const snap = timelineUndoRef.current.pop()!;
+      timelineRedoRef.current.push({ animationTracks, bakedClipSets, clipSegmentsByObject });
+      isRestoringTimelineRef.current = true;
+      setAnimationTracks(snap.animationTracks);
+      setBakedClipSets(snap.bakedClipSets);
+      setClipSegmentsByObject(snap.clipSegmentsByObject);
+      toast.success('Undo (timeline)');
+      return;
+    }
     const kind = undoOrderRef.current[undoOrderRef.current.length - 1];
     if (kind === 'rig') {
       const entry = rigUndoRef.current.pop();
@@ -1435,9 +1478,19 @@ export const Studio3D = () => {
       setObjects(previousState);
       toast.success('Undo');
     }
-  }, [undoStack, objects]);
+  }, [undoStack, objects, animationTracks, bakedClipSets, clipSegmentsByObject]);
 
   const redo = useCallback(() => {
+    if (timelineHoveredRef.current && timelineRedoRef.current.length > 0) {
+      const snap = timelineRedoRef.current.pop()!;
+      timelineUndoRef.current.push({ animationTracks, bakedClipSets, clipSegmentsByObject });
+      isRestoringTimelineRef.current = true;
+      setAnimationTracks(snap.animationTracks);
+      setBakedClipSets(snap.bakedClipSets);
+      setClipSegmentsByObject(snap.clipSegmentsByObject);
+      toast.success('Redo (timeline)');
+      return;
+    }
     const kind = redoOrderRef.current[redoOrderRef.current.length - 1];
     if (kind === 'rig') {
       const entry = rigRedoRef.current.pop();
@@ -1458,7 +1511,7 @@ export const Studio3D = () => {
       setObjects(nextState);
       toast.success('Redo');
     }
-  }, [redoStack, objects]);
+  }, [redoStack, objects, animationTracks, bakedClipSets, clipSegmentsByObject]);
 
   // File operations
   const saveProject = useCallback((filename: string) => {
@@ -2219,6 +2272,11 @@ export const Studio3D = () => {
           }));
         };
         return (
+          <div
+            onMouseEnter={() => { timelineHoveredRef.current = true; }}
+            onMouseLeave={() => { timelineHoveredRef.current = false; }}
+            className="contents"
+          >
           <AnimationTimeline
             tracks={animationTracks}
             currentFrame={currentFrame}
@@ -2244,6 +2302,7 @@ export const Studio3D = () => {
             clipSegments={clipSegments}
             onClipSegmentsChange={clipOptions ? setClipSegments : undefined}
           />
+          </div>
         );
       })()}
 
