@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { R3Dialog, R3Button } from './R3Dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+type Tab = 'welcome' | 'request';
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialTab?: Tab;
 }
 
-type Tab = 'welcome' | 'request';
-
-export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
-  const [tab, setTab] = useState<Tab>('welcome');
+export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Props) => {
+  const [tab, setTab] = useState<Tab>(initialTab);
+  useEffect(() => { if (open) setTab(initialTab); }, [open, initialTab]);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
