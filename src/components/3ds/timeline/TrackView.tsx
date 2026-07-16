@@ -250,7 +250,11 @@ export const TrackView = ({
       });
     }
 
-    kids.forEach((k) => { rows.push(...renderNode(k, depth + 1)); });
+    // Only descend into children when this node is expanded — otherwise
+    // collapsing has no visible effect because kids keep rendering below.
+    if (isOpen) {
+      kids.forEach((k) => { rows.push(...renderNode(k, depth + 1)); });
+    }
     return rows;
   };
 
