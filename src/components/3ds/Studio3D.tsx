@@ -678,6 +678,32 @@ export const Studio3D = () => {
     saveState();
     const id = `${g.type}_${Date.now()}`;
 
+    // Print3D bed — placed via CreationController click. Attach the default
+    // printer profile and open the Print Tools panel.
+    if ((g.type as any) === 'print_bed') {
+      const { DEFAULT_PRINTER_ID } = require('./print3d/printers');
+      const newBed: Object3DData = {
+        id,
+        name: `PrintBed${objects.filter((o) => o.type === ('print_bed' as any)).length + 1}`,
+        type: 'print_bed' as any,
+        position: g.position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#5f7fa0',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry: { printerId: DEFAULT_PRINTER_ID },
+        ref: { current: null } as any,
+      };
+      setObjects((prev) => [...prev, newBed]);
+      setSelectedObject(id);
+      setSidePanelTab('utilities');
+      toast.success('Print Bed created');
+      return;
+    }
+
+
     // ---- Magnetic wall snap for doors & windows ----
     // If a wall is within reach, align the object to its segment (position on
     // the centerline + rotation matching segment direction) and register a
