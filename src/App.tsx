@@ -25,6 +25,7 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </AuthProvider>
+      </UIThemeProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
