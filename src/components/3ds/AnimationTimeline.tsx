@@ -78,6 +78,8 @@ export const AnimationTimeline = ({
   bakedClipOptions,
   onBakeClip,
   onChangeBakedSet,
+  clipSwitches,
+  onClipSwitchesChange,
 }: AnimationTimelineProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
