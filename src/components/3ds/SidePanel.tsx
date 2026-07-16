@@ -843,7 +843,7 @@ export const SidePanel = ({
                                   key={childId}
                                   className={cn(
                                     'flex items-center gap-[4px] h-[16px] pl-[16px] pr-[2px] text-[11px] cursor-pointer',
-                                    childSelected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40',
+                                    childSelected ? 'bg-[#7a1f2b] text-white font-semibold' : 'text-black hover:bg-win-face-shadow/40',
                                   )}
                                   onClick={() => {
                                     setSelectedStackItem(childId);
