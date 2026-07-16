@@ -351,7 +351,7 @@ export const Viewport = ({
         />
 
 
-        <CreationController viewportType={view === 'bottom' || view === 'back' || view === 'right' || view === 'user' ? 'perspective' : (view as any)} isActive={isActive} />
+        <CreationController viewportType={view === 'bottom' || view === 'back' || view === 'right' || view === 'user' ? 'perspective' : (view as any)} isActive={isActive} snapEnabled={snapEnabled} snapGridSpacing={snapGridSpacing} />
 
         {/* Camera-view mode: mount OrbitControls that orbit around the camera's focal point.
             Target camera → focal point = target helper position.
