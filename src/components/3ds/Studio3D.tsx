@@ -1362,7 +1362,7 @@ export const Studio3D = () => {
     const { error } = await supabase.from('scenes').insert({
       user_id: user.id,
       name,
-      data: buildScenePayload(),
+      data: buildScenePayload() as any,
     });
     if (error) throw error;
   }, [user, buildScenePayload]);
