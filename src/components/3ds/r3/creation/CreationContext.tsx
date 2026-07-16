@@ -6,7 +6,7 @@ export type CreatableTool =
   | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
   | 'wall' | 'door' | 'window'
   | 'helper_point' | 'helper_dummy' | 'helper_tape' | 'helper_grid' | 'helper_compass'
-  | 'sys_bones' | 'sys_biped';
+  | 'sys_bones' | 'sys_biped' | 'sys_print_bed';
 
 
 
