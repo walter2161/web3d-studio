@@ -402,6 +402,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   function createBaseGeometry(type: string, geometry?: any): BufferGeometry {
     const geom = geometry || {};
 
+    // Compound Objects — baked geometry produced by Boolean / ProBoolean / Loft / Scatter.
+    // `geom` carries { positions, normals?, uvs?, indices? } (Float32/Uint32 arrays or plain arrays).
+    if (type === 'compound') {
+      const g = new THREE.BufferGeometry();
+      const pos = geom.positions ? new Float32Array(geom.positions) : new Float32Array(0);
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      if (geom.normals && geom.normals.length === pos.length) {
+        g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(geom.normals), 3));
+      } else {
+        g.computeVertexNormals();
+      }
+      if (geom.uvs) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geom.uvs), 2));
+      if (geom.indices) g.setIndex(Array.from(geom.indices));
+      return g;
+    }
+
     // Sprint C — Extended Primitives
     const extPrims: ExtPrimType[] = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
     if (extPrims.includes(type as ExtPrimType)) {
