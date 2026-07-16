@@ -16,7 +16,8 @@ import * as THREE from 'three';
 import { fromGeometry } from './fromGeometry';
 import { EditableMesh, SubObjectLevel } from './EditableMesh';
 import { coplanarPolygonFaceIds, faceIdsForSelection, selectionToVertexIds } from './selection';
-import { ThreeEvent } from '@react-three/fiber';
+import { ThreeEvent, useThree } from '@react-three/fiber';
+import { makeScreenSpacePointsRaycast } from '../utils/screenSpacePicking';
 
 interface Props {
   geometry: THREE.BufferGeometry;
@@ -53,6 +54,8 @@ const emitPick = (
 };
 
 export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modifierId }: Props) => {
+  const { camera, gl } = useThree();
+  const vertexRaycast = useMemo(() => makeScreenSpacePointsRaycast(() => camera, () => gl, 7), [camera, gl]);
   const mesh = useMemo(() => {
     const editable = (geometry as any).userData?.editableMesh as EditableMesh | undefined;
     return editable?.clone ? editable.clone() : fromGeometry(geometry);
@@ -175,6 +178,7 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
         <points
           geometry={vertexData.geometry}
           renderOrder={1002}
+          raycast={vertexRaycast as any}
           onPointerDown={(e) => {
             const idx = (e as any).index ?? e.faceIndex;
             if (idx == null) return;
