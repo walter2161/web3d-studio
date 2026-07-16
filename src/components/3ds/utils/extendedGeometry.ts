@@ -51,17 +51,36 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   prism:      { side1: 1, side2: 1, side3: 1, height: 1 },
 };
 
+// Shape defaults mirror 3ds Max R3 Shapes rollout. Every shape carries the
+// common "Rendering" (renderable / thickness / sides / angle / rectangular
+// section) and "Interpolation" (steps / adaptive / optimize) blocks, plus its
+// own parametric fields exposed in the command panel.
+const COMMON_SHAPE_DEFAULTS = {
+  // Rendering
+  renderableViewport: true,   // Enable In Viewport
+  renderableRender:   true,   // Enable In Renderer
+  renderRectangular:  false,  // false = radial (round tube), true = rectangular bar
+  thickness:  0.02,           // tube radius (or rect width)
+  sides:      6,              // radial sides
+  angle:      0,              // section rotation, radians
+  rectLength: 0.04,           // rect section length (when renderRectangular)
+  rectWidth:  0.02,           // rect section width
+  // Interpolation
+  interpolationSteps: 6,
+  adaptive: true,
+  optimize: false,
+};
 export const SHAPE_DEFAULTS: Record<ShapeType, any> = {
-  line:      { length: 1 },
-  rectangle: { width: 1, height: 0.7, cornerRadius: 0 },
-  circle:    { radius: 0.5 },
-  ellipse:   { radiusX: 0.7, radiusY: 0.4 },
-  arc:       { radius: 0.5, from: 0, to: 180 },
-  donut:     { radius1: 0.6, radius2: 0.35 },
-  ngon:      { radius: 0.5, sides: 6, circular: false },
-  star:      { radius1: 0.5, radius2: 0.22, points: 5 },
-  helix:     { radius1: 0.4, radius2: 0.4, height: 1, turns: 3, biasFactor: 0 },
-  text:      { text: 'LEDMKT', font: 'helvetiker', bold: false, size: 1, kerning: 0, curveSegments: 6 },
+  line:      { ...COMMON_SHAPE_DEFAULTS, length: 1 },
+  rectangle: { ...COMMON_SHAPE_DEFAULTS, width: 1, height: 0.7, cornerRadius: 0, fillet: 0 },
+  circle:    { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, pieSlice: false, startAngle: 0, endAngle: 360, reverse: false },
+  ellipse:   { ...COMMON_SHAPE_DEFAULTS, radiusX: 0.7, radiusY: 0.4, pieSlice: false, startAngle: 0, endAngle: 360 },
+  arc:       { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, from: 0, to: 180, pie: false, reverse: false },
+  donut:     { ...COMMON_SHAPE_DEFAULTS, radius1: 0.6, radius2: 0.35, pieSlice: false, startAngle: 0, endAngle: 360 },
+  ngon:      { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, sides: 6, circular: false, fillet: 0, inscribed: true },
+  star:      { ...COMMON_SHAPE_DEFAULTS, radius1: 0.5, radius2: 0.22, points: 5, distortion: 0, filletRadius1: 0, filletRadius2: 0, twist: 0 },
+  helix:     { ...COMMON_SHAPE_DEFAULTS, radius1: 0.4, radius2: 0.4, height: 1, turns: 3, bias: 0, clockwise: true },
+  text:      { ...COMMON_SHAPE_DEFAULTS, text: 'LEDMKT', font: 'helvetiker', bold: false, italic: false, underline: false, size: 1, kerning: 0, tracking: 0, leading: 1.2, alignment: 'left', reverse: false, autoUpdate: true, curveSegments: 6 },
 };
 
 // ---------------- Fonts ----------------
