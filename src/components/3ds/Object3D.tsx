@@ -884,16 +884,16 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
-        onClick={ghostB ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
       >
+        {/* No invisible pick-proxy here: it would compete with joint spheres
+            for pointer events and cause the whole chain to select whenever
+            the user tried to click an individual joint. Joint spheres are
+            large enough to select the chain-as-a-whole from any joint. */}
         <BoneChainGizmo data={object.geometry} selected={isSelected} ghost={ghostB} objectId={object.id} />
-        {/* Invisible pick-proxy along the chain root for easy selection. */}
-        <mesh visible={false} raycast={ghostB ? () => null : undefined}>
-          <sphereGeometry args={[0.3, 6, 6]} />
-        </mesh>
       </group>
     );
   }
+
 
   // Render lights and cameras as full-fledged scene entities with R3-style helpers.
 
