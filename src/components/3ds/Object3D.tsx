@@ -346,20 +346,38 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         activeSegIdx = hitIdx;
       }
 
-      // Detect a crossfade window: the current segment has a blendIn > 0,
-      // there is a previous segment, and the frame is inside the first
-      // `blendIn` frames of the current segment.
-      let blendT = -1; // 0 = fully previous, 1 = fully current
+      // Detect a crossfade window: the current segment has (explicit or
+      // auto-defaulted) blendIn > 0, there is a previous segment adjacent or
+      // overlapping this one, and the frame is inside the first `blendIn`
+      // frames of the current segment. Uses smoothstep easing on the weight
+      // so the ramp feels natural (ease-in / ease-out), not linear.
+      let blendT = -1; // 0 = fully previous, 1 = fully current (post-easing)
       let prevClipIdx = -1;
       let prevAnchor = 0;
       if (activeSegIdx > 0) {
         const cur = segs[activeSegIdx];
         const prev = segs[activeSegIdx - 1];
-        const blen = Math.max(0, Math.min(cur.blendIn || 0, cur.endFrame - cur.startFrame));
+        // Auto-blend: if user didn't set blendIn but segments are adjacent
+        // (or overlap), apply a default 15-frame crossfade so movement isn't
+        // brutal. Explicit blendIn === 0 hard-cuts (opt-out).
+        const explicit = cur.blendIn;
+        let requested: number;
+        if (explicit === undefined || explicit === null) {
+          const adjacent = Math.abs(cur.startFrame - prev.endFrame) <= 1 || cur.startFrame < prev.endFrame;
+          requested = adjacent ? 15 : 0;
+        } else {
+          requested = explicit;
+        }
+        const segLen = cur.endFrame - cur.startFrame;
+        const prevLen = prev.endFrame - prev.startFrame;
+        const blen = Math.max(0, Math.min(requested, segLen, Math.max(1, prevLen)));
         if (blen > 0 && frame < cur.startFrame + blen) {
-          blendT = (frame - cur.startFrame) / blen;
-          if (blendT < 0) blendT = 0;
-          if (blendT > 1) blendT = 1;
+          let t = (frame - cur.startFrame) / blen;
+          if (t < 0) t = 0;
+          if (t > 1) t = 1;
+          // Smoothstep: 3t² - 2t³ — ease-in-out, standard for animation
+          // blending (matches Unreal's default cubic transition curve).
+          blendT = t * t * (3 - 2 * t);
           prevClipIdx = prev.clipIndex;
           prevAnchor = prev.startFrame;
         }
@@ -373,11 +391,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
       const fps = 30;
 
-      if (blendT >= 0 && prevClipIdx >= 0 && actions[prevClipIdx] && imported.animations[prevClipIdx]) {
-        // Crossfade: play both clips at their own local time, weighted.
-        // Each action.time is set independently, then a mixer.update(0)
-        // applies the weighted blend to the bones — the standard three.js
-        // pattern for smooth transitions.
+      if (blendT >= 0 && prevClipIdx >= 0 && prevClipIdx !== activeIdx && actions[prevClipIdx] && imported.animations[prevClipIdx]) {
+        // Weighted crossfade: both actions active, weights sum to 1, times
+        // advanced independently so each clip continues its own local motion.
         const prevClip = imported.animations[prevClipIdx];
         const prevDur = prevClip.duration || 0;
         for (let i = 0; i < actions.length; i++) {
@@ -388,7 +404,6 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           else if (i === prevClipIdx) a.setEffectiveWeight(1 - blendT);
           else a.setEffectiveWeight(0);
         }
-        // Advance each action's time independently.
         const curTime = ((frame - anchorFrame) / fps) % Math.max(1e-6, duration);
         const prevTime = prevDur > 0 ? (((frame - prevAnchor) / fps) % prevDur) : 0;
         actions[activeIdx].time = Math.max(0, curTime);
@@ -397,23 +412,15 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         lastActiveIdx = activeIdx;
       } else {
         // No transition: single active clip.
-        if (activeIdx !== lastActiveIdx) {
-          for (let i = 0; i < actions.length; i++) {
-            actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
-            actions[i].enabled = true;
-            actions[i].paused = false;
-          }
-          lastActiveIdx = activeIdx;
-        } else {
-          for (let i = 0; i < actions.length; i++) {
-            actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
-          }
+        for (let i = 0; i < actions.length; i++) {
+          actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+          actions[i].enabled = true;
+          actions[i].paused = false;
         }
+        lastActiveIdx = activeIdx;
         const framesSinceAnchor = Math.max(0, frame - anchorFrame);
         const rawTime = framesSinceAnchor / fps;
         const clipTime = rawTime % duration;
-        // mixer.setTime resets every action to 0 then advances — good for
-        // deterministic scrubbing when no crossfade is active.
         mixer.setTime(clipTime);
       }
 
