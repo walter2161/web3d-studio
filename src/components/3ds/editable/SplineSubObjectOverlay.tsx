@@ -14,6 +14,7 @@ import { useMemo, useRef } from 'react';
 import { ThreeEvent, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EditableSpline, KNOT_COLORS, SplineSubLevel } from './EditableSpline';
+import { makeScreenSpaceMeshRaycast } from '../utils/screenSpacePicking';
 
 interface Props {
   spline: EditableSpline;
@@ -35,6 +36,8 @@ interface Props {
 // on-screen footprint stays roughly constant regardless of distance/zoom.
 const KNOT_SIZE = 0.012;
 const HANDLE_SIZE = 0.009;
+const KNOT_PICK_RADIUS = 7;
+const HANDLE_PICK_RADIUS = 6;
 
 /**
  * Wraps children in a group whose scale is updated every frame so the marker
@@ -97,6 +100,8 @@ export function SplineSubObjectOverlay({
 }: Props) {
   const groupRef = useRef<THREE.Group>(null);
   const { camera, gl } = useThree();
+  const knotRaycast = useMemo(() => makeScreenSpaceMeshRaycast(() => camera, () => gl, KNOT_PICK_RADIUS), [camera, gl]);
+  const handleRaycast = useMemo(() => makeScreenSpaceMeshRaycast(() => camera, () => gl, HANDLE_PICK_RADIUS), [camera, gl]);
 
   // Convert client-space drag to a plane offset in world space; the plane is
   // aligned to the view (camera-facing) at the knot's initial position.
@@ -235,6 +240,7 @@ export function SplineSubObjectOverlay({
               <OverlayLine points={[k.pos, endpoint]} color="#ffcc33" opacity={0.95} />
               <ScreenScaledGroup position={[endpoint.x, endpoint.y, endpoint.z]}>
                 <mesh
+                  raycast={handleRaycast as any}
                   onPointerDown={(e) => onHandleDown(e, k.id, which)}
                   onPointerMove={onKnotMoveEv}
                   onPointerUp={onKnotUp}
@@ -256,6 +262,7 @@ export function SplineSubObjectOverlay({
         return (
           <ScreenScaledGroup key={k.id} position={[k.pos.x, k.pos.y, k.pos.z]}>
             <mesh
+              raycast={knotRaycast as any}
               onPointerDown={(e) => onKnotDown(e, k.id)}
               onPointerMove={onKnotMoveEv}
               onPointerUp={onKnotUp}
