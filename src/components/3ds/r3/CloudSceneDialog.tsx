@@ -223,7 +223,10 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, imp
             <div
               key={s.id}
               onClick={() => { setSelected({ kind: 'scene', id: s.id }); if (mode === 'save') setName(s.name); }}
-              onDoubleClick={() => { if (mode === 'open') doOpen(s.id); }}
+              onDoubleClick={() => {
+                if (mode === 'open') doOpen(s.id);
+                else if (mode === 'export') doExport(s.id);
+              }}
               className={`flex items-center gap-1 px-2 py-0.5 text-[11px] cursor-default ${isSel ? 'bg-menu-hover text-menu-hover-fg' : ''}`}
             >
               <FileText size={12} className="text-blue-700" />
@@ -234,7 +237,7 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, imp
         })}
       </div>
 
-      {mode === 'save' && (
+      {(mode === 'save' || mode === 'import') && (
         <Row label="Nome:" labelWidth={50}>
           <input
             value={name}
@@ -246,11 +249,10 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, imp
       )}
 
       <div className="flex justify-end gap-1 mt-2">
-        {mode === 'save' ? (
-          <R3Button width={80} onClick={doSave} disabled={busy}>Salvar</R3Button>
-        ) : (
-          <R3Button width={80} onClick={() => doOpen()} disabled={busy || selected?.kind !== 'scene'}>Abrir</R3Button>
-        )}
+        {mode === 'save' && <R3Button width={80} onClick={doSave} disabled={busy}>Salvar</R3Button>}
+        {mode === 'open' && <R3Button width={80} onClick={() => doOpen()} disabled={busy || selected?.kind !== 'scene'}>Abrir</R3Button>}
+        {mode === 'export' && <R3Button width={90} onClick={() => doExport()} disabled={busy || selected?.kind !== 'scene'}>Exportar</R3Button>}
+        {mode === 'import' && <R3Button width={90} onClick={doImport} disabled={busy || !importPayload}>Importar aqui</R3Button>}
         <R3Button width={70} onClick={() => onOpenChange(false)}>Cancel</R3Button>
       </div>
     </R3Dialog>
