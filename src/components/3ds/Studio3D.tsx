@@ -1608,7 +1608,11 @@ export const Studio3D = () => {
       case 'Login...': setLoginOpen(true); break;
       case 'Logout': signOut(); toast.success('Sessão encerrada'); break;
       case 'Admin — Liberar usuário...': if (isAdmin) setAdminOpen(true); else toast.error('Apenas admin'); break;
-      case 'Save Cloud...': gate(() => setCloudSaveOpen(true)); break;
+      case 'Save': handleSaveRequest(); break;
+      case 'Save Cloud...':
+        if (currentCloudScene && user) { saveCurrentCloudInPlace(); }
+        else { gate(() => setCloudSaveOpen(true)); }
+        break;
       case 'Open Cloud...': gate(() => setCloudOpenOpen(true)); break;
       case 'Export Cloud...': gate(() => setCloudExportOpen(true)); break;
       case 'Import Cloud...': gate(() => {
