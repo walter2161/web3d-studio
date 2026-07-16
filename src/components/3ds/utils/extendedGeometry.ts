@@ -273,17 +273,66 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
 
 // ---------------- Shape builders (rendered as thin tubes) ----------------
 
-const TUBE_RADIUS = 0.02;
-const TUBE_RADIAL_SEG = 6;
-
-function shapeToTube(curve: THREE.Curve<THREE.Vector3>, segments = 128): THREE.BufferGeometry {
-  return new THREE.TubeGeometry(curve, segments, TUBE_RADIUS, TUBE_RADIAL_SEG, false);
+// Section radius / sides / rectangular tube driven by the shape's Rendering rollout.
+function sectionFromParams(p: any) {
+  const t = Math.max(0.001, Number(p?.thickness ?? 0.02));
+  const s = Math.max(3, Math.floor(p?.sides ?? 6));
+  return { t, s };
 }
 
-function pointsToTube(pts: THREE.Vector2[], closed = true): THREE.BufferGeometry {
+function shapeToTube(curve: THREE.Curve<THREE.Vector3>, segments = 128, params: any = {}): THREE.BufferGeometry {
+  const { t, s } = sectionFromParams(params);
+  return new THREE.TubeGeometry(curve, segments, t, s, false);
+}
+
+function pointsToTube(pts: THREE.Vector2[], closed = true, params: any = {}): THREE.BufferGeometry {
   const pts3 = pts.map((v) => new THREE.Vector3(v.x, 0, v.y));
   const curve = new THREE.CatmullRomCurve3(pts3, closed, 'catmullrom', 0);
-  return new THREE.TubeGeometry(curve, 256, TUBE_RADIUS, TUBE_RADIAL_SEG, closed);
+  const { t, s } = sectionFromParams(params);
+  const seg = Math.max(64, (params?.interpolationSteps ?? 6) * pts.length * 2);
+  return new THREE.TubeGeometry(curve, seg, t, s, closed);
+}
+
+// Build a rounded rectangle sample point list.
+function roundedRectPoints(w: number, h: number, r: number, seg: number): THREE.Vector2[] {
+  const hw = w / 2, hh = h / 2;
+  const rr = Math.max(0, Math.min(r, hw, hh));
+  if (rr <= 1e-4) {
+    return [
+      new THREE.Vector2(-hw, -hh), new THREE.Vector2(hw, -hh),
+      new THREE.Vector2(hw,  hh),  new THREE.Vector2(-hw,  hh),
+    ];
+  }
+  const pts: THREE.Vector2[] = [];
+  const n = Math.max(2, seg);
+  const arc = (cx: number, cy: number, a0: number, a1: number) => {
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (a1 - a0) * (i / n);
+      pts.push(new THREE.Vector2(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr));
+    }
+  };
+  arc( hw - rr, -hh + rr, -Math.PI / 2, 0);
+  arc( hw - rr,  hh - rr, 0, Math.PI / 2);
+  arc(-hw + rr,  hh - rr, Math.PI / 2, Math.PI);
+  arc(-hw + rr, -hh + rr, Math.PI, Math.PI * 1.5);
+  return pts;
+}
+
+// Sample an arc/pie between two angles (degrees) around origin at radius r,
+// optionally producing a closed "pie slice" by adding the centre point.
+function arcPoints(r: number, startDeg: number, endDeg: number, pie: boolean, reverse: boolean, seg: number, ry?: number): THREE.Vector2[] {
+  let a0 = (startDeg * Math.PI) / 180;
+  let a1 = (endDeg * Math.PI) / 180;
+  if (reverse) { const t = a0; a0 = a1; a1 = t; }
+  const rY = ry ?? r;
+  const n = Math.max(8, seg * 8);
+  const pts: THREE.Vector2[] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * (i / n);
+    pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * rY));
+  }
+  if (pie) pts.push(new THREE.Vector2(0, 0));
+  return pts;
 }
 
 export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeometry {
