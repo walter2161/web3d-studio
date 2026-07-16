@@ -1571,6 +1571,11 @@ export const Studio3D = () => {
       case 'Hold': doHold(); break;
       case 'Fetch': doFetch(); break;
       case 'Exit': askConfirm('Save changes before exit?', () => { openFileDialog('save'); }, 'Exit'); break;
+      case 'Login...': setLoginOpen(true); break;
+      case 'Logout': signOut(); toast.success('Sessão encerrada'); break;
+      case 'Admin — Liberar usuário...': if (isAdmin) setAdminOpen(true); else toast.error('Apenas admin'); break;
+      case 'Save Cloud...': gate(() => setCloudSaveOpen(true)); break;
+      case 'Open Cloud...': gate(() => setCloudOpenOpen(true)); break;
       case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
       case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
       case 'Select None': setSelectedObject(null); break;
