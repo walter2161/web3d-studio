@@ -1900,6 +1900,20 @@ export const Studio3D = () => {
         onOpenChange={setCloudOpenOpen}
         onLoad={applyScenePayload}
       />
+      <CloudSceneDialog
+        open={cloudExportOpen}
+        mode="export"
+        onOpenChange={setCloudExportOpen}
+      />
+      <CloudSceneDialog
+        open={cloudImportOpen}
+        mode="import"
+        onOpenChange={(o) => { setCloudImportOpen(o); if (!o) { setCloudImportPayload(null); setCloudImportName(''); } }}
+        importPayload={cloudImportPayload}
+        importDefaultName={cloudImportName}
+      />
+
+
 
       <ObjectPropertiesDialog
         open={objectPropsOpen}
