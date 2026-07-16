@@ -8,6 +8,7 @@ import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
 import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
+import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
