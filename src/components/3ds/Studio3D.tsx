@@ -1860,6 +1860,25 @@ export const Studio3D = () => {
         onImportModel={importModel}
       />
 
+      <LoginDialog
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        onSuccess={() => { const p = pendingFileOp; setPendingFileOp(null); p?.(); }}
+      />
+      <AdminPanelDialog open={adminOpen} onOpenChange={setAdminOpen} />
+      <CloudSceneDialog
+        open={cloudSaveOpen}
+        mode="save"
+        onOpenChange={setCloudSaveOpen}
+        onSave={saveToCloud}
+      />
+      <CloudSceneDialog
+        open={cloudOpenOpen}
+        mode="open"
+        onOpenChange={setCloudOpenOpen}
+        onLoad={applyScenePayload}
+      />
+
       <ObjectPropertiesDialog
         open={objectPropsOpen}
         onOpenChange={setObjectPropsOpen}
