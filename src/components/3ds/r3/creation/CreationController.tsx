@@ -332,6 +332,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       raycaster.setFromCamera(toNdc(e), camera);
       const hit = new THREE.Vector3();
       raycaster.ray.intersectPlane(basePlane, hit);
+      if (snapEnabled) return snapPoint(hit, snapGridSpacing);
       return hit;
     };
 
