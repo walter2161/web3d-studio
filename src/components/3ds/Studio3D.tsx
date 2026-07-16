@@ -754,6 +754,40 @@ export const Studio3D = () => {
     toast.success(wallOpeningEdit ? `${g.type} snapped to wall` : `${g.type} created`);
   }, [objects, saveState]);
 
+  // Biped spawn — the creation controller dispatches this event when the user
+  // drag-releases with Systems→Biped armed. We build a whole set of bone_chain
+  // objects (spine, arms, legs) in a single undoable batch, matching how 3ds
+  // Max Character Studio generates the Bip01 skeleton at once.
+  useEffect(() => {
+    const onSpawnBiped = (e: Event) => {
+      const parts = (e as CustomEvent).detail?.parts as Array<{ name: string; position: [number, number, number]; geometry: any }> | undefined;
+      if (!parts?.length) return;
+      saveState();
+      const stamp = Date.now();
+      const newObjects: Object3DData[] = parts.map((part, i) => ({
+        id: `bone_chain_${stamp}_${i}`,
+        name: part.name,
+        type: 'bone_chain' as any,
+        position: part.position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#f2c744',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry: part.geometry,
+        ref: { current: null } as any,
+      }));
+      setObjects((prev) => [...prev, ...newObjects]);
+      setSelectedObject(newObjects[0].id);
+      setSidePanelTab('modify');
+      toast.success(`Biped criado com ${newObjects.length} cadeias de osso`);
+    };
+    window.addEventListener('r3-spawn-biped', onSpawnBiped as any);
+    return () => window.removeEventListener('r3-spawn-biped', onSpawnBiped as any);
+  }, [saveState]);
+
+
 
   // Animation operations
   const addKeyframe = useCallback((objectId: string, frame: number) => {
