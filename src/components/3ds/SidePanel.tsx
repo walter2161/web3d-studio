@@ -347,7 +347,7 @@ export const SidePanel = ({
     { type: 'sys_ring',     label: 'Ring Array', disabled: true },
     { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
     { type: 'sys_daylight', label: 'Daylight', disabled: true },
-    { type: 'sys_biped',    label: 'Biped',    disabled: true },
+    { type: 'sys_biped',    label: 'Biped' },
   ];
 
 
