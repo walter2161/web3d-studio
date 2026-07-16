@@ -40,7 +40,14 @@ function pointsGeometry(points: THREE.Vector3[]) {
   return g;
 }
 
-function OverlayLine({ points, color, opacity = 1 }: { points: THREE.Vector3[]; color: string; opacity?: number }) {
+function OverlayLine({
+  points, color, opacity = 1, onPointerDown,
+}: {
+  points: THREE.Vector3[];
+  color: string;
+  opacity?: number;
+  onPointerDown?: (e: ThreeEvent<PointerEvent>) => void;
+}) {
   const geometry = useMemo(() => pointsGeometry(points), [points.map((p) => `${p.x},${p.y},${p.z}`).join('|')]);
   const line = useMemo(() => {
     const material = new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity });
@@ -49,7 +56,7 @@ function OverlayLine({ points, color, opacity = 1 }: { points: THREE.Vector3[]; 
     return obj;
   }, [geometry, color, opacity]);
   return (
-    <primitive object={line} />
+    <primitive object={line} onPointerDown={onPointerDown} />
   );
 }
 
@@ -99,7 +106,7 @@ export function SplineSubObjectOverlay({
 
   const onHandleDown = (e: ThreeEvent<PointerEvent>, kid: number, handle: 'in' | 'out') => {
     e.stopPropagation();
-    onSelectKnot?.(kid, true);
+    onSelectKnot?.(kid, false);
     const k = spline.knots.get(kid); if (!k) return;
     const localHandle = k.pos.clone().add(handle === 'in' ? k.inHandle : k.outHandle);
     const start = worldOf(localHandle);
@@ -151,14 +158,18 @@ export function SplineSubObjectOverlay({
         return (
           <group
             key={segId}
-            onPointerDown={(e) => {
-              if (level !== 'ssegment' && level !== 'sspline') return;
-              e.stopPropagation();
-              if (level === 'ssegment') onSelectSegment?.(segId, e.shiftKey || e.ctrlKey || e.metaKey);
-              else if (seg) onSelectSpline?.(seg.splineId, e.shiftKey || e.ctrlKey || e.metaKey);
-            }}
           >
-            <OverlayLine points={pts} color={color} opacity={1} />
+            <OverlayLine
+              points={pts}
+              color={color}
+              opacity={1}
+              onPointerDown={(e) => {
+                if (level !== 'ssegment' && level !== 'sspline') return;
+                e.stopPropagation();
+                if (level === 'ssegment') onSelectSegment?.(segId, e.shiftKey || e.ctrlKey || e.metaKey);
+                else if (seg) onSelectSpline?.(seg.splineId, e.shiftKey || e.ctrlKey || e.metaKey);
+              }}
+            />
           </group>
         );
       })}
