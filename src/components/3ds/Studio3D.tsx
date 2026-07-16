@@ -232,6 +232,11 @@ export const Studio3D = () => {
   const rigUndoRef = useRef<RigPoseEntry[]>([]);
   const rigRedoRef = useRef<RigPoseEntry[]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
+  // Per-imported-object baked clip data (3ds Max style per-bone channel tracks).
+  // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
+  const [bakedClipSets, setBakedClipSets] = useState<Record<string, BakedClipSet>>({});
+  const bakedClipSetsRef = useRef<Record<string, BakedClipSet>>({});
+  useEffect(() => { bakedClipSetsRef.current = bakedClipSets; }, [bakedClipSets]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
