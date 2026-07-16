@@ -703,7 +703,7 @@ export const SidePanel = ({
                       title={p.disabled
                         ? `${p.label} — em desenvolvimento`
                         : p.type === 'sys_print_bed'
-                          ? 'Print3D Toolkit — cria a mesa de impressão virtual e abre o painel Utilities → Print Tools.'
+                          ? 'Print3D Toolkit — clique no viewport para posicionar a mesa de impressão virtual.'
                           : `Create ${p.label}: clique para iniciar a cadeia, clique novamente para adicionar juntas, RMB/ESC para finalizar.`}
                       className={cn(
                         'h-[22px] text-[11px] text-win-text px-1 truncate',
