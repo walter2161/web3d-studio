@@ -12,6 +12,7 @@ import {
   setSelectedJoint,
   subscribeSelectedJoint,
 } from './rig/boneJointRegistry';
+import { PrintBoundsOverlay } from './print3d/PrintBoundsOverlay';
 
 interface Scene3DProps {
   objects: any[];
