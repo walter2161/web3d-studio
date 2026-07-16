@@ -8,6 +8,8 @@ import { buildBiped } from '../../rig/biped';
 interface Props {
   viewportType: 'perspective' | 'top' | 'front' | 'left';
   isActive: boolean;
+  snapEnabled?: boolean;
+  snapGridSpacing?: number;
 }
 
 // Per-viewport base plane + height axis. Height is always along the world axis
