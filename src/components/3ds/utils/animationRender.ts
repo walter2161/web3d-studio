@@ -370,6 +370,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       gl.setPixelRatio(prevPixelRatio);
       gl.setSize(prevSize.x, prevSize.y, false);
     } catch { /* ignore restore errors */ }
+    if ((viewPersp as any).isPerspectiveCamera) {
+      viewPersp.aspect = prevViewAspect;
+      viewPersp.updateProjectionMatrix();
+    }
   }
 }
 
