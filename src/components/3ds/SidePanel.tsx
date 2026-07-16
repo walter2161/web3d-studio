@@ -1493,7 +1493,16 @@ export const SidePanel = ({
                   );
                 })()}
 
-
+                {/* Rig / Bone hierarchy — for imported models with skeletons */}
+                {selectedObject.type === 'imported' && (
+                  <MaxRollout title="Hierarchy (Bones / Nodes)" className="mt-4">
+                    <RigHierarchyPanel
+                      objectId={selectedObject.id}
+                      selectedSubUuid={selectedSubUuid}
+                      onSelectSubObject={onSelectSubObject}
+                    />
+                  </MaxRollout>
+                )}
 
                 {/* Object Properties */}
                 <Card className="bg-card border-panel-border mt-4">
