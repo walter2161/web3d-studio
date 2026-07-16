@@ -1632,6 +1632,9 @@ export const Studio3D = () => {
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 bevel-raised bg-win-face flex items-center justify-center text-[10px] text-win-title">3</div>
           <span>Untitled - 3dsLed R3</span>
+          <span className="ml-3 font-normal opacity-90">
+            {user ? `● ${user.email}${isAdmin ? ' (admin)' : ''}` : '○ not logged in'}
+          </span>
         </div>
         <div className="flex items-center gap-0.5">
           <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">_</button>
