@@ -18,7 +18,7 @@ import { ChevronDown, ChevronRight, Copy, Trash2, RotateCcw, FlipHorizontal, Rep
 import { cn } from '@/lib/utils';
 import {
   BakedClipSet, ChannelTrack, ChannelKey, TangentKind, OutOfRange, ControllerKind,
-  mirrorLR, retime, loopCyclic, toggleInPlace, trimRange,
+  mirrorLR, retime, loopCyclic, toggleInPlace, trimRange, sampleTrack,
 } from './channelTracks';
 
 interface Props {
@@ -127,7 +127,6 @@ export const TrackView = ({
     const track = clipSet.tracks.find((t) => t.id === trackId);
     if (!track) return;
     // Sample current value from the track (interpolated) to seed the new key.
-    const { sampleTrack } = require('./channelTracks') as typeof import('./channelTracks');
     const value = sampleTrack(track, currentFrame);
     const existing = track.keys.find((k) => k.frame === currentFrame);
     if (existing) return;
@@ -308,7 +307,6 @@ export const TrackView = ({
 
     // Sample the interpolated curve for visualization.
     const path: string[] = [];
-    const { sampleTrack } = require('./channelTracks') as typeof import('./channelTracks');
     const samples = 240;
     for (let i = 0; i <= samples; i++) {
       const f = fmin + (i / samples) * (fmax - fmin);
