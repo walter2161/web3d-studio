@@ -99,6 +99,9 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item === 'Top') onViewportChange('top');
                     if (item === 'Front') onViewportChange('front');
                     if (item === 'Left') onViewportChange('left');
+                    if (item === 'Interface: Classic') setTheme('classic');
+                    if (item === 'Interface: Flat') setTheme('flat');
+                    if (item === 'Interface: Game') setTheme('game');
                     // Broadcast raw label for any handler wired via onMenuAction
                     onMenuAction?.(item);
                   }}
@@ -110,10 +113,6 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
           </DropdownMenuContent>
         </DropdownMenu>
       ))}
-      <div className="flex-1" />
-      <div className="flex items-center">
-        <UIThemeSelector />
-      </div>
     </div>
   );
 };
