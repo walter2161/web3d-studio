@@ -1581,6 +1581,23 @@ export const Studio3D = () => {
       case 'Admin — Liberar usuário...': if (isAdmin) setAdminOpen(true); else toast.error('Apenas admin'); break;
       case 'Save Cloud...': gate(() => setCloudSaveOpen(true)); break;
       case 'Open Cloud...': gate(() => setCloudOpenOpen(true)); break;
+      case 'Export Cloud...': gate(() => setCloudExportOpen(true)); break;
+      case 'Import Cloud...': gate(() => {
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = '.json,.3dsled,application/json';
+        inp.onchange = async () => {
+          const f = inp.files?.[0]; if (!f) return;
+          try {
+            const text = await f.text();
+            const payload = JSON.parse(text);
+            setCloudImportPayload(payload);
+            setCloudImportName(f.name.replace(/\.(3dsled\.)?json$/i, ''));
+            setCloudImportOpen(true);
+          } catch { toast.error('Arquivo JSON inválido'); }
+        };
+        inp.click();
+      }); break;
       case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
       case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
       case 'Select None': setSelectedObject(null); break;
