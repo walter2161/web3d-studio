@@ -1165,58 +1165,18 @@ export const SidePanel = ({
                     );
                   };
 
-                  // ---- Line: read-only info ----
-                  if (selectedObject.type === 'line') {
-                    const knots = Array.isArray(geom.knots) ? geom.knots.length : 0;
+                  // ---- Shapes (Line/Rectangle/Circle/Ellipse/Arc/Donut/NGon/Star/Helix/Text)
+                  // Parametric editor mirroring the 3ds Max Shapes rollout —
+                  // Parameters + Rendering + Interpolation, no modifier required.
+                  if (SHAPE_TYPES.has(selectedObject.type)) {
                     return (
-                      <MaxRollout title="Parameters" className="mt-4">
-                        <div className="text-[11px] font-mono space-y-[3px] py-1">
-                          <div>Vertices: <span className="text-foreground">{knots}</span></div>
-                          <div>Closed: <span className="text-foreground">{geom.closed ? 'Yes' : 'No'}</span></div>
-                          <div className="text-[10px] text-muted-foreground pt-1 font-sans">
-                            Line vertices are edited in sub-object mode.
-                          </div>
-                        </div>
-                      </MaxRollout>
+                      <ShapeParametersPanel
+                        object={selectedObject}
+                        onUpdate={(patch) => onUpdateObjectGeometry(selectedObject.id, patch)}
+                      />
                     );
                   }
 
-                  // ---- Text ----
-                  if (selectedObject.type === 'text') {
-                    const currentText = geom.text ?? 'Text';
-                    const currentFont = geom.font ?? 'helvetiker';
-                    const bold = !!geom.bold;
-                    return (
-                      <MaxRollout title="Parameters" className="mt-4">
-                        <div className="space-y-2">
-                          <div>
-                            <Label className="text-[10px]">Text</Label>
-                            <textarea
-                              value={currentText}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { text: e.target.value })}
-                              className="w-full h-14 text-[11px] bg-background border border-panel-border rounded-[2px] px-1 py-1 font-mono resize-none outline-none"
-                              spellCheck={false}
-                            />
-                          </div>
-                          <MaxSelect
-                            label="Font"
-                            value={currentFont}
-                            options={[
-                              { value: 'helvetiker', label: 'Helvetiker' },
-                              { value: 'gentilis',   label: 'Gentilis' },
-                              { value: 'optimer',    label: 'Optimer' },
-                            ]}
-                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { font: v })}
-                          />
-                          <MaxCheck label="Bold" checked={bold} onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { bold: v })} />
-                          {mainParams.map(renderSpinner)}
-                          <div className="text-[10px] text-muted-foreground leading-tight pt-1">
-                            Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
-                          </div>
-                        </div>
-                      </MaxRollout>
-                    );
-                  }
 
                   // ---- Wall ----
                   if (selectedObject.type === 'wall') {
@@ -2024,6 +1984,289 @@ const CameraParameters = ({ object, onUpdateCameraData }: CameraParamsProps) => 
           </div>
         </CardContent>
       </Card>
+    </>
+  );
+};
+
+// ------------------------------------------------------------------
+// Shape Parameters Panel — 3ds Max R3 style, exposes every editable
+// parameter of a Shape object (Line / Rectangle / Circle / Ellipse /
+// Arc / Donut / NGon / Star / Helix / Text) directly in the command
+// panel, plus the common Rendering and Interpolation rollouts.
+// No modifier required — geometry is regenerated on every change.
+// ------------------------------------------------------------------
+interface ShapeParamsProps {
+  object: any;
+  onUpdate: (patch: any) => void;
+}
+
+const ShapeParametersPanel = ({ object, onUpdate }: ShapeParamsProps) => {
+  const t: string = object.type;
+  const g = object.geometry || {};
+  const knots = Array.isArray(g.knots) ? g.knots.length : 0;
+
+  // -- Per-shape parameter block --
+  const specific = (() => {
+    switch (t) {
+      case 'line':
+        return (
+          <div className="text-[11px] font-mono space-y-[3px] py-1">
+            <div>Vertices: <span className="text-foreground">{knots}</span></div>
+            <div>Closed: <span className="text-foreground">{g.closed ? 'Yes' : 'No'}</span></div>
+            <div className="text-[10px] text-muted-foreground pt-1 font-sans">
+              Edit vertices in sub-object mode. Vertex type (Corner / Smooth / Bezier / Bezier Corner) is set per-knot.
+            </div>
+          </div>
+        );
+      case 'rectangle':
+        return (
+          <>
+            <MaxSpinner label="Length"    value={g.length ?? g.height ?? 1} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ length: v, height: v })} />
+            <MaxSpinner label="Width"     value={g.width ?? 1}          step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ width: v })} />
+            <MaxSpinner label="Corner R"  value={g.cornerRadius ?? 0}    step={0.01} min={0}
+              onChange={(v) => onUpdate({ cornerRadius: v })} />
+            <MaxSpinner label="Fillet"    value={g.fillet ?? 0}          step={0.01} min={0}
+              onChange={(v) => onUpdate({ fillet: v })} />
+          </>
+        );
+      case 'circle':
+        return (
+          <>
+            <MaxSpinner label="Radius" value={g.radius ?? 0.5} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius: v })} />
+            <MaxCheck label="Pie Slice" checked={!!g.pieSlice} onChange={(v) => onUpdate({ pieSlice: v })} />
+            {g.pieSlice && (
+              <>
+                <MaxSpinner label="Start °" value={g.startAngle ?? 0}   step={1} onChange={(v) => onUpdate({ startAngle: v })} />
+                <MaxSpinner label="End °"   value={g.endAngle ?? 360}   step={1} onChange={(v) => onUpdate({ endAngle: v })} />
+              </>
+            )}
+            <MaxCheck label="Reverse Direction" checked={!!g.reverse} onChange={(v) => onUpdate({ reverse: v })} />
+          </>
+        );
+      case 'ellipse':
+        return (
+          <>
+            <MaxSpinner label="Radius X" value={g.radiusX ?? 0.7} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radiusX: v })} />
+            <MaxSpinner label="Radius Y" value={g.radiusY ?? 0.4} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radiusY: v })} />
+            <MaxCheck label="Pie Slice" checked={!!g.pieSlice} onChange={(v) => onUpdate({ pieSlice: v })} />
+            {g.pieSlice && (
+              <>
+                <MaxSpinner label="Start °" value={g.startAngle ?? 0}   step={1} onChange={(v) => onUpdate({ startAngle: v })} />
+                <MaxSpinner label="End °"   value={g.endAngle ?? 360}   step={1} onChange={(v) => onUpdate({ endAngle: v })} />
+              </>
+            )}
+          </>
+        );
+      case 'arc':
+        return (
+          <>
+            <MaxSpinner label="Radius" value={g.radius ?? 0.5} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius: v })} />
+            <MaxSpinner label="From °" value={g.from ?? 0}   step={1} onChange={(v) => onUpdate({ from: v })} />
+            <MaxSpinner label="To °"   value={g.to ?? 180}   step={1} onChange={(v) => onUpdate({ to: v })} />
+            <MaxCheck label="Pie" checked={!!g.pie} onChange={(v) => onUpdate({ pie: v })} />
+            <MaxCheck label="Reverse Direction" checked={!!g.reverse} onChange={(v) => onUpdate({ reverse: v })} />
+          </>
+        );
+      case 'donut':
+        return (
+          <>
+            <MaxSpinner label="Radius 1" value={g.radius1 ?? 0.6} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius1: v })} />
+            <MaxSpinner label="Radius 2" value={g.radius2 ?? 0.35} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius2: v })} />
+            <MaxCheck label="Pie Slice" checked={!!g.pieSlice} onChange={(v) => onUpdate({ pieSlice: v })} />
+            {g.pieSlice && (
+              <>
+                <MaxSpinner label="Start °" value={g.startAngle ?? 0}   step={1} onChange={(v) => onUpdate({ startAngle: v })} />
+                <MaxSpinner label="End °"   value={g.endAngle ?? 360}   step={1} onChange={(v) => onUpdate({ endAngle: v })} />
+              </>
+            )}
+          </>
+        );
+      case 'ngon':
+        return (
+          <>
+            <MaxSpinner label="Radius" value={g.radius ?? 0.5} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius: v })} />
+            <MaxSpinner label="Sides"  value={g.sides ?? 6}    step={1} min={3} isInt
+              onChange={(v) => onUpdate({ sides: v })} />
+            <MaxSpinner label="Fillet" value={g.fillet ?? 0}   step={0.01} min={0}
+              onChange={(v) => onUpdate({ fillet: v })} />
+            <MaxCheck label="Circular" checked={!!g.circular} onChange={(v) => onUpdate({ circular: v })} />
+            <MaxSelect
+              label="Radius Mode"
+              value={g.inscribed === false ? 'circumscribed' : 'inscribed'}
+              options={[
+                { value: 'inscribed',     label: 'Inscribed' },
+                { value: 'circumscribed', label: 'Circumscribed' },
+              ]}
+              onChange={(v) => onUpdate({ inscribed: v === 'inscribed' })}
+            />
+          </>
+        );
+      case 'star':
+        return (
+          <>
+            <MaxSpinner label="Points"   value={g.points ?? 5}     step={1} min={3} isInt
+              onChange={(v) => onUpdate({ points: v })} />
+            <MaxSpinner label="Radius 1" value={g.radius1 ?? 0.5}  step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius1: v })} />
+            <MaxSpinner label="Radius 2" value={g.radius2 ?? 0.22} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius2: v })} />
+            <MaxSpinner label="Distortion" value={g.distortion ?? 0} step={0.01}
+              onChange={(v) => onUpdate({ distortion: v })} />
+            <MaxSpinner label="Fillet R 1" value={g.filletRadius1 ?? 0} step={0.01} min={0}
+              onChange={(v) => onUpdate({ filletRadius1: v })} />
+            <MaxSpinner label="Fillet R 2" value={g.filletRadius2 ?? 0} step={0.01} min={0}
+              onChange={(v) => onUpdate({ filletRadius2: v })} />
+            <MaxSpinner label="Twist °"    value={g.twist ?? 0}       step={1}
+              onChange={(v) => onUpdate({ twist: v })} />
+          </>
+        );
+      case 'helix':
+        return (
+          <>
+            <MaxSpinner label="Radius 1" value={g.radius1 ?? 0.4} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius1: v })} />
+            <MaxSpinner label="Radius 2" value={g.radius2 ?? 0.4} step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ radius2: v })} />
+            <MaxSpinner label="Height"   value={g.height ?? 1}    step={0.05} min={0.001}
+              onChange={(v) => onUpdate({ height: v })} />
+            <MaxSpinner label="Turns"    value={g.turns ?? 3}     step={1}    min={1} isInt
+              onChange={(v) => onUpdate({ turns: v })} />
+            <MaxSpinner label="Bias"     value={g.bias ?? 0}      step={0.05}
+              onChange={(v) => onUpdate({ bias: v })} />
+            <MaxSelect
+              label="Direction"
+              value={g.clockwise === false ? 'ccw' : 'cw'}
+              options={[
+                { value: 'cw',  label: 'Clockwise' },
+                { value: 'ccw', label: 'Counterclockwise' },
+              ]}
+              onChange={(v) => onUpdate({ clockwise: v === 'cw' })}
+            />
+          </>
+        );
+      case 'text':
+        return (
+          <>
+            <div>
+              <Label className="text-[10px]">Text</Label>
+              <textarea
+                value={g.text ?? ''}
+                onChange={(e) => onUpdate({ text: e.target.value })}
+                className="w-full h-14 text-[11px] bg-background border border-panel-border rounded-[2px] px-1 py-1 font-mono resize-none outline-none"
+                spellCheck={false}
+              />
+            </div>
+            <MaxSelect
+              label="Font"
+              value={g.font ?? 'helvetiker'}
+              options={[
+                { value: 'helvetiker', label: 'Helvetiker' },
+                { value: 'gentilis',   label: 'Gentilis' },
+                { value: 'optimer',    label: 'Optimer' },
+              ]}
+              onChange={(v) => onUpdate({ font: v })}
+            />
+            <div className="flex gap-3 pt-[2px]">
+              <MaxCheck label="Bold"      checked={!!g.bold}      onChange={(v) => onUpdate({ bold: v })} />
+              <MaxCheck label="Italic"    checked={!!g.italic}    onChange={(v) => onUpdate({ italic: v })} />
+              <MaxCheck label="Underline" checked={!!g.underline} onChange={(v) => onUpdate({ underline: v })} />
+            </div>
+            <MaxSelect
+              label="Alignment"
+              value={g.alignment ?? 'left'}
+              options={[
+                { value: 'left',    label: 'Left' },
+                { value: 'center',  label: 'Center' },
+                { value: 'right',   label: 'Right' },
+                { value: 'justify', label: 'Justify' },
+              ]}
+              onChange={(v) => onUpdate({ alignment: v })}
+            />
+            <MaxSpinner label="Size"     value={g.size ?? 1}     step={0.05} min={0.01}
+              onChange={(v) => onUpdate({ size: v })} />
+            <MaxSpinner label="Tracking" value={g.tracking ?? 0} step={0.01}
+              onChange={(v) => onUpdate({ tracking: v })} />
+            <MaxSpinner label="Kerning"  value={g.kerning ?? 0}  step={0.01}
+              onChange={(v) => onUpdate({ kerning: v })} />
+            <MaxSpinner label="Leading"  value={g.leading ?? 1.2} step={0.05} min={0.1}
+              onChange={(v) => onUpdate({ leading: v })} />
+            <MaxSpinner label="Curve Seg" value={g.curveSegments ?? 6} step={1} min={1} isInt
+              onChange={(v) => onUpdate({ curveSegments: v })} />
+            <MaxCheck label="Reverse"     checked={!!g.reverse}    onChange={(v) => onUpdate({ reverse: v })} />
+            <MaxCheck label="Auto Update" checked={g.autoUpdate !== false} onChange={(v) => onUpdate({ autoUpdate: v })} />
+            <div className="text-[10px] text-muted-foreground leading-tight pt-1">
+              Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
+            </div>
+          </>
+        );
+      default:
+        return null;
+    }
+  })();
+
+  return (
+    <>
+      <MaxRollout title="Parameters" className="mt-4">
+        <div className="space-y-[3px]">{specific}</div>
+      </MaxRollout>
+
+      <MaxRollout title="Rendering" className="mt-2">
+        <div className="space-y-[3px]">
+          <MaxCheck label="Enable In Viewport" checked={g.renderableViewport !== false}
+            onChange={(v) => onUpdate({ renderableViewport: v })} />
+          <MaxCheck label="Enable In Renderer" checked={g.renderableRender !== false}
+            onChange={(v) => onUpdate({ renderableRender: v })} />
+          <MaxSelect
+            label="Section"
+            value={g.renderRectangular ? 'rect' : 'radial'}
+            options={[
+              { value: 'radial', label: 'Radial' },
+              { value: 'rect',   label: 'Rectangular' },
+            ]}
+            onChange={(v) => onUpdate({ renderRectangular: v === 'rect' })}
+          />
+          {!g.renderRectangular && (
+            <>
+              <MaxSpinner label="Thickness" value={g.thickness ?? 0.02} step={0.005} min={0.001}
+                onChange={(v) => onUpdate({ thickness: v })} />
+              <MaxSpinner label="Sides"     value={g.sides ?? 6}         step={1} min={3} isInt
+                onChange={(v) => onUpdate({ sides: v })} />
+              <MaxSpinner label="Angle °"   value={g.angle ?? 0}         step={1}
+                onChange={(v) => onUpdate({ angle: v })} />
+            </>
+          )}
+          {g.renderRectangular && (
+            <>
+              <MaxSpinner label="Length" value={g.rectLength ?? 0.04} step={0.005} min={0.001}
+                onChange={(v) => onUpdate({ rectLength: v })} />
+              <MaxSpinner label="Width"  value={g.rectWidth  ?? 0.02} step={0.005} min={0.001}
+                onChange={(v) => onUpdate({ rectWidth: v })} />
+              <MaxSpinner label="Angle °" value={g.angle ?? 0}        step={1}
+                onChange={(v) => onUpdate({ angle: v })} />
+            </>
+          )}
+        </div>
+      </MaxRollout>
+
+      <MaxRollout title="Interpolation" className="mt-2">
+        <div className="space-y-[3px]">
+          <MaxSpinner label="Steps" value={g.interpolationSteps ?? 6} step={1} min={0} isInt
+            onChange={(v) => onUpdate({ interpolationSteps: v })} />
+          <MaxCheck label="Adaptive" checked={g.adaptive !== false}
+            onChange={(v) => onUpdate({ adaptive: v })} />
+          <MaxCheck label="Optimize" checked={!!g.optimize}
+            onChange={(v) => onUpdate({ optimize: v })} />
+        </div>
+      </MaxRollout>
     </>
   );
 };

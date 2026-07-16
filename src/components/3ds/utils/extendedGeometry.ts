@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Font } from 'three/examples/jsm/loaders/FontLoader.js';
 // Bundled Three.js fonts (vectorised TTF → typeface JSON) so text can be
 // rasterised into splines immediately, without an async fetch.
@@ -51,17 +52,36 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   prism:      { side1: 1, side2: 1, side3: 1, height: 1 },
 };
 
+// Shape defaults mirror 3ds Max R3 Shapes rollout. Every shape carries the
+// common "Rendering" (renderable / thickness / sides / angle / rectangular
+// section) and "Interpolation" (steps / adaptive / optimize) blocks, plus its
+// own parametric fields exposed in the command panel.
+const COMMON_SHAPE_DEFAULTS = {
+  // Rendering
+  renderableViewport: true,   // Enable In Viewport
+  renderableRender:   true,   // Enable In Renderer
+  renderRectangular:  false,  // false = radial (round tube), true = rectangular bar
+  thickness:  0.02,           // tube radius (or rect width)
+  sides:      6,              // radial sides
+  angle:      0,              // section rotation, radians
+  rectLength: 0.04,           // rect section length (when renderRectangular)
+  rectWidth:  0.02,           // rect section width
+  // Interpolation
+  interpolationSteps: 6,
+  adaptive: true,
+  optimize: false,
+};
 export const SHAPE_DEFAULTS: Record<ShapeType, any> = {
-  line:      { length: 1 },
-  rectangle: { width: 1, height: 0.7, cornerRadius: 0 },
-  circle:    { radius: 0.5 },
-  ellipse:   { radiusX: 0.7, radiusY: 0.4 },
-  arc:       { radius: 0.5, from: 0, to: 180 },
-  donut:     { radius1: 0.6, radius2: 0.35 },
-  ngon:      { radius: 0.5, sides: 6, circular: false },
-  star:      { radius1: 0.5, radius2: 0.22, points: 5 },
-  helix:     { radius1: 0.4, radius2: 0.4, height: 1, turns: 3, biasFactor: 0 },
-  text:      { text: 'LEDMKT', font: 'helvetiker', bold: false, size: 1, kerning: 0, curveSegments: 6 },
+  line:      { ...COMMON_SHAPE_DEFAULTS, length: 1 },
+  rectangle: { ...COMMON_SHAPE_DEFAULTS, width: 1, height: 0.7, cornerRadius: 0, fillet: 0 },
+  circle:    { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, pieSlice: false, startAngle: 0, endAngle: 360, reverse: false },
+  ellipse:   { ...COMMON_SHAPE_DEFAULTS, radiusX: 0.7, radiusY: 0.4, pieSlice: false, startAngle: 0, endAngle: 360 },
+  arc:       { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, from: 0, to: 180, pie: false, reverse: false },
+  donut:     { ...COMMON_SHAPE_DEFAULTS, radius1: 0.6, radius2: 0.35, pieSlice: false, startAngle: 0, endAngle: 360 },
+  ngon:      { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, sides: 6, circular: false, fillet: 0, inscribed: true },
+  star:      { ...COMMON_SHAPE_DEFAULTS, radius1: 0.5, radius2: 0.22, points: 5, distortion: 0, filletRadius1: 0, filletRadius2: 0, twist: 0 },
+  helix:     { ...COMMON_SHAPE_DEFAULTS, radius1: 0.4, radius2: 0.4, height: 1, turns: 3, bias: 0, clockwise: true },
+  text:      { ...COMMON_SHAPE_DEFAULTS, text: 'LEDMKT', font: 'helvetiker', bold: false, italic: false, underline: false, size: 1, kerning: 0, tracking: 0, leading: 1.2, alignment: 'left', reverse: false, autoUpdate: true, curveSegments: 6 },
 };
 
 // ---------------- Fonts ----------------
@@ -254,17 +274,66 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
 
 // ---------------- Shape builders (rendered as thin tubes) ----------------
 
-const TUBE_RADIUS = 0.02;
-const TUBE_RADIAL_SEG = 6;
-
-function shapeToTube(curve: THREE.Curve<THREE.Vector3>, segments = 128): THREE.BufferGeometry {
-  return new THREE.TubeGeometry(curve, segments, TUBE_RADIUS, TUBE_RADIAL_SEG, false);
+// Section radius / sides / rectangular tube driven by the shape's Rendering rollout.
+function sectionFromParams(p: any) {
+  const t = Math.max(0.001, Number(p?.thickness ?? 0.02));
+  const s = Math.max(3, Math.floor(p?.sides ?? 6));
+  return { t, s };
 }
 
-function pointsToTube(pts: THREE.Vector2[], closed = true): THREE.BufferGeometry {
+function shapeToTube(curve: THREE.Curve<THREE.Vector3>, segments = 128, params: any = {}): THREE.BufferGeometry {
+  const { t, s } = sectionFromParams(params);
+  return new THREE.TubeGeometry(curve, segments, t, s, false);
+}
+
+function pointsToTube(pts: THREE.Vector2[], closed = true, params: any = {}): THREE.BufferGeometry {
   const pts3 = pts.map((v) => new THREE.Vector3(v.x, 0, v.y));
   const curve = new THREE.CatmullRomCurve3(pts3, closed, 'catmullrom', 0);
-  return new THREE.TubeGeometry(curve, 256, TUBE_RADIUS, TUBE_RADIAL_SEG, closed);
+  const { t, s } = sectionFromParams(params);
+  const seg = Math.max(64, (params?.interpolationSteps ?? 6) * pts.length * 2);
+  return new THREE.TubeGeometry(curve, seg, t, s, closed);
+}
+
+// Build a rounded rectangle sample point list.
+function roundedRectPoints(w: number, h: number, r: number, seg: number): THREE.Vector2[] {
+  const hw = w / 2, hh = h / 2;
+  const rr = Math.max(0, Math.min(r, hw, hh));
+  if (rr <= 1e-4) {
+    return [
+      new THREE.Vector2(-hw, -hh), new THREE.Vector2(hw, -hh),
+      new THREE.Vector2(hw,  hh),  new THREE.Vector2(-hw,  hh),
+    ];
+  }
+  const pts: THREE.Vector2[] = [];
+  const n = Math.max(2, seg);
+  const arc = (cx: number, cy: number, a0: number, a1: number) => {
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (a1 - a0) * (i / n);
+      pts.push(new THREE.Vector2(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr));
+    }
+  };
+  arc( hw - rr, -hh + rr, -Math.PI / 2, 0);
+  arc( hw - rr,  hh - rr, 0, Math.PI / 2);
+  arc(-hw + rr,  hh - rr, Math.PI / 2, Math.PI);
+  arc(-hw + rr, -hh + rr, Math.PI, Math.PI * 1.5);
+  return pts;
+}
+
+// Sample an arc/pie between two angles (degrees) around origin at radius r,
+// optionally producing a closed "pie slice" by adding the centre point.
+function arcPoints(r: number, startDeg: number, endDeg: number, pie: boolean, reverse: boolean, seg: number, ry?: number): THREE.Vector2[] {
+  let a0 = (startDeg * Math.PI) / 180;
+  let a1 = (endDeg * Math.PI) / 180;
+  if (reverse) { const t = a0; a0 = a1; a1 = t; }
+  const rY = ry ?? r;
+  const n = Math.max(8, seg * 8);
+  const pts: THREE.Vector2[] = [];
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * (i / n);
+    pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * rY));
+  }
+  if (pie) pts.push(new THREE.Vector2(0, 0));
+  return pts;
 }
 
 export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeometry {
@@ -276,6 +345,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       const knots: Array<{ pos: number[]; inH: number[]; outH: number[] }> | undefined = p.knots;
       const closed = !!p.closed;
       let sampled: THREE.Vector3[] | null = null;
+      const steps = Math.max(1, Math.floor(p.interpolationSteps ?? 6));
       if (knots && knots.length >= 2) {
         const list = closed ? [...knots, knots[0]] : knots;
         sampled = [];
@@ -286,7 +356,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
           const p1 = p0.clone().add(new THREE.Vector3(k0.outH[0], k0.outH[1], k0.outH[2]));
           const p2 = p3.clone().add(new THREE.Vector3(k1.inH[0], k1.inH[1], k1.inH[2]));
           const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
-          const seg = curve.getPoints(24);
+          const seg = curve.getPoints(Math.max(4, steps * 4));
           if (i > 0) seg.shift();
           sampled.push(...seg);
         }
@@ -295,107 +365,215 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       }
       if (sampled && sampled.length >= 2) {
         const curve = new THREE.CatmullRomCurve3(sampled, closed, 'catmullrom', 0);
-        const segs = Math.max(32, sampled.length * 8);
-        return new THREE.TubeGeometry(curve, segs, TUBE_RADIUS, TUBE_RADIAL_SEG, closed);
+        const { t, s } = sectionFromParams(p);
+        const segs = Math.max(32, sampled.length * Math.max(4, steps));
+        return new THREE.TubeGeometry(curve, segs, t, s, closed);
       }
       const curve = new THREE.LineCurve3(new THREE.Vector3(-p.length / 2, 0, 0), new THREE.Vector3(p.length / 2, 0, 0));
-      return shapeToTube(curve, 8);
+      return shapeToTube(curve, 8, p);
     }
     case 'rectangle': {
-      const w = p.width / 2, h = p.height / 2;
-      return pointsToTube([
-        new THREE.Vector2(-w, -h), new THREE.Vector2(w, -h),
-        new THREE.Vector2(w, h),   new THREE.Vector2(-w, h),
-      ], true);
+      // Length = Y, Width = X in 3ds Max. Support legacy `height` alias.
+      const w = p.width, h = p.length ?? p.height, r = Math.max(0, (p.cornerRadius ?? 0) + (p.fillet ?? 0));
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      return pointsToTube(roundedRectPoints(w, h, r, seg), true, p);
     }
     case 'circle': {
-      const pts: THREE.Vector2[] = [];
-      const n = 64;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radius, Math.sin(a) * p.radius));
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      if (p.pieSlice) {
+        return pointsToTube(arcPoints(p.radius, p.startAngle ?? 0, p.endAngle ?? 360, true, !!p.reverse, seg), true, p);
       }
-      return pointsToTube(pts, true);
+      return pointsToTube(arcPoints(p.radius, 0, 360, false, !!p.reverse, seg), true, p);
     }
     case 'ellipse': {
-      const pts: THREE.Vector2[] = [];
-      const n = 64;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radiusX, Math.sin(a) * p.radiusY));
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      if (p.pieSlice) {
+        return pointsToTube(arcPoints(p.radiusX, p.startAngle ?? 0, p.endAngle ?? 360, true, false, seg, p.radiusY), true, p);
       }
-      return pointsToTube(pts, true);
+      return pointsToTube(arcPoints(p.radiusX, 0, 360, false, false, seg, p.radiusY), true, p);
     }
     case 'arc': {
-      const pts: THREE.Vector2[] = [];
-      const from = (p.from * Math.PI) / 180, to = (p.to * Math.PI) / 180;
-      const n = 48;
-      for (let i = 0; i <= n; i++) {
-        const a = from + (to - from) * (i / n);
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radius, Math.sin(a) * p.radius));
-      }
-      return pointsToTube(pts, false);
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      return pointsToTube(arcPoints(p.radius, p.from ?? 0, p.to ?? 180, !!p.pie, !!p.reverse, seg), !!p.pie, p);
     }
     case 'donut': {
-      // Donut = torus with tiny minor radius so it renders as two concentric rings.
-      const majorR = (p.radius1 + p.radius2) / 2;
-      const minorR = Math.max(0.001, Math.abs(p.radius1 - p.radius2) / 2);
-      return new THREE.TorusGeometry(majorR, minorR, 12, 64);
+      // Two concentric splines: outer + inner ring. Rendered as a merged tube.
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      const rOut = Math.max(p.radius1, p.radius2);
+      const rIn  = Math.min(p.radius1, p.radius2);
+      const outer = arcPoints(rOut, 0, 360, false, false, seg);
+      const inner = arcPoints(rIn,  0, 360, false, true,  seg);
+      const outerGeom = pointsToTube(outer, true, p);
+      const innerGeom = pointsToTube(inner, true, p);
+      const merged = mergeGeometries([outerGeom, innerGeom]);
+      return merged ?? outerGeom;
     }
     case 'ngon': {
-      const pts: THREE.Vector2[] = [];
-      const n = Math.max(3, p.sides);
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radius, Math.sin(a) * p.radius));
+      const n = Math.max(3, Math.floor(p.sides));
+      const rr = p.inscribed === false
+        ? p.radius / Math.cos(Math.PI / n) // circumscribed
+        : p.radius;
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      if (p.circular) {
+        return pointsToTube(arcPoints(rr, 0, 360, false, false, seg), true, p);
       }
-      return pointsToTube(pts, true);
-    }
-    case 'star': {
-      const pts: THREE.Vector2[] = [];
-      const n = Math.max(3, p.points) * 2;
+      // Corners with optional fillet.
+      const corners: THREE.Vector2[] = [];
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-        const r = i % 2 === 0 ? p.radius1 : p.radius2;
+        corners.push(new THREE.Vector2(Math.cos(a) * rr, Math.sin(a) * rr));
+      }
+      const f = Math.max(0, Math.min(p.fillet ?? 0, rr * 0.9));
+      if (f <= 1e-4) return pointsToTube(corners, true, p);
+      // Round each corner with a small arc from midpoint→midpoint.
+      const pts: THREE.Vector2[] = [];
+      for (let i = 0; i < n; i++) {
+        const prev = corners[(i - 1 + n) % n];
+        const cur  = corners[i];
+        const nxt  = corners[(i + 1) % n];
+        const inDir  = new THREE.Vector2().subVectors(cur, prev).normalize();
+        const outDir = new THREE.Vector2().subVectors(nxt, cur).normalize();
+        const pA = cur.clone().addScaledVector(inDir,  -f);
+        const pB = cur.clone().addScaledVector(outDir,  f);
+        pts.push(pA);
+        // simple quadratic-like arc via 3 samples
+        for (let k = 1; k <= 4; k++) {
+          const t = k / 5;
+          const q0 = pA.clone().lerp(cur, t);
+          const q1 = cur.clone().lerp(pB, t);
+          pts.push(q0.lerp(q1, t));
+        }
+        pts.push(pB);
+      }
+      return pointsToTube(pts, true, p);
+    }
+    case 'star': {
+      const nPts = Math.max(3, Math.floor(p.points));
+      const dist = p.distortion ?? 0;
+      const twist = ((p.twist ?? 0) * Math.PI) / 180;
+      const pts: THREE.Vector2[] = [];
+      const n = nPts * 2;
+      for (let i = 0; i < n; i++) {
+        const t = i / n;
+        const a = t * Math.PI * 2 - Math.PI / 2 + twist * t;
+        const isOuter = i % 2 === 0;
+        const r = isOuter ? p.radius1 : (p.radius2 + dist);
         pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r));
       }
-      return pointsToTube(pts, true);
+      // Apply fillet: soften every vertex by shrinking towards its neighbours.
+      const f1 = Math.max(0, p.filletRadius1 ?? 0);
+      const f2 = Math.max(0, p.filletRadius2 ?? 0);
+      if (f1 > 1e-4 || f2 > 1e-4) {
+        const out: THREE.Vector2[] = [];
+        for (let i = 0; i < pts.length; i++) {
+          const prev = pts[(i - 1 + pts.length) % pts.length];
+          const cur = pts[i];
+          const nxt = pts[(i + 1) % pts.length];
+          const f = i % 2 === 0 ? f1 : f2;
+          if (f <= 1e-4) { out.push(cur); continue; }
+          const pA = cur.clone().lerp(prev, Math.min(0.5, f));
+          const pB = cur.clone().lerp(nxt,  Math.min(0.5, f));
+          out.push(pA, cur.clone().lerp(pA.clone().lerp(pB, 0.5), 0.5), pB);
+        }
+        return pointsToTube(out, true, p);
+      }
+      return pointsToTube(pts, true, p);
     }
     case 'helix': {
+      const turns = Math.max(0.01, p.turns);
+      const bias = THREE.MathUtils.clamp(p.bias ?? 0, -1, 1);
+      const cwSign = p.clockwise === false ? -1 : 1;
       const pts3: THREE.Vector3[] = [];
-      const n = 128 * Math.max(1, p.turns);
+      const steps = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      const n = 32 * Math.max(1, Math.round(turns * steps));
       for (let i = 0; i <= n; i++) {
-        const t = i / n;
-        const a = t * Math.PI * 2 * p.turns;
-        const r = p.radius1 + (p.radius2 - p.radius1) * t;
+        let t = i / n;
+        // Bias skews the vertical distribution: negative packs turns at the
+        // bottom, positive at the top (Max's "Bias" spinner behaviour).
+        if (bias !== 0) t = Math.pow(t, Math.pow(2, -bias));
+        const a = t * Math.PI * 2 * turns * cwSign;
+        const r = p.radius1 + (p.radius2 - p.radius1) * (i / n);
         pts3.push(new THREE.Vector3(Math.cos(a) * r, t * p.height - p.height / 2, Math.sin(a) * r));
       }
       const curve = new THREE.CatmullRomCurve3(pts3, false);
-      return shapeToTube(curve, 512);
+      const { t: tt, s } = sectionFromParams(p);
+      return new THREE.TubeGeometry(curve, Math.max(128, n * 2), tt, s, false);
     }
     case 'text': {
-      // Vectorise glyphs → flat, filled letters on the XZ ground plane. When
-      // the user adds an Extrude modifier, applyExtrude re-generates a proper
-      // ExtrudeGeometry (with letter holes) from the same font+text+size.
-      const shapes = buildTextShapes(
-        p.text ?? 'Text',
-        p.font ?? 'helvetiker',
-        !!p.bold,
-        p.size ?? 1,
-        p.kerning ?? 0,
-        p.curveSegments ?? 6,
-      );
-      if (!shapes.length) return new THREE.BufferGeometry();
-      const flat = new THREE.ShapeGeometry(shapes, p.curveSegments ?? 6);
-      // Lay the text flat on XZ (three's ShapeGeometry lives on XY, Y up).
-      flat.rotateX(-Math.PI / 2);
-      // Centre horizontally so the object's origin sits at the middle of the
-      // text baseline, matching how the other shapes are pivoted.
-      flat.computeBoundingBox();
-      const bb = flat.boundingBox!;
-      const cx = (bb.min.x + bb.max.x) / 2;
-      const cz = (bb.min.z + bb.max.z) / 2;
-      flat.translate(-cx, 0, -cz);
+      // Vectorise glyphs → flat, filled letters on the XZ ground plane.
+      const raw = String(p.text ?? 'Text');
+      const lines = (p.reverse ? raw.split('').reverse().join('') : raw).split(/\r?\n/);
+      const size = p.size ?? 1;
+      const tracking = p.tracking ?? 0;
+      const kerning = (p.kerning ?? 0) + tracking; // tracking widens spacing globally
+      const leading = (p.leading ?? 1.2) * size;
+      const align = (p.alignment ?? 'left') as 'left' | 'center' | 'right' | 'justify';
+      const curveSeg = p.curveSegments ?? 6;
+
+      // Build ShapeGeometry per line, then translate lines vertically and
+      // horizontally-align them together.
+      const lineGeoms: { geom: THREE.BufferGeometry; width: number; ascent: number }[] = [];
+      for (const line of lines) {
+        const shapes = buildTextShapes(line, p.font ?? 'helvetiker', !!p.bold, size, kerning, curveSeg);
+        if (!shapes.length) { lineGeoms.push({ geom: new THREE.BufferGeometry(), width: 0, ascent: size }); continue; }
+        const g = new THREE.ShapeGeometry(shapes, curveSeg);
+        g.rotateX(-Math.PI / 2);
+        g.computeBoundingBox();
+        const bb = g.boundingBox!;
+        lineGeoms.push({ geom: g, width: bb.max.x - bb.min.x, ascent: bb.max.z - bb.min.z });
+      }
+
+      // Optional italic — skew geometry along X in proportion to Z (baseline).
+      if (p.italic) {
+        for (const lg of lineGeoms) {
+          const pos = lg.geom.attributes.position;
+          if (pos) {
+            for (let i = 0; i < pos.count; i++) {
+              const x = pos.getX(i), z = pos.getZ(i);
+              pos.setX(i, x - z * 0.2);
+            }
+            pos.needsUpdate = true;
+          }
+        }
+      }
+
+      const maxW = lineGeoms.reduce((m, l) => Math.max(m, l.width), 0);
+      const parts: THREE.BufferGeometry[] = [];
+      let yOffset = 0;
+      lineGeoms.forEach((lg, idx) => {
+        if (!lg.geom.attributes.position) return;
+        let xShift = 0;
+        if (align === 'center') xShift = -lg.width / 2;
+        else if (align === 'right') xShift = -lg.width;
+        else if (align === 'justify' && idx < lineGeoms.length - 1) {
+          // stretch to maxW — scale in X.
+          const factor = lg.width > 1e-4 ? maxW / lg.width : 1;
+          lg.geom.applyMatrix4(new THREE.Matrix4().makeScale(factor, 1, 1));
+          lg.geom.computeBoundingBox();
+        }
+        lg.geom.translate(xShift, 0, -yOffset);
+        yOffset += leading;
+        parts.push(lg.geom);
+
+        // Underline — thin plate under each line on the XZ plane.
+        if (p.underline) {
+          const uw = align === 'justify' && idx < lineGeoms.length - 1 ? maxW : lg.width;
+          const ug = new THREE.PlaneGeometry(uw, size * 0.06);
+          ug.rotateX(-Math.PI / 2);
+          const ux = align === 'center' ? 0 : align === 'right' ? -uw / 2 : uw / 2;
+          ug.translate(ux + xShift, 0, -yOffset + leading - size * 1.05);
+          parts.push(ug);
+        }
+      });
+      const merged = mergeGeometries(parts.filter((g) => g.attributes.position));
+      const flat = merged ?? new THREE.BufferGeometry();
+      if (flat.attributes.position) {
+        flat.computeBoundingBox();
+        const bb = flat.boundingBox!;
+        const cx = (bb.min.x + bb.max.x) / 2;
+        const cz = (bb.min.z + bb.max.z) / 2;
+        flat.translate(-cx, 0, -cz);
+      }
       return flat;
     }
   }
