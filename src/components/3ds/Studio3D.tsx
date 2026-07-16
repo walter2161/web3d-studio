@@ -207,6 +207,7 @@ export const Studio3D = () => {
   const [cloudImportOpen, setCloudImportOpen] = useState(false);
   const [cloudImportPayload, setCloudImportPayload] = useState<any>(null);
   const [cloudImportName, setCloudImportName] = useState<string>('');
+  const [currentCloudScene, setCurrentCloudScene] = useState<{ id: string; name: string; folderId: string | null } | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
     return !localStorage.getItem('3de.welcome.seen');
