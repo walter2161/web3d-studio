@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useCreation, CreatableTool, GhostObject } from './CreationContext';
 import { buildBoneChainFromPoints } from '../../rig/bones';
+import { buildBiped } from '../../rig/biped';
 
 interface Props {
   viewportType: 'perspective' | 'top' | 'front' | 'left';
