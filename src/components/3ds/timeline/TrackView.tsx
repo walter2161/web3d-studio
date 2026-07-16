@@ -300,10 +300,7 @@ export const TrackView = ({
     const order: Array<{ kind: 'node' | 'chan' | 'track'; uuid: string; track?: ChannelTrack; chan?: string }> = [];
     const walk = (uuid: string) => {
       order.push({ kind: 'node', uuid });
-      if (!expandedNodes.has(uuid)) {
-        (childrenOf.get(uuid) || []).forEach(walk);
-        return;
-      }
+      if (!expandedNodes.has(uuid)) return; // collapsed → hide subtree
       const chans = grouped.get(uuid);
       if (chans) {
         chans.forEach((axes, chan) => {
