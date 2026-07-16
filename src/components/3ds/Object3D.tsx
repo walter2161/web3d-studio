@@ -333,50 +333,91 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       // frame 0 so the character still plays its default idle/walk loop.
       const segMap = ((window as any).__clipSegments || {}) as Record<
         string,
-        Array<{ startFrame: number; endFrame: number; clipIndex: number }>
+        Array<{ startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>
       >;
       const segs = (segMap[object.id] || []).slice().sort((a, b) => a.startFrame - b.startFrame);
       let activeIdx = 0;
       let anchorFrame = 0;
-      const hit = segs.find((s) => frame >= s.startFrame && frame <= s.endFrame);
-      if (hit) {
-        activeIdx = hit.clipIndex;
-        anchorFrame = hit.startFrame;
+      let activeSegIdx = -1;
+      const hitIdx = segs.findIndex((s) => frame >= s.startFrame && frame <= s.endFrame);
+      if (hitIdx >= 0) {
+        activeIdx = segs[hitIdx].clipIndex;
+        anchorFrame = segs[hitIdx].startFrame;
+        activeSegIdx = hitIdx;
       }
+
+      // Detect a crossfade window: the current segment has a blendIn > 0,
+      // there is a previous segment, and the frame is inside the first
+      // `blendIn` frames of the current segment.
+      let blendT = -1; // 0 = fully previous, 1 = fully current
+      let prevClipIdx = -1;
+      let prevAnchor = 0;
+      if (activeSegIdx > 0) {
+        const cur = segs[activeSegIdx];
+        const prev = segs[activeSegIdx - 1];
+        const blen = Math.max(0, Math.min(cur.blendIn || 0, cur.endFrame - cur.startFrame));
+        if (blen > 0 && frame < cur.startFrame + blen) {
+          blendT = (frame - cur.startFrame) / blen;
+          if (blendT < 0) blendT = 0;
+          if (blendT > 1) blendT = 1;
+          prevClipIdx = prev.clipIndex;
+          prevAnchor = prev.startFrame;
+        }
+      }
+
       const clip = imported.animations[activeIdx];
       const action = actions[activeIdx];
       if (!clip || !action) return;
       const duration = clip.duration || 0;
       if (duration <= 0) return;
 
-      // Crossfade weights when the active clip changes.
-      if (activeIdx !== lastActiveIdx) {
+      const fps = 30;
+
+      if (blendT >= 0 && prevClipIdx >= 0 && actions[prevClipIdx] && imported.animations[prevClipIdx]) {
+        // Crossfade: play both clips at their own local time, weighted.
+        // Each action.time is set independently, then a mixer.update(0)
+        // applies the weighted blend to the bones — the standard three.js
+        // pattern for smooth transitions.
+        const prevClip = imported.animations[prevClipIdx];
+        const prevDur = prevClip.duration || 0;
         for (let i = 0; i < actions.length; i++) {
-          actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
-          actions[i].enabled = true;
-          actions[i].paused = false;
+          const a = actions[i];
+          a.enabled = i === activeIdx || i === prevClipIdx;
+          a.paused = false;
+          if (i === activeIdx) a.setEffectiveWeight(blendT);
+          else if (i === prevClipIdx) a.setEffectiveWeight(1 - blendT);
+          else a.setEffectiveWeight(0);
         }
+        // Advance each action's time independently.
+        const curTime = ((frame - anchorFrame) / fps) % Math.max(1e-6, duration);
+        const prevTime = prevDur > 0 ? (((frame - prevAnchor) / fps) % prevDur) : 0;
+        actions[activeIdx].time = Math.max(0, curTime);
+        actions[prevClipIdx].time = Math.max(0, prevTime);
+        mixer.update(0);
         lastActiveIdx = activeIdx;
       } else {
-        // Ensure weights stay coherent (in case a previous switch left them).
-        for (let i = 0; i < actions.length; i++) {
-          actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+        // No transition: single active clip.
+        if (activeIdx !== lastActiveIdx) {
+          for (let i = 0; i < actions.length; i++) {
+            actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+            actions[i].enabled = true;
+            actions[i].paused = false;
+          }
+          lastActiveIdx = activeIdx;
+        } else {
+          for (let i = 0; i < actions.length; i++) {
+            actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+          }
         }
+        const framesSinceAnchor = Math.max(0, frame - anchorFrame);
+        const rawTime = framesSinceAnchor / fps;
+        const clipTime = rawTime % duration;
+        // mixer.setTime resets every action to 0 then advances — good for
+        // deterministic scrubbing when no crossfade is active.
+        mixer.setTime(clipTime);
       }
+
       activeActionRef.current = action;
-
-      // Map timeline frames since the anchoring cue to clip seconds.
-      // Assume a 30 fps timeline (Mixamo default) so the animation plays at
-      // its natural speed and loops between cues.
-      const framesSinceAnchor = Math.max(0, frame - anchorFrame);
-      const fps = 30;
-      const rawTime = framesSinceAnchor / fps;
-      const clipTime = rawTime % duration;
-
-      // mixer.setTime resets every action's time to 0 then advances by
-      // clipTime — the standard three.js scrubbing pattern that guarantees
-      // bones get repositioned every call.
-      mixer.setTime(clipTime);
       imported.root.updateMatrixWorld(true);
       imported.root.traverse((child: any) => {
         if (child.isSkinnedMesh && child.skeleton) {
