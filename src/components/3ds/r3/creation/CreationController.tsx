@@ -527,9 +527,22 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       window.dispatchEvent(new CustomEvent('r3-spawn-biped', { detail: { parts } }));
       setGhost(null);
     };
+    // -------- Print3D (Systems → Print3D): single-click placement on the base plane.
+    // A ghost of the build plate follows the cursor; click commits at that spot.
+    const printBedRef: { active: boolean } | null =
+      armed === 'sys_print_bed' ? { active: true } : null;
 
-
-
+    const buildPrintBedGhost = (p: THREE.Vector3): GhostObject => ({
+      id: '__ghost',
+      type: 'print_bed' as any,
+      position: [p.x, p.y, p.z],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: '#5f7fa0',
+      geometry: {},
+      visible: true,
+      __creating: true,
+    });
 
 
 
