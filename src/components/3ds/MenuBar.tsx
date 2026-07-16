@@ -106,6 +106,10 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
           </DropdownMenuContent>
         </DropdownMenu>
       ))}
+      <div className="flex-1" />
+      <div className="flex items-center">
+        <UIThemeSelector />
+      </div>
     </div>
   );
 };
