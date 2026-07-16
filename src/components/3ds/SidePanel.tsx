@@ -269,6 +269,8 @@ export const SidePanel = ({
   onCreatePrintBed,
   onUpdatePrintBed,
   onTransformObject,
+  selectedSubUuid,
+  onSelectSubObject,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
