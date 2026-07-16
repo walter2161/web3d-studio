@@ -350,6 +350,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, base);
       const hit = new THREE.Vector3();
       raycaster.ray.intersectPlane(plane, hit);
+      if (snapEnabled) return snapPoint(hit, snapGridSpacing);
       return hit;
     };
 
