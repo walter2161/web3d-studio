@@ -1309,15 +1309,11 @@ export const Studio3D = () => {
     setObjects(prev => prev.filter(o => !idsToDelete.has(o.id)));
     setAnimationTracks(prev => prev.filter(t => !idsToDelete.has(t.objectId)));
     if (selectedObject && idsToDelete.has(selectedObject)) setSelectedObject(null);
-    // Clean up persisted blob for imported models.
-    if (obj?.type === 'imported') {
-      import('./utils/modelStorage').then(({ deleteModelBlob }) => {
-        deleteModelBlob(id).catch(() => {});
-      });
-      import('./utils/modelImport').then(({ removeImportedModel }) => {
-        removeImportedModel(id);
-      });
-    }
+    // NOTE: we intentionally do NOT purge the imported-model cache or the
+    // persisted blob here. If we did, an Undo restoring this object would
+    // bring back the entry but the model geometry/animations would already
+    // be gone → empty character. Keep the cache alive so undo restores the
+    // full model. A future "Purge unused models" action can reclaim space.
     toast.success('Object deleted');
   }, [saveState, selectedObject, objects]);
 
