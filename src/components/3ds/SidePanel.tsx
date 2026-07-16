@@ -1165,58 +1165,18 @@ export const SidePanel = ({
                     );
                   };
 
-                  // ---- Line: read-only info ----
-                  if (selectedObject.type === 'line') {
-                    const knots = Array.isArray(geom.knots) ? geom.knots.length : 0;
+                  // ---- Shapes (Line/Rectangle/Circle/Ellipse/Arc/Donut/NGon/Star/Helix/Text)
+                  // Parametric editor mirroring the 3ds Max Shapes rollout —
+                  // Parameters + Rendering + Interpolation, no modifier required.
+                  if (SHAPE_TYPES.has(selectedObject.type)) {
                     return (
-                      <MaxRollout title="Parameters" className="mt-4">
-                        <div className="text-[11px] font-mono space-y-[3px] py-1">
-                          <div>Vertices: <span className="text-foreground">{knots}</span></div>
-                          <div>Closed: <span className="text-foreground">{geom.closed ? 'Yes' : 'No'}</span></div>
-                          <div className="text-[10px] text-muted-foreground pt-1 font-sans">
-                            Line vertices are edited in sub-object mode.
-                          </div>
-                        </div>
-                      </MaxRollout>
+                      <ShapeParametersPanel
+                        object={selectedObject}
+                        onUpdate={(patch) => onUpdateObjectGeometry(selectedObject.id, patch)}
+                      />
                     );
                   }
 
-                  // ---- Text ----
-                  if (selectedObject.type === 'text') {
-                    const currentText = geom.text ?? 'Text';
-                    const currentFont = geom.font ?? 'helvetiker';
-                    const bold = !!geom.bold;
-                    return (
-                      <MaxRollout title="Parameters" className="mt-4">
-                        <div className="space-y-2">
-                          <div>
-                            <Label className="text-[10px]">Text</Label>
-                            <textarea
-                              value={currentText}
-                              onChange={(e) => onUpdateObjectGeometry(selectedObject.id, { text: e.target.value })}
-                              className="w-full h-14 text-[11px] bg-background border border-panel-border rounded-[2px] px-1 py-1 font-mono resize-none outline-none"
-                              spellCheck={false}
-                            />
-                          </div>
-                          <MaxSelect
-                            label="Font"
-                            value={currentFont}
-                            options={[
-                              { value: 'helvetiker', label: 'Helvetiker' },
-                              { value: 'gentilis',   label: 'Gentilis' },
-                              { value: 'optimer',    label: 'Optimer' },
-                            ]}
-                            onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { font: v })}
-                          />
-                          <MaxCheck label="Bold" checked={bold} onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { bold: v })} />
-                          {mainParams.map(renderSpinner)}
-                          <div className="text-[10px] text-muted-foreground leading-tight pt-1">
-                            Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
-                          </div>
-                        </div>
-                      </MaxRollout>
-                    );
-                  }
 
                   // ---- Wall ----
                   if (selectedObject.type === 'wall') {
