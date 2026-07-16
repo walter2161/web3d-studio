@@ -5,6 +5,13 @@ import { Object3D } from './Object3D';
 import { TrajectoryRenderer } from './TrajectoryRenderer';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
 import { getImportedModel } from './utils/modelImport';
+import {
+  BoneJointSelection,
+  getJointObject,
+  getSelectedJoint,
+  setSelectedJoint,
+  subscribeSelectedJoint,
+} from './rig/boneJointRegistry';
 
 interface Scene3DProps {
   objects: any[];
@@ -94,6 +101,26 @@ export const Scene3D = ({
     subCentroid.modifierId === activeEditMod.id &&
     !!subCentroid.local;
 
+  // ---- Bone joint sub-selection ---------------------------------------------
+  // When the user clicks a joint sphere inside a bone_chain, we attach the
+  // gizmo directly to that joint <group>. Rotating it in TC drives ONLY that
+  // joint's local rotation — since children live under this group, they follow
+  // (native FK). Auto-forces rotate mode.
+  const [boneJoint, setBoneJoint] = useState<BoneJointSelection | null>(getSelectedJoint());
+  useEffect(() => subscribeSelectedJoint(setBoneJoint), []);
+  // Clear joint selection when the parent object is deselected.
+  useEffect(() => {
+    if (boneJoint && boneJoint.objectId !== selectedObject) setSelectedJoint(null);
+  }, [selectedObject, boneJoint]);
+
+  const boneJointActive = !!boneJoint && boneJoint.objectId === selectedObject;
+  const boneJointTarget = boneJointActive
+    ? getJointObject(`${boneJoint!.objectId}:${boneJoint!.jointIndex}`) ?? null
+    : null;
+  const effectiveTransformMode: 'translate' | 'rotate' | 'scale' =
+    boneJointActive ? 'rotate' : transformMode;
+
+  const boneJointDragStartRef = useRef<THREE.Euler | null>(null);
 
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
@@ -108,6 +135,10 @@ export const Scene3D = ({
   if (subGizmoActive && subProxyObj) {
     transformTarget = subProxyObj;
   }
+  if (boneJointActive && boneJointTarget) {
+    transformTarget = boneJointTarget;
+  }
+
 
   // Lookup a target object's world position for target-camera / target-spot / target-direct.
   const targetLookup = (id: string): [number, number, number] | null => {
@@ -149,15 +180,18 @@ export const Scene3D = ({
         <TransformControls
           ref={transformControlsRef}
           object={transformTarget}
-          mode={transformMode}
+          mode={effectiveTransformMode}
           size={0.8}
           showX showY showZ
-          translationSnap={snapEnabled && transformMode === 'translate' ? snapGridSpacing : null}
-          rotationSnap={snapEnabled && transformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
-          scaleSnap={snapEnabled && transformMode === 'scale' ? snapPercent / 100 : null}
+          translationSnap={snapEnabled && effectiveTransformMode === 'translate' ? snapGridSpacing : null}
+          rotationSnap={snapEnabled && effectiveTransformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
+          scaleSnap={snapEnabled && effectiveTransformMode === 'scale' ? snapPercent / 100 : null}
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
+            if (boneJointActive && boneJointTarget) {
+              boneJointDragStartRef.current = boneJointTarget.rotation.clone();
+            }
             if (subGizmoActive && subProxyObj) {
               subDragStartRef.current = subProxyObj.position.clone();
               subDragStartRotRef.current = subProxyObj.rotation.clone();
@@ -170,6 +204,9 @@ export const Scene3D = ({
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
+            if (boneJointActive) {
+              boneJointDragStartRef.current = null;
+            }
             if (subGizmoActive && subProxyObj && activeEditMod && selectedObject) {
               // Reset the proxy so the next drag starts from identity.
               subProxyObj.rotation.set(0, 0, 0);
@@ -183,6 +220,22 @@ export const Scene3D = ({
             }
           }}
           onObjectChange={(e: any) => {
+            if (boneJointActive && boneJointTarget && selectedObject && boneJoint) {
+              // Sync the joint <group>'s live rotation back into the chain data.
+              // We dispatch an event so Studio3D can patch geometry.joints[i].rot
+              // in an undoable way — TransformControls has already mutated the
+              // three.js object, so children (subsequent joints) already follow
+              // via native scene-graph FK during the drag.
+              const r = boneJointTarget.rotation;
+              window.dispatchEvent(new CustomEvent('r3-bone-joint-rot', {
+                detail: {
+                  objectId: selectedObject,
+                  jointIndex: boneJoint.jointIndex,
+                  rot: [r.x, r.y, r.z] as [number, number, number],
+                },
+              }));
+              return;
+            }
             if (subGizmoActive) {
               if (!subProxyObj || !activeEditMod || !selectedObject) return;
               const replaceKey = subDragOpKeyRef.current;

@@ -754,6 +754,28 @@ export const Studio3D = () => {
     toast.success(wallOpeningEdit ? `${g.type} snapped to wall` : `${g.type} created`);
   }, [objects, saveState]);
 
+  // Bone joint FK — Scene3D dispatches this while TransformControls is rotating
+  // a sub-selected joint <group>. We just mirror the group's local rotation
+  // into the chain's data model so the object stays consistent across re-renders
+  // and animation sampling. Children keep following naturally (nested groups).
+  useEffect(() => {
+    const onJointRot = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as { objectId: string; jointIndex: number; rot: [number, number, number] };
+      if (!d) return;
+      setObjects((prev) => prev.map((o) => {
+        if (o.id !== d.objectId) return o;
+        const g = { ...(o.geometry || {}) };
+        const joints = Array.isArray(g.joints) ? g.joints.map((j: any, i: number) =>
+          i === d.jointIndex ? { ...j, rot: d.rot } : j
+        ) : g.joints;
+        return { ...o, geometry: { ...g, joints } };
+      }));
+    };
+    window.addEventListener('r3-bone-joint-rot', onJointRot as any);
+    return () => window.removeEventListener('r3-bone-joint-rot', onJointRot as any);
+  }, []);
+
+
   // Biped spawn — the creation controller dispatches this event when the user
   // drag-releases with Systems→Biped armed. We build a whole set of bone_chain
   // objects (spine, arms, legs) in a single undoable batch, matching how 3ds
