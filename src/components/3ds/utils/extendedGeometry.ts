@@ -405,9 +405,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       const inner = arcPoints(rIn,  0, 360, false, true,  seg);
       const outerGeom = pointsToTube(outer, true, p);
       const innerGeom = pointsToTube(inner, true, p);
-      const merged = THREE.BufferGeometryUtils
-        ? THREE.BufferGeometryUtils.mergeGeometries([outerGeom, innerGeom])
-        : null;
+      const merged = mergeGeometries([outerGeom, innerGeom]);
       return merged ?? outerGeom;
     }
     case 'ngon': {
