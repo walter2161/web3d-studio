@@ -36,6 +36,7 @@ import { snapDoorWindowToWall, type WallOpening, type WallGeom } from './utils/a
 import { LoginDialog } from './r3/LoginDialog';
 import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
+import { WelcomeDialog } from './r3/WelcomeDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -205,6 +206,10 @@ export const Studio3D = () => {
   const [cloudImportOpen, setCloudImportOpen] = useState(false);
   const [cloudImportPayload, setCloudImportPayload] = useState<any>(null);
   const [cloudImportName, setCloudImportName] = useState<string>('');
+  const [welcomeOpen, setWelcomeOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !localStorage.getItem('3de.welcome.seen');
+  });
   const [pendingFileOp, setPendingFileOp] = useState<null | (() => void)>(null);
   const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
@@ -1904,6 +1909,13 @@ export const Studio3D = () => {
         open={cloudExportOpen}
         mode="export"
         onOpenChange={setCloudExportOpen}
+      />
+      <WelcomeDialog
+        open={welcomeOpen}
+        onOpenChange={(o) => {
+          setWelcomeOpen(o);
+          if (!o) try { localStorage.setItem('3de.welcome.seen', '1'); } catch {}
+        }}
       />
       <CloudSceneDialog
         open={cloudImportOpen}
