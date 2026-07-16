@@ -13,7 +13,7 @@ interface Props {
   mode: 'save' | 'open' | 'export' | 'import';
   onOpenChange: (open: boolean) => void;
   onSave?: (name: string, folderId: string | null) => Promise<any> | any;
-  onLoad?: (payload: any) => void;
+  onLoad?: (payload: any, meta?: { id: string; name: string; folderId: string | null }) => void;
   /** For 'import' mode: payload parsed from a local file to upload into the cloud. */
   importPayload?: any;
   /** For 'import' mode: default filename (without extension). */
