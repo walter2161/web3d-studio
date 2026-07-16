@@ -344,6 +344,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       const knots: Array<{ pos: number[]; inH: number[]; outH: number[] }> | undefined = p.knots;
       const closed = !!p.closed;
       let sampled: THREE.Vector3[] | null = null;
+      const steps = Math.max(1, Math.floor(p.interpolationSteps ?? 6));
       if (knots && knots.length >= 2) {
         const list = closed ? [...knots, knots[0]] : knots;
         sampled = [];
@@ -354,7 +355,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
           const p1 = p0.clone().add(new THREE.Vector3(k0.outH[0], k0.outH[1], k0.outH[2]));
           const p2 = p3.clone().add(new THREE.Vector3(k1.inH[0], k1.inH[1], k1.inH[2]));
           const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
-          const seg = curve.getPoints(24);
+          const seg = curve.getPoints(Math.max(4, steps * 4));
           if (i > 0) seg.shift();
           sampled.push(...seg);
         }
@@ -363,83 +364,141 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       }
       if (sampled && sampled.length >= 2) {
         const curve = new THREE.CatmullRomCurve3(sampled, closed, 'catmullrom', 0);
-        const segs = Math.max(32, sampled.length * 8);
-        return new THREE.TubeGeometry(curve, segs, TUBE_RADIUS, TUBE_RADIAL_SEG, closed);
+        const { t, s } = sectionFromParams(p);
+        const segs = Math.max(32, sampled.length * Math.max(4, steps));
+        return new THREE.TubeGeometry(curve, segs, t, s, closed);
       }
       const curve = new THREE.LineCurve3(new THREE.Vector3(-p.length / 2, 0, 0), new THREE.Vector3(p.length / 2, 0, 0));
-      return shapeToTube(curve, 8);
+      return shapeToTube(curve, 8, p);
     }
     case 'rectangle': {
-      const w = p.width / 2, h = p.height / 2;
-      return pointsToTube([
-        new THREE.Vector2(-w, -h), new THREE.Vector2(w, -h),
-        new THREE.Vector2(w, h),   new THREE.Vector2(-w, h),
-      ], true);
+      // Length = Y, Width = X in 3ds Max. Support legacy `height` alias.
+      const w = p.width, h = p.length ?? p.height, r = Math.max(0, (p.cornerRadius ?? 0) + (p.fillet ?? 0));
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      return pointsToTube(roundedRectPoints(w, h, r, seg), true, p);
     }
     case 'circle': {
-      const pts: THREE.Vector2[] = [];
-      const n = 64;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radius, Math.sin(a) * p.radius));
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      if (p.pieSlice) {
+        return pointsToTube(arcPoints(p.radius, p.startAngle ?? 0, p.endAngle ?? 360, true, !!p.reverse, seg), true, p);
       }
-      return pointsToTube(pts, true);
+      return pointsToTube(arcPoints(p.radius, 0, 360, false, !!p.reverse, seg), true, p);
     }
     case 'ellipse': {
-      const pts: THREE.Vector2[] = [];
-      const n = 64;
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radiusX, Math.sin(a) * p.radiusY));
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      if (p.pieSlice) {
+        return pointsToTube(arcPoints(p.radiusX, p.startAngle ?? 0, p.endAngle ?? 360, true, false, seg, p.radiusY), true, p);
       }
-      return pointsToTube(pts, true);
+      return pointsToTube(arcPoints(p.radiusX, 0, 360, false, false, seg, p.radiusY), true, p);
     }
     case 'arc': {
-      const pts: THREE.Vector2[] = [];
-      const from = (p.from * Math.PI) / 180, to = (p.to * Math.PI) / 180;
-      const n = 48;
-      for (let i = 0; i <= n; i++) {
-        const a = from + (to - from) * (i / n);
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radius, Math.sin(a) * p.radius));
-      }
-      return pointsToTube(pts, false);
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      return pointsToTube(arcPoints(p.radius, p.from ?? 0, p.to ?? 180, !!p.pie, !!p.reverse, seg), !!p.pie, p);
     }
     case 'donut': {
-      // Donut = torus with tiny minor radius so it renders as two concentric rings.
-      const majorR = (p.radius1 + p.radius2) / 2;
-      const minorR = Math.max(0.001, Math.abs(p.radius1 - p.radius2) / 2);
-      return new THREE.TorusGeometry(majorR, minorR, 12, 64);
+      // Two concentric splines: outer + inner ring. Rendered as a merged tube.
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      const rOut = Math.max(p.radius1, p.radius2);
+      const rIn  = Math.min(p.radius1, p.radius2);
+      const outer = arcPoints(rOut, 0, 360, false, false, seg);
+      const inner = arcPoints(rIn,  0, 360, false, true,  seg);
+      const outerGeom = pointsToTube(outer, true, p);
+      const innerGeom = pointsToTube(inner, true, p);
+      const merged = THREE.BufferGeometryUtils
+        ? THREE.BufferGeometryUtils.mergeGeometries([outerGeom, innerGeom])
+        : null;
+      return merged ?? outerGeom;
     }
     case 'ngon': {
-      const pts: THREE.Vector2[] = [];
-      const n = Math.max(3, p.sides);
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        pts.push(new THREE.Vector2(Math.cos(a) * p.radius, Math.sin(a) * p.radius));
+      const n = Math.max(3, Math.floor(p.sides));
+      const rr = p.inscribed === false
+        ? p.radius / Math.cos(Math.PI / n) // circumscribed
+        : p.radius;
+      const seg = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      if (p.circular) {
+        return pointsToTube(arcPoints(rr, 0, 360, false, false, seg), true, p);
       }
-      return pointsToTube(pts, true);
-    }
-    case 'star': {
-      const pts: THREE.Vector2[] = [];
-      const n = Math.max(3, p.points) * 2;
+      // Corners with optional fillet.
+      const corners: THREE.Vector2[] = [];
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-        const r = i % 2 === 0 ? p.radius1 : p.radius2;
+        corners.push(new THREE.Vector2(Math.cos(a) * rr, Math.sin(a) * rr));
+      }
+      const f = Math.max(0, Math.min(p.fillet ?? 0, rr * 0.9));
+      if (f <= 1e-4) return pointsToTube(corners, true, p);
+      // Round each corner with a small arc from midpoint→midpoint.
+      const pts: THREE.Vector2[] = [];
+      for (let i = 0; i < n; i++) {
+        const prev = corners[(i - 1 + n) % n];
+        const cur  = corners[i];
+        const nxt  = corners[(i + 1) % n];
+        const inDir  = new THREE.Vector2().subVectors(cur, prev).normalize();
+        const outDir = new THREE.Vector2().subVectors(nxt, cur).normalize();
+        const pA = cur.clone().addScaledVector(inDir,  -f);
+        const pB = cur.clone().addScaledVector(outDir,  f);
+        pts.push(pA);
+        // simple quadratic-like arc via 3 samples
+        for (let k = 1; k <= 4; k++) {
+          const t = k / 5;
+          const q0 = pA.clone().lerp(cur, t);
+          const q1 = cur.clone().lerp(pB, t);
+          pts.push(q0.lerp(q1, t));
+        }
+        pts.push(pB);
+      }
+      return pointsToTube(pts, true, p);
+    }
+    case 'star': {
+      const nPts = Math.max(3, Math.floor(p.points));
+      const dist = p.distortion ?? 0;
+      const twist = ((p.twist ?? 0) * Math.PI) / 180;
+      const pts: THREE.Vector2[] = [];
+      const n = nPts * 2;
+      for (let i = 0; i < n; i++) {
+        const t = i / n;
+        const a = t * Math.PI * 2 - Math.PI / 2 + twist * t;
+        const isOuter = i % 2 === 0;
+        const r = isOuter ? p.radius1 : (p.radius2 + dist);
         pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r));
       }
-      return pointsToTube(pts, true);
+      // Apply fillet: soften every vertex by shrinking towards its neighbours.
+      const f1 = Math.max(0, p.filletRadius1 ?? 0);
+      const f2 = Math.max(0, p.filletRadius2 ?? 0);
+      if (f1 > 1e-4 || f2 > 1e-4) {
+        const out: THREE.Vector2[] = [];
+        for (let i = 0; i < pts.length; i++) {
+          const prev = pts[(i - 1 + pts.length) % pts.length];
+          const cur = pts[i];
+          const nxt = pts[(i + 1) % pts.length];
+          const f = i % 2 === 0 ? f1 : f2;
+          if (f <= 1e-4) { out.push(cur); continue; }
+          const pA = cur.clone().lerp(prev, Math.min(0.5, f));
+          const pB = cur.clone().lerp(nxt,  Math.min(0.5, f));
+          out.push(pA, cur.clone().lerp(pA.clone().lerp(pB, 0.5), 0.5), pB);
+        }
+        return pointsToTube(out, true, p);
+      }
+      return pointsToTube(pts, true, p);
     }
     case 'helix': {
+      const turns = Math.max(0.01, p.turns);
+      const bias = THREE.MathUtils.clamp(p.bias ?? 0, -1, 1);
+      const cwSign = p.clockwise === false ? -1 : 1;
       const pts3: THREE.Vector3[] = [];
-      const n = 128 * Math.max(1, p.turns);
+      const steps = Math.max(2, Math.floor(p.interpolationSteps ?? 6));
+      const n = 32 * Math.max(1, Math.round(turns * steps));
       for (let i = 0; i <= n; i++) {
-        const t = i / n;
-        const a = t * Math.PI * 2 * p.turns;
-        const r = p.radius1 + (p.radius2 - p.radius1) * t;
+        let t = i / n;
+        // Bias skews the vertical distribution: negative packs turns at the
+        // bottom, positive at the top (Max's "Bias" spinner behaviour).
+        if (bias !== 0) t = Math.pow(t, Math.pow(2, -bias));
+        const a = t * Math.PI * 2 * turns * cwSign;
+        const r = p.radius1 + (p.radius2 - p.radius1) * (i / n);
         pts3.push(new THREE.Vector3(Math.cos(a) * r, t * p.height - p.height / 2, Math.sin(a) * r));
       }
       const curve = new THREE.CatmullRomCurve3(pts3, false);
-      return shapeToTube(curve, 512);
+      const { t: tt, s } = sectionFromParams(p);
+      return new THREE.TubeGeometry(curve, Math.max(128, n * 2), tt, s, false);
     }
     case 'text': {
       // Vectorise glyphs → flat, filled letters on the XZ ground plane. When
