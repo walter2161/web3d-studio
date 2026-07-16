@@ -91,7 +91,7 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item.startsWith('Render Setup')) onRenderSetup?.();
                     if (item.startsWith('Environment')) onEnvironment?.();
                     if (item.startsWith('View Image File')) onViewImageFile?.();
-                    if (item === 'Save' || item.startsWith('Save As')) onFileOperation('save');
+                    if (item.startsWith('Save As')) onFileOperation('save');
                     if (item === 'Open...') onFileOperation('open');
                     if (item === 'Export...') onFileOperation('export');
                     if (item === 'Import...') onFileOperation('import');
