@@ -1,8 +1,84 @@
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import * as THREE from 'three';
 import {
   Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp, Repeat,
+  Key, ZoomIn, ZoomOut, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp, Repeat,
 } from 'lucide-react';
+
+// --- Viewport navigation helpers -------------------------------------------
+// These act on the currently active OrbitControls (registered globally by
+// Viewport.tsx as `__activeOrbitControls`) and the active three.js scene
+// (`__r3Scene`). They mirror the 3ds Max bottom-right nav cluster.
+
+const getControls = (): any => (window as any).__activeOrbitControls || (window as any).__orbitControls;
+const getScene = (): THREE.Scene | null => (window as any).__r3Scene || null;
+
+const dolly = (factor: number) => {
+  const c = getControls(); if (!c?.object || !c?.target) return;
+  const dir = new THREE.Vector3().subVectors(c.object.position, c.target);
+  dir.multiplyScalar(factor);
+  c.object.position.copy(c.target).add(dir);
+  const cam: any = c.object;
+  if (cam.isOrthographicCamera) { cam.zoom = Math.max(0.001, cam.zoom / factor); cam.updateProjectionMatrix(); }
+  c.update();
+};
+
+const computeSceneBBox = (targetsOnly: THREE.Object3D[] | null = null): THREE.Box3 | null => {
+  const scene = getScene(); if (!scene) return null;
+  const box = new THREE.Box3();
+  let has = false;
+  const roots = targetsOnly ?? [scene];
+  for (const root of roots) {
+    root.traverse((obj: any) => {
+      if (!obj.visible) return;
+      if (obj.userData?.__helper) return;
+      if (!obj.isMesh && !obj.isSkinnedMesh) return;
+      const b = new THREE.Box3().setFromObject(obj);
+      if (isFinite(b.min.x) && isFinite(b.max.x)) { box.union(b); has = true; }
+    });
+  }
+  return has ? box : null;
+};
+
+const frameBox = (box: THREE.Box3) => {
+  const c = getControls(); if (!c?.object) return;
+  const cam: any = c.object;
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
+  if (cam.isPerspectiveCamera) {
+    const fov = (cam.fov * Math.PI) / 180;
+    const dist = (radius / Math.sin(fov / 2)) * 1.4;
+    const dir = new THREE.Vector3().subVectors(cam.position, c.target).normalize();
+    if (dir.lengthSq() < 1e-6) dir.set(1, 1, 1).normalize();
+    cam.position.copy(center).addScaledVector(dir, dist);
+    c.target.copy(center);
+  } else if (cam.isOrthographicCamera) {
+    const dir = new THREE.Vector3().subVectors(cam.position, c.target).normalize();
+    if (dir.lengthSq() < 1e-6) dir.set(0, 1, 0).normalize();
+    cam.position.copy(center).addScaledVector(dir, Math.max(10, radius * 4));
+    c.target.copy(center);
+    const halfH = (cam.top - cam.bottom) * 0.5 || 10;
+    cam.zoom = (halfH / (radius * 1.2));
+    cam.updateProjectionMatrix();
+  }
+  cam.lookAt(center);
+  c.update();
+};
+
+const zoomExtents = () => { const b = computeSceneBBox(); if (b) frameBox(b); };
+
+
+const setPrimaryMouse = (button: 'rotate' | 'pan' | 'dolly' | 'select') => {
+  const c = getControls(); if (!c) return;
+  const M = THREE.MOUSE;
+  if (button === 'rotate') c.mouseButtons = { LEFT: M.ROTATE, MIDDLE: M.DOLLY, RIGHT: M.PAN };
+  else if (button === 'pan') c.mouseButtons = { LEFT: M.PAN, MIDDLE: M.DOLLY, RIGHT: M.ROTATE };
+  else if (button === 'dolly') c.mouseButtons = { LEFT: M.DOLLY, MIDDLE: M.DOLLY, RIGHT: M.PAN };
+  else c.mouseButtons = { LEFT: M.ROTATE, MIDDLE: M.DOLLY, RIGHT: M.PAN };
+  c.update();
+};
 
 interface StatusBarProps {
   currentFrame: number;
@@ -29,7 +105,7 @@ interface StatusBarProps {
 
 const Tool = ({
   onClick, title, active, children,
-}: { onClick?: () => void; title: string; active?: boolean; children: React.ReactNode }) => (
+}: { onClick?: (e?: any) => void; title: string; active?: boolean; children: React.ReactNode }) => (
   <button
     title={title}
     onClick={onClick}
@@ -72,6 +148,8 @@ export const StatusBar = ({
     units.us === 'Inches' ? '"' : units.us === 'Feet' ? "'" : ' mi';
   const prec = units?.precision ?? 3;
   const fmt = (n: number) => n.toFixed(prec) + suffix;
+  const [mouseMode, setMouseMode] = useState<'select' | 'pan' | 'rotate'>('select');
+
 
   return (
     <div className="bevel-raised px-1 py-1 flex items-stretch gap-1 text-win-text">
@@ -163,22 +241,37 @@ export const StatusBar = ({
 
       {/* Viewport navigation cluster (right) */}
       <div className="bevel-sunken bg-win-face flex items-center gap-0.5 px-1">
-        <Tool title="Zoom">
+        <Tool title="Zoom In (click) — Shift+click Zoom Out" onClick={(e: any) => dolly(e?.shiftKey ? 1.25 : 0.8)}>
           <ZoomIn size={12} />
         </Tool>
-        <Tool title="Zoom Extents">
+        <Tool title="Zoom Out" onClick={() => dolly(1.25)}>
+          <ZoomOut size={12} />
+        </Tool>
+        <Tool title="Zoom Extents (fit all)" onClick={zoomExtents}>
           <Focus size={12} />
         </Tool>
-        <Tool title="Zoom Region">
+        <Tool title="Zoom Region (2× closer)" onClick={() => dolly(0.5)}>
           <Search size={12} />
         </Tool>
-        <Tool title="Pan">
+        <Tool
+          title="Pan mode (left-drag pans)"
+          active={mouseMode === 'pan'}
+          onClick={() => { setPrimaryMouse('pan'); setMouseMode('pan'); }}
+        >
           <PanIcon size={12} />
         </Tool>
-        <Tool title="Arc Rotate">
+        <Tool
+          title="Arc Rotate (left-drag orbits)"
+          active={mouseMode === 'rotate'}
+          onClick={() => { setPrimaryMouse('rotate'); setMouseMode('rotate'); }}
+        >
           <Orbit size={12} />
         </Tool>
-        <Tool title="Select">
+        <Tool
+          title="Select (default left-click)"
+          active={mouseMode === 'select'}
+          onClick={() => { setPrimaryMouse('select'); setMouseMode('select'); }}
+        >
           <MousePointer2 size={12} />
         </Tool>
         <Tool
