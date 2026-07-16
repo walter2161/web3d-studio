@@ -15,6 +15,7 @@ import { HelperGizmo } from './r3/HelperGizmo';
 import { isHelperType } from './utils/helpers';
 import { BoneChainGizmo } from './r3/BoneChainGizmo';
 import { isBoneType } from './rig/bones';
+import { PrintBedObject } from './print3d/PrintBedObject';
 
 
 
@@ -890,6 +891,20 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
             the user tried to click an individual joint. Joint spheres are
             large enough to select the chain-as-a-whole from any joint. */}
         <BoneChainGizmo data={object.geometry} selected={isSelected} ghost={ghostB} objectId={object.id} />
+      </group>
+    );
+  }
+
+  // Print3D — virtual build plate (Create → Systems → Print3D).
+  if (object.type === 'print_bed') {
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+      >
+        <PrintBedObject data={object.geometry as any} selected={isSelected} onSelect={onSelect} />
       </group>
     );
   }
