@@ -12,7 +12,7 @@ interface CameraOption {
 interface RenderSetupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onRender?: () => void;
+  onRender?: (width: number, height: number) => void;
   currentFrame?: number;
   totalFrames?: number;
   setCurrentFrame?: (f: number) => void;
