@@ -14,10 +14,46 @@ export type Database = {
   }
   public: {
     Tables: {
+      scene_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scene_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "scene_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scenes: {
         Row: {
           created_at: string
           data: Json
+          folder_id: string | null
           id: string
           name: string
           updated_at: string
@@ -26,6 +62,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data: Json
+          folder_id?: string | null
           id?: string
           name: string
           updated_at?: string
@@ -34,12 +71,21 @@ export type Database = {
         Update: {
           created_at?: string
           data?: Json
+          folder_id?: string | null
           id?: string
           name?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scenes_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "scene_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

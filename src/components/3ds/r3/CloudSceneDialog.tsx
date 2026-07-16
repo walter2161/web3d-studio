@@ -1,52 +1,102 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { R3Dialog, R3Button, Row } from './R3Dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Folder, FileText, ChevronLeft, FolderPlus, Trash2, Pencil } from 'lucide-react';
 
-export interface CloudSceneRow {
-  id: string;
-  name: string;
-  updated_at: string;
-}
+interface FolderRow { id: string; name: string; parent_id: string | null; updated_at: string; }
+interface SceneRow { id: string; name: string; folder_id: string | null; updated_at: string; }
+type Crumb = { id: string | null; name: string };
 
 interface Props {
   open: boolean;
   mode: 'save' | 'open';
   onOpenChange: (open: boolean) => void;
-  onSave?: (name: string) => Promise<any> | any;             // called for save mode; parent provides payload
-  onLoad?: (payload: any) => void;                            // called with loaded scene data
+  onSave?: (name: string, folderId: string | null) => Promise<any> | any;
+  onLoad?: (payload: any) => void;
 }
 
 export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: Props) => {
-  const [rows, setRows] = useState<CloudSceneRow[]>([]);
+  const [folders, setFolders] = useState<FolderRow[]>([]);
+  const [scenes, setScenes] = useState<SceneRow[]>([]);
+  const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, name: 'Home' }]);
+  const [selected, setSelected] = useState<{ kind: 'folder' | 'scene'; id: string } | null>(null);
   const [name, setName] = useState('untitled scene');
-  const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    (async () => {
-      const { data, error } = await supabase
-        .from('scenes')
-        .select('id, name, updated_at')
-        .order('updated_at', { ascending: false });
-      if (error) { toast.error('Falha ao listar cenas'); return; }
-      setRows(data || []);
-    })();
-  }, [open]);
+  const currentFolder = crumbs[crumbs.length - 1].id;
+
+  const refresh = useCallback(async () => {
+    const [f, s] = await Promise.all([
+      supabase.from('scene_folders').select('id,name,parent_id,updated_at').order('name'),
+      supabase.from('scenes').select('id,name,folder_id,updated_at').order('updated_at', { ascending: false }),
+    ]);
+    if (f.error || s.error) { toast.error('Falha ao listar'); return; }
+    setFolders((f.data || []) as FolderRow[]);
+    setScenes((s.data || []) as SceneRow[]);
+  }, []);
+
+  useEffect(() => { if (open) { refresh(); setSelected(null); } }, [open, refresh]);
+
+  const childFolders = folders.filter((f) => (f.parent_id ?? null) === currentFolder);
+  const childScenes = scenes.filter((s) => (s.folder_id ?? null) === currentFolder);
+
+  const enterFolder = (f: FolderRow) => {
+    setCrumbs((c) => [...c, { id: f.id, name: f.name }]);
+    setSelected(null);
+  };
+  const goUp = () => { if (crumbs.length > 1) { setCrumbs((c) => c.slice(0, -1)); setSelected(null); } };
+  const goTo = (idx: number) => { setCrumbs((c) => c.slice(0, idx + 1)); setSelected(null); };
+
+  const newFolder = async () => {
+    const n = window.prompt('Nome da pasta:', 'Nova pasta');
+    if (!n?.trim()) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error('Login requerido'); return; }
+    const { error } = await supabase.from('scene_folders').insert({
+      user_id: user.id, parent_id: currentFolder, name: n.trim(),
+    });
+    if (error) { toast.error('Falha ao criar pasta'); return; }
+    await refresh();
+  };
+
+  const renameItem = async () => {
+    if (!selected) return;
+    const table = selected.kind === 'folder' ? 'scene_folders' : 'scenes';
+    const item = selected.kind === 'folder'
+      ? folders.find((f) => f.id === selected.id)
+      : scenes.find((s) => s.id === selected.id);
+    if (!item) return;
+    const n = window.prompt('Novo nome:', item.name);
+    if (!n?.trim()) return;
+    const { error } = await supabase.from(table).update({ name: n.trim() }).eq('id', selected.id);
+    if (error) { toast.error('Falha ao renomear'); return; }
+    await refresh();
+  };
+
+  const deleteItem = async () => {
+    if (!selected) return;
+    if (!window.confirm('Excluir item selecionado?')) return;
+    const table = selected.kind === 'folder' ? 'scene_folders' : 'scenes';
+    const { error } = await supabase.from(table).delete().eq('id', selected.id);
+    if (error) { toast.error('Falha ao excluir'); return; }
+    setSelected(null);
+    await refresh();
+  };
 
   const doSave = async () => {
     if (!name.trim()) { toast.error('Nome obrigatório'); return; }
     setBusy(true);
-    try { await onSave?.(name.trim()); toast.success('Cena salva na nuvem'); onOpenChange(false); }
+    try { await onSave?.(name.trim(), currentFolder); toast.success('Cena salva'); onOpenChange(false); }
     catch (e: any) { toast.error(e?.message || 'Falha ao salvar'); }
     finally { setBusy(false); }
   };
 
-  const doOpen = async () => {
-    if (!selected) return;
+  const doOpen = async (id?: string) => {
+    const targetId = id ?? (selected?.kind === 'scene' ? selected.id : null);
+    if (!targetId) return;
     setBusy(true);
-    const { data, error } = await supabase.from('scenes').select('data').eq('id', selected).maybeSingle();
+    const { data, error } = await supabase.from('scenes').select('data').eq('id', targetId).maybeSingle();
     setBusy(false);
     if (error || !data) { toast.error('Falha ao abrir cena'); return; }
     onLoad?.(data.data);
@@ -54,62 +104,109 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: P
     onOpenChange(false);
   };
 
-  const doDelete = async (id: string) => {
-    const { error } = await supabase.from('scenes').delete().eq('id', id);
-    if (error) { toast.error('Falha ao excluir'); return; }
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    toast.success('Excluído');
-  };
-
   return (
     <R3Dialog
       open={open}
       onClose={() => onOpenChange(false)}
       title={mode === 'save' ? 'Save Cloud' : 'Open Cloud'}
-      width={460}
+      width={520}
     >
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 mb-1">
+        <button
+          onClick={goUp}
+          disabled={crumbs.length <= 1}
+          className="bevel-raised bg-win-face h-[20px] px-1 text-[11px] disabled:opacity-40"
+          title="Voltar"
+        >
+          <ChevronLeft size={12} />
+        </button>
+        <button onClick={newFolder} className="bevel-raised bg-win-face h-[20px] px-1 text-[11px]" title="Nova pasta">
+          <FolderPlus size={12} />
+        </button>
+        <button
+          onClick={renameItem}
+          disabled={!selected}
+          className="bevel-raised bg-win-face h-[20px] px-1 text-[11px] disabled:opacity-40"
+          title="Renomear"
+        >
+          <Pencil size={12} />
+        </button>
+        <button
+          onClick={deleteItem}
+          disabled={!selected}
+          className="bevel-raised bg-win-face h-[20px] px-1 text-[11px] disabled:opacity-40"
+          title="Excluir"
+        >
+          <Trash2 size={12} />
+        </button>
+        {/* Breadcrumbs */}
+        <div className="bevel-inset bg-white flex-1 h-[20px] flex items-center px-1 text-[11px] overflow-x-auto whitespace-nowrap">
+          {crumbs.map((c, i) => (
+            <span key={i} className="flex items-center">
+              {i > 0 && <span className="mx-1 opacity-60">/</span>}
+              <button
+                onClick={() => goTo(i)}
+                className="hover:underline"
+              >{c.name}</button>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Explorer list */}
+      <div className="bevel-inset bg-white" style={{ height: 240, overflowY: 'auto' }}>
+        {childFolders.length === 0 && childScenes.length === 0 && (
+          <div className="text-[11px] text-win-text-disabled p-2">Pasta vazia.</div>
+        )}
+        {childFolders.map((f) => {
+          const isSel = selected?.kind === 'folder' && selected.id === f.id;
+          return (
+            <div
+              key={f.id}
+              onClick={() => setSelected({ kind: 'folder', id: f.id })}
+              onDoubleClick={() => enterFolder(f)}
+              className={`flex items-center gap-1 px-2 py-0.5 text-[11px] cursor-default ${isSel ? 'bg-menu-hover text-menu-hover-fg' : ''}`}
+            >
+              <Folder size={12} className="text-yellow-600" />
+              <span className="flex-1 truncate">{f.name}</span>
+              <span className="opacity-60">pasta</span>
+            </div>
+          );
+        })}
+        {childScenes.map((s) => {
+          const isSel = selected?.kind === 'scene' && selected.id === s.id;
+          return (
+            <div
+              key={s.id}
+              onClick={() => { setSelected({ kind: 'scene', id: s.id }); if (mode === 'save') setName(s.name); }}
+              onDoubleClick={() => { if (mode === 'open') doOpen(s.id); }}
+              className={`flex items-center gap-1 px-2 py-0.5 text-[11px] cursor-default ${isSel ? 'bg-menu-hover text-menu-hover-fg' : ''}`}
+            >
+              <FileText size={12} className="text-blue-700" />
+              <span className="flex-1 truncate">{s.name}</span>
+              <span className="opacity-60">{new Date(s.updated_at).toLocaleDateString()}</span>
+            </div>
+          );
+        })}
+      </div>
+
       {mode === 'save' && (
-        <Row label="Nome:" labelWidth={70}>
+        <Row label="Nome:" labelWidth={50}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="bevel-inset bg-white text-[11px] px-1 flex-1 h-[18px]"
+            style={{ width: 380 }}
           />
         </Row>
       )}
-
-      <div className="bevel-inset bg-white mt-2" style={{ maxHeight: 240, overflowY: 'auto' }}>
-        {rows.length === 0 && (
-          <div className="text-[11px] text-win-text-disabled p-2">Nenhuma cena salva na nuvem.</div>
-        )}
-        {rows.map((r) => (
-          <div
-            key={r.id}
-            onClick={() => setSelected(r.id)}
-            onDoubleClick={() => { setSelected(r.id); if (mode === 'open') doOpen(); }}
-            className={`flex items-center justify-between px-2 py-0.5 text-[11px] cursor-default ${
-              selected === r.id ? 'bg-menu-hover text-menu-hover-fg' : ''
-            }`}
-          >
-            <span className="truncate">{r.name}</span>
-            <span className="flex items-center gap-2">
-              <span className="opacity-70">{new Date(r.updated_at).toLocaleString()}</span>
-              <button
-                onClick={(e) => { e.stopPropagation(); doDelete(r.id); }}
-                className="bevel-raised px-1 text-[10px]"
-              >
-                del
-              </button>
-            </span>
-          </div>
-        ))}
-      </div>
 
       <div className="flex justify-end gap-1 mt-2">
         {mode === 'save' ? (
           <R3Button width={80} onClick={doSave} disabled={busy}>Salvar</R3Button>
         ) : (
-          <R3Button width={80} onClick={doOpen} disabled={busy || !selected}>Abrir</R3Button>
+          <R3Button width={80} onClick={() => doOpen()} disabled={busy || selected?.kind !== 'scene'}>Abrir</R3Button>
         )}
         <R3Button width={70} onClick={() => onOpenChange(false)}>Cancel</R3Button>
       </div>
