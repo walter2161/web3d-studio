@@ -81,18 +81,16 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
               aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
             </p>
             <p>
-              acesso gratuito: o app pode ser utilizado sem login, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao 3de.app é necessário possuir uma assinatura ativa.
-            </p>
-            <p>
-              assinatura promocional: durante o período promocional, a assinatura custa apenas <b>us$ 1,00 por mês</b>. veja a aba "assinatura" para solicitar o seu acesso.
+              acesso gratuito: o app pode ser utilizado sem login, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao 3de.app é necessário possuir uma assinatura ativa. veja a aba "assinatura" para mais detalhes.
             </p>
           </div>
         )}
 
         {tab === 'request' && (
           <>
-            <div className="text-[10px] mb-2 opacity-80" style={{ textTransform: 'lowercase' }}>
-              assinatura promocional por us$ 1,00/mês. preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.
+            <div className="text-[11px] mb-2 leading-snug" style={{ textTransform: 'lowercase' }}>
+              <p>assinatura promocional: durante o período promocional, a assinatura custa apenas <b>us$ 1,00 por mês</b>.</p>
+              <p className="mt-1 opacity-80">preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.</p>
             </div>
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-1">
