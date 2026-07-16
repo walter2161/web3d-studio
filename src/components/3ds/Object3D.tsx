@@ -13,6 +13,8 @@ import { toGeometry } from './editable/toGeometry';
 import { replay, OpRecord } from './editable/ops';
 import { HelperGizmo } from './r3/HelperGizmo';
 import { isHelperType } from './utils/helpers';
+import { BoneChainGizmo } from './r3/BoneChainGizmo';
+import { isBoneType } from './rig/bones';
 
 
 
