@@ -92,7 +92,7 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
         {tab === 'request' && (
           <>
             <div className="text-[10px] mb-2 opacity-80" style={{ textTransform: 'lowercase' }}>
-              o acesso é restrito e liberado manualmente pelo administrador. preencha os campos abaixo para enviar seu pedido.
+              assinatura promocional por us$ 1,00/mês. preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.
             </div>
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-1">
