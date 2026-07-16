@@ -1910,6 +1910,13 @@ export const Studio3D = () => {
         mode="export"
         onOpenChange={setCloudExportOpen}
       />
+      <WelcomeDialog
+        open={welcomeOpen}
+        onOpenChange={(o) => {
+          setWelcomeOpen(o);
+          if (!o) try { localStorage.setItem('3de.welcome.seen', '1'); } catch {}
+        }}
+      />
       <CloudSceneDialog
         open={cloudImportOpen}
         mode="import"
