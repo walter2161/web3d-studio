@@ -1027,9 +1027,12 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
       {/* Wireframe pick markers — small vertex dots so users can visually
           target the clickable points in wireframe mode. */}
-      {renderMode === 'wireframe' && !isGhost && (
-        <points renderOrder={997} raycast={() => null as any}>
-          <primitive object={modifiedGeometry} attach="geometry" />
+      {renderMode === 'wireframe' && !isGhost && modifiedGeometry && (
+        <points
+          geometry={modifiedGeometry}
+          renderOrder={997}
+          raycast={(() => null) as any}
+        >
           <pointsMaterial
             size={isSelected ? 7 : 5}
             sizeAttenuation={false}
