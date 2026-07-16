@@ -494,6 +494,40 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       bonesRef.pts = [];
     };
 
+    // -------- Biped (Systems → Biped): click-drag height, release spawns skeleton.
+    const bipedRef: { start: THREE.Vector3 | null; height: number } | null =
+      armed === 'sys_biped' ? { start: null, height: 0 } : null;
+
+    const buildBipedGhost = (origin: THREE.Vector3, height: number): GhostObject => {
+      // Preview as a single vertical bone_chain that grows with the drag.
+      const h = Math.max(0.1, height);
+      const worldPts: [number, number, number][] = [
+        [origin.x, origin.y, origin.z],
+        [origin.x, origin.y + h, origin.z],
+      ];
+      const { position, geometry } = buildBoneChainFromPoints(worldPts);
+      return {
+        id: '__ghost',
+        type: 'bone_chain' as any,
+        position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry: { ...geometry, width: h * 0.03, height: h * 0.03 },
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitBiped = (origin: THREE.Vector3, height: number) => {
+      // Fire a window event so Studio3D can spawn every bone_chain part in one
+      // undoable batch. The context's single-object commit path is bypassed.
+      const parts = buildBiped(height, [origin.x, origin.y, origin.z]);
+      window.dispatchEvent(new CustomEvent('r3-spawn-biped', { detail: { parts } }));
+      setGhost(null);
+    };
+
+
 
 
 
