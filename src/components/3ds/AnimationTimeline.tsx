@@ -336,6 +336,10 @@ export const AnimationTimeline = ({
                   startFrame: start,
                   endFrame: end,
                   clipIndex: defaultClip,
+                  // Sane default so back-to-back segments crossfade instead of
+                  // popping (Animation Crossfade / Blend Time ~15 frames @30fps
+                  // = 0.5s, matching typical Mixamo transition duration).
+                  blendIn: 15,
                 },
               ]);
             }}
