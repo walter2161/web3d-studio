@@ -1893,6 +1893,7 @@ export const Studio3D = () => {
         open={loginOpen}
         onOpenChange={setLoginOpen}
         onSuccess={() => { const p = pendingFileOp; setPendingFileOp(null); p?.(); }}
+        onRequestAccess={() => { setWelcomeInitialTab('request'); setWelcomeOpen(true); }}
       />
       <AdminPanelDialog open={adminOpen} onOpenChange={setAdminOpen} />
       <CloudSceneDialog
