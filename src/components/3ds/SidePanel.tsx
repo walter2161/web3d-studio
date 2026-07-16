@@ -236,6 +236,10 @@ interface SidePanelProps {
   onCreatePrintBed?: () => void;
   onUpdatePrintBed?: (bedId: string, patch: any) => void;
   onTransformObject?: (id: string, patch: any) => void;
+
+  // Rig sub-object selection (imported models with bones)
+  selectedSubUuid?: string | null;
+  onSelectSubObject?: (objectId: string, uuid: string | null) => void;
 }
 
 export const SidePanel = ({
