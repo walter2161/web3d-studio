@@ -254,17 +254,17 @@ export function SplineSubObjectOverlay({
         const isSel = selectedKnots.has(k.id);
         const color = isSel ? '#ff2a2a' : (KNOT_COLORS[k.type] ?? '#00ff33');
         return (
-          <mesh
-            key={k.id}
-            position={[k.pos.x, k.pos.y, k.pos.z]}
-            onPointerDown={(e) => onKnotDown(e, k.id)}
-            onPointerMove={onKnotMoveEv}
-            onPointerUp={onKnotUp}
-            renderOrder={999}
-          >
-            <boxGeometry args={[KNOT_SIZE, KNOT_SIZE, KNOT_SIZE]} />
-            <meshBasicMaterial color={color} depthTest={false} transparent />
-          </mesh>
+          <ScreenScaledGroup key={k.id} position={[k.pos.x, k.pos.y, k.pos.z]}>
+            <mesh
+              onPointerDown={(e) => onKnotDown(e, k.id)}
+              onPointerMove={onKnotMoveEv}
+              onPointerUp={onKnotUp}
+              renderOrder={999}
+            >
+              <boxGeometry args={[KNOT_SIZE, KNOT_SIZE, KNOT_SIZE]} />
+              <meshBasicMaterial color={color} depthTest={false} transparent />
+            </mesh>
+          </ScreenScaledGroup>
         );
       })}
     </group>
