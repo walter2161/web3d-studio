@@ -506,7 +506,6 @@ export const Studio3D = () => {
     const helperTools = ['helper_point', 'helper_dummy', 'helper_tape', 'helper_grid', 'helper_compass'];
     if (type === 'sys_print_bed') {
       saveState();
-      const { DEFAULT_PRINTER_ID } = require('./print3d/printers');
       const id = `print_bed_${Date.now()}`;
       const newObject: Object3DData = {
         id,
@@ -534,7 +533,6 @@ export const Studio3D = () => {
     if (helperTools.includes(type)) {
       saveState();
       const kind = type.replace('helper_', '') as any;
-      const { HELPER_DEFAULTS } = require('./utils/helpers');
       const geom = { ...HELPER_DEFAULTS[kind] };
       const id = `helper_${Date.now()}`;
       const newObject: Object3DData = {
@@ -710,7 +708,6 @@ export const Studio3D = () => {
     // Print3D bed — placed via CreationController click. Attach the default
     // printer profile and open the Print Tools panel.
     if ((g.type as any) === 'print_bed') {
-      const { DEFAULT_PRINTER_ID } = require('./print3d/printers');
       const newBed: Object3DData = {
         id,
         name: `PrintBed${objects.filter((o) => o.type === ('print_bed' as any)).length + 1}`,
@@ -2185,7 +2182,6 @@ export const Studio3D = () => {
         if (isImported) {
           // Fire-and-forget — modelImport cache is sync after import.
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { getImportedModel } = require('./utils/modelImport');
           const imp = getImportedModel(selData!.id);
           if (imp && imp.animations && imp.animations.length > 0) {
             clipOptions = imp.animations.map((c: any, i: number) => ({
