@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useCreation, CreatableTool, GhostObject } from './CreationContext';
 import { buildBoneChainFromPoints } from '../../rig/bones';
+import { buildBiped } from '../../rig/biped';
 
 interface Props {
   viewportType: 'perspective' | 'top' | 'front' | 'left';
@@ -54,6 +55,8 @@ const STAGES: Record<CreatableTool, number> = {
   // Helpers: single-click place. Tape uses its own 2-click branch below.
   helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
   sys_bones: 1, // handled by its own multi-click branch below
+  sys_biped: 1, // click-drag to define height, releases spawn the whole skeleton
+
 
 };
 
@@ -464,9 +467,11 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const buildBonesGhost = (pts: THREE.Vector3[]): GhostObject => {
       const worldPts: [number, number, number][] = pts.map((p) => [p.x, p.y, p.z]);
       const { position, geometry } = buildBoneChainFromPoints(worldPts);
+      // Emit type='bone_chain' straight away so the renderer's isBoneType()
+      // branch picks up the ghost during the multi-click preview.
       return {
         id: '__ghost',
-        type: 'sys_bones',
+        type: 'bone_chain' as any,
         position,
         rotation: [0, 0, 0],
         scale: [1, 1, 1],
@@ -482,15 +487,46 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       // Drop the trailing preview point.
       const real = bonesRef.pts.slice(0, -1);
       if (real.length >= 2) {
-        const ghost = buildBonesGhost(real);
-        // Re-type the ghost to the real object type — 'bone_chain' is what
-        // the renderer / hierarchy expect (sys_bones is only the arm token).
-        commit({ ...ghost, type: 'bone_chain' as any });
+        commit(buildBonesGhost(real));
       } else {
         setGhost(null);
       }
       bonesRef.pts = [];
     };
+
+    // -------- Biped (Systems → Biped): click-drag height, release spawns skeleton.
+    const bipedRef: { start: THREE.Vector3 | null; height: number } | null =
+      armed === 'sys_biped' ? { start: null, height: 0 } : null;
+
+    const buildBipedGhost = (origin: THREE.Vector3, height: number): GhostObject => {
+      // Preview as a single vertical bone_chain that grows with the drag.
+      const h = Math.max(0.1, height);
+      const worldPts: [number, number, number][] = [
+        [origin.x, origin.y, origin.z],
+        [origin.x, origin.y + h, origin.z],
+      ];
+      const { position, geometry } = buildBoneChainFromPoints(worldPts);
+      return {
+        id: '__ghost',
+        type: 'bone_chain' as any,
+        position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry: { ...geometry, width: h * 0.03, height: h * 0.03 },
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitBiped = (origin: THREE.Vector3, height: number) => {
+      // Fire a window event so Studio3D can spawn every bone_chain part in one
+      // undoable batch. The context's single-object commit path is bypassed.
+      const parts = buildBiped(height, [origin.x, origin.y, origin.z]);
+      window.dispatchEvent(new CustomEvent('r3-spawn-biped', { detail: { parts } }));
+      setGhost(null);
+    };
+
 
 
 
@@ -498,6 +534,19 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+
+      if (bipedRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        bipedRef.start = p.clone();
+        bipedRef.height = 0.1;
+        setGhost(buildBipedGhost(p, 0.1));
+        dom.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
 
       if (bonesRef) {
         const p = raycastBase(e);
@@ -619,6 +668,16 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (bipedRef) {
+        if (!bipedRef.start) return;
+        // Drag distance from start (screen-agnostic: use ray on a vertical plane).
+        const pt = raycastHeight(e, bipedRef.start);
+        if (!pt) return;
+        const h = Math.max(0.1, Math.abs(pt.y - bipedRef.start.y));
+        bipedRef.height = h;
+        setGhost(buildBipedGhost(bipedRef.start, h));
+        return;
+      }
       if (bonesRef) {
         if (bonesRef.pts.length === 0) return;
         const p = raycastBase(e);
@@ -669,6 +728,18 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onUp = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      if (bipedRef) {
+        if (bipedRef.start && bipedRef.height > 0.1) {
+          commitBiped(bipedRef.start, bipedRef.height);
+        } else {
+          setGhost(null);
+        }
+        bipedRef.start = null;
+        bipedRef.height = 0;
+        dom.releasePointerCapture?.(e.pointerId);
+        disarm();
+        return;
+      }
       if (lineRef) {
         // End of drag on an anchor; keep the anchor, wait for the next click.
         if (lineRef.draggingIdx >= 0) {
@@ -677,6 +748,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         }
         return;
       }
+
 
       const s = stageRef.current;
       if (!s) return;
