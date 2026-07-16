@@ -71,12 +71,24 @@ export const AnimationTimeline = ({
   selectedKeyframe,
   loopPlayback = false,
   onToggleLoopPlayback,
+  bakedClipSet,
+  bakedClipOptions,
+  onBakeClip,
+  onChangeBakedSet,
 }: AnimationTimelineProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
-  const [timelineHeight, setTimelineHeight] = useState(200);
+  const [timelineHeight, setTimelineHeight] = useState(240);
   const [isResizing, setIsResizing] = useState(false);
+  const [view, setView] = useState<'basic' | 'trackview'>('basic');
+
+  // Auto-switch to Track View when a baked clip becomes available
+  // (matches the user request: opening a rigged character exposes its
+  // per-bone tracks for editing right away).
+  useEffect(() => {
+    if (bakedClipSet && bakedClipSet.tracks.length > 0) setView('trackview');
+  }, [bakedClipSet?.clipName]);
 
   const frameToPixel = useCallback((frame: number) => {
     if (!trackRef.current) return 0;
