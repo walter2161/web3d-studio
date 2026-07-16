@@ -250,7 +250,7 @@ export const Studio3D = () => {
   // each segment plays a specific clipIndex between startFrame..endFrame.
   // Consumed by Object3D at runtime to drive the mixer.
   const [clipSegmentsByObject, setClipSegmentsByObject] = useState<
-    Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>
+    Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>>
   >({});
   useEffect(() => {
     (window as any).__clipSegments = clipSegmentsByObject;
