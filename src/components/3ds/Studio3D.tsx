@@ -265,7 +265,7 @@ export const Studio3D = () => {
   type TimelineSnapshot = {
     animationTracks: AnimationTrack[];
     bakedClipSets: Record<string, BakedClipSet>;
-    clipSegmentsByObject: Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>;
+    clipSegmentsByObject: Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>>;
   };
   const timelineUndoRef = useRef<TimelineSnapshot[]>([]);
   const timelineRedoRef = useRef<TimelineSnapshot[]>([]);
