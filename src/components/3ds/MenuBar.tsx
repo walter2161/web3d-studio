@@ -5,6 +5,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { UIThemeSelector } from './r3/UIThemeContext';
 
 interface MenuBarProps {
   onOpenMaterialEditor: () => void;
