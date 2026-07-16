@@ -695,6 +695,70 @@ export const SidePanel = ({
 
               </div>
             </div>
+
+            {/* Boolean / ProBoolean rollout — visible only when a compound tool is armed. */}
+            {createCat === 'geometry' && createCategory === 'compound' && compoundState?.tool && (compoundState.tool === 'boolean' || compoundState.tool === 'proboolean') && (
+              <div className="bevel-raised">
+                <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
+                  {compoundState.tool === 'boolean' ? 'Boolean' : 'ProBoolean'} Parameters
+                </div>
+                <div className="p-1 space-y-1">
+                  <div className="text-[10px] text-win-text px-1">
+                    Operando A: <span className="font-semibold">{selectedObject?.name || selectedObject?.type || '— selecione —'}</span>
+                  </div>
+                  <div className="bevel-inset p-1 space-y-[2px]">
+                    <div className="text-[10px] font-semibold text-win-text px-1">Operation</div>
+                    {([
+                      { id: 'union',     label: 'Union (A + B)' },
+                      { id: 'subtract',  label: 'Subtraction (A - B)' },
+                      { id: 'intersect', label: 'Intersection (A ∩ B)' },
+                    ] as const).map((o) => (
+                      <label key={o.id} className="flex items-center gap-1 text-[11px] text-win-text cursor-pointer px-1">
+                        <input
+                          type="radio"
+                          name="bool-op"
+                          checked={compoundState.op === o.id}
+                          onChange={() => onSetCompoundOp?.(o.id)}
+                        />
+                        {o.label}
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    disabled={!selectedObject}
+                    onClick={() => onStartPickOperandB?.()}
+                    className={cn(
+                      'w-full h-[22px] text-[11px] text-win-text px-1',
+                      !selectedObject
+                        ? 'bevel-raised opacity-40 cursor-not-allowed'
+                        : compoundState.picking
+                          ? 'bevel-sunken bg-yellow-200'
+                          : 'bevel-raised hover:brightness-105'
+                    )}
+                    title={selectedObject
+                      ? 'Clique aqui e depois clique no Operando B na viewport'
+                      : 'Selecione o Operando A primeiro'}
+                  >
+                    {compoundState.picking
+                      ? (compoundState.tool === 'proboolean' ? 'Clique nos Operandos B (ESC para finalizar)' : 'Clique no Operando B na viewport…')
+                      : (compoundState.tool === 'proboolean' ? 'Pick Operands B (múltiplos)' : 'Pick Operand B')}
+                  </button>
+                  {compoundState.picking && (
+                    <button
+                      onClick={() => onCancelCompound?.()}
+                      className="w-full h-[20px] text-[11px] bevel-raised text-win-text hover:brightness-105"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <div className="text-[10px] text-win-text-disabled px-1 pt-1 italic leading-tight">
+                    {compoundState.tool === 'proboolean'
+                      ? 'ProBoolean: aplica a mesma operação para vários operandos B em sequência, mantendo a malha limpa.'
+                      : 'Boolean clássico: A ± B → gera nova malha e remove os originais.'}
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0 space-y-2">
