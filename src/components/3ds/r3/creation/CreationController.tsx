@@ -502,6 +502,21 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
+      if (bonesRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (bonesRef.pts.length === 0) {
+          bonesRef.pts.push(p.clone(), p.clone()); // first joint + live preview
+        } else {
+          bonesRef.pts[bonesRef.pts.length - 1].copy(p); // commit preview joint
+          bonesRef.pts.push(p.clone()); // new preview
+        }
+        setGhost(buildBonesGhost(bonesRef.pts));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       if (tapeRef) {
         const p = raycastBase(e);
         if (!p) return;
@@ -517,6 +532,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         e.stopPropagation();
         return;
       }
+
 
       if (wallRef) {
 
