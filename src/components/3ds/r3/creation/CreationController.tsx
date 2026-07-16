@@ -462,10 +462,6 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       armed === 'sys_bones' ? { pts: [] } : null;
 
     const buildBonesGhost = (pts: THREE.Vector3[]): GhostObject => {
-      // Lazy import — avoids a circular dep because the utility file itself
-      // has no runtime deps on this module.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { buildBoneChainFromPoints } = require('../../rig/bones') as typeof import('../../rig/bones');
       const worldPts: [number, number, number][] = pts.map((p) => [p.x, p.y, p.z]);
       const { position, geometry } = buildBoneChainFromPoints(worldPts);
       return {
