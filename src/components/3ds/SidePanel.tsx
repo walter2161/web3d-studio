@@ -10,6 +10,8 @@ import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 import { EditableSplinePanel } from './r3/EditableSplinePanel';
+import { setSplineSel } from './editable/splineSelStore';
+import type { SplineSubLevel } from './editable/EditableSpline';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
@@ -2006,6 +2008,49 @@ const CameraParameters = ({ object, onUpdateCameraData }: CameraParamsProps) => 
 // panel, plus the common Rendering and Interpolation rollouts.
 // No modifier required — geometry is regenerated on every change.
 // ------------------------------------------------------------------
+
+// Modifier-stack style sub-object list. Rendered above the parametric
+// Parameters rollout so any shape can enter Vertex / Segment / Spline
+// mode with a single click (auto-converts to Editable Spline first,
+// mirroring 3ds Max R3 behavior when a user expands the "+" of a
+// parametric shape in the modifier stack).
+const SubObjectStack = ({ objectId, onConvert }: { objectId: string; onConvert: () => void }) => {
+  const enter = (level: SplineSubLevel) => {
+    onConvert();
+    // Deferred so the store update lands after the object type flips to
+    // 'editable_spline' — otherwise EditableSplinePanel's own unmount
+    // effect on the parametric object could clear the level we just set.
+    setTimeout(() => {
+      setSplineSel(objectId, {
+        level,
+        knots: new Set(), segments: new Set(), splines: new Set(),
+      });
+    }, 0);
+  };
+  const Row = ({ label, level, glyph }: { label: string; level: SplineSubLevel; glyph: string }) => (
+    <button
+      type="button"
+      onClick={() => enter(level)}
+      className="w-full flex items-center gap-2 px-2 h-[20px] text-[11px] font-mono border border-transparent hover:border-panel-border hover:bg-panel/60 rounded-[2px] text-left"
+    >
+      <span className="w-3 text-muted-foreground">{glyph}</span>
+      <span>{label}</span>
+    </button>
+  );
+  return (
+    <div className="border border-panel-border rounded-[2px] bg-panel/40 divide-y divide-panel-border/60">
+      <div className="px-2 h-[20px] flex items-center text-[11px] font-mono text-foreground bg-panel/60">
+        <span className="w-3 text-muted-foreground">−</span>
+        <span>Editable Spline</span>
+      </div>
+      <Row label="Vertex"  level="sknot"    glyph="•" />
+      <Row label="Segment" level="ssegment" glyph="—" />
+      <Row label="Spline"  level="sspline"  glyph="~" />
+    </div>
+  );
+};
+
+
 interface ShapeParamsProps {
   object: any;
   onUpdate: (patch: any) => void;
@@ -2231,7 +2276,17 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
         <div className="space-y-[3px]">{specific}</div>
       </MaxRollout>
 
+      {onConvert && (
+        <MaxRollout title="Selection" className="mt-2">
+          <div className="text-[10px] text-muted-foreground pb-1 font-sans leading-snug">
+            Sub-Object Levels — clicking a level converts this shape to Editable Spline and enters that sub-object mode.
+          </div>
+          <SubObjectStack objectId={object.id} onConvert={onConvert} />
+        </MaxRollout>
+      )}
+
       <MaxRollout title="Rendering" className="mt-2">
+
         <div className="space-y-[3px]">
           <MaxCheck label="Enable In Viewport" checked={g.renderableViewport !== false}
             onChange={(v) => onUpdate({ renderableViewport: v })} />
