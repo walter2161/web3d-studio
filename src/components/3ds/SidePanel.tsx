@@ -1568,6 +1568,23 @@ export const SidePanel = ({
             </Card>
           </TabsContent>
 
+          <TabsContent value="utilities" className="mt-0 space-y-2">
+            <div className="bevel-raised">
+              <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
+                3D Print Toolkit
+              </div>
+              <div className="p-1">
+                <PrintToolsPanel
+                  objects={(allObjects ?? []) as any}
+                  selectedObject={selectedObject as any}
+                  onCreateBed={() => onCreatePrintBed?.()}
+                  onUpdateBedGeometry={(id, patch) => onUpdatePrintBed?.(id, patch)}
+                  onTransformObject={(id, patch) => onTransformObject?.(id, patch)}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
         </div>
       </Tabs>
     </div>
