@@ -58,8 +58,8 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
 // own parametric fields exposed in the command panel.
 const COMMON_SHAPE_DEFAULTS = {
   // Rendering
-  renderableViewport: true,   // Enable In Viewport
-  renderableRender:   true,   // Enable In Renderer
+  renderableViewport: false,  // Enable In Viewport
+  renderableRender:   false,  // Enable In Renderer
   renderRectangular:  false,  // false = radial (round tube), true = rectangular bar
   thickness:  0.02,           // tube radius (or rect width)
   sides:      6,              // radial sides
