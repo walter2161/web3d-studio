@@ -298,7 +298,7 @@ function buildGhost(
   };
 }
 
-export const CreationController = ({ viewportType, isActive }: Props) => {
+export const CreationController = ({ viewportType, isActive, snapEnabled, snapGridSpacing = 1 }: Props) => {
   const { gl, camera } = useThree();
   const { armed, ghost, setGhost, commit, disarm } = useCreation();
   const stageRef = useRef<{ stage: number; start: THREE.Vector3 } | null>(null);
