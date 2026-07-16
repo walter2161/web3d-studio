@@ -2214,6 +2214,14 @@ export const Studio3D = () => {
           if (!selectedObject) return;
           setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
         };
+        const clipSwitches = selectedObject ? (clipSwitchesByObject[selectedObject] || []) : [];
+        const setClipSwitches = (next: Array<{ id: string; frame: number; clipIndex: number }>) => {
+          if (!selectedObject) return;
+          setClipSwitchesByObject((prev) => ({
+            ...prev,
+            [selectedObject]: next.slice().sort((a, b) => a.frame - b.frame),
+          }));
+        };
         return (
           <AnimationTimeline
             tracks={animationTracks}
@@ -2237,6 +2245,8 @@ export const Studio3D = () => {
             bakedClipOptions={clipOptions}
             onBakeClip={clipOptions ? handleBake : undefined}
             onChangeBakedSet={handleChangeBakedSet}
+            clipSwitches={clipSwitches}
+            onClipSwitchesChange={clipOptions ? setClipSwitches : undefined}
           />
         );
       })()}
