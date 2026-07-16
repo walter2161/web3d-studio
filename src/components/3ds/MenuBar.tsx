@@ -21,7 +21,7 @@ interface MenuBarProps {
 
 // R3 menu list. Underlined access-key hint via <u>.
 const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] = [
-  { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Import...', 'Export...', 'sep', 'Exit'] },
+  { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'sep', 'Import...', 'Export...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
   { label: 'Edit', access: 'E', items: ['Undo', 'Redo', 'sep', 'Hold', 'Fetch', 'sep', 'Delete', 'Clone', 'sep', 'Select All', 'Select None', 'Select Invert', 'sep', 'Region', 'Object Properties...'] },
   { label: 'Group', access: 'G', items: ['Group', 'Ungroup', 'Open', 'Close', 'Attach', 'Detach', 'Explode'] },
   { label: 'Views', access: 'V', items: ['Perspective', 'Top', 'Front', 'Left', 'sep', 'Viewport Configuration...', 'Show Grid', 'Show Statistics', 'sep', 'Update During Spinner Drag'] },
@@ -87,7 +87,7 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item.startsWith('Environment')) onEnvironment?.();
                     if (item.startsWith('View Image File')) onViewImageFile?.();
                     if (item === 'Save' || item.startsWith('Save As')) onFileOperation('save');
-                    if (item.startsWith('Open')) onFileOperation('open');
+                    if (item === 'Open...') onFileOperation('open');
                     if (item.startsWith('Export')) onFileOperation('export');
                     if (item.startsWith('Import')) onFileOperation('import');
                     if (item === 'Perspective') onViewportChange('perspective');

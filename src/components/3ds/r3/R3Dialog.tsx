@@ -157,12 +157,13 @@ export const Spinner = ({
 };
 
 /** R3-style push button. */
-export const R3Button = ({ children, onClick, className = '', width, active = false }: {
-  children: ReactNode; onClick?: () => void; className?: string; width?: number; active?: boolean;
+export const R3Button = ({ children, onClick, className = '', width, active = false, disabled = false }: {
+  children: ReactNode; onClick?: () => void; className?: string; width?: number; active?: boolean; disabled?: boolean;
 }) => (
   <button
     onClick={onClick}
-    className={`${active ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[11px] text-win-text px-2 hover:brightness-105 active:bevel-inset ${className}`}
+    disabled={disabled}
+    className={`${active ? 'bevel-inset' : 'bevel-raised'} bg-win-face text-[11px] text-win-text px-2 hover:brightness-105 active:bevel-inset disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     style={{ height: 20, width, minWidth: 60 }}
   >
     {children}

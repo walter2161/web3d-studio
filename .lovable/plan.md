@@ -1,82 +1,87 @@
-O escopo total de Helpers + Space Warps + Systems é enorme — Biped sozinho é meses de trabalho. Proponho entregar em 3 fases, cada uma navegável e útil por si só. Confirme e eu implemento a Fase 1 nesta mesma iteração.
+# Plano: Save / Save Cloud / Export / Import com login restrito
 
-## Fase 1 — Helpers completos + esqueleto das outras duas abas
+## Objetivo
+Adicionar 4 ações no app — **Save**, **Save Cloud**, **Export**, **Import** — disponíveis apenas para usuários autenticados. **Não existirá cadastro público.** O único jeito de criar um novo usuário é você (admin) liberar dentro do app.
 
-**Novas abas no SidePanel** (Create):
-- `helpers`, `spaceWarps`, `systems` (ao lado das já existentes: standard/extended/shapes/aec/lights/cameras).
+## Arquitetura de acesso
 
-**Helpers 100% funcionais** (não renderizam no output final — só aparecem na viewport):
-- **Point** — ícone `+` com opções Cross / Box / Axis Tripod / Center Marker, size, constant screen size
-- **Dummy** — wireframe box paramétrica (comprimento/largura/altura), pivô central, sem geometria renderizável
-- **Tape Measure** — 2 cliques (start/end); mostra `distance` no painel Modify, linha na viewport com endpoints
-- **Grid** — grid local retangular (length/width/spacing) que pode ser "ativado" como plano de construção
-- **Compass** — anel com marcações N/E/S/W (raio configurável); rotação Y aponta o "norte" da cena
+- **Lovable Cloud** habilitado (Postgres + Auth + Edge Functions).
+- Auth por **email + senha** apenas. Sign-up público desativado no cliente (a UI não expõe cadastro).
+- Tabela `public.user_roles` com enum `app_role` (`admin`, `user`) — nunca no `profiles`.
+- Função `has_role(uuid, app_role)` `SECURITY DEFINER` para RLS sem recursão.
+- Seed do admin `walter@ledmkt.com` via edge function `bootstrap-admin` que usa `service_role` para:
+  1. Criar o usuário no `auth.users` (com a senha que você já forneceu, usada uma única vez e nunca logada).
+  2. Inserir o role `admin` em `user_roles`.
+  3. A função só executa se ainda não existir nenhum admin (idempotente + segura).
+- Edge function `admin-create-user` (protegida: exige JWT + role `admin`) para você liberar novos logins de dentro do app — sem cadastro público.
 
-Tudo isso renderiza com `<Line>`, `<Sprite>`, `<Html>` do drei — sem BufferGeometry pesada, e o exportador ignora esses tipos.
+## Tabelas (schema)
 
-**Space Warps e Systems**: só a aba, botões desabilitados/tooltip "Em breve — Fase 2/3", para o usuário já ver o layout.
+```
+scenes (
+  id uuid pk,
+  user_id uuid → auth.users on delete cascade,
+  name text,
+  data jsonb,          -- payload completo da cena (mesmo formato do Export)
+  created_at, updated_at
+)
 
-## Fase 2 — Space Warps mínimos
-
-Sistema de binding + avaliação por frame:
-- Warps: **Gravity, Wind, Ripple, Bomb, FFD 2×2×2, Deflector**
-- Cada objeto ganha `boundWarps: string[]` (ids dos warps)
-- Botão "Bind to Space Warp" na toolbar Space Warps
-- Loop de avaliação por frame: warps geométricos (Ripple, FFD) deslocam vértices no `useFrame`; warps físicos (Gravity/Wind) só aplicam quando houver partículas — fica como stub visual até termos sistema de partículas
-- Deflector: plano ou volume, sem física real ainda (só visual)
-
-## Fase 3 — Systems
-
-- **Bones**: cadeia clique-a-clique, cada osso é um `Object3D` filho do anterior, editável em sub-object mode
-- **Sunlight/Daylight**: cria um Directional Light + Compass helper com controles de latitude/longitude/hora/data que reposicionam o sol
-- **Ring Array**: assistente para replicar objeto selecionado em N cópias distribuídas em círculo (count/radius/angle)
-- **Bones + IK Chain**: solver de 2-bone IK simples (mão → braço)
-- **Biped**: fora de escopo — remover ou marcar como "requires Character Studio port"
-
-## Detalhamento técnico da Fase 1
-
-**Novo tipo `helper`** com subtype: `point | dummy | tape | grid | compass`.
-
-```text
-Object3DData.type: adicionar 'helper'
-Object3DData.geometry.helperKind: 'point' | 'dummy' | ...
-Object3DData.geometry.helperParams: { size, showCross, showBox, ... }
+user_roles (
+  id uuid pk,
+  user_id uuid → auth.users,
+  role app_role,
+  unique(user_id, role)
+)
 ```
 
-Renderização em `Object3D.tsx`:
-- Novo caminho `if (type === 'helper')` que retorna React children (não mesh):
-  - Point: `<group>` com 3 `<Line>` cruzadas + opção box wireframe
-  - Dummy: `<lineSegments>` a partir de `EdgesGeometry(BoxGeometry)`
-  - Tape: `<Line>` entre `p0` e `p1` + `<Html>` mostrando distância
-  - Grid: `<gridHelper>` do three com tamanho customizável
-  - Compass: `<Line>` circular + 4 marcações N/E/S/W
+RLS:
+- `scenes`: SELECT/INSERT/UPDATE/DELETE só quando `user_id = auth.uid()`.
+- `user_roles`: SELECT do próprio usuário; escrita somente via edge functions com `service_role`.
+- GRANTs explícitos para `authenticated` e `service_role` (sem `anon`).
 
-**Fluxo de criação (`CreationController.tsx`)**:
-- `point`, `dummy`, `compass`, `grid`: single-click (drag opcional para size)
-- `tape`: 2-click (start, end) — parecido com criar Wall
-- helpers não recebem material nem cor de wire — cor fixa amarela/ciano estilo Max
+## UI
 
-**SidePanel Modify** ganha rollout específico por helperKind:
-- Point: Size spinner, checkboxes Cross/Box/Axis Tripod/Center Marker/Constant Screen Size
-- Dummy: Length/Width/Height spinners
-- Tape: Distance (read-only, computed), Specify Length checkbox + spinner
-- Grid: Length/Width/Spacing spinners, botão "Activate Grid"
-- Compass: Radius spinner
+- Novo item de menu **File** (ou botão na topbar do 3ds Max R3) com:
+  - Save (local — download `.3dsled.json`)
+  - Save Cloud… (pergunta nome, grava em `scenes`)
+  - Open Cloud… (lista `scenes` do usuário, carrega)
+  - Export (mesmo que Save local, formato explícito)
+  - Import (input file, carrega `.3dsled.json`)
+- Todas as 4 ações ficam **desabilitadas com tooltip "Login required"** quando não autenticado.
+- **Login dialog** (skin R3): campos email + senha, botão OK/Cancel. Sem link "criar conta".
+- **Admin panel** (só aparece se `has_role(admin)`): formulário "Liberar novo usuário" (email + senha inicial) → chama `admin-create-user`.
 
-**Exportador/Render**: skipa objetos com `type === 'helper'` (não vão para gltf, USD nem renderização final).
+## Formato Save/Export
 
-**Guardar linha "não renderiza" com clareza**: adicionar tag visual `[helper]` na hierarquia de cena e ícone diferenciado no browser.
+JSON único com:
+- objetos da cena (geometria, transform, material id)
+- materiais (24 slots do Material Editor)
+- ambiente (`EnvironmentContext`)
+- timeline / animação
+- versão do formato para compatibilidade futura
 
-## Ordem de execução na Fase 1
+Save local = `Blob` + `URL.createObjectURL` + download.
+Import = `<input type=file accept=".json">` + `JSON.parse` + validação Zod + hidrata os stores.
 
-1. Adicionar `helper` em `Object3DData.type` + `CreatableTool`.
-2. Criar `src/components/3ds/utils/helpers.ts` com defaults + tipos.
-3. Renderizar helpers em `Object3D.tsx` (retorno alternativo, sem mesh).
-4. Adicionar branches em `CreationController.tsx`.
-5. Adicionar 3 novas categorias (`helpers`, `spaceWarps`, `systems`) na `SidePanel`.
-6. Novo bloco Modify para helper kind selecionado.
-7. Marcar Systems/Space Warps buttons como disabled + tooltip.
+## Passos de implementação
 
-Isso mantém a Fase 1 sob controle e entregável agora. Fases 2 e 3 vão precisar de trabalho dedicado — cada Space Warp real e cada System (Bones, Daylight) merecem sua própria rodada porque envolvem loops de avaliação por frame, solvers e UI de binding.
+1. Habilitar Lovable Cloud.
+2. Migration: enum `app_role`, tabelas `user_roles` e `scenes`, função `has_role`, RLS + GRANTs.
+3. Edge function `bootstrap-admin` (verify_jwt=false, roda 1x, cria walter@ledmkt.com com senha fornecida, insere role admin, marca como concluído). Chamada uma única vez pelo próprio backend e depois vira no-op.
+4. Edge function `admin-create-user` (verify_jwt=false + validação manual do JWT + checa role admin).
+5. Contexto `AuthContext` (session listener + `getUser` para checagens sensíveis).
+6. `LoginDialog` (R3 skin).
+7. Serialização/desserialização da cena (`sceneSerializer.ts`).
+8. Ações Save / Save Cloud / Open Cloud / Export / Import — plugadas no menu File existente.
+9. `AdminPanel` para liberar novos usuários.
+10. Gate visual (ações desabilitadas quando logged-out).
 
-Confirme e eu já começo a Fase 1.
+## Segurança
+
+- Senha do admin usada uma única vez no `bootstrap-admin` e **nunca** ecoada em logs, respostas, nem commitada em texto.
+- Recomendo trocar a senha assim que fizer o primeiro login (posso adicionar botão "Change password" no admin panel — me diga se quer isso).
+- Sem cadastro público em lugar nenhum da UI/edge functions.
+- RLS bloqueia acesso cross-user às cenas mesmo com token válido.
+
+## Nota
+Só implemento após você aprovar o plano.

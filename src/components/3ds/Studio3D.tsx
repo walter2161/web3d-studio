@@ -33,6 +33,11 @@ import { getViewportHandle } from './r3/viewportRegistry';
 import { toast } from 'sonner';
 import * as THREE from 'three';
 import { snapDoorWindowToWall, type WallOpening, type WallGeom } from './utils/aecGeometry';
+import { LoginDialog } from './r3/LoginDialog';
+import { AdminPanelDialog } from './r3/AdminPanelDialog';
+import { CloudSceneDialog } from './r3/CloudSceneDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 // 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
 const randomMaxColor = (): string => {
@@ -192,6 +197,12 @@ export const Studio3D = () => {
   const [alignOpen, setAlignOpen] = useState(false);
   const [fileDialogOpen, setFileDialogOpen] = useState(false);
   const [fileDialogType, setFileDialogType] = useState<'save' | 'open' | 'export' | 'import'>('save');
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [cloudSaveOpen, setCloudSaveOpen] = useState(false);
+  const [cloudOpenOpen, setCloudOpenOpen] = useState(false);
+  const [pendingFileOp, setPendingFileOp] = useState<null | (() => void)>(null);
+  const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
@@ -1319,9 +1330,52 @@ export const Studio3D = () => {
   }, [selectedObject]);
 
   const openFileDialog = useCallback((type: 'save' | 'open' | 'export' | 'import') => {
+    if (!user) {
+      setPendingFileOp(() => () => { setFileDialogType(type); setFileDialogOpen(true); });
+      setLoginOpen(true);
+      toast.info('Login necessário');
+      return;
+    }
     setFileDialogType(type);
     setFileDialogOpen(true);
-  }, []);
+  }, [user]);
+
+  const buildScenePayload = useCallback(() => ({
+    version: '1.0',
+    objects,
+    animationTracks,
+    selectedObject,
+    currentFrame,
+    timestamp: new Date().toISOString(),
+  }), [objects, animationTracks, selectedObject, currentFrame]);
+
+  const applyScenePayload = useCallback((payload: any) => {
+    saveState();
+    setObjects(payload?.objects || []);
+    setAnimationTracks(payload?.animationTracks || []);
+    setSelectedObject(payload?.selectedObject || null);
+    setCurrentFrame(payload?.currentFrame || 0);
+  }, [saveState]);
+
+  const saveToCloud = useCallback(async (name: string) => {
+    if (!user) throw new Error('login required');
+    const { error } = await supabase.from('scenes').insert({
+      user_id: user.id,
+      name,
+      data: buildScenePayload() as any,
+    });
+    if (error) throw error;
+  }, [user, buildScenePayload]);
+
+  const gate = useCallback((run: () => void) => {
+    if (!user) {
+      setPendingFileOp(() => run);
+      setLoginOpen(true);
+      toast.info('Login necessário');
+      return;
+    }
+    run();
+  }, [user]);
 
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
 
@@ -1517,6 +1571,11 @@ export const Studio3D = () => {
       case 'Hold': doHold(); break;
       case 'Fetch': doFetch(); break;
       case 'Exit': askConfirm('Save changes before exit?', () => { openFileDialog('save'); }, 'Exit'); break;
+      case 'Login...': setLoginOpen(true); break;
+      case 'Logout': signOut(); toast.success('Sessão encerrada'); break;
+      case 'Admin — Liberar usuário...': if (isAdmin) setAdminOpen(true); else toast.error('Apenas admin'); break;
+      case 'Save Cloud...': gate(() => setCloudSaveOpen(true)); break;
+      case 'Open Cloud...': gate(() => setCloudOpenOpen(true)); break;
       case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
       case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
       case 'Select None': setSelectedObject(null); break;
@@ -1573,6 +1632,9 @@ export const Studio3D = () => {
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 bevel-raised bg-win-face flex items-center justify-center text-[10px] text-win-title">3</div>
           <span>Untitled - 3dsLed R3</span>
+          <span className="ml-3 font-normal opacity-90">
+            {user ? `● ${user.email}${isAdmin ? ' (admin)' : ''}` : '○ not logged in'}
+          </span>
         </div>
         <div className="flex items-center gap-0.5">
           <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">_</button>
@@ -1796,6 +1858,25 @@ export const Studio3D = () => {
         onLoadProject={loadProject}
         onExportScene={exportScene}
         onImportModel={importModel}
+      />
+
+      <LoginDialog
+        open={loginOpen}
+        onOpenChange={setLoginOpen}
+        onSuccess={() => { const p = pendingFileOp; setPendingFileOp(null); p?.(); }}
+      />
+      <AdminPanelDialog open={adminOpen} onOpenChange={setAdminOpen} />
+      <CloudSceneDialog
+        open={cloudSaveOpen}
+        mode="save"
+        onOpenChange={setCloudSaveOpen}
+        onSave={saveToCloud}
+      />
+      <CloudSceneDialog
+        open={cloudOpenOpen}
+        mode="open"
+        onOpenChange={setCloudOpenOpen}
+        onLoad={applyScenePayload}
       />
 
       <ObjectPropertiesDialog
