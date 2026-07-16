@@ -668,6 +668,16 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (bipedRef) {
+        if (!bipedRef.start) return;
+        // Drag distance from start (screen-agnostic: use ray on a vertical plane).
+        const pt = raycastHeight(e, bipedRef.start);
+        if (!pt) return;
+        const h = Math.max(0.1, Math.abs(pt.y - bipedRef.start.y));
+        bipedRef.height = h;
+        setGhost(buildBipedGhost(bipedRef.start, h));
+        return;
+      }
       if (bonesRef) {
         if (bonesRef.pts.length === 0) return;
         const p = raycastBase(e);
