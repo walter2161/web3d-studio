@@ -103,8 +103,21 @@ const doOfflineRender = async (
     }
   });
 
+  // Force the camera's aspect to match the requested output so the image
+  // fills the full width/height instead of showing black bars when the user
+  // picks a resolution whose aspect differs from the live viewport.
+  const persp = camera as THREE.PerspectiveCamera;
+  const prevAspect = persp.aspect;
+  if ((persp as any).isPerspectiveCamera) {
+    persp.aspect = outW / outH;
+    persp.updateProjectionMatrix();
+  }
   offscreen.render(scene, camera);
   const dataUrl = offscreen.domElement.toDataURL('image/png');
+  if ((persp as any).isPerspectiveCamera) {
+    persp.aspect = prevAspect;
+    persp.updateProjectionMatrix();
+  }
 
   hidden.forEach((o) => { o.visible = true; });
   meshTouched.forEach(({ mesh, cast, receive }) => {
