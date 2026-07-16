@@ -8,7 +8,10 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+type Tab = 'welcome' | 'request';
+
 export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
+  const [tab, setTab] = useState<Tab>('welcome');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
@@ -37,6 +40,16 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
     }
   };
 
+  const TabButton = ({ id, children }: { id: Tab; children: React.ReactNode }) => (
+    <button
+      onClick={() => setTab(id)}
+      className={`text-[11px] px-3 py-[3px] ${tab === id ? 'bevel-raised bg-win-face' : 'bevel-inset bg-win-face-2'}`}
+      style={{ marginRight: 2, marginBottom: tab === id ? -1 : 0, position: 'relative', zIndex: tab === id ? 2 : 1 }}
+    >
+      {children}
+    </button>
+  );
+
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Bem-vindo ao 3de.app" width={520}>
       {/* Banner */}
@@ -55,54 +68,73 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
         </div>
       </div>
 
-      {/* Disclaimer — all lowercase per spec */}
-      <div className="mt-2 text-[11px] text-win-text leading-snug" style={{ textTransform: 'lowercase' }}>
-        aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
+      {/* Tabs */}
+      <div className="flex items-end mt-3 pl-1" style={{ borderBottom: '1px solid hsl(var(--win-face-dark))' }}>
+        <TabButton id="welcome">boas-vindas</TabButton>
+        <TabButton id="request">solicitar acesso</TabButton>
       </div>
 
-      {/* Registration request */}
-      <div className="mt-3 bevel-group p-2">
-        <div className="text-[11px] font-bold mb-1">solicitar acesso</div>
-        <div className="text-[10px] mb-2 opacity-80">
-          o acesso é liberado manualmente pelo administrador. envie seu pedido abaixo.
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="flex items-center gap-1">
-            <span className="text-[11px]" style={{ width: 70 }}>nome:</span>
-            <input
-              className="bevel-inset bg-white px-1 flex-1 outline-none"
-              style={{ height: 18 }}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </label>
-          <label className="flex items-center gap-1">
-            <span className="text-[11px]" style={{ width: 70 }}>e-mail:</span>
-            <input
-              type="email"
-              className="bevel-inset bg-white px-1 flex-1 outline-none"
-              style={{ height: 18 }}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </label>
-          <label className="flex items-start gap-1">
-            <span className="text-[11px]" style={{ width: 70 }}>motivo:</span>
-            <textarea
-              className="bevel-inset bg-white px-1 flex-1 outline-none"
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </label>
-        </div>
+      <div className="bevel-raised bg-win-face p-2" style={{ marginTop: -1, minHeight: 180 }}>
+        {tab === 'welcome' && (
+          <div className="text-[11px] text-win-text leading-snug" style={{ textTransform: 'lowercase' }}>
+            aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
+          </div>
+        )}
+
+        {tab === 'request' && (
+          <>
+            <div className="text-[10px] mb-2 opacity-80" style={{ textTransform: 'lowercase' }}>
+              o acesso é restrito e liberado manualmente pelo administrador. preencha os campos abaixo para enviar seu pedido.
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-1">
+                <span className="text-[11px]" style={{ width: 70 }}>nome:</span>
+                <input
+                  className="bevel-inset bg-white px-1 flex-1 outline-none"
+                  style={{ height: 18 }}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </label>
+              <label className="flex items-center gap-1">
+                <span className="text-[11px]" style={{ width: 70 }}>e-mail:</span>
+                <input
+                  type="email"
+                  className="bevel-inset bg-white px-1 flex-1 outline-none"
+                  style={{ height: 18 }}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </label>
+              <label className="flex items-start gap-1">
+                <span className="text-[11px]" style={{ width: 70 }}>motivo:</span>
+                <textarea
+                  className="bevel-inset bg-white px-1 flex-1 outline-none"
+                  rows={3}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                />
+              </label>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="mt-3 flex justify-end gap-1">
-        <R3Button width={140} onClick={sendRequest} disabled={sending}>
-          {sending ? 'enviando...' : 'enviar pedido de registro'}
-        </R3Button>
-        <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
+        {tab === 'welcome' ? (
+          <>
+            <R3Button width={140} onClick={() => setTab('request')}>solicitar acesso →</R3Button>
+            <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
+          </>
+        ) : (
+          <>
+            <R3Button width={80} onClick={() => setTab('welcome')}>← voltar</R3Button>
+            <R3Button width={160} onClick={sendRequest} disabled={sending}>
+              {sending ? 'enviando...' : 'enviar pedido de registro'}
+            </R3Button>
+            <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
+          </>
+        )}
       </div>
     </R3Dialog>
   );
