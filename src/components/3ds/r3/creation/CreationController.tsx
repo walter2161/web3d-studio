@@ -622,6 +622,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (bonesRef) {
+        if (bonesRef.pts.length === 0) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        bonesRef.pts[bonesRef.pts.length - 1].copy(p);
+        setGhost(buildBonesGhost(bonesRef.pts));
+        return;
+      }
       if (tapeRef) {
         if (!tapeRef.start) return;
         const p = raycastBase(e);
