@@ -128,6 +128,16 @@ export const Scene3D = ({
 
   const boneJointDragStartRef = useRef<THREE.Euler | null>(null);
 
+  // ---- Imported-model sub-node (rig bone / mesh) drag capture --------------
+  // When TransformControls is attached to an inner node of an imported model
+  // (bone/mesh), TC mutates that node directly. We snapshot the node's TRS
+  // on drag start and dispatch a `r3-rig-pose-op` event on drag end so the
+  // Studio3D undo stack can record and restore the pose.
+  const importedSubDragStartRef = useRef<
+    { pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number] } | null
+  >(null);
+  const importedSubActive = selectedObjectData?.type === 'imported' && !!selectedSubUuid;
+
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
   if (selectedObjectData?.type === 'imported' && selectedSubUuid) {
@@ -216,12 +226,43 @@ export const Scene3D = ({
               subDragOpKeyRef.current = `subdrag_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
               subDragMovedRef.current = false;
             }
+            if (importedSubActive && transformTarget) {
+              const p = transformTarget.position;
+              const r = transformTarget.rotation;
+              const s = transformTarget.scale;
+              importedSubDragStartRef.current = {
+                pos: [p.x, p.y, p.z],
+                rot: [r.x, r.y, r.z],
+                scale: [s.x, s.y, s.z],
+              };
+            }
           }}
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
             if (boneJointActive) {
               boneJointDragStartRef.current = null;
+            }
+            if (importedSubActive && transformTarget && importedSubDragStartRef.current && selectedObject && selectedSubUuid) {
+              const p = transformTarget.position;
+              const r = transformTarget.rotation;
+              const s = transformTarget.scale;
+              const next = {
+                pos: [p.x, p.y, p.z] as [number, number, number],
+                rot: [r.x, r.y, r.z] as [number, number, number],
+                scale: [s.x, s.y, s.z] as [number, number, number],
+              };
+              const prev = importedSubDragStartRef.current;
+              const changed =
+                Math.abs(prev.pos[0]-next.pos[0]) + Math.abs(prev.pos[1]-next.pos[1]) + Math.abs(prev.pos[2]-next.pos[2]) +
+                Math.abs(prev.rot[0]-next.rot[0]) + Math.abs(prev.rot[1]-next.rot[1]) + Math.abs(prev.rot[2]-next.rot[2]) +
+                Math.abs(prev.scale[0]-next.scale[0]) + Math.abs(prev.scale[1]-next.scale[1]) + Math.abs(prev.scale[2]-next.scale[2]) > 1e-6;
+              if (changed) {
+                window.dispatchEvent(new CustomEvent('r3-rig-pose-op', {
+                  detail: { objectId: selectedObject, nodeUuid: selectedSubUuid, prev, next },
+                }));
+              }
+              importedSubDragStartRef.current = null;
             }
             if (subGizmoActive && subProxyObj && activeEditMod && selectedObject) {
               // Reset the proxy so the next drag starts from identity.

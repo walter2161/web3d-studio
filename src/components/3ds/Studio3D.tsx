@@ -220,6 +220,16 @@ export const Studio3D = () => {
   const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
+  // Unified undo ordering: parallel to the state stacks above and to
+  // rigUndoRef/rigRedoRef below. Each entry records whether that step is
+  // an object-graph snapshot or a rig-pose patch, so undo()/redo() can pop
+  // in the exact temporal order actions happened.
+  type RigPoseTRS = { pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number] };
+  type RigPoseEntry = { objectId: string; nodeUuid: string; prev: RigPoseTRS; next: RigPoseTRS };
+  const undoOrderRef = useRef<Array<'objects' | 'rig'>>([]);
+  const redoOrderRef = useRef<Array<'objects' | 'rig'>>([]);
+  const rigUndoRef = useRef<RigPoseEntry[]>([]);
+  const rigRedoRef = useRef<RigPoseEntry[]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
@@ -464,7 +474,10 @@ export const Studio3D = () => {
   // Save state for undo/redo
   const saveState = useCallback(() => {
     setUndoStack(prev => [...prev.slice(-9), [...objects]]);
+    undoOrderRef.current.push('objects');
     setRedoStack([]);
+    redoOrderRef.current = [];
+    rigRedoRef.current = [];
   }, [objects]);
 
   const createObject = useCallback((type: string) => {
@@ -989,7 +1002,10 @@ export const Studio3D = () => {
       };
       if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        undoOrderRef.current.push('objects');
         setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
       }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
@@ -1020,7 +1036,10 @@ export const Studio3D = () => {
       const replaceAlreadySaved = !!replaceKey && subObjReplaceUndoKeysRef.current.has(replaceKey);
       if (!hasExistingReplace && !replaceAlreadySaved && objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        undoOrderRef.current.push('objects');
         setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
         if (replaceKey) {
           subObjReplaceUndoKeysRef.current.add(replaceKey);
           if (subObjReplaceUndoKeysRef.current.size > 200) {
@@ -1341,22 +1360,84 @@ export const Studio3D = () => {
     return () => window.removeEventListener('r3-apply-material', handler);
   }, [handleMaterialChange, objects]);
 
+  // Imported-model rig pose ops — TransformControls attached to a bone/mesh
+  // inside a rigged GLTF/FBX mutates the three.js node directly, so it does
+  // not go through setObjects and would be invisible to the object-graph undo
+  // stack. Scene3D dispatches this event on drag-release with prev/next TRS
+  // so we can record and later restore that pose.
+  useEffect(() => {
+    const applyPose = (objectId: string, nodeUuid: string, trs: RigPoseTRS) => {
+      import('./utils/modelImport').then(({ getImportedModel }) => {
+        const imp = getImportedModel(objectId);
+        if (!imp) return;
+        imp.root.traverse((n: any) => {
+          if (n.uuid === nodeUuid) {
+            n.position.set(trs.pos[0], trs.pos[1], trs.pos[2]);
+            n.rotation.set(trs.rot[0], trs.rot[1], trs.rot[2]);
+            n.scale.set(trs.scale[0], trs.scale[1], trs.scale[2]);
+            n.updateMatrixWorld(true);
+          }
+        });
+      });
+    };
+    const onOp = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as RigPoseEntry | undefined;
+      if (!d) return;
+      rigUndoRef.current.push(d);
+      if (rigUndoRef.current.length > 100) rigUndoRef.current.shift();
+      undoOrderRef.current.push('rig');
+      rigRedoRef.current = [];
+      redoOrderRef.current = [];
+      setRedoStack([]);
+    };
+    (applyPose as any).__rigApply = true;
+    (window as any).__rigApplyPose = applyPose;
+    window.addEventListener('r3-rig-pose-op', onOp as any);
+    return () => window.removeEventListener('r3-rig-pose-op', onOp as any);
+  }, []);
+
   // Undo/Redo
   const undo = useCallback(() => {
+    const kind = undoOrderRef.current[undoOrderRef.current.length - 1];
+    if (kind === 'rig') {
+      const entry = rigUndoRef.current.pop();
+      if (!entry) return;
+      undoOrderRef.current.pop();
+      (window as any).__rigApplyPose?.(entry.objectId, entry.nodeUuid, entry.prev);
+      rigRedoRef.current.push(entry);
+      redoOrderRef.current.push('rig');
+      toast.success('Undo');
+      return;
+    }
     if (undoStack.length > 0) {
       const previousState = undoStack[undoStack.length - 1];
       setRedoStack(prev => [...prev, [...objects]]);
       setUndoStack(prev => prev.slice(0, -1));
+      undoOrderRef.current.pop();
+      redoOrderRef.current.push('objects');
       setObjects(previousState);
       toast.success('Undo');
     }
   }, [undoStack, objects]);
 
   const redo = useCallback(() => {
+    const kind = redoOrderRef.current[redoOrderRef.current.length - 1];
+    if (kind === 'rig') {
+      const entry = rigRedoRef.current.pop();
+      if (!entry) return;
+      redoOrderRef.current.pop();
+      (window as any).__rigApplyPose?.(entry.objectId, entry.nodeUuid, entry.next);
+      rigUndoRef.current.push(entry);
+      undoOrderRef.current.push('rig');
+      toast.success('Redo');
+      return;
+    }
     if (redoStack.length > 0) {
       const nextState = redoStack[redoStack.length - 1];
       setUndoStack(prev => [...prev.slice(-9), [...objects]]);
       setRedoStack(prev => prev.slice(0, -1));
+      redoOrderRef.current.pop();
+      undoOrderRef.current.push('objects');
       setObjects(nextState);
       toast.success('Redo');
     }
