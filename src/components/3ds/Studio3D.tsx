@@ -1907,6 +1907,11 @@ export const Studio3D = () => {
             onUpdateObjectLightData={updateObjectLightData}
             onUpdateObjectCameraData={updateObjectCameraData}
             onUpdateObjectColor={updateObjectColor}
+            compoundState={compoundState}
+            onArmCompound={armCompound}
+            onSetCompoundOp={setCompoundOp}
+            onStartPickOperandB={startPickOperandB}
+            onCancelCompound={cancelCompound}
 
           />
 
