@@ -2276,7 +2276,7 @@ export const Studio3D = () => {
           setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
         };
         const clipSegments = selectedObject ? (clipSegmentsByObject[selectedObject] || []) : [];
-        const setClipSegments = (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>) => {
+        const setClipSegments = (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>) => {
           if (!selectedObject) return;
           setClipSegmentsByObject((prev) => ({
             ...prev,
