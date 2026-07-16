@@ -1002,7 +1002,10 @@ export const Studio3D = () => {
       };
       if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        undoOrderRef.current.push('objects');
         setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
       }
       setObjects((prev) => prev.map((obj) => {
         if (obj.id !== d.objectId) return obj;
