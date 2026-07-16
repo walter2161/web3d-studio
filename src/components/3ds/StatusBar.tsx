@@ -148,6 +148,8 @@ export const StatusBar = ({
     units.us === 'Inches' ? '"' : units.us === 'Feet' ? "'" : ' mi';
   const prec = units?.precision ?? 3;
   const fmt = (n: number) => n.toFixed(prec) + suffix;
+  const [mouseMode, setMouseMode] = useState<'select' | 'pan' | 'rotate'>('select');
+
 
   return (
     <div className="bevel-raised px-1 py-1 flex items-stretch gap-1 text-win-text">
