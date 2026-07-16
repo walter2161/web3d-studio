@@ -56,6 +56,7 @@ const STAGES: Record<CreatableTool, number> = {
   helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
   sys_bones: 1, // handled by its own multi-click branch below
   sys_biped: 1, // click-drag to define height, releases spawn the whole skeleton
+  sys_print_bed: 1, // single-click placement on the base plane
 
 
 };
@@ -526,14 +527,37 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       window.dispatchEvent(new CustomEvent('r3-spawn-biped', { detail: { parts } }));
       setGhost(null);
     };
+    // -------- Print3D (Systems → Print3D): single-click placement on the base plane.
+    // A ghost of the build plate follows the cursor; click commits at that spot.
+    const printBedRef: { active: boolean } | null =
+      armed === 'sys_print_bed' ? { active: true } : null;
 
-
-
+    const buildPrintBedGhost = (p: THREE.Vector3): GhostObject => ({
+      id: '__ghost',
+      type: 'print_bed' as any,
+      position: [p.x, p.y, p.z],
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1],
+      color: '#5f7fa0',
+      geometry: {},
+      visible: true,
+      __creating: true,
+    });
 
 
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+
+      if (printBedRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        commit(buildPrintBedGhost(p));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
 
       if (bipedRef) {
         const p = raycastBase(e);
@@ -668,6 +692,12 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (printBedRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        setGhost(buildPrintBedGhost(p));
+        return;
+      }
       if (bipedRef) {
         if (!bipedRef.start) return;
         // Drag distance from start (screen-agnostic: use ray on a vertical plane).
