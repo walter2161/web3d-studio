@@ -246,6 +246,15 @@ export const Studio3D = () => {
     // AnimationMixer for imported models.
     (window as any).__bakedClipSets = bakedClipSets;
   }, [bakedClipSets]);
+  // Per-imported-object animation-clip switch cues.
+  // e.g. frame 0 → clip "Walk", frame 60 → clip "Run". Consumed by Object3D
+  // at runtime to swap the active AnimationAction on the mixer.
+  const [clipSwitchesByObject, setClipSwitchesByObject] = useState<
+    Record<string, Array<{ id: string; frame: number; clipIndex: number }>>
+  >({});
+  useEffect(() => {
+    (window as any).__clipSwitches = clipSwitchesByObject;
+  }, [clipSwitchesByObject]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
