@@ -1446,6 +1446,18 @@ export const Studio3D = () => {
 
   // Undo/Redo
   const undo = useCallback(() => {
+    // Timeline / Track View has priority when it's the focused surface:
+    // this way undoing a bad keyframe never yanks scene objects with it.
+    if (timelineHoveredRef.current && timelineUndoRef.current.length > 0) {
+      const snap = timelineUndoRef.current.pop()!;
+      timelineRedoRef.current.push({ animationTracks, bakedClipSets, clipSegmentsByObject });
+      isRestoringTimelineRef.current = true;
+      setAnimationTracks(snap.animationTracks);
+      setBakedClipSets(snap.bakedClipSets);
+      setClipSegmentsByObject(snap.clipSegmentsByObject);
+      toast.success('Undo (timeline)');
+      return;
+    }
     const kind = undoOrderRef.current[undoOrderRef.current.length - 1];
     if (kind === 'rig') {
       const entry = rigUndoRef.current.pop();
@@ -1466,9 +1478,19 @@ export const Studio3D = () => {
       setObjects(previousState);
       toast.success('Undo');
     }
-  }, [undoStack, objects]);
+  }, [undoStack, objects, animationTracks, bakedClipSets, clipSegmentsByObject]);
 
   const redo = useCallback(() => {
+    if (timelineHoveredRef.current && timelineRedoRef.current.length > 0) {
+      const snap = timelineRedoRef.current.pop()!;
+      timelineUndoRef.current.push({ animationTracks, bakedClipSets, clipSegmentsByObject });
+      isRestoringTimelineRef.current = true;
+      setAnimationTracks(snap.animationTracks);
+      setBakedClipSets(snap.bakedClipSets);
+      setClipSegmentsByObject(snap.clipSegmentsByObject);
+      toast.success('Redo (timeline)');
+      return;
+    }
     const kind = redoOrderRef.current[redoOrderRef.current.length - 1];
     if (kind === 'rig') {
       const entry = rigRedoRef.current.pop();
@@ -1489,7 +1511,7 @@ export const Studio3D = () => {
       setObjects(nextState);
       toast.success('Redo');
     }
-  }, [redoStack, objects]);
+  }, [redoStack, objects, animationTracks, bakedClipSets, clipSegmentsByObject]);
 
   // File operations
   const saveProject = useCallback((filename: string) => {
