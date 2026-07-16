@@ -81,7 +81,7 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
               aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
             </p>
             <p>
-              acesso gratuito: o app pode ser utilizado sem login, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao 3de.app é necessário possuir uma assinatura ativa. veja a aba "assinatura" para mais detalhes.
+              acesso gratuito (demo): o app pode ser utilizado sem login em modo demonstração, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao 3de.app é necessário possuir uma assinatura ativa. veja a aba "assinatura" para mais detalhes.
             </p>
           </div>
         )}
