@@ -270,6 +270,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       const hiddenForFrame = hideEditorOverlays();
       try {
         gl.setRenderTarget(null);
+        // Force shadow maps to refresh every frame so animated objects and
+        // lights get correct shadows on subsequent renders (three.js reuses
+        // cached shadow maps otherwise, leading to missing/stale shadows).
+        gl.shadowMap.needsUpdate = true;
         gl.render(scene, renderTarget);
       } finally {
         hiddenForFrame.forEach((o) => { o.visible = true; });
