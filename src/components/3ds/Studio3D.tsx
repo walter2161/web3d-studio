@@ -210,6 +210,7 @@ export const Studio3D = () => {
     if (typeof window === 'undefined') return false;
     return !localStorage.getItem('3de.welcome.seen');
   });
+  const [welcomeInitialTab, setWelcomeInitialTab] = useState<'welcome' | 'request'>('welcome');
   const [pendingFileOp, setPendingFileOp] = useState<null | (() => void)>(null);
   const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
@@ -1892,6 +1893,7 @@ export const Studio3D = () => {
         open={loginOpen}
         onOpenChange={setLoginOpen}
         onSuccess={() => { const p = pendingFileOp; setPendingFileOp(null); p?.(); }}
+        onRequestAccess={() => { setWelcomeInitialTab('request'); setWelcomeOpen(true); }}
       />
       <AdminPanelDialog open={adminOpen} onOpenChange={setAdminOpen} />
       <CloudSceneDialog
@@ -1913,9 +1915,10 @@ export const Studio3D = () => {
       />
       <WelcomeDialog
         open={welcomeOpen}
+        initialTab={welcomeInitialTab}
         onOpenChange={(o) => {
           setWelcomeOpen(o);
-          if (!o) try { localStorage.setItem('3de.welcome.seen', '1'); } catch {}
+          if (!o) { setWelcomeInitialTab('welcome'); try { localStorage.setItem('3de.welcome.seen', '1'); } catch {} }
         }}
       />
       <CloudSceneDialog

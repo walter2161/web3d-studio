@@ -7,9 +7,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  onRequestAccess?: () => void;
 }
 
-export const LoginDialog = ({ open, onOpenChange, onSuccess }: Props) => {
+export const LoginDialog = ({ open, onOpenChange, onSuccess, onRequestAccess }: Props) => {
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,6 +53,17 @@ export const LoginDialog = ({ open, onOpenChange, onSuccess }: Props) => {
         </Row>
         <div className="text-[10px] text-win-text-disabled px-1">
           Cadastro público desativado. Solicite ao admin para liberar seu acesso.
+        </div>
+        <div className="text-[10px] px-1">
+          Ainda não tem conta?{' '}
+          <button
+            type="button"
+            onClick={() => { onOpenChange(false); onRequestAccess?.(); }}
+            className="text-[#0000ee] underline hover:text-[#1084d0] p-0 bg-transparent border-0 cursor-pointer"
+            style={{ font: 'inherit' }}
+          >
+            solicitar assinatura
+          </button>
         </div>
         <div className="flex justify-end gap-1 pt-1">
           <R3Button width={70} onClick={submit} disabled={busy}>OK</R3Button>
