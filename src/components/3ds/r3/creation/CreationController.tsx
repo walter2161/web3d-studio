@@ -454,6 +454,48 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       __creating: true,
     });
 
+    // -------- Bones (Systems → Bones): multi-click chain, RMB or ESC ends.
+    // Each click adds a new joint at the picked ground-plane point. A live
+    // preview joint tracks the cursor between clicks.
+    const bonesRef: { pts: THREE.Vector3[] } | null =
+      armed === 'sys_bones' ? { pts: [] } : null;
+
+    const buildBonesGhost = (pts: THREE.Vector3[]): GhostObject => {
+      // Lazy import — avoids a circular dep because the utility file itself
+      // has no runtime deps on this module.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { buildBoneChainFromPoints } = require('../../rig/bones') as typeof import('../../rig/bones');
+      const worldPts: [number, number, number][] = pts.map((p) => [p.x, p.y, p.z]);
+      const { position, geometry } = buildBoneChainFromPoints(worldPts);
+      return {
+        id: '__ghost',
+        type: 'sys_bones',
+        position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry,
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitBones = () => {
+      if (!bonesRef) return;
+      // Drop the trailing preview point.
+      const real = bonesRef.pts.slice(0, -1);
+      if (real.length >= 2) {
+        const ghost = buildBonesGhost(real);
+        // Re-type the ghost to the real object type — 'bone_chain' is what
+        // the renderer / hierarchy expect (sys_bones is only the arm token).
+        commit({ ...ghost, type: 'bone_chain' as any });
+      } else {
+        setGhost(null);
+      }
+      bonesRef.pts = [];
+    };
+
+
 
 
 
