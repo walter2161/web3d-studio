@@ -10,13 +10,17 @@ type Crumb = { id: string | null; name: string };
 
 interface Props {
   open: boolean;
-  mode: 'save' | 'open';
+  mode: 'save' | 'open' | 'export' | 'import';
   onOpenChange: (open: boolean) => void;
   onSave?: (name: string, folderId: string | null) => Promise<any> | any;
   onLoad?: (payload: any) => void;
+  /** For 'import' mode: payload parsed from a local file to upload into the cloud. */
+  importPayload?: any;
+  /** For 'import' mode: default filename (without extension). */
+  importDefaultName?: string;
 }
 
-export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad }: Props) => {
+export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, importPayload, importDefaultName }: Props) => {
   const [folders, setFolders] = useState<FolderRow[]>([]);
   const [scenes, setScenes] = useState<SceneRow[]>([]);
   const [crumbs, setCrumbs] = useState<Crumb[]>([{ id: null, name: 'Home' }]);
