@@ -62,6 +62,7 @@ interface Object3DData {
     | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
     | 'wall' | 'door' | 'window'
     | 'helper'
+    | 'bone_chain'
     | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
     | 'camera_target' | 'camera_free' | 'target_helper';
 
