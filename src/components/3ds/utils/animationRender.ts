@@ -104,8 +104,20 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   gl.toneMapping = preset.toneMapping;
   gl.toneMappingExposure = preset.exposure;
   gl.shadowMap.enabled = true;
+  gl.shadowMap.autoUpdate = true;
   gl.shadowMap.type = THREE.PCFSoftShadowMap;
   gl.shadowMap.needsUpdate = true;
+  // Force every material that participates in shadowing to recompile its
+  // shader — after a previous render restored the viewport's shadow settings,
+  // three.js caches shader programs that may have been compiled with shadows
+  // disabled. Without this flag, the SECOND render through the same renderer
+  // reuses the shadow-less program and produces flat/no-shadow frames.
+  scene.traverse((obj) => {
+    const m = (obj as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    if (!m) return;
+    if (Array.isArray(m)) m.forEach((mm) => { mm.needsUpdate = true; });
+    else m.needsUpdate = true;
+  });
 
   // Recording canvas at the requested output resolution.
   const recCanvas = document.createElement('canvas');
@@ -258,6 +270,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       const hiddenForFrame = hideEditorOverlays();
       try {
         gl.setRenderTarget(null);
+        // Force shadow maps to refresh every frame so animated objects and
+        // lights get correct shadows on subsequent renders (three.js reuses
+        // cached shadow maps otherwise, leading to missing/stale shadows).
+        gl.shadowMap.needsUpdate = true;
         gl.render(scene, renderTarget);
       } finally {
         hiddenForFrame.forEach((o) => { o.visible = true; });
@@ -321,7 +337,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder?.mimeType || 'video/webm' }));
     });
 
-    recorder.start();
+    // Request data chunks every 100ms so large-resolution encodes (1280x1024+)
+    // actually accumulate data rather than dumping a single huge chunk that
+    // some browsers drop when the recorder is stopped abruptly.
+    recorder.start(100);
     for (const frame of renderedFrames) {
       throwIfAborted();
       const bitmap = await createImageBitmap(frame);
@@ -331,10 +350,17 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       if (typeof track.requestFrame === 'function') track.requestFrame();
       await new Promise((r) => setTimeout(r, targetDelayMs));
     }
-    // Flush the last frame.
-    await new Promise((r) => setTimeout(r, 250));
+    // Flush the last frame — larger canvases need more time for the encoder
+    // to drain before we stop it, otherwise the final blob comes back empty.
+    await new Promise((r) => setTimeout(r, 500));
+    if (typeof (recorder as any).requestData === 'function') {
+      try { (recorder as any).requestData(); } catch { /* ignore */ }
+    }
     if (recorder.state !== 'inactive') recorder.stop();
     const blob = await stopped;
+    if (!blob || blob.size === 0) {
+      throw new Error('Encoder produced empty video — try a smaller resolution or WebM format');
+    }
     return blob;
   } finally {
     if (recorder && recorder.state !== 'inactive') recorder.stop();
