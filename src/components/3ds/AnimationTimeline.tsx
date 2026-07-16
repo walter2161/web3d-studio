@@ -54,8 +54,8 @@ interface AnimationTimelineProps {
   onBakeClip?: (clipIndex: number) => void;
   onChangeBakedSet?: (next: BakedClipSet) => void;
   // ---- Clip-Segment Gantt (e.g. Walk 0–60, Run 60–100 from Mixamo clips) ----
-  clipSegments?: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>;
-  onClipSegmentsChange?: (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>) => void;
+  clipSegments?: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>;
+  onClipSegmentsChange?: (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>) => void;
 }
 
 export const AnimationTimeline = ({
