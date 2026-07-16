@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useCreation, CreatableTool, GhostObject } from './CreationContext';
+import { buildBoneChainFromPoints } from '../../rig/bones';
 
 interface Props {
   viewportType: 'perspective' | 'top' | 'front' | 'left';
