@@ -363,8 +363,8 @@ export function paramsToEditableSpline(kind: string, params: any): EditableSplin
   const es = new EditableSpline();
   // Carry over shared render/interpolation params if present.
   const p = { ...(SHAPE_DEFAULTS as any)[kind], ...(params || {}) };
-  es.render.renderableViewport = p.renderableViewport ?? true;
-  es.render.renderableRender   = p.renderableRender   ?? true;
+  es.render.renderableViewport = p.renderableViewport ?? false;
+  es.render.renderableRender   = p.renderableRender   ?? false;
   es.render.renderRectangular  = p.renderRectangular  ?? false;
   es.render.thickness          = p.thickness          ?? 0.02;
   es.render.sides              = p.sides              ?? 6;
