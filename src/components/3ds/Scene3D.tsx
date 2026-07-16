@@ -128,6 +128,16 @@ export const Scene3D = ({
 
   const boneJointDragStartRef = useRef<THREE.Euler | null>(null);
 
+  // ---- Imported-model sub-node (rig bone / mesh) drag capture --------------
+  // When TransformControls is attached to an inner node of an imported model
+  // (bone/mesh), TC mutates that node directly. We snapshot the node's TRS
+  // on drag start and dispatch a `r3-rig-pose-op` event on drag end so the
+  // Studio3D undo stack can record and restore the pose.
+  const importedSubDragStartRef = useRef<
+    { pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number] } | null
+  >(null);
+  const importedSubActive = selectedObjectData?.type === 'imported' && !!selectedSubUuid;
+
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
   if (selectedObjectData?.type === 'imported' && selectedSubUuid) {
