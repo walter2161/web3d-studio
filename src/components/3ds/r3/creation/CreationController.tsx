@@ -701,6 +701,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
         if (wallRef) { wallRef.pts = []; }
         if (tapeRef) { tapeRef.start = null; }
+        if (bonesRef && bonesRef.pts.length > 0) { commitBones(); }
         stageRef.current = null;
         setGhost(null);
         disarm();
@@ -709,6 +710,10 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      if (bonesRef && bonesRef.pts.length > 0) {
+        commitBones();
+        return;
+      }
       if (wallRef && wallRef.pts.length > 0) {
         commitWall(false);
         return;
@@ -722,6 +727,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         setGhost(null);
       }
     };
+
 
 
     dom.addEventListener('pointerdown', onDown);
