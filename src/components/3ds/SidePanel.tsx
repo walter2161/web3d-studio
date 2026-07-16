@@ -246,6 +246,9 @@ export const SidePanel = ({
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
+  const [showEndResult, setShowEndResult] = useState(true);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
