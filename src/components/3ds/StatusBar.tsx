@@ -68,15 +68,6 @@ const frameBox = (box: THREE.Box3) => {
 
 const zoomExtents = () => { const b = computeSceneBBox(); if (b) frameBox(b); };
 
-const zoomExtentsSelected = () => {
-  const scene = getScene(); if (!scene) return;
-  const selectedId: string | null = (window as any).__r3SelectedObjectId || null;
-  if (!selectedId) { zoomExtents(); return; }
-  const targets: THREE.Object3D[] = [];
-  scene.traverse((n: any) => { if (n.userData?.objectId === selectedId) targets.push(n); });
-  const b = targets.length ? computeSceneBBox(targets) : computeSceneBBox();
-  if (b) frameBox(b);
-};
 
 const setPrimaryMouse = (button: 'rotate' | 'pan' | 'dolly' | 'select') => {
   const c = getControls(); if (!c) return;
