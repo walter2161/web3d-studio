@@ -464,9 +464,11 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const buildBonesGhost = (pts: THREE.Vector3[]): GhostObject => {
       const worldPts: [number, number, number][] = pts.map((p) => [p.x, p.y, p.z]);
       const { position, geometry } = buildBoneChainFromPoints(worldPts);
+      // Emit type='bone_chain' straight away so the renderer's isBoneType()
+      // branch picks up the ghost during the multi-click preview.
       return {
         id: '__ghost',
-        type: 'sys_bones',
+        type: 'bone_chain' as any,
         position,
         rotation: [0, 0, 0],
         scale: [1, 1, 1],
@@ -482,10 +484,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       // Drop the trailing preview point.
       const real = bonesRef.pts.slice(0, -1);
       if (real.length >= 2) {
-        const ghost = buildBonesGhost(real);
-        // Re-type the ghost to the real object type — 'bone_chain' is what
-        // the renderer / hierarchy expect (sys_bones is only the arm token).
-        commit({ ...ghost, type: 'bone_chain' as any });
+        commit(buildBonesGhost(real));
       } else {
         setGhost(null);
       }
