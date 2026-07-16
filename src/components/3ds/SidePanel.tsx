@@ -1012,22 +1012,95 @@ export const SidePanel = ({
                         </div>
                       );
                     })}
-                    {/* Base object row — no eye/arrow, matches 3ds Max */}
-                    <div
-                      className={cn(
-                        'flex items-center gap-[3px] h-[20px] px-[3px] text-[11px] cursor-pointer border-t border-win-shadow/50',
-                        selectedStackItem === 'base'
-                          ? 'bg-[#7a1f2b] text-white font-semibold'
-                          : 'text-black hover:bg-win-face-shadow/40 bg-win-face-2/40',
-                      )}
-                      onClick={() => setSelectedStackItem('base')}
-                    >
-                      <span className="w-[8px]" />
-                      <span className="w-[14px] flex items-center justify-center text-[9px] opacity-60">■</span>
-                      <span className="w-[10px]" />
-                      <span className="flex-1 truncate font-semibold">{baseLabel}</span>
-                    </div>
+                    {/* Base object row — expandable to show Editable Spline
+                        sub-object levels (Vertex/Segment/Spline) exactly like
+                        the Edit Poly / Edit Mesh hierarchy above it. */}
+                    {(() => {
+                      const isShapeBase = SHAPE_TYPES.has(String(selectedObject.type));
+                      const isEditableSpline = selectedObject.type === 'editable_spline';
+                      const baseExpanded = !!expandedStackItems['__base'];
+                      const currentLvl = getSplineSel(selectedObject.id).level;
+                      return (
+                        <>
+                          <div
+                            className={cn(
+                              'flex items-center gap-[3px] h-[20px] px-[3px] text-[11px] cursor-pointer border-t border-win-shadow/50',
+                              selectedStackItem === 'base'
+                                ? 'bg-[#7a1f2b] text-white font-semibold'
+                                : 'text-black hover:bg-win-face-shadow/40 bg-win-face-2/40',
+                            )}
+                            onClick={() => setSelectedStackItem('base')}
+                          >
+                            <span className="w-[8px]" />
+                            {isShapeBase ? (
+                              <button
+                                type="button"
+                                className="w-[14px] h-[14px] flex items-center justify-center text-[9px] opacity-80 hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedStackItems((p) => ({ ...p, __base: !p.__base }));
+                                }}
+                                title={baseExpanded ? 'Collapse' : 'Expand'}
+                              >
+                                {baseExpanded ? '▼' : '▶'}
+                              </button>
+                            ) : (
+                              <span className="w-[14px] flex items-center justify-center text-[9px] opacity-60">■</span>
+                            )}
+                            <span className="w-[10px]" />
+                            <span className="flex-1 truncate font-semibold">
+                              {isShapeBase && !isEditableSpline ? `${baseLabel}  (Spline)` : baseLabel}
+                            </span>
+                          </div>
+                          {isShapeBase && baseExpanded && (
+                            <div className="border-l border-dashed border-win-shadow ml-[14px]">
+                              {(['Vertex', 'Segment', 'Spline'] as const).map((lvl) => {
+                                const key: SplineSubLevel =
+                                  lvl === 'Vertex' ? 'sknot' :
+                                  lvl === 'Segment' ? 'ssegment' : 'sspline';
+                                const activeLvl = currentLvl === key;
+                                return (
+                                  <div
+                                    key={lvl}
+                                    className={cn(
+                                      'flex items-center gap-[4px] h-[16px] pl-[16px] pr-[2px] text-[11px] cursor-pointer',
+                                      activeLvl
+                                        ? 'bg-[#7a1f2b] text-white font-semibold'
+                                        : 'text-black hover:bg-win-face-shadow/40',
+                                    )}
+                                    onClick={() => {
+                                      setSelectedStackItem('base');
+                                      // Auto-convert parametric shape → Editable Spline on first entry.
+                                      if (!isEditableSpline) {
+                                        onUpdateObjectGeometry(selectedObject.id, { __convertToEditableSpline: true });
+                                      }
+                                      const next = activeLvl ? null : key;
+                                      // Deferred so the conversion state update lands first.
+                                      setTimeout(() => {
+                                        setSplineSel(selectedObject.id, {
+                                          level: next,
+                                          knots: new Set(),
+                                          segments: new Set(),
+                                          splines: new Set(),
+                                        });
+                                      }, 0);
+                                    }}
+                                  >
+                                    <span className={cn(
+                                      'w-[8px] h-[8px] inline-block',
+                                      activeLvl ? 'bg-win-highlight border border-white' : 'border border-win-shadow',
+                                    )} />
+                                    <span className="flex-1 truncate">{lvl}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
+
 
                   {/* Stack icon strip — 3ds Max style: pin stack, show end result, make unique, delete, config */}
                   <div className="flex items-center gap-[3px] px-[2px] py-[2px] bevel-group bg-win-face-2/60">
