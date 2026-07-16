@@ -5,7 +5,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { UIThemeSelector } from './r3/UIThemeContext';
+import { useUITheme } from './r3/UIThemeContext';
 
 interface MenuBarProps {
   onOpenMaterialEditor: () => void;
@@ -32,7 +32,7 @@ const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] 
   { label: 'Animation', access: 'A', items: ['Set Key', 'Auto Key', 'sep', 'Track View', 'Curve Editor', 'sep', 'Position Constraint', 'LookAt Constraint'] },
   { label: 'Graph Editors', access: 'D', items: ['Track View - Curve Editor', 'Track View - Dope Sheet', 'sep', 'Schematic View'] },
   { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
-  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
+  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Interface: Classic', 'Interface: Flat', 'Interface: Game', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
   { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About 3De...'] },
 ];
@@ -50,6 +50,7 @@ const renderLabel = (label: string, access: string) => {
 };
 
 export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport, onQuickRender, onRenderSetup, onEnvironment, onMaterialBrowser, onViewImageFile, onMenuAction }: MenuBarProps) => {
+  const { theme, setTheme } = useUITheme();
   return (
     <div className="h-[22px] bg-win-face flex items-stretch px-1 border-b border-win-shadow">
       {menuItems.map((menu) => (
@@ -76,7 +77,10 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     (item === 'Perspective' && activeViewport === 'perspective') ||
                     (item === 'Top' && activeViewport === 'top') ||
                     (item === 'Front' && activeViewport === 'front') ||
-                    (item === 'Left' && activeViewport === 'left')
+                    (item === 'Left' && activeViewport === 'left') ||
+                    (item === 'Interface: Classic' && theme === 'classic') ||
+                    (item === 'Interface: Flat' && theme === 'flat') ||
+                    (item === 'Interface: Game' && theme === 'game')
                       ? 'bg-menu-active text-menu-hover-fg'
                       : ''
                   }`}
@@ -95,6 +99,9 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item === 'Top') onViewportChange('top');
                     if (item === 'Front') onViewportChange('front');
                     if (item === 'Left') onViewportChange('left');
+                    if (item === 'Interface: Classic') setTheme('classic');
+                    if (item === 'Interface: Flat') setTheme('flat');
+                    if (item === 'Interface: Game') setTheme('game');
                     // Broadcast raw label for any handler wired via onMenuAction
                     onMenuAction?.(item);
                   }}
@@ -106,10 +113,6 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
           </DropdownMenuContent>
         </DropdownMenu>
       ))}
-      <div className="flex-1" />
-      <div className="flex items-center">
-        <UIThemeSelector />
-      </div>
     </div>
   );
 };
