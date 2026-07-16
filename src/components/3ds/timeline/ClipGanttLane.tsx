@@ -41,6 +41,7 @@ interface DragState {
   startX: number;
   origStart: number;
   origEnd: number;
+  origBlend: number;
   laneWidth: number;
 }
 
