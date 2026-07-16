@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Font } from 'three/examples/jsm/loaders/FontLoader.js';
 // Bundled Three.js fonts (vectorised TTF → typeface JSON) so text can be
 // rasterised into splines immediately, without an async fetch.
