@@ -535,6 +535,19 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
+      if (bipedRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        bipedRef.start = p.clone();
+        bipedRef.height = 0.1;
+        setGhost(buildBipedGhost(p, 0.1));
+        dom.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+
       if (bonesRef) {
         const p = raycastBase(e);
         if (!p) return;
