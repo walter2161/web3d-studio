@@ -100,10 +100,10 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, imp
     const targetId = id ?? (selected?.kind === 'scene' ? selected.id : null);
     if (!targetId) return;
     setBusy(true);
-    const { data, error } = await supabase.from('scenes').select('data').eq('id', targetId).maybeSingle();
+    const { data, error } = await supabase.from('scenes').select('data,name,folder_id').eq('id', targetId).maybeSingle();
     setBusy(false);
     if (error || !data) { toast.error('Falha ao abrir cena'); return; }
-    onLoad?.(data.data);
+    onLoad?.(data.data, { id: targetId, name: (data as any).name, folderId: (data as any).folder_id ?? null });
     toast.success('Cena carregada');
     onOpenChange(false);
   };
