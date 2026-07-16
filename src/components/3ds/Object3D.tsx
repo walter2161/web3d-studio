@@ -893,6 +893,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </mesh>
       </group>
     );
+  }
 
   // Render lights and cameras as full-fledged scene entities with R3-style helpers.
 
