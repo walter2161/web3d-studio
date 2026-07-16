@@ -11,7 +11,7 @@
  *   - onKnotMove(kid, worldPos): user finished a drag on a selected knot
  */
 import { useMemo, useRef } from 'react';
-import { ThreeEvent, useThree } from '@react-three/fiber';
+import { ThreeEvent, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EditableSpline, KNOT_COLORS, SplineSubLevel } from './EditableSpline';
 
