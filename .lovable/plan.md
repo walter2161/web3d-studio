@@ -1,124 +1,80 @@
-# Character Animation System — Bones / Biped / Rig
+# Print3D Toolkit — Plugin Plan
 
-O escopo completo (Bones + Skin + Envelopes + Biped com Figure/Footstep/Freeform + Rig com Constraints/Controllers/Wiring/Reaction Manager + Retarget + Pose Library) é gigante — equivalente ao Character Studio inteiro. Vou entregar em **3 fases**, cada uma utilizável por si só. Confirme a fase (ou aprove tudo em sequência) para eu começar.
+Novo plugin **Print3D** acessível pela aba **Create → Systems → Print3D** (e também via um novo painel lateral "Print Tools"). Foco inicial: **Elegoo Mars 2 Pro (129×80×160 mm)**. Não faz slicing nem gera suportes — só prepara o objeto para exportar ao Lychee/Chitubox.
 
----
-
-## Fase 1 — Bones + Skin básico + IK simples
-
-**Menu**
-- `Create → Systems → Bones` (nova aba "Systems" no SidePanel, junto com Helpers)
-- `Create → Systems → Biped` (fica arm-only nesta fase; commit na Fase 2)
-
-**Bones**
-- Ferramenta de criação encadeada estilo Line: clique cria osso, move mouse define comprimento, próximo clique inicia filho, RMB termina a cadeia.
-- Novo tipo `bone` em `Object3DData` com `boneKind`, `length`, `width`, `height`, `taper`, `fins`, `parentBoneId`.
-- Renderer: helper visual "◄──►" (dois cones + linha) em `src/components/3ds/r3/BoneGizmo.tsx`. Cor amarela padrão, branca quando selecionado.
-- Hierarquia real via `parentBoneId` — Scene Hierarchy exibe árvore com ícone de osso.
-- FK nativo: rotação do pai propaga para filhos (já ganho porque usamos `THREE.Object3D` aninhado).
-- **Bone Edit Mode**: toggle no painel Modify que permite reeditar comprimento/orientação sem quebrar keys.
-- **Bone On**: converter qualquer objeto selecionado em osso (adiciona flag `boneOn` e o Skin passa a reconhecê-lo).
-
-**Skin Modifier** (não-destrutivo, entra no Modifier Stack existente)
-- `SkinModifier` com `bones[]` e `vertexWeights[]`.
-- Botão **Add Bones** abre picker (Select By Name filtrado por type=bone).
-- **Auto Weight** por distância (heat weighting simplificado — proximidade ao segmento do osso, decaimento suave).
-- Substitui a `Mesh` por `THREE.SkinnedMesh` em runtime, mantendo a geometria original para toggle de exibição do modificador.
-- Painel de **Envelopes**: sliders Inner/Outer radius por osso, visualização de cápsulas semi-transparentes na viewport.
-
-**IK (HI Solver simplificado)**
-- Botão "Add IK" no painel do osso final de uma cadeia.
-- Cria helper `IK_Target` (diamante ciano) e `Pole_Vector` (seta) automaticamente.
-- Solver: usa `THREE.CCDIKSolver` (nativo no three.js). Chain length parametrizável.
-- FK/IK Blend slider (0 = FK puro, 1 = IK puro).
-
-**Arquivos novos/alterados**
-- novo: `src/components/3ds/rig/bones.ts` (tipos, defaults, criação de cadeia)
-- novo: `src/components/3ds/rig/skin.ts` (modifier, auto-weight, bind pose)
-- novo: `src/components/3ds/rig/ik.ts` (wrapper CCDIKSolver, FK/IK blend)
-- novo: `src/components/3ds/r3/BoneGizmo.tsx`
-- novo: `src/components/3ds/r3/SkinEnvelopeGizmo.tsx`
-- editado: `SidePanel.tsx` (nova aba Systems + rollouts Skin/IK no Modify)
-- editado: `Object3D.tsx` (case `bone`, integração SkinnedMesh)
-- editado: `Studio3D.tsx` (creation controller para bones, IK update no frame)
-- editado: `SceneHierarchy.tsx` (ícone e agrupamento de bones)
+O escopo é muito grande (21 ferramentas). Proponho dividir em **4 fases** e implementar a Fase 1 agora. As demais entram em turnos seguintes conforme você aprovar.
 
 ---
 
-## Fase 2 — Biped (Character Studio simplificado)
+## Fase 1 — Fundação (implementar agora)
 
-**Criação**
-- `Create → Systems → Biped`: clique-arrasta define altura; ao soltar, gera esqueleto humanoide completo.
-- Estrutura: `Bip01 → Pelvis → Spine01/02 → Neck → Head`, `Clavicle → UpperArm → Forearm → Hand → Fingers[]`, `Thigh → Calf → Foot → Toe`.
-- Parâmetros pré-criação (rollout Creation): Height, Arms(1/2/4), Fingers (0–5), Toes (0–5), Tail (bones), Ponytails (0–2), Spine Links (2–5), Neck Links (1–3).
+Estrutura do plugin + as ferramentas visuais/geométricas mais fáceis e de maior impacto imediato:
 
-**Modos** (toggle no painel do Biped)
-- **Figure Mode**: edição de proporções (altera bind pose, invalida animações → warn dialog).
-- **Freeform Mode**: animação padrão (Auto Key existente já funciona).
-- **Footstep Mode**: ferramenta na viewport para colocar marcadores de pegada (L/R alternando); ao rodar, gera automaticamente ciclo de caminhada com IK dos pés travando em cada pegada.
+1. **Printer Profile system** — JSON de impressoras (`printers.ts`), começando com Mars 2 Pro e Saturn 4 Ultra. API `addPrinter()` para o futuro painel de settings.
+2. **Build Plate** — objeto de cena novo (`print_bed`) criado pelo Create → Systems → Print3D. Renderiza:
+   - plataforma sólida no chão (129×80 mm),
+   - caixa transparente de volume (altura 160 mm),
+   - grade quadriculada na base.
+3. **Bounds Check** — objetos fora do volume ficam com outline vermelho (badge no viewport indica quantos).
+4. **Center On Plate** — botão que centraliza o objeto selecionado em X/Y sobre o bed ativo.
+5. **Drop to Bed** — raycast pra baixo até a base do bed, encosta o objeto (respeita bounding box mundial).
+6. **Scale for Print** — diálogo com fator (ex.: 1:100) e conversão de unidades (m → mm), aplicado ao selecionado.
+7. **Painel "Print Tools"** — nova aba lateral (`SidePanel`) com seções colapsáveis. Nesta fase entram: Printer, Build Plate, Bounds, Center, Drop, Scale, Export.
+8. **Export STL/OBJ** — reaproveita o export existente; apenas expõe botão direto no painel.
 
-**Rig automático**
-- Ao commit do Biped, gera controls: `Hand_CTRL` (círculo), `Foot_CTRL` (retângulo), `Pelvis_CTRL` (caixa), `Head_CTRL` (círculo), `Elbow_Pole`, `Knee_Pole` (setas).
-- IK/FK Switch por membro (slider 0–1) no rollout Motion.
-- **Foot Roll / Toe Roll / Heel Pivot** como custom sliders no `Foot_CTRL`.
+Entrega da Fase 1 = plugin utilizável ponta a ponta: cria bed, checa limites, centraliza, encosta, escala e exporta.
 
-**Skin com Biped**
-- Botão "Bind to Biped" no painel Modify da mesh: aplica Skin Modifier já com todos os bones do Biped adicionados e auto-weight.
+## Fase 2 — Análise de malha
+- Watertight Check
+- Mesh Repair (non-manifold, open edges, dup verts, flipped normals, self-intersect) + Auto Repair
+- Thin Geometry / Thickness Analyzer com mapa de cor (vertex colors)
+- Overhang Analyzer (mapa de cor por ângulo da normal vs. Z)
+- Hollow/Volume Analyzer (estimativa de resina em ml)
 
-**Test Animations panel**
-- Aba "Animations" na sidebar com clips embutidos: Idle, Walk, Run, Jump, Sit, Wave, Turn L/R.
-- Cada clip = `AnimationClip` procedural (curvas de rotação por bone).
-- `AnimationMixer` no Studio3D, blend com `crossFadeTo(0.3s)`.
-- Play/Stop/Loop por clip.
+## Fase 3 — Modificação de malha
+- Smart Thicken (inflate normals + smooth em regiões finas)
+- Remesh (Voxel/Adaptive)
+- Polygon Optimizer (quadric-error decimation via three-mesh-bvh + simplify)
+- Unify Objects (merge sem boolean destrutivo)
 
-**Arquivos novos**
-- `src/components/3ds/rig/biped.ts` (builder do esqueleto, defaults)
-- `src/components/3ds/rig/bipedAnimations.ts` (clips procedurais)
-- `src/components/3ds/rig/footstep.ts` (footstep planner → walk cycle)
-- `src/components/3ds/r3/BipedGizmos.tsx` (controls visuais)
-- `src/components/3ds/rig/RigControlsPanel.tsx` (sliders IK/FK, Foot Roll etc.)
-
----
-
-## Fase 3 — Rig avançado (Constraints, Controllers, Wiring, Pose Library, Retarget)
-
-**Constraints** (Animation menu → Constraints)
-- Position, Orientation, LookAt, Path Constraint.
-- Aplicados via novo campo `Object3DData.constraints[]` avaliado por-frame no Studio3D.
-
-**Controllers por track**
-- Bezier Position, Euler XYZ, TCB Rotation, Noise Position/Rotation.
-- Trocáveis pelo curve editor existente (Track View).
-
-**Custom Attributes + Wiring Parameters**
-- Dialog "Add Custom Attribute" (slider/checkbox) anexa parâmetro a qualquer objeto.
-- **Wiring Parameters**: dialog com dois painéis (source/target), expressão `output = f(input)`, avaliado por-frame.
-
-**Reaction Manager**
-- Dialog master/slave: gravar estados A→B, interpolação spline entre reactions.
-
-**Pose Library**
-- Painel lateral: Save Pose (grava rotações de todos os bones selecionados), Load Pose, Mirror Pose (L↔R por nome).
-
-**Retarget**
-- Dialog Retarget: source Biped → target Biped, mapping por nome; converte clips.
-
-**Mirror Pose, Bone Layers**
-- Layer Manager já existe — só adicionar categorias padrão Geometry/Bones/Controls/Helpers para novos Bipeds.
+## Fase 4 — Ferramentas de composição / impressão
+- Create Base (circular/quadrada/orgânica, chamfer)
+- Cut for Print (plano de corte + male/female connectors)
+- Keying System (pinos/encaixes/ímãs)
+- Print Orientation suggestion
+- Virtual Diorama Tool (escalas 1:50/1:100/1:200)
+- External Structure Tool (paredes ocas, pisos separáveis)
+- Import 3MF/PLY/GLB, Export 3MF
+- **Print Safe Mode** — dashboard consolidado com checklist final
 
 ---
 
-## Dependências
+## Estrutura técnica proposta
 
-- `three.CCDIKSolver`, `three.SkeletonHelper`, `three.SkinnedMesh`, `three.AnimationMixer` — já disponíveis no three instalado.
-- Nenhum pacote novo necessário.
+```text
+src/components/3ds/print3d/
+├── printers.ts               # perfis (Mars 2 Pro, Saturn 4 Ultra)
+├── PrintBedObject.tsx        # renderer r3f do bed
+├── PrintToolsPanel.tsx       # painel lateral (aba nova)
+├── boundsCheck.ts            # AABB vs volume
+├── ops/
+│   ├── centerOnPlate.ts
+│   ├── dropToBed.ts
+│   └── scaleForPrint.ts
+└── (fases 2-4 adicionam analyzers/, repair/, remesh/, cut/, keying/)
+```
+
+Integrações:
+- `CreationContext.tsx` ganha tool `sys_print_bed`.
+- `Studio3D.tsx` registra o novo object type `print_bed` e mantém `activePrinterId`.
+- `Object3D.tsx` delega `print_bed` para `PrintBedObject`.
+- `SidePanel.tsx` ganha aba "Print Tools".
+- Bounds check roda em `Scene3D` via effect quando há bed ativo.
 
 ---
 
-## Como quero prosseguir
+## O que preciso confirmar antes de codar a Fase 1
 
-Recomendo começar pela **Fase 1** (Bones + Skin + IK básico) e validar o fluxo antes de partir pro Biped. Confirme:
-
-1. **Fase 1 completa agora** (Bones, Skin, envelopes, IK, FK/IK blend) — recomendado.
-2. **Fase 1 + 2 juntas** (adiciona Biped com Footstep e test animations) — bem maior, mais tempo.
-3. **Só uma parte específica** — diga qual (ex.: "só Bones + FK" ou "só Biped sem Footstep").
+1. **Nome final do plugin no menu:** vou usar **"Print3D"** (Create → Systems → Print3D) e o painel **"Print Tools"**. OK?
+2. **Bed default:** criar automaticamente um bed Mars 2 Pro na cena vazia, ou só quando o usuário clicar em Create → Print3D? (proponho: **só ao clicar**, coerente com Bones/Biped).
+3. Posso seguir direto com a Fase 1 assim que você aprovar este plano.
