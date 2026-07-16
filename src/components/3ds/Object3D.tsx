@@ -306,28 +306,26 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   useEffect(() => {
     if (!imported || imported.animations.length === 0) return;
     const mixer = new AnimationMixer(imported.root);
-    const actions: THREE.AnimationAction[] = imported.animations.map((clip) => {
+    const actions: THREE.AnimationAction[] = imported.animations.map((clip, i) => {
       const a = mixer.clipAction(clip);
       a.reset();
       a.enabled = true;
       a.paused = false;
-      a.setEffectiveWeight(0);
+      a.setLoop(THREE.LoopRepeat, Infinity); // Mixamo clips are cyclic
       a.setEffectiveTimeScale(1);
-      a.setLoop(THREE.LoopRepeat, Infinity); // clip-switch cues use loops
+      a.setEffectiveWeight(i === 0 ? 1 : 0);
       a.play();
       return a;
     });
-    // Start with the first clip active.
-    actions[0].setEffectiveWeight(1);
     actionsRef.current = actions;
     activeActionRef.current = actions[0];
     mixerRef.current = mixer;
     clipDurationsRef.current = imported.animations.map((c) => c.duration);
 
-    // Sync mixer to a specific timeline frame, honoring clip-switch cues:
-    // each cue anchors a clip at its frame and plays it forward (looping)
-    // until the next cue. Without cues we fall back to mapping the whole
-    // timeline onto the sole active clip's duration.
+    // Track which clip index was active last frame so we can crossfade on
+    // transitions instead of popping.
+    let lastActiveIdx = 0;
+
     const syncClipTime = (frame: number, total: number) => {
       const safeTotal = Math.max(1, total || totalFrames || 1);
       const cues = (((window as any).__clipSwitches || {}) as Record<string, Array<{ frame: number; clipIndex: number }>>)[object.id] || [];
@@ -347,25 +345,34 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       const duration = clip.duration || 0;
       if (duration <= 0) return;
 
-      // Swap weights so only the active clip drives the pose.
-      for (let i = 0; i < actions.length; i++) {
-        actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+      // Crossfade weights when the active clip changes.
+      if (activeIdx !== lastActiveIdx) {
+        for (let i = 0; i < actions.length; i++) {
+          actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+          actions[i].enabled = true;
+          actions[i].paused = false;
+        }
+        lastActiveIdx = activeIdx;
+      } else {
+        // Ensure weights stay coherent (in case a previous switch left them).
+        for (let i = 0; i < actions.length; i++) {
+          actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+        }
       }
       activeActionRef.current = action;
 
-      // Timeline-frame → seconds relative to the anchor, then wrap into the
-      // clip so the animation loops naturally between cues.
+      // Map timeline frames since the anchoring cue to clip seconds.
+      // Assume a 30 fps timeline (Mixamo default) so the animation plays at
+      // its natural speed and loops between cues.
       const framesSinceAnchor = Math.max(0, frame - anchorFrame);
-      const secondsPerFrame = duration / Math.max(1, safeTotal); // approx: assume clip fills full timeline
-      // Better: use 1/30 fps for Mixamo-style clips when duration is large.
       const fps = 30;
       const rawTime = framesSinceAnchor / fps;
-      const clipTime = duration > 0 ? (rawTime % duration) : 0;
+      const clipTime = rawTime % duration;
 
-      action.enabled = true;
-      action.paused = false;
-      action.time = clipTime;
-      mixer.update(0); // apply without advancing
+      // mixer.setTime resets every action's time to 0 then advances by
+      // clipTime — the standard three.js scrubbing pattern that guarantees
+      // bones get repositioned every call.
+      mixer.setTime(clipTime);
       imported.root.updateMatrixWorld(true);
       imported.root.traverse((child: any) => {
         if (child.isSkinnedMesh && child.skeleton) {
@@ -373,8 +380,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           child.skeleton.update();
         }
       });
-      // Silence unused-var lint for the fallback mapping.
-      void secondsPerFrame;
+      void safeTotal;
     };
     syncImportedClipRef.current = syncClipTime;
     (imported.root as any).userData.__syncClipTime = syncClipTime;
