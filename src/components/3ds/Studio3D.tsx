@@ -1072,7 +1072,11 @@ export const Studio3D = () => {
         console.error('Boolean failed', err);
         toast.error('Operação Boolean falhou — verifique se as malhas são fechadas');
       } finally {
-        setCompoundState({ tool: null, op: compoundState.op, picking: false });
+        // ProBoolean stays armed to accept more operands B; classic Boolean disarms.
+        setCompoundState((s) => s.tool === 'proboolean'
+          ? { tool: 'proboolean', op: s.op, picking: true }
+          : { tool: null, op: s.op, picking: false }
+        );
       }
     });
   }, [selectedObject, objects, compoundState.op, saveState]);
