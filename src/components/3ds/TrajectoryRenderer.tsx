@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { Keyframe, AnimationTrack } from './AnimationTimeline';
+import { makeScreenSpaceMeshRaycast } from './utils/screenSpacePicking';
 
 interface TrajectoryRendererProps {
   tracks: AnimationTrack[];
@@ -42,6 +43,8 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
   const dragPlaneRef = useRef(new THREE.Plane());
   const raycasterRef = useRef(new THREE.Raycaster());
   const ndcRef = useRef(new THREE.Vector2());
+  const anchorRaycast = useMemo(() => makeScreenSpaceMeshRaycast(() => camera, () => gl, 8), [camera, gl]);
+  const handleRaycast = useMemo(() => makeScreenSpaceMeshRaycast(() => camera, () => gl, 6), [camera, gl]);
 
   const { curvePoints, anchorPoints, handlePoints, handleLines } = useMemo(() => {
     const kfs = track.keyframes;
@@ -163,6 +166,7 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
           <mesh
             key={`anchor-${a.kfId}`}
             position={a.pos}
+            raycast={anchorRaycast as any}
             onPointerDown={(e) => startDrag(e, { kind: 'anchor', kfId: a.kfId }, a.pos)}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}
@@ -181,6 +185,7 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
           <mesh
             key={`handle-${h.kfId}-${h.type}`}
             position={h.pos}
+            raycast={handleRaycast as any}
             onPointerDown={(e) => startDrag(e, { kind: 'handle', kfId: h.kfId, type: h.type }, h.pos)}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}
