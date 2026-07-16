@@ -220,6 +220,16 @@ export const Studio3D = () => {
   const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
   const [redoStack, setRedoStack] = useState<Object3DData[][]>([]);
+  // Unified undo ordering: parallel to the state stacks above and to
+  // rigUndoRef/rigRedoRef below. Each entry records whether that step is
+  // an object-graph snapshot or a rig-pose patch, so undo()/redo() can pop
+  // in the exact temporal order actions happened.
+  type RigPoseTRS = { pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number] };
+  type RigPoseEntry = { objectId: string; nodeUuid: string; prev: RigPoseTRS; next: RigPoseTRS };
+  const undoOrderRef = useRef<Array<'objects' | 'rig'>>([]);
+  const redoOrderRef = useRef<Array<'objects' | 'rig'>>([]);
+  const rigUndoRef = useRef<RigPoseEntry[]>([]);
+  const rigRedoRef = useRef<RigPoseEntry[]>([]);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
