@@ -180,15 +180,18 @@ export const Scene3D = ({
         <TransformControls
           ref={transformControlsRef}
           object={transformTarget}
-          mode={transformMode}
+          mode={effectiveTransformMode}
           size={0.8}
           showX showY showZ
-          translationSnap={snapEnabled && transformMode === 'translate' ? snapGridSpacing : null}
-          rotationSnap={snapEnabled && transformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
-          scaleSnap={snapEnabled && transformMode === 'scale' ? snapPercent / 100 : null}
+          translationSnap={snapEnabled && effectiveTransformMode === 'translate' ? snapGridSpacing : null}
+          rotationSnap={snapEnabled && effectiveTransformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
+          scaleSnap={snapEnabled && effectiveTransformMode === 'scale' ? snapPercent / 100 : null}
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
+            if (boneJointActive && boneJointTarget) {
+              boneJointDragStartRef.current = boneJointTarget.rotation.clone();
+            }
             if (subGizmoActive && subProxyObj) {
               subDragStartRef.current = subProxyObj.position.clone();
               subDragStartRotRef.current = subProxyObj.rotation.clone();
@@ -201,6 +204,9 @@ export const Scene3D = ({
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
+            if (boneJointActive) {
+              boneJointDragStartRef.current = null;
+            }
             if (subGizmoActive && subProxyObj && activeEditMod && selectedObject) {
               // Reset the proxy so the next drag starts from identity.
               subProxyObj.rotation.set(0, 0, 0);
