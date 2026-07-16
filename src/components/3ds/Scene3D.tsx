@@ -101,6 +101,26 @@ export const Scene3D = ({
     subCentroid.modifierId === activeEditMod.id &&
     !!subCentroid.local;
 
+  // ---- Bone joint sub-selection ---------------------------------------------
+  // When the user clicks a joint sphere inside a bone_chain, we attach the
+  // gizmo directly to that joint <group>. Rotating it in TC drives ONLY that
+  // joint's local rotation — since children live under this group, they follow
+  // (native FK). Auto-forces rotate mode.
+  const [boneJoint, setBoneJoint] = useState<BoneJointSelection | null>(getSelectedJoint());
+  useEffect(() => subscribeSelectedJoint(setBoneJoint), []);
+  // Clear joint selection when the parent object is deselected.
+  useEffect(() => {
+    if (boneJoint && boneJoint.objectId !== selectedObject) setSelectedJoint(null);
+  }, [selectedObject, boneJoint]);
+
+  const boneJointActive = !!boneJoint && boneJoint.objectId === selectedObject;
+  const boneJointTarget = boneJointActive
+    ? getJointObject(`${boneJoint!.objectId}:${boneJoint!.jointIndex}`) ?? null
+    : null;
+  const effectiveTransformMode: 'translate' | 'rotate' | 'scale' =
+    boneJointActive ? 'rotate' : transformMode;
+
+  const boneJointDragStartRef = useRef<THREE.Euler | null>(null);
 
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
@@ -115,6 +135,10 @@ export const Scene3D = ({
   if (subGizmoActive && subProxyObj) {
     transformTarget = subProxyObj;
   }
+  if (boneJointActive && boneJointTarget) {
+    transformTarget = boneJointTarget;
+  }
+
 
   // Lookup a target object's world position for target-camera / target-spot / target-direct.
   const targetLookup = (id: string): [number, number, number] | null => {
