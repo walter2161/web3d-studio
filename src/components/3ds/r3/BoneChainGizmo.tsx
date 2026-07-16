@@ -11,10 +11,16 @@
  * so rotating one joint moves only its children (FK).
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { BoneChainGeom } from '../rig/bones';
-import { setJointObject, setSelectedJoint, getSelectedJoint } from '../rig/boneJointRegistry';
+import {
+  BoneJointSelection,
+  setJointObject,
+  setSelectedJoint,
+  getSelectedJoint,
+  subscribeSelectedJoint,
+} from '../rig/boneJointRegistry';
 
 interface Props {
   data: BoneChainGeom | undefined | null;
@@ -94,6 +100,12 @@ const JointNode = ({ joints, index, data, color, objectId, selectedJointIndex, g
     if (ghost || !objectId) return;
     e.stopPropagation();
     const cur = getSelectedJoint();
+    // Always ensure the parent chain object itself is selected — otherwise
+    // Scene3D would keep the gizmo attached to the chain root and moving one
+    // joint would look like moving the whole chain.
+    window.dispatchEvent(new CustomEvent('r3-bone-joint-pick', {
+      detail: { objectId, jointIndex: index },
+    }));
     if (cur && cur.objectId === objectId && cur.jointIndex === index) {
       setSelectedJoint(null);
     } else {
@@ -135,10 +147,14 @@ const JointNode = ({ joints, index, data, color, objectId, selectedJointIndex, g
 };
 
 export const BoneChainGizmo = ({ data, selected, ghost, objectId }: Props) => {
+  // Live selection so the red-wine highlight updates the instant the user
+  // clicks a joint — without this, only Scene3D re-rendered on subscription.
+  const [sel, setSel] = useState<BoneJointSelection | null>(getSelectedJoint());
+  useEffect(() => subscribeSelectedJoint(setSel), []);
+
   if (!data || !data.joints || data.joints.length === 0) return null;
   const color = ghost ? GHOST : selected ? SEL : YELLOW;
-  const cur = getSelectedJoint();
-  const selectedJointIndex = cur && cur.objectId === objectId ? cur.jointIndex : null;
+  const selectedJointIndex = sel && sel.objectId === objectId ? sel.jointIndex : null;
   return (
     <JointNode
       joints={data.joints}

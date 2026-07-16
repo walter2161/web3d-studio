@@ -775,6 +775,21 @@ export const Studio3D = () => {
     return () => window.removeEventListener('r3-bone-joint-rot', onJointRot as any);
   }, []);
 
+  // When a joint sphere is clicked, we also need the parent chain object to be
+  // the current scene selection — otherwise Scene3D keeps the gizmo attached
+  // to the previous target and moving one joint looks like moving the whole
+  // chain (because it never actually attached to the joint's inner group).
+  useEffect(() => {
+    const onJointPick = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as { objectId: string; jointIndex: number };
+      if (!d?.objectId) return;
+      setSelectedObject(d.objectId);
+    };
+    window.addEventListener('r3-bone-joint-pick', onJointPick as any);
+    return () => window.removeEventListener('r3-bone-joint-pick', onJointPick as any);
+  }, []);
+
+
 
   // Biped spawn — the creation controller dispatches this event when the user
   // drag-releases with Systems→Biped armed. We build a whole set of bone_chain
