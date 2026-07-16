@@ -142,6 +142,8 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
   }, [dragging, getPointerWorld, onUpdateKeyframe, track.keyframes, track.objectId]);
 
   const endDrag = useCallback((e: any) => {
+    const controls = (window as any).__orbitControls;
+    if (controls) controls.enabled = true;
     if (!dragging) return;
     e.stopPropagation();
     (e.target as any)?.releasePointerCapture?.(e.pointerId);
