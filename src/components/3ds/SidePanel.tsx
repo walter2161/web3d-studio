@@ -258,6 +258,10 @@ export const SidePanel = ({
   onSetCompoundOp,
   onStartPickOperandB,
   onCancelCompound,
+  allObjects,
+  onCreatePrintBed,
+  onUpdatePrintBed,
+  onTransformObject,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
