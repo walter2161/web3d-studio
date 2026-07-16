@@ -36,6 +36,7 @@ import { snapDoorWindowToWall, type WallOpening, type WallGeom } from './utils/a
 import { LoginDialog } from './r3/LoginDialog';
 import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
+import { WelcomeDialog } from './r3/WelcomeDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
