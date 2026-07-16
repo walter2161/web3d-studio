@@ -33,7 +33,7 @@ const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] 
   { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
   { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
-  { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'About 3ds Max...'] },
+  { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'About 3De...'] },
 ];
 
 const renderLabel = (label: string, access: string) => {
