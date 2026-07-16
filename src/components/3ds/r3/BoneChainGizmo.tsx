@@ -100,6 +100,12 @@ const JointNode = ({ joints, index, data, color, objectId, selectedJointIndex, g
     if (ghost || !objectId) return;
     e.stopPropagation();
     const cur = getSelectedJoint();
+    // Always ensure the parent chain object itself is selected — otherwise
+    // Scene3D would keep the gizmo attached to the chain root and moving one
+    // joint would look like moving the whole chain.
+    window.dispatchEvent(new CustomEvent('r3-bone-joint-pick', {
+      detail: { objectId, jointIndex: index },
+    }));
     if (cur && cur.objectId === objectId && cur.jointIndex === index) {
       setSelectedJoint(null);
     } else {
