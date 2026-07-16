@@ -942,6 +942,13 @@ export const Studio3D = () => {
   const addModifier = useCallback((objectId: string, modifierType: string) => {
     const defaultParams: Record<string, any> = {
       Extrude: { amount: 1, segments: 1, capStart: true, capEnd: true, bevelEnabled: false },
+      Shell: {
+        inner: 0.1, outer: 0, segments: 1,
+        straightenCorners: true, autoSmooth: true,
+        overrideInnerMatId: false, innerMatId: 1,
+        overrideOuterMatId: false, outerMatId: 0,
+        overrideEdgeMatId: false,  edgeMatId: 2,
+      },
     };
     const newModifier: Modifier = {
       id: `${modifierType}_${Date.now()}`,
