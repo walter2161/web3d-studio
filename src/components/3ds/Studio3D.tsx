@@ -33,6 +33,11 @@ import { getViewportHandle } from './r3/viewportRegistry';
 import { toast } from 'sonner';
 import * as THREE from 'three';
 import { snapDoorWindowToWall, type WallOpening, type WallGeom } from './utils/aecGeometry';
+import { LoginDialog } from './r3/LoginDialog';
+import { AdminPanelDialog } from './r3/AdminPanelDialog';
+import { CloudSceneDialog } from './r3/CloudSceneDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 // 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
 const randomMaxColor = (): string => {
