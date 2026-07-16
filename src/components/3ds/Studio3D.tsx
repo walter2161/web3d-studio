@@ -1001,9 +1001,95 @@ export const Studio3D = () => {
   }, []);
 
 
-  const handleSelectObject = useCallback((id: string | null) => {
-    setSelectedObject(id);
+  // ---- Compound Objects (Boolean / ProBoolean) --------------------------------
+  const [compoundState, setCompoundState] = useState<{
+    tool: 'boolean' | 'proboolean' | 'loft' | 'scatter' | null;
+    op: 'union' | 'subtract' | 'intersect';
+    picking: boolean;
+  }>({ tool: null, op: 'subtract', picking: false });
+
+  const armCompound = useCallback((tool: 'boolean' | 'proboolean' | 'loft' | 'scatter' | null) => {
+    if (tool === 'loft' || tool === 'scatter') {
+      toast.info(`${tool === 'loft' ? 'Loft' : 'Scatter'} — em breve`);
+      return;
+    }
+    setCompoundState((s) => ({ ...s, tool, picking: false }));
   }, []);
+
+  const setCompoundOp = useCallback((op: 'union' | 'subtract' | 'intersect') => {
+    setCompoundState((s) => ({ ...s, op }));
+  }, []);
+
+  const startPickOperandB = useCallback(() => {
+    setCompoundState((s) => (s.tool ? { ...s, picking: true } : s));
+  }, []);
+
+  const cancelCompound = useCallback(() => {
+    setCompoundState({ tool: null, op: 'subtract', picking: false });
+  }, []);
+
+  const performBoolean = useCallback((operandBId: string) => {
+    const aId = selectedObject;
+    if (!aId || aId === operandBId) {
+      toast.error('Operando A e Operando B devem ser objetos distintos');
+      return;
+    }
+    const a = objects.find((o) => o.id === aId);
+    const b = objects.find((o) => o.id === operandBId);
+    const meshA = a?.ref?.current as THREE.Mesh | undefined;
+    const meshB = b?.ref?.current as THREE.Mesh | undefined;
+    if (!a || !b || !meshA || !meshB || !(meshA as any).geometry || !(meshB as any).geometry) {
+      toast.error('Operandos inválidos — selecione dois objetos com geometria');
+      return;
+    }
+
+    // Dynamic import keeps the CSG lib out of the initial bundle.
+    import('./utils/compoundOps').then(({ computeBoolean }) => {
+      try {
+        saveState();
+        const baked = computeBoolean(meshA, meshB, compoundState.op);
+        const newObj: Object3DData = {
+          id: `compound_${Date.now()}`,
+          name: `Boolean_${(a.name || a.type).slice(0, 8)}`,
+          type: 'compound' as any,
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: a.color,
+          visible: true,
+          locked: false,
+          modifiers: [],
+          geometry: baked,
+          ref: { current: null } as any,
+        };
+        setObjects((prev) => {
+          const rest = prev.filter((o) => o.id !== aId && o.id !== operandBId);
+          return [...rest, newObj];
+        });
+        setSelectedObject(newObj.id);
+        toast.success(`Boolean ${compoundState.op} concluído`);
+      } catch (err) {
+        console.error('Boolean failed', err);
+        toast.error('Operação Boolean falhou — verifique se as malhas são fechadas');
+      } finally {
+        // ProBoolean stays armed to accept more operands B; classic Boolean disarms.
+        setCompoundState((s) => s.tool === 'proboolean'
+          ? { tool: 'proboolean', op: s.op, picking: true }
+          : { tool: null, op: s.op, picking: false }
+        );
+      }
+    });
+  }, [selectedObject, objects, compoundState.op, saveState]);
+
+  const handleSelectObject = useCallback((id: string | null) => {
+    // If a compound Boolean is waiting for Operand B, consume the click.
+    if (id && compoundState.picking && compoundState.tool && selectedObject && id !== selectedObject) {
+      performBoolean(id);
+      return;
+    }
+    setSelectedObject(id);
+  }, [compoundState.picking, compoundState.tool, selectedObject, performBoolean]);
+
 
   const handleTransformObject = useCallback((id: string, transform: any) => {
     setObjects(prev => prev.map(obj => 
@@ -1825,6 +1911,11 @@ export const Studio3D = () => {
             onUpdateObjectLightData={updateObjectLightData}
             onUpdateObjectCameraData={updateObjectCameraData}
             onUpdateObjectColor={updateObjectColor}
+            compoundState={compoundState}
+            onArmCompound={armCompound}
+            onSetCompoundOp={setCompoundOp}
+            onStartPickOperandB={startPickOperandB}
+            onCancelCompound={cancelCompound}
 
           />
 

@@ -216,6 +216,16 @@ interface SidePanelProps {
   onUpdateObjectCameraData?: (objectId: string, params: any) => void;
   onUpdateObjectColor?: (objectId: string, color: string) => void;
 
+  // Compound Objects (Boolean / ProBoolean / Loft / Scatter)
+  compoundState?: {
+    tool: 'boolean' | 'proboolean' | 'loft' | 'scatter' | null;
+    op: 'union' | 'subtract' | 'intersect';
+    picking: boolean;
+  };
+  onArmCompound?: (tool: 'boolean' | 'proboolean' | 'loft' | 'scatter' | null) => void;
+  onSetCompoundOp?: (op: 'union' | 'subtract' | 'intersect') => void;
+  onStartPickOperandB?: () => void;
+  onCancelCompound?: () => void;
 }
 
 export const SidePanel = ({
@@ -236,13 +246,17 @@ export const SidePanel = ({
   onUpdateObjectLightData,
   onUpdateObjectCameraData,
   onUpdateObjectColor,
-
+  compoundState,
+  onArmCompound,
+  onSetCompoundOp,
+  onStartPickOperandB,
+  onCancelCompound,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'compound' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -293,6 +307,16 @@ export const SidePanel = ({
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
     { type: 'foliage',  label: 'Foliage',  disabled: true },
+  ];
+
+  // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
+  // 2D-path sweeping (Loft) or surface distribution (Scatter). Loft & Scatter
+  // are stubbed as "em breve"; Boolean and ProBoolean are fully wired.
+  const compoundTools: Array<{ id: 'boolean' | 'proboolean' | 'loft' | 'scatter'; label: string; disabled?: boolean }> = [
+    { id: 'boolean',    label: 'Boolean' },
+    { id: 'proboolean', label: 'ProBoolean' },
+    { id: 'loft',       label: 'Loft',    disabled: true },
+    { id: 'scatter',    label: 'Scatter', disabled: true },
   ];
 
   // Helpers — non-renderable viewport aids (see utils/helpers.ts).
@@ -485,13 +509,21 @@ export const SidePanel = ({
             {/* Sub-category dropdown (Standard / Extended Primitives, etc.) */}
             {createCat === 'geometry' && (
               <select
-                value={createCategory === 'extended' ? 'extended' : createCategory === 'aec' ? 'aec' : 'standard'}
-                onChange={(e) => setCreateCategory(e.target.value as any)}
+                value={createCategory === 'extended' ? 'extended'
+                      : createCategory === 'aec' ? 'aec'
+                      : createCategory === 'compound' ? 'compound'
+                      : 'standard'}
+                onChange={(e) => {
+                  setCreateCategory(e.target.value as any);
+                  // Leaving compound category cancels any pending boolean pick.
+                  if (e.target.value !== 'compound') onCancelCompound?.();
+                }}
                 className="w-full h-[22px] text-[11px] bevel-sunken bg-win-face px-1 text-win-text"
               >
                 <option value="standard">Standard Primitives</option>
                 <option value="extended">Extended Primitives</option>
                 <option value="aec">AEC Extended</option>
+                <option value="compound">Compound Objects</option>
               </select>
             )}
 
@@ -551,6 +583,30 @@ export const SidePanel = ({
                       )}
                     >
                       {p.label}
+                    </button>
+                  );
+                })}
+                {createCat === 'geometry' && createCategory === 'compound' && compoundTools.map((t) => {
+                  const pressed = compoundState?.tool === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      disabled={t.disabled}
+                      onClick={() => {
+                        if (t.disabled) return;
+                        onArmCompound?.(pressed ? null : t.id);
+                      }}
+                      title={t.disabled
+                        ? `${t.label} — em breve`
+                        : `${t.label} — selecione o Operando A e clique aqui`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        t.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {t.label}
                     </button>
                   );
                 })}
@@ -639,6 +695,70 @@ export const SidePanel = ({
 
               </div>
             </div>
+
+            {/* Boolean / ProBoolean rollout — visible only when a compound tool is armed. */}
+            {createCat === 'geometry' && createCategory === 'compound' && compoundState?.tool && (compoundState.tool === 'boolean' || compoundState.tool === 'proboolean') && (
+              <div className="bevel-raised">
+                <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
+                  {compoundState.tool === 'boolean' ? 'Boolean' : 'ProBoolean'} Parameters
+                </div>
+                <div className="p-1 space-y-1">
+                  <div className="text-[10px] text-win-text px-1">
+                    Operando A: <span className="font-semibold">{selectedObject?.name || selectedObject?.type || '— selecione —'}</span>
+                  </div>
+                  <div className="bevel-inset p-1 space-y-[2px]">
+                    <div className="text-[10px] font-semibold text-win-text px-1">Operation</div>
+                    {([
+                      { id: 'union',     label: 'Union (A + B)' },
+                      { id: 'subtract',  label: 'Subtraction (A - B)' },
+                      { id: 'intersect', label: 'Intersection (A ∩ B)' },
+                    ] as const).map((o) => (
+                      <label key={o.id} className="flex items-center gap-1 text-[11px] text-win-text cursor-pointer px-1">
+                        <input
+                          type="radio"
+                          name="bool-op"
+                          checked={compoundState.op === o.id}
+                          onChange={() => onSetCompoundOp?.(o.id)}
+                        />
+                        {o.label}
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    disabled={!selectedObject}
+                    onClick={() => onStartPickOperandB?.()}
+                    className={cn(
+                      'w-full h-[22px] text-[11px] text-win-text px-1',
+                      !selectedObject
+                        ? 'bevel-raised opacity-40 cursor-not-allowed'
+                        : compoundState.picking
+                          ? 'bevel-sunken bg-yellow-200'
+                          : 'bevel-raised hover:brightness-105'
+                    )}
+                    title={selectedObject
+                      ? 'Clique aqui e depois clique no Operando B na viewport'
+                      : 'Selecione o Operando A primeiro'}
+                  >
+                    {compoundState.picking
+                      ? (compoundState.tool === 'proboolean' ? 'Clique nos Operandos B (ESC para finalizar)' : 'Clique no Operando B na viewport…')
+                      : (compoundState.tool === 'proboolean' ? 'Pick Operands B (múltiplos)' : 'Pick Operand B')}
+                  </button>
+                  {compoundState.picking && (
+                    <button
+                      onClick={() => onCancelCompound?.()}
+                      className="w-full h-[20px] text-[11px] bevel-raised text-win-text hover:brightness-105"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <div className="text-[10px] text-win-text-disabled px-1 pt-1 italic leading-tight">
+                    {compoundState.tool === 'proboolean'
+                      ? 'ProBoolean: aplica a mesma operação para vários operandos B em sequência, mantendo a malha limpa.'
+                      : 'Boolean clássico: A ± B → gera nova malha e remove os originais.'}
+                  </div>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="modify" className="mt-0 space-y-2">
