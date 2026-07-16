@@ -586,6 +586,30 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCat === 'geometry' && createCategory === 'compound' && compoundTools.map((t) => {
+                  const pressed = compoundState?.tool === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      disabled={t.disabled}
+                      onClick={() => {
+                        if (t.disabled) return;
+                        onArmCompound?.(pressed ? null : t.id);
+                      }}
+                      title={t.disabled
+                        ? `${t.label} — em breve`
+                        : `${t.label} — selecione o Operando A e clique aqui`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        t.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {t.label}
+                    </button>
+                  );
+                })}
                 {createCat === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (
