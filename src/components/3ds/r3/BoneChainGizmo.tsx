@@ -11,10 +11,16 @@
  * so rotating one joint moves only its children (FK).
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { BoneChainGeom } from '../rig/bones';
-import { setJointObject, setSelectedJoint, getSelectedJoint } from '../rig/boneJointRegistry';
+import {
+  BoneJointSelection,
+  setJointObject,
+  setSelectedJoint,
+  getSelectedJoint,
+  subscribeSelectedJoint,
+} from '../rig/boneJointRegistry';
 
 interface Props {
   data: BoneChainGeom | undefined | null;
