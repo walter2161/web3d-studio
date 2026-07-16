@@ -8,6 +8,8 @@ import { buildBiped } from '../../rig/biped';
 interface Props {
   viewportType: 'perspective' | 'top' | 'front' | 'left';
   isActive: boolean;
+  snapEnabled?: boolean;
+  snapGridSpacing?: number;
 }
 
 // Per-viewport base plane + height axis. Height is always along the world axis
@@ -296,7 +298,7 @@ function buildGhost(
   };
 }
 
-export const CreationController = ({ viewportType, isActive }: Props) => {
+export const CreationController = ({ viewportType, isActive, snapEnabled, snapGridSpacing = 1 }: Props) => {
   const { gl, camera } = useThree();
   const { armed, ghost, setGhost, commit, disarm } = useCreation();
   const stageRef = useRef<{ stage: number; start: THREE.Vector3 } | null>(null);
@@ -330,6 +332,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       raycaster.setFromCamera(toNdc(e), camera);
       const hit = new THREE.Vector3();
       raycaster.ray.intersectPlane(basePlane, hit);
+      if (snapEnabled) return snapPoint(hit, snapGridSpacing);
       return hit;
     };
 
@@ -347,6 +350,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, base);
       const hit = new THREE.Vector3();
       raycaster.ray.intersectPlane(plane, hit);
+      if (snapEnabled) return snapPoint(hit, snapGridSpacing);
       return hit;
     };
 
@@ -848,7 +852,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     // ghost intentionally excluded — read via closure through setGhost's functional form isn't
     // needed since we always rebuild from start/current world points.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [armed, isActive, viewportType, camera, gl]);
+  }, [armed, isActive, viewportType, camera, gl, snapEnabled, snapGridSpacing]);
 
   return null;
 };
