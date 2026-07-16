@@ -753,7 +753,7 @@ export const SidePanel = ({
                         <div
                           className={cn(
                             'flex items-center gap-[3px] h-[20px] px-[3px] text-[11px] cursor-pointer',
-                            selected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40',
+                            selected ? 'bg-[#7a1f2b] text-white font-semibold' : 'text-black hover:bg-win-face-shadow/40',
                             !enabled && !selected && 'italic text-win-text-disabled',
                           )}
                           onClick={() => setSelectedStackItem(m.id)}
