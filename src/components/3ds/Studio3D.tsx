@@ -1667,7 +1667,7 @@ export const Studio3D = () => {
         onFocusSelected={handleFocusSelected}
         onUndo={undo}
         onRedo={redo}
-        onSave={() => openFileDialog('save')}
+        onSave={handleSaveRequest}
         onOpen={() => openFileDialog('open')}
         onNew={() => {
           saveState();
