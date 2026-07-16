@@ -1915,9 +1915,10 @@ export const Studio3D = () => {
       />
       <WelcomeDialog
         open={welcomeOpen}
+        initialTab={welcomeInitialTab}
         onOpenChange={(o) => {
           setWelcomeOpen(o);
-          if (!o) try { localStorage.setItem('3de.welcome.seen', '1'); } catch {}
+          if (!o) { setWelcomeInitialTab('welcome'); try { localStorage.setItem('3de.welcome.seen', '1'); } catch {} }
         }}
       />
       <CloudSceneDialog
