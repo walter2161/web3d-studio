@@ -227,6 +227,12 @@ interface SidePanelProps {
   onSetCompoundOp?: (op: 'union' | 'subtract' | 'intersect') => void;
   onStartPickOperandB?: () => void;
   onCancelCompound?: () => void;
+
+  // Print3D toolkit (Utilities tab)
+  allObjects?: any[];
+  onCreatePrintBed?: () => void;
+  onUpdatePrintBed?: (bedId: string, patch: any) => void;
+  onTransformObject?: (id: string, patch: any) => void;
 }
 
 export const SidePanel = ({
