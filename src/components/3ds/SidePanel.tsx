@@ -2368,9 +2368,9 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
       <MaxRollout title="Rendering" className="mt-2">
 
         <div className="space-y-[3px]">
-          <MaxCheck label="Enable In Viewport" checked={g.renderableViewport !== false}
+          <MaxCheck label="Enable In Viewport" checked={!!g.renderableViewport}
             onChange={(v) => onUpdate({ renderableViewport: v })} />
-          <MaxCheck label="Enable In Renderer" checked={g.renderableRender !== false}
+          <MaxCheck label="Enable In Renderer" checked={!!g.renderableRender}
             onChange={(v) => onUpdate({ renderableRender: v })} />
           <MaxSelect
             label="Section"
