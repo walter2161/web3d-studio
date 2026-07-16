@@ -1357,11 +1357,12 @@ export const Studio3D = () => {
     setCurrentFrame(payload?.currentFrame || 0);
   }, [saveState]);
 
-  const saveToCloud = useCallback(async (name: string) => {
+  const saveToCloud = useCallback(async (name: string, folderId: string | null) => {
     if (!user) throw new Error('login required');
     const { error } = await supabase.from('scenes').insert({
       user_id: user.id,
       name,
+      folder_id: folderId,
       data: buildScenePayload() as any,
     });
     if (error) throw error;
