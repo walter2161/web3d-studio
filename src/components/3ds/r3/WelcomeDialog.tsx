@@ -131,7 +131,6 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
       <div className="mt-3 flex justify-end gap-1">
         {tab === 'welcome' ? (
           <>
-            <R3Button width={140} onClick={() => setTab('request')}>solicitar acesso →</R3Button>
             <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
           </>
         ) : (
