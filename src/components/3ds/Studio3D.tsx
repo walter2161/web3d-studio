@@ -39,6 +39,7 @@ import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { paramsToEditableSpline } from './editable/EditableSpline';
 
 // 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
 const randomMaxColor = (): string => {
@@ -59,7 +60,7 @@ interface Object3DData {
   type:
     | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'imported'
     | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
-    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
+    | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text' | 'editable_spline'
     | 'wall' | 'door' | 'window'
     | 'helper'
     | 'bone_chain'
@@ -1093,11 +1094,31 @@ export const Studio3D = () => {
 
 
   const updateObjectGeometry = useCallback((objectId: string, params: any) => {
-    setObjects(prev => prev.map(obj => 
-      obj.id === objectId 
-        ? { ...obj, geometry: { ...(obj.geometry || {}), ...params } }
-        : obj
-    ));
+    setObjects(prev => prev.map(obj => {
+      if (obj.id !== objectId) return obj;
+      // Special action: convert a parametric shape to Editable Spline.
+      if (params && params.__convertToEditableSpline) {
+        try {
+          const es = paramsToEditableSpline(obj.type, obj.geometry || {});
+          return { ...obj, type: 'editable_spline', geometry: { editableSpline: es.serialize() } };
+        } catch (err) {
+          console.warn('[editable-spline] convert failed', err);
+          return obj;
+        }
+      }
+      return { ...obj, geometry: { ...(obj.geometry || {}), ...params } };
+    }));
+  }, []);
+
+  // Editable Spline live commit (knot drag / handle edit from viewport overlay).
+  useEffect(() => {
+    const on = (ev: Event) => {
+      const d = (ev as CustomEvent).detail;
+      if (!d?.objectId) return;
+      updateObjectGeometry(d.objectId, { editableSpline: d.editableSpline });
+    };
+    window.addEventListener('r3-editable-spline-commit', on as any);
+    return () => window.removeEventListener('r3-editable-spline-commit', on as any);
   }, []);
 
   const updateObjectLightData = useCallback((objectId: string, params: any) => {

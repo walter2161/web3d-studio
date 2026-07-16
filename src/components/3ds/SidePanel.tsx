@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
+import { EditableSplinePanel } from './r3/EditableSplinePanel';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
@@ -394,7 +395,7 @@ export const SidePanel = ({
 
   // Base-object class. Shapes (Line/Rectangle/Circle/...) are SplineShape until
   // Extrude/Lathe/Bevel turns them into a Mesh. Lights/cameras/helpers → none.
-  const SHAPE_TYPES = new Set(['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix', 'text']);
+  const SHAPE_TYPES = new Set(['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix', 'text', 'editable_spline']);
   const NON_GEOM_PREFIXES = ['light_', 'camera_', 'helper_'];
   const classifyBase = (t: string): 'shape' | 'mesh' | 'none' => {
     if (!t) return 'none';
@@ -1165,6 +1166,15 @@ export const SidePanel = ({
                     );
                   };
 
+                  // ---- Editable Spline (post-conversion) ----
+                  if (selectedObject.type === 'editable_spline') {
+                    return (
+                      <EditableSplinePanel
+                        object={selectedObject}
+                        onUpdate={(patch) => onUpdateObjectGeometry(selectedObject.id, patch)}
+                      />
+                    );
+                  }
                   // ---- Shapes (Line/Rectangle/Circle/Ellipse/Arc/Donut/NGon/Star/Helix/Text)
                   // Parametric editor mirroring the 3ds Max Shapes rollout —
                   // Parameters + Rendering + Interpolation, no modifier required.
@@ -1173,6 +1183,7 @@ export const SidePanel = ({
                       <ShapeParametersPanel
                         object={selectedObject}
                         onUpdate={(patch) => onUpdateObjectGeometry(selectedObject.id, patch)}
+                        onConvert={() => onUpdateObjectGeometry(selectedObject.id, { __convertToEditableSpline: true })}
                       />
                     );
                   }
@@ -1998,9 +2009,10 @@ const CameraParameters = ({ object, onUpdateCameraData }: CameraParamsProps) => 
 interface ShapeParamsProps {
   object: any;
   onUpdate: (patch: any) => void;
+  onConvert?: () => void;
 }
 
-const ShapeParametersPanel = ({ object, onUpdate }: ShapeParamsProps) => {
+const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps) => {
   const t: string = object.type;
   const g = object.geometry || {};
   const knots = Array.isArray(g.knots) ? g.knots.length : 0;
@@ -2267,6 +2279,18 @@ const ShapeParametersPanel = ({ object, onUpdate }: ShapeParamsProps) => {
             onChange={(v) => onUpdate({ optimize: v })} />
         </div>
       </MaxRollout>
+
+      {onConvert && (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={onConvert}
+            className="w-full h-[22px] text-[11px] bg-panel/60 border border-panel-border rounded-[2px] hover:bg-panel/90"
+          >
+            Convert to Editable Spline
+          </button>
+        </div>
+      )}
     </>
   );
 };

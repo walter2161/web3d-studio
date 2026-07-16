@@ -16,6 +16,7 @@ import { isHelperType } from './utils/helpers';
 import { BoneChainGizmo } from './r3/BoneChainGizmo';
 import { isBoneType } from './rig/bones';
 import { PrintBedObject } from './print3d/PrintBedObject';
+import { EditableSpline } from './editable/EditableSpline';
 
 
 
@@ -425,6 +426,12 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const extPrims: ExtPrimType[] = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
     if (extPrims.includes(type as ExtPrimType)) {
       return buildExtendedPrimitive(type as ExtPrimType, geom);
+    }
+    // Editable Spline — deserialise + tube-mesh
+    if (type === 'editable_spline') {
+      const es = EditableSpline.deserialize((geometry || {}).editableSpline);
+      const tube = es.toTubeGeometry();
+      return tube ?? new THREE.BufferGeometry();
     }
     // Sprint C — Shapes
     const shapes: ShapeType[] = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix', 'text'];

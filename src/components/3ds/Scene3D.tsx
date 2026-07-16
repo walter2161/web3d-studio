@@ -13,6 +13,11 @@ import {
   subscribeSelectedJoint,
 } from './rig/boneJointRegistry';
 import { PrintBoundsOverlay } from './print3d/PrintBoundsOverlay';
+import { SplineSubObjectOverlay } from './editable/SplineSubObjectOverlay';
+import { EditableSpline } from './editable/EditableSpline';
+import {
+  getSplineSel, setSplineSel, subscribeSplineSel,
+} from './editable/splineSelStore';
 
 interface Scene3DProps {
   objects: any[];
@@ -168,6 +173,11 @@ export const Scene3D = ({
       {/* Print3D — red bounding box around objects outside the active build volume. */}
       <PrintBoundsOverlay objects={objects as any} />
 
+      {/* Editable Spline sub-object overlay for the selected editable_spline. */}
+      <EditableSplineOverlay selectedObject={selectedObjectData} />
+
+
+
 
 
       {/* Sub-object gizmo proxy: parented in a group that mirrors the mesh
@@ -319,3 +329,56 @@ export const Scene3D = ({
     </>
   );
 };
+
+/**
+ * Overlay that mounts the Editable Spline sub-object gizmo when:
+ *  - the selected object is an `editable_spline`
+ *  - the sidepanel has activated a sub-level (sknot / ssegment / sspline)
+ *
+ * Selection/level live in `splineSelStore`; commits are dispatched via a
+ * window event so `Studio3D.updateObjectGeometry` can patch state.
+ */
+function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
+  const [, tick] = useState(0);
+  useEffect(() => { const un = subscribeSplineSel(() => tick((n) => n + 1)); return () => { un(); }; }, []);
+  if (!selectedObject || selectedObject.type !== 'editable_spline') return null;
+  const sel = getSplineSel(selectedObject.id);
+  if (!sel.level) return null;
+  const es = EditableSpline.deserialize((selectedObject.geometry || {}).editableSpline);
+  return (
+    <SplineSubObjectOverlay
+      spline={es}
+      level={sel.level}
+      parentPosition={selectedObject.position}
+      parentRotation={selectedObject.rotation}
+      parentScale={selectedObject.scale}
+      selectedKnots={sel.knots}
+      selectedSegments={sel.segments}
+      selectedSplines={sel.splines}
+      onSelectKnot={(id, additive) => {
+        const next = new Set(additive ? sel.knots : []);
+        if (additive && sel.knots.has(id)) next.delete(id);
+        else next.add(id);
+        setSplineSel(selectedObject.id, { knots: next });
+      }}
+      onSelectSegment={(id, additive) => {
+        const next = new Set(additive ? sel.segments : []);
+        if (additive && sel.segments.has(id)) next.delete(id);
+        else next.add(id);
+        setSplineSel(selectedObject.id, { segments: next });
+      }}
+      onSelectSpline={(id, additive) => {
+        const next = new Set(additive ? sel.splines : []);
+        if (additive && sel.splines.has(id)) next.delete(id);
+        else next.add(id);
+        setSplineSel(selectedObject.id, { splines: next });
+      }}
+      onKnotMove={(id, localPos) => {
+        es.setKnotPosition(id, localPos);
+        window.dispatchEvent(new CustomEvent('r3-editable-spline-commit', {
+          detail: { objectId: selectedObject.id, editableSpline: es.serialize() },
+        }));
+      }}
+    />
+  );
+}
