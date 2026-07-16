@@ -500,28 +500,80 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       return new THREE.TubeGeometry(curve, Math.max(128, n * 2), tt, s, false);
     }
     case 'text': {
-      // Vectorise glyphs → flat, filled letters on the XZ ground plane. When
-      // the user adds an Extrude modifier, applyExtrude re-generates a proper
-      // ExtrudeGeometry (with letter holes) from the same font+text+size.
-      const shapes = buildTextShapes(
-        p.text ?? 'Text',
-        p.font ?? 'helvetiker',
-        !!p.bold,
-        p.size ?? 1,
-        p.kerning ?? 0,
-        p.curveSegments ?? 6,
-      );
-      if (!shapes.length) return new THREE.BufferGeometry();
-      const flat = new THREE.ShapeGeometry(shapes, p.curveSegments ?? 6);
-      // Lay the text flat on XZ (three's ShapeGeometry lives on XY, Y up).
-      flat.rotateX(-Math.PI / 2);
-      // Centre horizontally so the object's origin sits at the middle of the
-      // text baseline, matching how the other shapes are pivoted.
-      flat.computeBoundingBox();
-      const bb = flat.boundingBox!;
-      const cx = (bb.min.x + bb.max.x) / 2;
-      const cz = (bb.min.z + bb.max.z) / 2;
-      flat.translate(-cx, 0, -cz);
+      // Vectorise glyphs → flat, filled letters on the XZ ground plane.
+      const raw = String(p.text ?? 'Text');
+      const lines = (p.reverse ? raw.split('').reverse().join('') : raw).split(/\r?\n/);
+      const size = p.size ?? 1;
+      const tracking = p.tracking ?? 0;
+      const kerning = (p.kerning ?? 0) + tracking; // tracking widens spacing globally
+      const leading = (p.leading ?? 1.2) * size;
+      const align = (p.alignment ?? 'left') as 'left' | 'center' | 'right' | 'justify';
+      const curveSeg = p.curveSegments ?? 6;
+
+      // Build ShapeGeometry per line, then translate lines vertically and
+      // horizontally-align them together.
+      const lineGeoms: { geom: THREE.BufferGeometry; width: number; ascent: number }[] = [];
+      for (const line of lines) {
+        const shapes = buildTextShapes(line, p.font ?? 'helvetiker', !!p.bold, size, kerning, curveSeg);
+        if (!shapes.length) { lineGeoms.push({ geom: new THREE.BufferGeometry(), width: 0, ascent: size }); continue; }
+        const g = new THREE.ShapeGeometry(shapes, curveSeg);
+        g.rotateX(-Math.PI / 2);
+        g.computeBoundingBox();
+        const bb = g.boundingBox!;
+        lineGeoms.push({ geom: g, width: bb.max.x - bb.min.x, ascent: bb.max.z - bb.min.z });
+      }
+
+      // Optional italic — skew geometry along X in proportion to Z (baseline).
+      if (p.italic) {
+        for (const lg of lineGeoms) {
+          const pos = lg.geom.attributes.position;
+          if (pos) {
+            for (let i = 0; i < pos.count; i++) {
+              const x = pos.getX(i), z = pos.getZ(i);
+              pos.setX(i, x - z * 0.2);
+            }
+            pos.needsUpdate = true;
+          }
+        }
+      }
+
+      const maxW = lineGeoms.reduce((m, l) => Math.max(m, l.width), 0);
+      const parts: THREE.BufferGeometry[] = [];
+      let yOffset = 0;
+      lineGeoms.forEach((lg, idx) => {
+        if (!lg.geom.attributes.position) return;
+        let xShift = 0;
+        if (align === 'center') xShift = -lg.width / 2;
+        else if (align === 'right') xShift = -lg.width;
+        else if (align === 'justify' && idx < lineGeoms.length - 1) {
+          // stretch to maxW — scale in X.
+          const factor = lg.width > 1e-4 ? maxW / lg.width : 1;
+          lg.geom.applyMatrix4(new THREE.Matrix4().makeScale(factor, 1, 1));
+          lg.geom.computeBoundingBox();
+        }
+        lg.geom.translate(xShift, 0, -yOffset);
+        yOffset += leading;
+        parts.push(lg.geom);
+
+        // Underline — thin plate under each line on the XZ plane.
+        if (p.underline) {
+          const uw = align === 'justify' && idx < lineGeoms.length - 1 ? maxW : lg.width;
+          const ug = new THREE.PlaneGeometry(uw, size * 0.06);
+          ug.rotateX(-Math.PI / 2);
+          const ux = align === 'center' ? 0 : align === 'right' ? -uw / 2 : uw / 2;
+          ug.translate(ux + xShift, 0, -yOffset + leading - size * 1.05);
+          parts.push(ug);
+        }
+      });
+      const merged = mergeGeometries(parts.filter((g) => g.attributes.position));
+      const flat = merged ?? new THREE.BufferGeometry();
+      if (flat.attributes.position) {
+        flat.computeBoundingBox();
+        const bb = flat.boundingBox!;
+        const cx = (bb.min.x + bb.max.x) / 2;
+        const cz = (bb.min.z + bb.max.z) / 2;
+        flat.translate(-cx, 0, -cz);
+      }
       return flat;
     }
   }
