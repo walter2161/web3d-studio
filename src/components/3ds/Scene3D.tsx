@@ -5,6 +5,13 @@ import { Object3D } from './Object3D';
 import { TrajectoryRenderer } from './TrajectoryRenderer';
 import { AnimationTrack, Keyframe } from './AnimationTimeline';
 import { getImportedModel } from './utils/modelImport';
+import {
+  BoneJointSelection,
+  getJointObject,
+  getSelectedJoint,
+  setSelectedJoint,
+  subscribeSelectedJoint,
+} from './rig/boneJointRegistry';
 
 interface Scene3DProps {
   objects: any[];
