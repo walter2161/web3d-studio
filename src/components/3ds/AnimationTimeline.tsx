@@ -275,7 +275,36 @@ export const AnimationTimeline = ({
             <span className="text-[10px]">Trajectory</span>
           </Button>
         )}
+
+        <div className="w-px h-5 bg-panel-border mx-1" />
+
+        {/* View mode: Basic timeline vs. 3ds Max style Track View */}
+        <div className="flex rounded overflow-hidden border border-panel-border text-[10px]">
+          <button
+            className={cn("px-2 py-1", view === 'basic' ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-menu-hover")}
+            onClick={() => setView('basic')}
+            title="Basic timeline"
+          >Basic</button>
+          <button
+            className={cn("px-2 py-1 flex items-center gap-1", view === 'trackview' ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-menu-hover")}
+            onClick={() => setView('trackview')}
+            title="3ds Max Track View (bones, curves, key info)"
+          ><Bone className="w-3 h-3" />Track View</button>
+        </div>
+
+        {/* Bake clip button: appears when the selected imported model has
+            AnimationClips that aren't yet baked into editable tracks. */}
+        {bakedClipOptions && bakedClipOptions.length > 0 && !bakedClipSet && onBakeClip && (
+          <Button size="sm" variant="default" className="h-7 px-2 text-[10px] gap-1 bg-amber-600 hover:bg-amber-500"
+            onClick={() => onBakeClip(bakedClipOptions[0].index)}
+            title="Convert the model's animation clip into editable per-bone tracks"
+          >
+            <Bone className="w-3 h-3" />
+            Bake clip → tracks
+          </Button>
+        )}
       </div>
+
 
       {/* Timeline Content */}
       <div className="flex flex-1 min-h-0">
