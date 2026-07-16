@@ -379,6 +379,12 @@ function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
           detail: { objectId: selectedObject.id, editableSpline: es.serialize() },
         }));
       }}
+      onKnotHandleMove={(id, which, localOffset) => {
+        es.setKnotHandle(id, which, localOffset);
+        window.dispatchEvent(new CustomEvent('r3-editable-spline-commit', {
+          detail: { objectId: selectedObject.id, editableSpline: es.serialize() },
+        }));
+      }}
     />
   );
 }

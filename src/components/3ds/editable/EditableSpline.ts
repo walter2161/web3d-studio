@@ -127,14 +127,27 @@ export class EditableSpline {
     const k = this.knots.get(kid); if (!k) return;
     k.pos.copy(pos);
     const sid = this.splineIdOfKnot(kid);
-    if (sid != null) this.recomputeSmoothTangents(sid);
+    if (sid != null && k.type === 'smooth') this.recomputeSmoothTangents(sid);
+  }
+
+  setKnotHandle(kid: number, which: 'in' | 'out', offset: THREE.Vector3) {
+    const k = this.knots.get(kid); if (!k) return;
+    if (k.type === 'corner') k.type = 'bezierCorner';
+    const target = which === 'in' ? k.inHandle : k.outHandle;
+    const opposite = which === 'in' ? k.outHandle : k.inHandle;
+    target.copy(offset);
+    if (k.type === 'bezier' || k.type === 'smooth') {
+      opposite.copy(offset).multiplyScalar(-1);
+    }
   }
 
   setKnotType(kid: number, type: KnotType) {
     const k = this.knots.get(kid); if (!k) return;
     k.type = type;
     const sid = this.splineIdOfKnot(kid);
-    if (sid != null) this.recomputeSmoothTangents(sid);
+    if (sid != null && (type === 'smooth' || (type === 'bezier' && k.inHandle.lengthSq() < 1e-8 && k.outHandle.lengthSq() < 1e-8))) {
+      this.recomputeSmoothTangents(sid);
+    }
   }
 
   deleteKnot(kid: number) {
@@ -312,13 +325,31 @@ export class EditableSpline {
     const es = new EditableSpline();
     if (!data) return es;
     (data.knots || []).forEach((k: any) => {
-      es.knots.set(k.id, { id: k.id, type: k.type, pos: new THREE.Vector3().fromArray(k.pos), inHandle: new THREE.Vector3().fromArray(k.inHandle), outHandle: new THREE.Vector3().fromArray(k.outHandle) });
+      const pos = Array.isArray(k.pos) ? k.pos : [0, 0, 0];
+      const inRaw = Array.isArray(k.inHandle) ? k.inHandle : Array.isArray(k.inH) ? k.inH : [0, 0, 0];
+      const outRaw = Array.isArray(k.outHandle) ? k.outHandle : Array.isArray(k.outH) ? k.outH : [0, 0, 0];
+      const inHandle = new THREE.Vector3().fromArray(inRaw);
+      const outHandle = new THREE.Vector3().fromArray(outRaw);
+      const inferred: KnotType = inHandle.lengthSq() > 1e-8 || outHandle.lengthSq() > 1e-8 ? 'bezier' : 'corner';
+      es.knots.set(k.id, {
+        id: k.id,
+        type: (k.type === 'corner' || k.type === 'smooth' || k.type === 'bezier' || k.type === 'bezierCorner') ? k.type : inferred,
+        pos: new THREE.Vector3().fromArray(pos),
+        inHandle,
+        outHandle,
+      });
     });
-    (data.splines || []).forEach((s: any) => es.splines.set(s.id, { ...s, knots: [...s.knots] }));
+    (data.splines || []).forEach((s: any) => es.splines.set(s.id, { ...s, knots: Array.isArray(s.knots) ? [...s.knots] : [] }));
     (data.segments || []).forEach((seg: any) => es.segments.set(seg.id, { ...seg }));
+    if (!es.segments.size) es.splines.forEach((s) => es.rebuildSegments(s.id));
     if (data.render) es.render = { ...es.render, ...data.render };
     const [nk, ns, np] = data._next || [];
-    if (nk) es.nextKnot = nk; if (ns) es.nextSeg = ns; if (np) es.nextSpline = np;
+    const maxK = Math.max(0, ...Array.from(es.knots.keys()));
+    const maxS = Math.max(0, ...Array.from(es.segments.keys()));
+    const maxP = Math.max(0, ...Array.from(es.splines.keys()));
+    es.nextKnot = Math.max(nk || 1, maxK + 1);
+    es.nextSeg = Math.max(ns || 1, maxS + 1);
+    es.nextSpline = Math.max(np || 1, maxP + 1);
     return es;
   }
 }
@@ -359,6 +390,25 @@ export function paramsToEditableSpline(kind: string, params: any): EditableSplin
       break;
     }
     case 'line': {
+      const sourceKnots: Array<{ pos: number[]; inH?: number[]; outH?: number[]; inHandle?: number[]; outHandle?: number[]; type?: KnotType }> | undefined = Array.isArray(p.knots) ? p.knots : undefined;
+      if (sourceKnots && sourceKnots.length >= 2) {
+        const ids = sourceKnots.map((k) => {
+          const inRaw = Array.isArray(k.inHandle) ? k.inHandle : Array.isArray(k.inH) ? k.inH : [0, 0, 0];
+          const outRaw = Array.isArray(k.outHandle) ? k.outHandle : Array.isArray(k.outH) ? k.outH : [0, 0, 0];
+          const inH = new THREE.Vector3().fromArray(inRaw);
+          const outH = new THREE.Vector3().fromArray(outRaw);
+          const inferred: KnotType = inH.lengthSq() > 1e-8 || outH.lengthSq() > 1e-8 ? 'bezier' : 'corner';
+          const type: KnotType = (k.type === 'corner' || k.type === 'smooth' || k.type === 'bezier' || k.type === 'bezierCorner') ? k.type : inferred;
+          return es.addKnot(new THREE.Vector3().fromArray(k.pos || [0, 0, 0]), type, inH, outH).id;
+        });
+        es.addSpline(ids, !!p.closed);
+        break;
+      }
+      if (Array.isArray(p.points) && p.points.length >= 2) {
+        const ids = p.points.map((pt: number[]) => es.addKnot(new THREE.Vector3().fromArray(pt || [0, 0, 0]), 'corner').id);
+        es.addSpline(ids, !!p.closed);
+        break;
+      }
       const len = p.length ?? 1;
       const ids = [
         es.addKnot(V(-len / 2, 0, 0), 'corner').id,
