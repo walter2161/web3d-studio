@@ -311,8 +311,78 @@ export const AnimationTimeline = ({
         )}
       </div>
 
+      {/* Clip-Switch lane: lets the user drop cues along the timeline that
+          swap the active AnimationClip mid-scene (e.g. Walk loop → Run loop
+          using Mixamo clips embedded in the imported character). */}
+      {onClipSwitchesChange && bakedClipOptions && bakedClipOptions.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-1 bg-panel/60 border-b border-panel-border">
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground uppercase tracking-wide">
+            <Film className="w-3 h-3" /> Clip Switch
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-[10px] gap-1 bg-secondary border-panel-border hover:bg-menu-hover"
+            onClick={() => {
+              const existing = (clipSwitches || []).find((c) => c.frame === currentFrame);
+              if (existing) return;
+              const defaultClip = bakedClipOptions[0].index;
+              onClipSwitchesChange([
+                ...(clipSwitches || []),
+                { id: `cs_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, frame: currentFrame, clipIndex: defaultClip },
+              ]);
+            }}
+            title="Add a clip-switch cue at the current frame"
+          >
+            + Cue @ F{currentFrame}
+          </Button>
+          <div className="relative flex-1 h-6 bg-secondary/30 rounded border border-panel-border/60">
+            {/* Playhead marker on the lane */}
+            <div
+              className="absolute top-0 bottom-0 w-px bg-destructive/60 pointer-events-none"
+              style={{ left: `${(currentFrame / totalFrames) * 100}%` }}
+            />
+            {(clipSwitches || []).map((cue) => {
+              const clip = bakedClipOptions.find((c) => c.index === cue.clipIndex);
+              return (
+                <div
+                  key={cue.id}
+                  className="absolute top-0.5 -translate-x-1/2 flex items-center gap-1 bg-primary/85 text-primary-foreground rounded px-1 h-5 text-[9px] font-mono shadow"
+                  style={{ left: `${(cue.frame / totalFrames) * 100}%` }}
+                  title={`Frame ${cue.frame} → ${clip?.name || 'clip ' + cue.clipIndex}`}
+                >
+                  <Film className="w-2.5 h-2.5" />
+                  <select
+                    value={cue.clipIndex}
+                    onChange={(e) => {
+                      const nextIndex = parseInt(e.target.value, 10);
+                      onClipSwitchesChange!(
+                        (clipSwitches || []).map((c) => (c.id === cue.id ? { ...c, clipIndex: nextIndex } : c)),
+                      );
+                    }}
+                    className="bg-transparent text-primary-foreground text-[9px] outline-none max-w-[70px]"
+                  >
+                    {bakedClipOptions.map((c) => (
+                      <option key={c.index} value={c.index} className="text-foreground">{c.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="hover:text-destructive-foreground"
+                    onClick={() =>
+                      onClipSwitchesChange!((clipSwitches || []).filter((c) => c.id !== cue.id))
+                    }
+                    title="Remove cue"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-      {/* Timeline Content */}
+
       {view === 'trackview' && bakedClipSet && onChangeBakedSet ? (
         <TrackView
           clipSet={bakedClipSet}
