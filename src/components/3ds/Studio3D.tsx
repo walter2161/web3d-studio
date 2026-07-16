@@ -3,6 +3,7 @@ import { MenuBar } from './MenuBar';
 import { ViewportGrid, ViewportLayout } from './ViewportGrid';
 import { SidePanel } from './SidePanel';
 import { AnimationTimeline, Keyframe, AnimationTrack } from './AnimationTimeline';
+import type { BakedClipSet } from './timeline/channelTracks';
 import { MaterialEditorR3 } from './r3/MaterialEditorR3';
 import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
