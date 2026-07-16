@@ -21,7 +21,14 @@ const state = new Map<string, SplineSelState>();
 const listeners = new Set<() => void>();
 
 export function getSplineSel(objectId: string): SplineSelState {
-  return state.get(objectId) ?? empty();
+  let s = state.get(objectId);
+  if (!s) {
+    // Cache the empty state so useSyncExternalStore sees a stable reference
+    // between renders (React error #185 otherwise).
+    s = empty();
+    state.set(objectId, s);
+  }
+  return s;
 }
 
 export function setSplineSel(objectId: string, patch: Partial<SplineSelState>) {
