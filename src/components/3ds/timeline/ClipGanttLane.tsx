@@ -72,6 +72,11 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
             const start = Math.max(0, Math.min(drag.origEnd - 1, drag.origStart + dFrame));
             return { ...s, startFrame: start };
           }
+          if (drag.mode === 'blend') {
+            const segLen = Math.max(1, drag.origEnd - drag.origStart);
+            const nextBlend = Math.max(0, Math.min(segLen, drag.origBlend + dFrame));
+            return { ...s, blendIn: nextBlend };
+          }
           const end = Math.max(drag.origStart + 1, Math.min(totalFrames, drag.origEnd + dFrame));
           return { ...s, endFrame: end };
         }),
@@ -100,6 +105,7 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
       startX: e.clientX,
       origStart: seg.startFrame,
       origEnd: seg.endFrame,
+      origBlend: seg.blendIn || 0,
       laneWidth: laneRef.current.clientWidth,
     });
   };
