@@ -52,6 +52,8 @@ const STAGES: Record<CreatableTool, number> = {
   door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
   // Helpers: single-click place. Tape uses its own 2-click branch below.
   helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
+  sys_bones: 1, // handled by its own multi-click branch below
+
 };
 
 
