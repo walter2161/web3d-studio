@@ -337,7 +337,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder?.mimeType || 'video/webm' }));
     });
 
-    recorder.start();
+    // Request data chunks every 100ms so large-resolution encodes (1280x1024+)
+    // actually accumulate data rather than dumping a single huge chunk that
+    // some browsers drop when the recorder is stopped abruptly.
+    recorder.start(100);
     for (const frame of renderedFrames) {
       throwIfAborted();
       const bitmap = await createImageBitmap(frame);
@@ -347,10 +350,17 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       if (typeof track.requestFrame === 'function') track.requestFrame();
       await new Promise((r) => setTimeout(r, targetDelayMs));
     }
-    // Flush the last frame.
-    await new Promise((r) => setTimeout(r, 250));
+    // Flush the last frame — larger canvases need more time for the encoder
+    // to drain before we stop it, otherwise the final blob comes back empty.
+    await new Promise((r) => setTimeout(r, 500));
+    if (typeof (recorder as any).requestData === 'function') {
+      try { (recorder as any).requestData(); } catch { /* ignore */ }
+    }
     if (recorder.state !== 'inactive') recorder.stop();
     const blob = await stopped;
+    if (!blob || blob.size === 0) {
+      throw new Error('Encoder produced empty video — try a smaller resolution or WebM format');
+    }
     return blob;
   } finally {
     if (recorder && recorder.state !== 'inactive') recorder.stop();
