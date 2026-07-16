@@ -154,9 +154,10 @@ export function SplineSubObjectOverlay({
     }
   };
   const onKnotUp = (e: ThreeEvent<PointerEvent>) => {
-    if (!drag.current) return;
+    if (!drag.current) { enableOrbit(); return; }
     (e.target as any)?.releasePointerCapture?.(drag.current.ptr);
     drag.current = null;
+    enableOrbit();
   };
 
   return (
