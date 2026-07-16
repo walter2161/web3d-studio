@@ -1025,6 +1025,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </>
       )}
 
+      {/* Wireframe pick markers — small vertex dots so users can visually
+          target the clickable points in wireframe mode. */}
+      {renderMode === 'wireframe' && !isGhost && (
+        <points renderOrder={997} raycast={() => null as any}>
+          <primitive object={modifiedGeometry} attach="geometry" />
+          <pointsMaterial
+            size={isSelected ? 7 : 5}
+            sizeAttenuation={false}
+            color={isSelected ? '#00bfff' : '#ffcc33'}
+            depthTest={false}
+            transparent
+            opacity={0.9}
+          />
+        </points>
+      )}
+
       {/* Edged Faces (F4): show wire on top of solid */}
       {renderMode === 'edged' && !isGhost && !isSelected && (
         <lineSegments>
