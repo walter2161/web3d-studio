@@ -475,6 +475,30 @@ export const Studio3D = () => {
     const camTypes   = ['camera_target', 'camera_free'];
 
     const helperTools = ['helper_point', 'helper_dummy', 'helper_tape', 'helper_grid', 'helper_compass'];
+    if (type === 'sys_print_bed') {
+      saveState();
+      const { DEFAULT_PRINTER_ID } = require('./print3d/printers');
+      const id = `print_bed_${Date.now()}`;
+      const newObject: Object3DData = {
+        id,
+        name: `PrintBed${objects.filter((o) => o.type === 'print_bed').length + 1}`,
+        type: 'print_bed' as any,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: '#5f7fa0',
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry: { printerId: DEFAULT_PRINTER_ID },
+        ref: { current: null } as any,
+      };
+      setObjects((prev) => [...prev, newObject]);
+      setSelectedObject(id);
+      setSidePanelTab('utilities');
+      toast.success('Print Bed created');
+      return;
+    }
     if (![...standard, ...extended, ...shapes, ...aec, ...lightTypes, ...camTypes, ...helperTools].includes(type)) return;
 
     // Helpers: create directly at origin, no drag flow needed for click-only use.
