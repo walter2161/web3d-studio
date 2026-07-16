@@ -94,9 +94,10 @@ const JointNode = ({ joints, index, data, color, objectId, selectedJointIndex, g
   }, [objectId, index, ghost]);
 
   const isSelectedJoint = !ghost && selectedJointIndex === index;
+  const boneColor = isSelectedJoint ? JOINT_SEL : color;
   const jointColor = isSelectedJoint ? JOINT_SEL : color;
 
-  const onJointPick = (e: any) => {
+  const onBonePartPick = (e: any) => {
     if (ghost || !objectId) return;
     e.stopPropagation();
     const cur = getSelectedJoint();
@@ -117,17 +118,17 @@ const JointNode = ({ joints, index, data, color, objectId, selectedJointIndex, g
     <group ref={groupRef} position={j.pos} rotation={j.rot}>
       {geom && (
         <>
-          <mesh geometry={geom}>
-            <meshBasicMaterial color={color} transparent opacity={0.35} />
+          <mesh geometry={geom} onClick={onBonePartPick}>
+            <meshBasicMaterial color={boneColor} transparent opacity={isSelectedJoint ? 0.72 : 0.35} />
           </mesh>
-          <lineSegments>
+          <lineSegments onClick={onBonePartPick}>
             <edgesGeometry args={[geom]} />
-            <lineBasicMaterial color={color} />
+            <lineBasicMaterial color={boneColor} />
           </lineSegments>
         </>
       )}
       {/* Joint dot (pivot marker) — clickable to sub-select the joint. */}
-      <mesh onClick={onJointPick}>
+      <mesh onClick={onBonePartPick}>
         <sphereGeometry args={[Math.max(data.width, data.height) * (isSelectedJoint ? 0.55 : 0.4), 12, 8]} />
         <meshBasicMaterial color={jointColor} />
       </mesh>
