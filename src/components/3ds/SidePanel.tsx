@@ -341,13 +341,14 @@ export const SidePanel = ({
     { type: 'warp_vortex',    label: 'Vortex',    disabled: true },
   ];
 
-  // Systems — Bones habilitado (Fase 1). Demais em desenvolvimento.
+  // Systems — Bones, Biped e Print3D habilitados. Demais em desenvolvimento.
   const systemPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
-    { type: 'sys_bones',    label: 'Bones' },
-    { type: 'sys_ring',     label: 'Ring Array', disabled: true },
-    { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
-    { type: 'sys_daylight', label: 'Daylight', disabled: true },
-    { type: 'sys_biped',    label: 'Biped' },
+    { type: 'sys_bones',     label: 'Bones' },
+    { type: 'sys_biped',     label: 'Biped' },
+    { type: 'sys_print_bed', label: 'Print3D' },
+    { type: 'sys_ring',      label: 'Ring Array', disabled: true },
+    { type: 'sys_sunlight',  label: 'Sunlight',   disabled: true },
+    { type: 'sys_daylight',  label: 'Daylight',   disabled: true },
   ];
 
 
