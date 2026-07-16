@@ -51,6 +51,9 @@ interface AnimationTimelineProps {
   bakedClipOptions?: { index: number; name: string }[];
   onBakeClip?: (clipIndex: number) => void;
   onChangeBakedSet?: (next: BakedClipSet) => void;
+  // ---- Clip-switch cues (e.g. Walk → Run mid-scene using Mixamo clips) ----
+  clipSwitches?: Array<{ id: string; frame: number; clipIndex: number }>;
+  onClipSwitchesChange?: (next: Array<{ id: string; frame: number; clipIndex: number }>) => void;
 }
 
 export const AnimationTimeline = ({
