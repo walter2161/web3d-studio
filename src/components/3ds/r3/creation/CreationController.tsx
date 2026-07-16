@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useCreation, CreatableTool, GhostObject } from './CreationContext';
+import { buildBoneChainFromPoints } from '../../rig/bones';
 
 interface Props {
   viewportType: 'perspective' | 'top' | 'front' | 'left';
@@ -52,6 +53,8 @@ const STAGES: Record<CreatableTool, number> = {
   door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
   // Helpers: single-click place. Tape uses its own 2-click branch below.
   helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
+  sys_bones: 1, // handled by its own multi-click branch below
+
 };
 
 
@@ -452,11 +455,64 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
       __creating: true,
     });
 
+    // -------- Bones (Systems → Bones): multi-click chain, RMB or ESC ends.
+    // Each click adds a new joint at the picked ground-plane point. A live
+    // preview joint tracks the cursor between clicks.
+    const bonesRef: { pts: THREE.Vector3[] } | null =
+      armed === 'sys_bones' ? { pts: [] } : null;
+
+    const buildBonesGhost = (pts: THREE.Vector3[]): GhostObject => {
+      const worldPts: [number, number, number][] = pts.map((p) => [p.x, p.y, p.z]);
+      const { position, geometry } = buildBoneChainFromPoints(worldPts);
+      return {
+        id: '__ghost',
+        type: 'sys_bones',
+        position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: COLOR_GHOST,
+        geometry,
+        visible: true,
+        __creating: true,
+      };
+    };
+
+    const commitBones = () => {
+      if (!bonesRef) return;
+      // Drop the trailing preview point.
+      const real = bonesRef.pts.slice(0, -1);
+      if (real.length >= 2) {
+        const ghost = buildBonesGhost(real);
+        // Re-type the ghost to the real object type — 'bone_chain' is what
+        // the renderer / hierarchy expect (sys_bones is only the arm token).
+        commit({ ...ghost, type: 'bone_chain' as any });
+      } else {
+        setGhost(null);
+      }
+      bonesRef.pts = [];
+    };
+
+
 
 
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+
+      if (bonesRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        if (bonesRef.pts.length === 0) {
+          bonesRef.pts.push(p.clone(), p.clone()); // first joint + live preview
+        } else {
+          bonesRef.pts[bonesRef.pts.length - 1].copy(p); // commit preview joint
+          bonesRef.pts.push(p.clone()); // new preview
+        }
+        setGhost(buildBonesGhost(bonesRef.pts));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
 
       if (tapeRef) {
         const p = raycastBase(e);
@@ -473,6 +529,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         e.stopPropagation();
         return;
       }
+
 
       if (wallRef) {
 
@@ -562,6 +619,14 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     };
 
     const onMove = (e: PointerEvent) => {
+      if (bonesRef) {
+        if (bonesRef.pts.length === 0) return;
+        const p = raycastBase(e);
+        if (!p) return;
+        bonesRef.pts[bonesRef.pts.length - 1].copy(p);
+        setGhost(buildBonesGhost(bonesRef.pts));
+        return;
+      }
       if (tapeRef) {
         if (!tapeRef.start) return;
         const p = raycastBase(e);
@@ -633,6 +698,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         if (lineRef) { lineRef.knots = []; lineRef.draggingIdx = -1; }
         if (wallRef) { wallRef.pts = []; }
         if (tapeRef) { tapeRef.start = null; }
+        if (bonesRef && bonesRef.pts.length > 0) { commitBones(); }
         stageRef.current = null;
         setGhost(null);
         disarm();
@@ -641,6 +707,10 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
+      if (bonesRef && bonesRef.pts.length > 0) {
+        commitBones();
+        return;
+      }
       if (wallRef && wallRef.pts.length > 0) {
         commitWall(false);
         return;
@@ -654,6 +724,7 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
         setGhost(null);
       }
     };
+
 
 
     dom.addEventListener('pointerdown', onDown);

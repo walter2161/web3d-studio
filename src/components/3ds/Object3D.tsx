@@ -13,6 +13,8 @@ import { toGeometry } from './editable/toGeometry';
 import { replay, OpRecord } from './editable/ops';
 import { HelperGizmo } from './r3/HelperGizmo';
 import { isHelperType } from './utils/helpers';
+import { BoneChainGizmo } from './r3/BoneChainGizmo';
+import { isBoneType } from './rig/bones';
 
 
 
@@ -868,6 +870,26 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         {/* Invisible pick-proxy so users can click helpers easily. */}
         <mesh visible={false} raycast={ghostH ? () => null : undefined}>
           <sphereGeometry args={[0.25, 6, 6]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Bones (Systems → Bones) — bone chain rendered as nested groups for FK.
+  if (isBoneType(object.type)) {
+    const ghostB = (object as any).__creating === true;
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={ghostB ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
+      >
+        <BoneChainGizmo data={object.geometry} selected={isSelected} ghost={ghostB} />
+        {/* Invisible pick-proxy along the chain root for easy selection. */}
+        <mesh visible={false} raycast={ghostB ? () => null : undefined}>
+          <sphereGeometry args={[0.3, 6, 6]} />
         </mesh>
       </group>
     );

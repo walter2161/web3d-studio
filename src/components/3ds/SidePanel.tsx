@@ -341,9 +341,9 @@ export const SidePanel = ({
     { type: 'warp_vortex',    label: 'Vortex',    disabled: true },
   ];
 
-  // Systems — Fase 3, ainda não implementados.
+  // Systems — Bones habilitado (Fase 1). Demais em desenvolvimento.
   const systemPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
-    { type: 'sys_bones',    label: 'Bones',    disabled: true },
+    { type: 'sys_bones',    label: 'Bones' },
     { type: 'sys_ring',     label: 'Ring Array', disabled: true },
     { type: 'sys_sunlight', label: 'Sunlight', disabled: true },
     { type: 'sys_daylight', label: 'Daylight', disabled: true },
@@ -377,6 +377,7 @@ export const SidePanel = ({
     { name: 'Extrude', description: 'Extruda uma spline para gerar volume', category: 'shape', converts: 'mesh' },
     { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados', category: 'shape', converts: 'mesh' },
     { name: 'Slice', description: 'Corta o objeto em partes', category: 'universal' },
+    { name: 'Skin', description: 'Deforma a malha seguindo uma cadeia de Bones (rigging)', category: 'mesh' },
   ];
 
   // Base-object class. Shapes (Line/Rectangle/Circle/...) are SplineShape until
@@ -677,19 +678,33 @@ export const SidePanel = ({
                     {p.label}
                   </button>
                 ))}
-                {createCat === 'systems' && systemPrimitives.map((p) => (
-                  <button
-                    key={p.type}
-                    disabled
-                    title={`${p.label} — Fase 3 (Systems ainda em desenvolvimento)`}
-                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised opacity-40 cursor-not-allowed"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-                {(createCat === 'warps' || createCat === 'systems') && (
+                {createCat === 'systems' && systemPrimitives.map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      disabled={p.disabled}
+                      onClick={() => {
+                        if (p.disabled) return;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={p.disabled
+                        ? `${p.label} — em desenvolvimento`
+                        : `Create ${p.label}: clique para iniciar a cadeia, clique novamente para adicionar juntas, RMB/ESC para finalizar.`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        p.disabled
+                          ? 'bevel-raised opacity-40 cursor-not-allowed'
+                          : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+                {createCat === 'warps' && (
                   <div className="col-span-2 text-[10px] text-win-text-disabled px-1 pt-1 text-center italic">
-                    {createCat === 'warps' ? 'Space Warps — Fase 2 (em breve)' : 'Systems — Fase 3 (em breve)'}
+                    Space Warps — Fase 2 (em breve)
                   </div>
                 )}
 
