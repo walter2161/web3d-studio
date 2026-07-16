@@ -207,6 +207,7 @@ export const Studio3D = () => {
   const [cloudImportOpen, setCloudImportOpen] = useState(false);
   const [cloudImportPayload, setCloudImportPayload] = useState<any>(null);
   const [cloudImportName, setCloudImportName] = useState<string>('');
+  const [currentCloudScene, setCurrentCloudScene] = useState<{ id: string; name: string; folderId: string | null } | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
     return !localStorage.getItem('3de.welcome.seen');
@@ -1360,24 +1361,45 @@ export const Studio3D = () => {
     timestamp: new Date().toISOString(),
   }), [objects, animationTracks, selectedObject, currentFrame]);
 
-  const applyScenePayload = useCallback((payload: any) => {
+  const applyScenePayload = useCallback((payload: any, meta?: { id: string; name: string; folderId: string | null }) => {
     saveState();
     setObjects(payload?.objects || []);
     setAnimationTracks(payload?.animationTracks || []);
     setSelectedObject(payload?.selectedObject || null);
     setCurrentFrame(payload?.currentFrame || 0);
+    setCurrentCloudScene(meta ?? null);
   }, [saveState]);
 
   const saveToCloud = useCallback(async (name: string, folderId: string | null) => {
     if (!user) throw new Error('login required');
-    const { error } = await supabase.from('scenes').insert({
+    const { data, error } = await supabase.from('scenes').insert({
       user_id: user.id,
       name,
       folder_id: folderId,
       data: buildScenePayload() as any,
-    });
+    }).select('id').maybeSingle();
     if (error) throw error;
+    if (data?.id) setCurrentCloudScene({ id: data.id, name, folderId });
   }, [user, buildScenePayload]);
+
+  const saveCurrentCloudInPlace = useCallback(async () => {
+    if (!currentCloudScene) return false;
+    const { error } = await supabase.from('scenes')
+      .update({ data: buildScenePayload() as any })
+      .eq('id', currentCloudScene.id);
+    if (error) { toast.error('Falha ao salvar na nuvem'); return false; }
+    toast.success(`Salvo em "${currentCloudScene.name}"`);
+    return true;
+  }, [currentCloudScene, buildScenePayload]);
+
+  const handleSaveRequest = useCallback(async () => {
+    if (currentCloudScene && user) {
+      const ok = await saveCurrentCloudInPlace();
+      if (ok) return;
+    }
+    openFileDialog('save');
+  }, [currentCloudScene, user, saveCurrentCloudInPlace, openFileDialog]);
+
 
   const gate = useCallback((run: () => void) => {
     if (!user) {
@@ -1402,6 +1424,7 @@ export const Studio3D = () => {
     setSelectedObject(null);
     setAnimationTracks([]);
     setCurrentFrame(0);
+    setCurrentCloudScene(null);
     toast.success('New scene');
   }, 'New Scene');
 
@@ -1586,7 +1609,11 @@ export const Studio3D = () => {
       case 'Login...': setLoginOpen(true); break;
       case 'Logout': signOut(); toast.success('Sessão encerrada'); break;
       case 'Admin — Liberar usuário...': if (isAdmin) setAdminOpen(true); else toast.error('Apenas admin'); break;
-      case 'Save Cloud...': gate(() => setCloudSaveOpen(true)); break;
+      case 'Save': handleSaveRequest(); break;
+      case 'Save Cloud...':
+        if (currentCloudScene && user) { saveCurrentCloudInPlace(); }
+        else { gate(() => setCloudSaveOpen(true)); }
+        break;
       case 'Open Cloud...': gate(() => setCloudOpenOpen(true)); break;
       case 'Export Cloud...': gate(() => setCloudExportOpen(true)); break;
       case 'Import Cloud...': gate(() => {
@@ -1641,7 +1668,7 @@ export const Studio3D = () => {
         onFocusSelected={handleFocusSelected}
         onUndo={undo}
         onRedo={redo}
-        onSave={() => openFileDialog('save')}
+        onSave={handleSaveRequest}
         onOpen={() => openFileDialog('open')}
         onNew={() => {
           saveState();
@@ -1661,7 +1688,7 @@ export const Studio3D = () => {
       <div className="titlebar-gradient h-[20px] px-1.5 flex items-center justify-between text-[11px] font-bold shrink-0">
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 bevel-raised bg-win-face flex items-center justify-center text-[10px] text-win-title">3</div>
-          <span>Untitled - 3De</span>
+          <span>{currentCloudScene ? `${currentCloudScene.name} - 3De` : 'Untitled - 3De'}</span>
           <span className="ml-3 font-normal opacity-90">
             {user ? `● ${user.email}${isAdmin ? ' (admin)' : ''}` : '○ not logged in'}
           </span>
