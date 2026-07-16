@@ -406,7 +406,7 @@ export const RenderSetup = ({
               if (rendering) return;
 
 
-              if (timeMode === 'single') { onRender?.(); onOpenChange(false); return; }
+              if (timeMode === 'single') { onRender?.(width, height); onOpenChange(false); return; }
               if (!setCurrentFrame) {
                 toast.error('Animation render not available in this context');
                 return;
