@@ -56,6 +56,7 @@ const STAGES: Record<CreatableTool, number> = {
   helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
   sys_bones: 1, // handled by its own multi-click branch below
   sys_biped: 1, // click-drag to define height, releases spawn the whole skeleton
+  sys_print_bed: 1, // single-click placement on the base plane
 
 
 };
