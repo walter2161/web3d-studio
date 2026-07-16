@@ -92,9 +92,22 @@ export function SplineSubObjectOverlay({
   const worldOf = (localPos: THREE.Vector3) => localPos.clone().applyMatrix4(parentMatrix);
   const localOf = (worldPos: THREE.Vector3) => worldPos.clone().applyMatrix4(new THREE.Matrix4().copy(parentMatrix).invert());
 
+  // OrbitControls listens on native DOM events which R3F's stopPropagation
+  // does NOT cancel — so we explicitly disable orbit while dragging a
+  // knot/handle, and re-enable on pointer up (matches TransformControls).
+  const disableOrbit = () => {
+    const controls = (window as any).__orbitControls;
+    if (controls) controls.enabled = false;
+  };
+  const enableOrbit = () => {
+    const controls = (window as any).__orbitControls;
+    if (controls) controls.enabled = true;
+  };
+
   // Drag handlers on a knot mesh.
   const onKnotDown = (e: ThreeEvent<PointerEvent>, kid: number) => {
     e.stopPropagation();
+    (e.nativeEvent as any)?.stopImmediatePropagation?.();
     onSelectKnot?.(kid, e.shiftKey || e.ctrlKey || e.metaKey);
     if (level !== 'sknot') return;
     const k = spline.knots.get(kid); if (!k) return;
@@ -102,10 +115,12 @@ export function SplineSubObjectOverlay({
     const normal = new THREE.Vector3().subVectors(camera.position, start).normalize();
     drag.current = { kid, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, start), ptr: e.pointerId };
     (e.target as any)?.setPointerCapture?.(e.pointerId);
+    disableOrbit();
   };
 
   const onHandleDown = (e: ThreeEvent<PointerEvent>, kid: number, handle: 'in' | 'out') => {
     e.stopPropagation();
+    (e.nativeEvent as any)?.stopImmediatePropagation?.();
     onSelectKnot?.(kid, false);
     const k = spline.knots.get(kid); if (!k) return;
     const localHandle = k.pos.clone().add(handle === 'in' ? k.inHandle : k.outHandle);
@@ -113,6 +128,7 @@ export function SplineSubObjectOverlay({
     const normal = new THREE.Vector3().subVectors(camera.position, start).normalize();
     drag.current = { kid, handle, plane: new THREE.Plane().setFromNormalAndCoplanarPoint(normal, start), ptr: e.pointerId };
     (e.target as any)?.setPointerCapture?.(e.pointerId);
+    disableOrbit();
   };
 
   const onKnotMoveEv = (e: ThreeEvent<PointerEvent>) => {
@@ -138,9 +154,10 @@ export function SplineSubObjectOverlay({
     }
   };
   const onKnotUp = (e: ThreeEvent<PointerEvent>) => {
-    if (!drag.current) return;
+    if (!drag.current) { enableOrbit(); return; }
     (e.target as any)?.releasePointerCapture?.(drag.current.ptr);
     drag.current = null;
+    enableOrbit();
   };
 
   return (

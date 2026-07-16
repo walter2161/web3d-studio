@@ -98,7 +98,12 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
 
   const startDrag = useCallback((e: any, k: DragKind, anchorWorld: [number, number, number]) => {
     e.stopPropagation();
+    (e.nativeEvent as any)?.stopImmediatePropagation?.();
     (e.target as any)?.setPointerCapture?.(e.pointerId);
+    // Disable OrbitControls during drag — R3F stopPropagation does not
+    // cancel the native pointer events OrbitControls listens to.
+    const controls = (window as any).__orbitControls;
+    if (controls) controls.enabled = false;
     // Drag plane: perpendicular to camera view direction, passing through the point
     const camDir = new THREE.Vector3();
     camera.getWorldDirection(camDir);
@@ -137,6 +142,8 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
   }, [dragging, getPointerWorld, onUpdateKeyframe, track.keyframes, track.objectId]);
 
   const endDrag = useCallback((e: any) => {
+    const controls = (window as any).__orbitControls;
+    if (controls) controls.enabled = true;
     if (!dragging) return;
     e.stopPropagation();
     (e.target as any)?.releasePointerCapture?.(e.pointerId);
