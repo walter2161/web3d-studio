@@ -294,7 +294,7 @@ function SamplePreview({ mat, size = 60, shape = 'sphere' }: { mat: R3Material; 
   }, [input]);
 
   return (
-    <div style={{ width: size, height: size, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: size, height: size, background: '#8b96a2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       {url ? (
         <img src={url} alt="" width={size} height={size} style={{ display: 'block' }} draggable={false} />
       ) : (
