@@ -123,7 +123,7 @@ export const HelperGizmo = ({ data, selected, ghost }: Props) => {
         )}
         {data?.showCenterMarker && (
           <mesh renderOrder={999}>
-            <sphereGeometry args={[(data.size ?? 0.2) * 0.15, 8, 8]} />
+            <sphereGeometry args={[(data.size ?? 0.2) * 0.15, 6, 4]} />
             <meshBasicMaterial color={color} depthTest={false} />
           </mesh>
         )}
@@ -154,7 +154,7 @@ export const HelperGizmo = ({ data, selected, ghost }: Props) => {
         {/* endpoint dots */}
         {[tapePos.a, tapePos.b].map((p, i) => (
           <mesh key={i} position={p as any} renderOrder={999}>
-            <sphereGeometry args={[0.03, 8, 8]} />
+            <sphereGeometry args={[0.03, 6, 4]} />
             <meshBasicMaterial color={color} depthTest={false} />
           </mesh>
         ))}

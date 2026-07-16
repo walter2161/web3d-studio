@@ -1086,7 +1086,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
       <group ref={groupRef} position={object.position}>
         <ambientLight color={object.color} intensity={ambientIntensity} />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
-          <sphereGeometry args={[0.25, 12, 8]} />
+          <sphereGeometry args={[0.25, 8, 6]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
       </group>
@@ -1119,12 +1119,12 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           castShadow={!!object.lightData?.castShadow}
         />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
-          <sphereGeometry args={[0.2, 12, 8]} />
+          <sphereGeometry args={[0.2, 10, 6]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
         {isSelected && (
           <lineSegments userData={{ __helper: true }}>
-            <edgesGeometry args={[new THREE.SphereGeometry(0.35, 12, 8), 1]} />
+            <edgesGeometry args={[new THREE.SphereGeometry(0.35, 10, 6), 1]} />
             <lineBasicMaterial color="#ffcc00" />
           </lineSegments>
         )}
@@ -1152,7 +1152,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
         {/* Cone helper points along -Z */}
         <group userData={{ __helper: true }} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
           <mesh userData={{ __helper: true }}>
-            <coneGeometry args={[Math.tan(angle) * dist, dist, 20, 1, true]} />
+            <coneGeometry args={[Math.tan(angle) * dist, dist, 12, 1, true]} />
             <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.6} />
           </mesh>
         </group>
@@ -1178,7 +1178,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
         {/* Ray helper along -Z */}
         <group userData={{ __helper: true }} position={[0, 0, -dist / 2]}>
           <mesh userData={{ __helper: true }}>
-            <cylinderGeometry args={[0.4, 0.4, dist, 16, 1, true]} />
+            <cylinderGeometry args={[0.4, 0.4, dist, 10, 1, true]} />
             <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.4} />
           </mesh>
         </group>
