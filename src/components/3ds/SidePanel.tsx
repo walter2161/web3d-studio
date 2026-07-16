@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -283,6 +283,22 @@ export const SidePanel = ({
     subscribeSplineSel,
     () => getSplineSel(selectedObject?.id ?? '__none__').level ?? '',
   );
+
+  // Auto-select newly added modifier in the stack (3ds Max behavior).
+  const prevModsRef = useRef<{ objectId: string | null; ids: string[] }>({ objectId: null, ids: [] });
+  useEffect(() => {
+    const objId = selectedObject?.id ?? null;
+    const currentIds: string[] = (selectedObject?.modifiers ?? []).map((m: any) => m.id);
+    const prev = prevModsRef.current;
+    if (objId && objId === prev.objectId && currentIds.length > prev.ids.length) {
+      const added = currentIds.find((id) => !prev.ids.includes(id));
+      if (added) setSelectedStackItem(added);
+    } else if (objId !== prev.objectId) {
+      // Switched object → default back to base
+      setSelectedStackItem('base');
+    }
+    prevModsRef.current = { objectId: objId, ids: currentIds };
+  }, [selectedObject?.id, selectedObject?.modifiers]);
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
