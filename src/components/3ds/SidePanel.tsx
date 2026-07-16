@@ -10,7 +10,7 @@ import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 import { EditableSplinePanel } from './r3/EditableSplinePanel';
-import { setSplineSel } from './editable/splineSelStore';
+import { setSplineSel, getSplineSel, subscribeSplineSel } from './editable/splineSelStore';
 import type { SplineSubLevel } from './editable/EditableSpline';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
