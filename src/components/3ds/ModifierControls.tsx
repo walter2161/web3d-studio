@@ -482,6 +482,53 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
     );
   };
 
+  const renderShell = () => {
+    const outer = Number.isFinite(params.outer) ? params.outer : 0;
+    const inner = Number.isFinite(params.inner) ? params.inner : 0.1;
+    const segments = Number.isFinite(params.segments) ? params.segments : 1;
+    return (
+      <Rollout title="Parameters">
+        <Group title="Amount">
+          <NumField label="Inner"    value={inner} step={0.01} onChange={(v) => updateParam('inner', v)} />
+          <NumField label="Outer"    value={outer} step={0.01} onChange={(v) => updateParam('outer', v)} />
+          <NumField label="Segments" value={segments} min={1} step={1}
+            onChange={(v) => updateParam('segments', Math.max(1, Math.floor(v)))} />
+        </Group>
+        <Group title="Options">
+          <CheckRow label="Straighten Corners"
+            checked={params.straightenCorners !== false}
+            onChange={(v) => updateParam('straightenCorners', v)} />
+          <CheckRow label="Auto Smooth Edge"
+            checked={params.autoSmooth !== false}
+            onChange={(v) => updateParam('autoSmooth', v)} />
+        </Group>
+        <Group title="Material IDs">
+          <CheckRow label="Override Inner Mat ID"
+            checked={!!params.overrideInnerMatId}
+            onChange={(v) => updateParam('overrideInnerMatId', v)} />
+          {params.overrideInnerMatId && (
+            <NumField label="Inner ID" value={params.innerMatId ?? 1} min={0} step={1}
+              onChange={(v) => updateParam('innerMatId', Math.max(0, Math.floor(v)))} />
+          )}
+          <CheckRow label="Override Outer Mat ID"
+            checked={!!params.overrideOuterMatId}
+            onChange={(v) => updateParam('overrideOuterMatId', v)} />
+          {params.overrideOuterMatId && (
+            <NumField label="Outer ID" value={params.outerMatId ?? 0} min={0} step={1}
+              onChange={(v) => updateParam('outerMatId', Math.max(0, Math.floor(v)))} />
+          )}
+          <CheckRow label="Override Edge Mat ID"
+            checked={!!params.overrideEdgeMatId}
+            onChange={(v) => updateParam('overrideEdgeMatId', v)} />
+          {params.overrideEdgeMatId && (
+            <NumField label="Edge ID" value={params.edgeMatId ?? 2} min={0} step={1}
+              onChange={(v) => updateParam('edgeMatId', Math.max(0, Math.floor(v)))} />
+          )}
+        </Group>
+      </Rollout>
+    );
+  };
+
   const renderDefault = () => (
     <Rollout title="Parameters">
       <div className="text-[11px] text-win-text">
@@ -499,6 +546,7 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
       case 'TurboSmooth': return renderTurboSmooth();
       case 'Symmetry': return renderSymmetry();
       case 'Extrude': return renderExtrude();
+      case 'Shell': return renderShell();
       case 'Edit Poly': return renderEditPoly(false);
       case 'Edit Mesh': return renderEditPoly(true);
       default: return renderDefault();
