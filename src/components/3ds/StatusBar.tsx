@@ -238,22 +238,37 @@ export const StatusBar = ({
 
       {/* Viewport navigation cluster (right) */}
       <div className="bevel-sunken bg-win-face flex items-center gap-0.5 px-1">
-        <Tool title="Zoom">
+        <Tool title="Zoom In (click) — Shift+click Zoom Out" onClick={(e: any) => dolly(e?.shiftKey ? 1.25 : 0.8)}>
           <ZoomIn size={12} />
         </Tool>
-        <Tool title="Zoom Extents">
+        <Tool title="Zoom Out" onClick={() => dolly(1.25)}>
+          <ZoomOut size={12} />
+        </Tool>
+        <Tool title="Zoom Extents (fit all)" onClick={zoomExtents}>
           <Focus size={12} />
         </Tool>
-        <Tool title="Zoom Region">
+        <Tool title="Zoom Region (2× closer)" onClick={() => dolly(0.5)}>
           <Search size={12} />
         </Tool>
-        <Tool title="Pan">
+        <Tool
+          title="Pan mode (left-drag pans)"
+          active={mouseMode === 'pan'}
+          onClick={() => { setPrimaryMouse('pan'); setMouseMode('pan'); }}
+        >
           <PanIcon size={12} />
         </Tool>
-        <Tool title="Arc Rotate">
+        <Tool
+          title="Arc Rotate (left-drag orbits)"
+          active={mouseMode === 'rotate'}
+          onClick={() => { setPrimaryMouse('rotate'); setMouseMode('rotate'); }}
+        >
           <Orbit size={12} />
         </Tool>
-        <Tool title="Select">
+        <Tool
+          title="Select (default left-click)"
+          active={mouseMode === 'select'}
+          onClick={() => { setPrimaryMouse('select'); setMouseMode('select'); }}
+        >
           <MousePointer2 size={12} />
         </Tool>
         <Tool
