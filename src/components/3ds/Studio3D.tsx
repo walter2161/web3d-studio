@@ -2168,27 +2168,65 @@ export const Studio3D = () => {
       </div>
 
       {/* Trackbar (Animation timeline) — hidden by default */}
-      {timelineVisible && (
-        <AnimationTimeline
-          tracks={animationTracks}
-          currentFrame={currentFrame}
-          totalFrames={totalFrames}
-          isPlaying={isPlaying}
-          selectedObject={selectedObject}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
-          onFrameChange={setCurrentFrame}
-          onAddKeyframe={addKeyframe}
-          onRemoveKeyframe={removeKeyframe}
-          onUpdateKeyframe={updateKeyframe}
-          onToggleTrajectory={toggleTrajectory}
-          onSelectKeyframe={setSelectedKeyframe}
-          selectedKeyframe={selectedKeyframe}
-          loopPlayback={loopPlayback}
-          onToggleLoopPlayback={() => setLoopPlayback(v => !v)}
-        />
-      )}
+      {timelineVisible && (() => {
+        // Discover the selected imported model's animation clips (if any).
+        const selData = objects.find((o) => o.id === selectedObject);
+        const isImported = selData?.type === 'imported';
+        let clipOptions: { index: number; name: string }[] | undefined;
+        if (isImported) {
+          // Fire-and-forget — modelImport cache is sync after import.
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { getImportedModel } = require('./utils/modelImport');
+          const imp = getImportedModel(selData!.id);
+          if (imp && imp.animations && imp.animations.length > 0) {
+            clipOptions = imp.animations.map((c: any, i: number) => ({
+              index: i,
+              name: c.name || `Clip ${i + 1}`,
+            }));
+          }
+        }
+        const bakedSet = selectedObject ? bakedClipSets[selectedObject] : undefined;
+        const handleBake = async (clipIndex: number) => {
+          if (!selData || !isImported) return;
+          const { getImportedModel } = await import('./utils/modelImport');
+          const { bakeClipToTracks } = await import('./timeline/channelTracks');
+          const imp = getImportedModel(selData.id);
+          if (!imp || !imp.animations[clipIndex]) return;
+          const baked = bakeClipToTracks(imp.animations[clipIndex], clipIndex, imp.root, selData.id, 30);
+          setBakedClipSets((prev) => ({ ...prev, [selData.id]: baked }));
+          toast.success(`Baked "${baked.clipName}" → ${baked.tracks.length} tracks`);
+        };
+        const handleChangeBakedSet = (next: BakedClipSet) => {
+          if (!selectedObject) return;
+          setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
+        };
+        return (
+          <AnimationTimeline
+            tracks={animationTracks}
+            currentFrame={currentFrame}
+            totalFrames={totalFrames}
+            isPlaying={isPlaying}
+            selectedObject={selectedObject}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onStop={() => { setIsPlaying(false); setCurrentFrame(0); }}
+            onFrameChange={setCurrentFrame}
+            onAddKeyframe={addKeyframe}
+            onRemoveKeyframe={removeKeyframe}
+            onUpdateKeyframe={updateKeyframe}
+            onToggleTrajectory={toggleTrajectory}
+            onSelectKeyframe={setSelectedKeyframe}
+            selectedKeyframe={selectedKeyframe}
+            loopPlayback={loopPlayback}
+            onToggleLoopPlayback={() => setLoopPlayback(v => !v)}
+            bakedClipSet={bakedSet ?? null}
+            bakedClipOptions={clipOptions}
+            onBakeClip={clipOptions ? handleBake : undefined}
+            onChangeBakedSet={handleChangeBakedSet}
+          />
+        );
+      })()}
+
 
       {/* Status bar */}
       <StatusBar
