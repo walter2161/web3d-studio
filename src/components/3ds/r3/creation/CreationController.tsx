@@ -549,6 +549,16 @@ export const CreationController = ({ viewportType, isActive }: Props) => {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
 
+      if (printBedRef) {
+        const p = raycastBase(e);
+        if (!p) return;
+        commit(buildPrintBedGhost(p));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+
       if (bipedRef) {
         const p = raycastBase(e);
         if (!p) return;
