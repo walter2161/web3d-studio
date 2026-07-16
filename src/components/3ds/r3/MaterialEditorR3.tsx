@@ -490,7 +490,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                 onDragEnd={endSlotDrag}
                 title={`${m.name} — drag onto an object to apply, or double-click to assign to selection`}
                 className={`p-[2px] flex items-center justify-center cursor-grab active:cursor-grabbing ${i === active ? 'bevel-inset' : 'bevel-raised'}`}
-                style={{ aspectRatio: '1', background: i === active ? '#000' : '#111' }}
+                style={{ aspectRatio: '1', background: '#8b96a2' }}
               >
                 <SamplePreview mat={m} size={54} shape={previewShape} />
               </button>
