@@ -43,9 +43,9 @@ function pointsGeometry(points: THREE.Vector3[]) {
 function OverlayLine({ points, color, opacity = 1 }: { points: THREE.Vector3[]; color: string; opacity?: number }) {
   const geometry = useMemo(() => pointsGeometry(points), [points.map((p) => `${p.x},${p.y},${p.z}`).join('|')]);
   return (
-    <line geometry={geometry} renderOrder={998}>
+    <primitive object={new THREE.Line(geometry)} renderOrder={998}>
       <lineBasicMaterial color={color} depthTest={false} transparent opacity={opacity} />
-    </line>
+    </primitive>
   );
 }
 
