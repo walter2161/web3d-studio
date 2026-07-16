@@ -104,8 +104,20 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   gl.toneMapping = preset.toneMapping;
   gl.toneMappingExposure = preset.exposure;
   gl.shadowMap.enabled = true;
+  gl.shadowMap.autoUpdate = true;
   gl.shadowMap.type = THREE.PCFSoftShadowMap;
   gl.shadowMap.needsUpdate = true;
+  // Force every material that participates in shadowing to recompile its
+  // shader — after a previous render restored the viewport's shadow settings,
+  // three.js caches shader programs that may have been compiled with shadows
+  // disabled. Without this flag, the SECOND render through the same renderer
+  // reuses the shadow-less program and produces flat/no-shadow frames.
+  scene.traverse((obj) => {
+    const m = (obj as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    if (!m) return;
+    if (Array.isArray(m)) m.forEach((mm) => { mm.needsUpdate = true; });
+    else m.needsUpdate = true;
+  });
 
   // Recording canvas at the requested output resolution.
   const recCanvas = document.createElement('canvas');
