@@ -5,6 +5,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { UIThemeSelector } from './r3/UIThemeContext';
 
 interface MenuBarProps {
   onOpenMaterialEditor: () => void;
@@ -105,6 +106,10 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
           </DropdownMenuContent>
         </DropdownMenu>
       ))}
+      <div className="flex-1" />
+      <div className="flex items-center">
+        <UIThemeSelector />
+      </div>
     </div>
   );
 };
