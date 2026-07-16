@@ -233,16 +233,17 @@ export function SplineSubObjectOverlay({
           return (
             <group key={`${k.id}-${which}`}>
               <OverlayLine points={[k.pos, endpoint]} color="#ffcc33" opacity={0.95} />
-              <mesh
-                position={[endpoint.x, endpoint.y, endpoint.z]}
-                onPointerDown={(e) => onHandleDown(e, k.id, which)}
-                onPointerMove={onKnotMoveEv}
-                onPointerUp={onKnotUp}
-                renderOrder={1000}
-              >
-                <boxGeometry args={[HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE]} />
-                <meshBasicMaterial color="#ffcc33" depthTest={false} transparent />
-              </mesh>
+              <ScreenScaledGroup position={[endpoint.x, endpoint.y, endpoint.z]}>
+                <mesh
+                  onPointerDown={(e) => onHandleDown(e, k.id, which)}
+                  onPointerMove={onKnotMoveEv}
+                  onPointerUp={onKnotUp}
+                  renderOrder={1000}
+                >
+                  <boxGeometry args={[HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE]} />
+                  <meshBasicMaterial color="#ffcc33" depthTest={false} transparent />
+                </mesh>
+              </ScreenScaledGroup>
             </group>
           );
         });
