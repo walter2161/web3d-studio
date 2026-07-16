@@ -10,6 +10,7 @@ import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 import { EditableSplinePanel } from './r3/EditableSplinePanel';
+import { RigHierarchyPanel } from './r3/RigHierarchyPanel';
 import { setSplineSel, getSplineSel, subscribeSplineSel } from './editable/splineSelStore';
 import type { SplineSubLevel } from './editable/EditableSpline';
 
@@ -236,6 +237,10 @@ interface SidePanelProps {
   onCreatePrintBed?: () => void;
   onUpdatePrintBed?: (bedId: string, patch: any) => void;
   onTransformObject?: (id: string, patch: any) => void;
+
+  // Rig sub-object selection (imported models with bones)
+  selectedSubUuid?: string | null;
+  onSelectSubObject?: (objectId: string, uuid: string | null) => void;
 }
 
 export const SidePanel = ({
@@ -265,6 +270,8 @@ export const SidePanel = ({
   onCreatePrintBed,
   onUpdatePrintBed,
   onTransformObject,
+  selectedSubUuid,
+  onSelectSubObject,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
@@ -1486,7 +1493,16 @@ export const SidePanel = ({
                   );
                 })()}
 
-
+                {/* Rig / Bone hierarchy — for imported models with skeletons */}
+                {selectedObject.type === 'imported' && (
+                  <MaxRollout title="Hierarchy (Bones / Nodes)" className="mt-4">
+                    <RigHierarchyPanel
+                      objectId={selectedObject.id}
+                      selectedSubUuid={selectedSubUuid}
+                      onSelectSubObject={onSelectSubObject}
+                    />
+                  </MaxRollout>
+                )}
 
                 {/* Object Properties */}
                 <Card className="bg-card border-panel-border mt-4">

@@ -2071,6 +2071,8 @@ export const Studio3D = () => {
             onCreatePrintBed={() => createObject('sys_print_bed')}
             onUpdatePrintBed={(id, patch) => setObjects((prev) => prev.map((o) => o.id === id ? { ...o, geometry: { ...(o.geometry || {}), ...patch } } : o))}
             onTransformObject={handleTransformObject}
+            selectedSubUuid={selectedSubUuid}
+            onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
           />
 
 
