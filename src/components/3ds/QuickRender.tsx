@@ -9,6 +9,10 @@ import { ENGINES, RenderEngine, useRenderEngine } from './r3/RenderEngineContext
 interface QuickRenderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Output resolution requested by the user in Render Setup. When omitted
+   *  the offscreen render falls back to the viewport canvas size. */
+  width?: number;
+  height?: number;
 }
 
 export type { RenderEngine };
