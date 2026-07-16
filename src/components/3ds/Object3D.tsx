@@ -875,6 +875,25 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     );
   }
 
+  // Bones (Systems → Bones) — bone chain rendered as nested groups for FK.
+  if (isBoneType(object.type)) {
+    const ghostB = (object as any).__creating === true;
+    return (
+      <group
+        ref={meshRef as any}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={ghostB ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
+      >
+        <BoneChainGizmo data={object.geometry} selected={isSelected} ghost={ghostB} />
+        {/* Invisible pick-proxy along the chain root for easy selection. */}
+        <mesh visible={false} raycast={ghostB ? () => null : undefined}>
+          <sphereGeometry args={[0.3, 6, 6]} />
+        </mesh>
+      </group>
+    );
+
   // Render lights and cameras as full-fledged scene entities with R3-style helpers.
 
   if (isEntityType(object.type)) {
