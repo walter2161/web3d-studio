@@ -357,29 +357,27 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       if (activeSegIdx > 0) {
         const cur = segs[activeSegIdx];
         const prev = segs[activeSegIdx - 1];
-        // Auto-blend: if user didn't set blendIn but segments are adjacent
-        // (or overlap), apply a default 15-frame crossfade so movement isn't
-        // brutal. Explicit blendIn === 0 hard-cuts (opt-out).
+        // Only crossfade when the user explicitly set blendIn on the current
+        // segment (default on new segments = 15). Segments without blendIn
+        // (older segments, or explicit 0) hard-cut — this preserves the
+        // "switch clip immediately" behavior for anyone who didn't opt into
+        // the transition. Blend is also capped to half the segment (and half
+        // the previous segment) so the new clip always has time to play out
+        // clearly instead of being masked by the previous one.
         const explicit = cur.blendIn;
-        let requested: number;
-        if (explicit === undefined || explicit === null) {
-          const adjacent = Math.abs(cur.startFrame - prev.endFrame) <= 1 || cur.startFrame < prev.endFrame;
-          requested = adjacent ? 15 : 0;
-        } else {
-          requested = explicit;
-        }
-        const segLen = cur.endFrame - cur.startFrame;
-        const prevLen = prev.endFrame - prev.startFrame;
-        const blen = Math.max(0, Math.min(requested, segLen, Math.max(1, prevLen)));
-        if (blen > 0 && frame < cur.startFrame + blen) {
-          let t = (frame - cur.startFrame) / blen;
-          if (t < 0) t = 0;
-          if (t > 1) t = 1;
-          // Smoothstep: 3t² - 2t³ — ease-in-out, standard for animation
-          // blending (matches Unreal's default cubic transition curve).
-          blendT = t * t * (3 - 2 * t);
-          prevClipIdx = prev.clipIndex;
-          prevAnchor = prev.startFrame;
+        if (explicit !== undefined && explicit !== null && explicit > 0) {
+          const segLen = cur.endFrame - cur.startFrame;
+          const prevLen = Math.max(1, prev.endFrame - prev.startFrame);
+          const blen = Math.max(0, Math.min(explicit, Math.floor(segLen / 2), Math.floor(prevLen / 2)));
+          if (blen > 0 && frame < cur.startFrame + blen) {
+            let t = (frame - cur.startFrame) / blen;
+            if (t < 0) t = 0;
+            if (t > 1) t = 1;
+            // Smoothstep 3t² - 2t³ — ease-in-out weight ramp.
+            blendT = t * t * (3 - 2 * t);
+            prevClipIdx = prev.clipIndex;
+            prevAnchor = prev.startFrame;
+          }
         }
       }
 
