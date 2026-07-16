@@ -17,6 +17,7 @@ import { BoneChainGizmo } from './r3/BoneChainGizmo';
 import { isBoneType } from './rig/bones';
 import { PrintBedObject } from './print3d/PrintBedObject';
 import { EditableSpline } from './editable/EditableSpline';
+import { applyBakedSet, type BakedClipSet } from './timeline/channelTracks';
 
 
 
@@ -360,12 +361,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   useFrame(() => {
     if (object.type === 'imported' && imported) {
       const bakedSets = (window as any).__bakedClipSets as
-        | Record<string, import('./timeline/channelTracks').BakedClipSet>
+        | Record<string, BakedClipSet>
         | undefined;
       const baked = bakedSets?.[object.id];
       if (baked && baked.tracks.length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { applyBakedSet } = require('./timeline/channelTracks');
         applyBakedSet(baked, imported.root, currentFrame);
         // Also override the syncClipTime hook used by the animation
         // renderer so offline renders read from the baked tracks too.
