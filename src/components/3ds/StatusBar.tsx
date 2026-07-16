@@ -105,7 +105,7 @@ interface StatusBarProps {
 
 const Tool = ({
   onClick, title, active, children,
-}: { onClick?: () => void; title: string; active?: boolean; children: React.ReactNode }) => (
+}: { onClick?: (e?: any) => void; title: string; active?: boolean; children: React.ReactNode }) => (
   <button
     title={title}
     onClick={onClick}
