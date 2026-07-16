@@ -210,6 +210,7 @@ export const Studio3D = () => {
     if (typeof window === 'undefined') return false;
     return !localStorage.getItem('3de.welcome.seen');
   });
+  const [welcomeInitialTab, setWelcomeInitialTab] = useState<'welcome' | 'request'>('welcome');
   const [pendingFileOp, setPendingFileOp] = useState<null | (() => void)>(null);
   const { user, isAdmin, signOut } = useAuth();
   const [undoStack, setUndoStack] = useState<Object3DData[][]>([]);
