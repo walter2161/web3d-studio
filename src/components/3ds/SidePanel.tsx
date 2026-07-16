@@ -277,6 +277,12 @@ export const SidePanel = ({
   const [showEndResult, setShowEndResult] = useState(true);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  // Re-render whenever the shared spline sub-object store changes so the
+  // Modifier-Stack tree highlights the currently active level.
+  useSyncExternalStore(
+    subscribeSplineSel,
+    () => getSplineSel(selectedObject?.id ?? '__none__').level ?? '',
+  );
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
