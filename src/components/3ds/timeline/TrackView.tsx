@@ -82,10 +82,33 @@ export const TrackView = ({
     return m;
   }, [clipSet]);
 
+  // Auto-expand roots + their direct channels the first time a fresh clipSet
+  // arrives so the user sees keys immediately instead of a blank sheet.
+  useEffect(() => {
+    const key = `${clipSet.sourceClipIndex}::${clipSet.clipName}::${clipSet.tracks.length}`;
+    if (autoExpandedForRef.current === key) return;
+    autoExpandedForRef.current = key;
+    const nodes = new Set<string>(roots);
+    // Also expand every ancestor path that contains channels so users see
+    // something immediately on rigs where the animated bones are nested deep.
+    const chSet = new Set<string>();
+    for (const [uuid, chans] of grouped) {
+      // Expand this animated node and every parent up the chain.
+      let cur: string | undefined = uuid;
+      while (cur) {
+        nodes.add(cur);
+        cur = clipSet.nodeParents[cur] || undefined;
+      }
+      chans.forEach((_axes, chan) => chSet.add(`${uuid}:${chan}`));
+    }
+    setExpandedNodes(nodes);
+    setExpandedChannels(chSet);
+  }, [clipSet, roots, grouped]);
+
   const toggleNode = (uuid: string) => {
     setExpandedNodes((prev) => {
       const n = new Set(prev);
-      n.has(uuid) ? n.delete(uuid) : n.add(uuid);
+      if (n.has(uuid)) n.delete(uuid); else n.add(uuid);
       return n;
     });
   };
@@ -93,7 +116,7 @@ export const TrackView = ({
     const k = `${uuid}:${channel}`;
     setExpandedChannels((prev) => {
       const n = new Set(prev);
-      n.has(k) ? n.delete(k) : n.add(k);
+      if (n.has(k)) n.delete(k); else n.add(k);
       return n;
     });
   };
