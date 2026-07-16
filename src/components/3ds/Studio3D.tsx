@@ -2214,12 +2214,12 @@ export const Studio3D = () => {
           if (!selectedObject) return;
           setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
         };
-        const clipSwitches = selectedObject ? (clipSwitchesByObject[selectedObject] || []) : [];
-        const setClipSwitches = (next: Array<{ id: string; frame: number; clipIndex: number }>) => {
+        const clipSegments = selectedObject ? (clipSegmentsByObject[selectedObject] || []) : [];
+        const setClipSegments = (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>) => {
           if (!selectedObject) return;
-          setClipSwitchesByObject((prev) => ({
+          setClipSegmentsByObject((prev) => ({
             ...prev,
-            [selectedObject]: next.slice().sort((a, b) => a.frame - b.frame),
+            [selectedObject]: next.slice().sort((a, b) => a.startFrame - b.startFrame),
           }));
         };
         return (
@@ -2245,8 +2245,8 @@ export const Studio3D = () => {
             bakedClipOptions={clipOptions}
             onBakeClip={clipOptions ? handleBake : undefined}
             onChangeBakedSet={handleChangeBakedSet}
-            clipSwitches={clipSwitches}
-            onClipSwitchesChange={clipOptions ? setClipSwitches : undefined}
+            clipSegments={clipSegments}
+            onClipSegmentsChange={clipOptions ? setClipSegments : undefined}
           />
         );
       })()}
