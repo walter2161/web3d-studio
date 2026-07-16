@@ -11,7 +11,7 @@
  *   - onKnotMove(kid, worldPos): user finished a drag on a selected knot
  */
 import { useMemo, useRef } from 'react';
-import { ThreeEvent, useThree } from '@react-three/fiber';
+import { ThreeEvent, useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { EditableSpline, KNOT_COLORS, SplineSubLevel } from './EditableSpline';
 
@@ -31,8 +31,37 @@ interface Props {
   onKnotHandleMove?: (id: number, which: 'in' | 'out', localOffset: THREE.Vector3) => void;
 }
 
-const KNOT_SIZE = 0.06;
-const HANDLE_SIZE = 0.045;
+// Base size at 1 unit from camera; useFrame rescales each marker so its
+// on-screen footprint stays roughly constant regardless of distance/zoom.
+const KNOT_SIZE = 0.012;
+const HANDLE_SIZE = 0.009;
+
+/**
+ * Wraps children in a group whose scale is updated every frame so the marker
+ * keeps a stable pixel size. This makes the raycast hit-region match what the
+ * user actually sees, avoiding "nearest-in-3D-space wins" mispicks in
+ * perspective views.
+ */
+function ScreenScaledGroup({ position, children }: { position: [number, number, number]; children: React.ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ camera, size }) => {
+    const g = ref.current; if (!g) return;
+    const worldPos = new THREE.Vector3(position[0], position[1], position[2]);
+    g.parent?.localToWorld(worldPos);
+    let s = 1;
+    if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+      const pc = camera as THREE.PerspectiveCamera;
+      const dist = pc.position.distanceTo(worldPos);
+      const fov = (pc.fov * Math.PI) / 180;
+      s = 2 * Math.tan(fov / 2) * dist;
+    } else if ((camera as THREE.OrthographicCamera).isOrthographicCamera) {
+      const oc = camera as THREE.OrthographicCamera;
+      s = (oc.top - oc.bottom) / oc.zoom;
+    }
+    g.scale.setScalar(s);
+  });
+  return <group ref={ref} position={position}>{children}</group>;
+}
 
 function pointsGeometry(points: THREE.Vector3[]) {
   const g = new THREE.BufferGeometry();
@@ -204,16 +233,17 @@ export function SplineSubObjectOverlay({
           return (
             <group key={`${k.id}-${which}`}>
               <OverlayLine points={[k.pos, endpoint]} color="#ffcc33" opacity={0.95} />
-              <mesh
-                position={[endpoint.x, endpoint.y, endpoint.z]}
-                onPointerDown={(e) => onHandleDown(e, k.id, which)}
-                onPointerMove={onKnotMoveEv}
-                onPointerUp={onKnotUp}
-                renderOrder={1000}
-              >
-                <boxGeometry args={[HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE]} />
-                <meshBasicMaterial color="#ffcc33" depthTest={false} transparent />
-              </mesh>
+              <ScreenScaledGroup position={[endpoint.x, endpoint.y, endpoint.z]}>
+                <mesh
+                  onPointerDown={(e) => onHandleDown(e, k.id, which)}
+                  onPointerMove={onKnotMoveEv}
+                  onPointerUp={onKnotUp}
+                  renderOrder={1000}
+                >
+                  <boxGeometry args={[HANDLE_SIZE, HANDLE_SIZE, HANDLE_SIZE]} />
+                  <meshBasicMaterial color="#ffcc33" depthTest={false} transparent />
+                </mesh>
+              </ScreenScaledGroup>
             </group>
           );
         });
@@ -224,17 +254,17 @@ export function SplineSubObjectOverlay({
         const isSel = selectedKnots.has(k.id);
         const color = isSel ? '#ff2a2a' : (KNOT_COLORS[k.type] ?? '#00ff33');
         return (
-          <mesh
-            key={k.id}
-            position={[k.pos.x, k.pos.y, k.pos.z]}
-            onPointerDown={(e) => onKnotDown(e, k.id)}
-            onPointerMove={onKnotMoveEv}
-            onPointerUp={onKnotUp}
-            renderOrder={999}
-          >
-            <boxGeometry args={[KNOT_SIZE, KNOT_SIZE, KNOT_SIZE]} />
-            <meshBasicMaterial color={color} depthTest={false} transparent />
-          </mesh>
+          <ScreenScaledGroup key={k.id} position={[k.pos.x, k.pos.y, k.pos.z]}>
+            <mesh
+              onPointerDown={(e) => onKnotDown(e, k.id)}
+              onPointerMove={onKnotMoveEv}
+              onPointerUp={onKnotUp}
+              renderOrder={999}
+            >
+              <boxGeometry args={[KNOT_SIZE, KNOT_SIZE, KNOT_SIZE]} />
+              <meshBasicMaterial color={color} depthTest={false} transparent />
+            </mesh>
+          </ScreenScaledGroup>
         );
       })}
     </group>
