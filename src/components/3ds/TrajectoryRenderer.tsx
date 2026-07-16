@@ -161,7 +161,7 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
           >
-            <sphereGeometry args={[isSel ? 0.11 : 0.09, 12, 12]} />
+            <sphereGeometry args={[isSel ? 0.11 : 0.09, 8, 6]} />
             <meshBasicMaterial color={isSel ? '#ffe14a' : 'hsl(195, 100%, 55%)'} depthTest={false} transparent />
           </mesh>
         );
@@ -179,7 +179,7 @@ function TrajectoryPath({ track, selectedKeyframe, onUpdateKeyframe, onSelectKey
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
           >
-            <sphereGeometry args={[isSel ? 0.07 : 0.06, 10, 10]} />
+            <sphereGeometry args={[isSel ? 0.07 : 0.06, 6, 4]} />
             <meshBasicMaterial color={isSel ? '#ffb020' : 'orange'} depthTest={false} transparent />
           </mesh>
         );
