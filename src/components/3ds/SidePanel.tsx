@@ -246,13 +246,17 @@ export const SidePanel = ({
   onUpdateObjectLightData,
   onUpdateObjectCameraData,
   onUpdateObjectColor,
-
+  compoundState,
+  onArmCompound,
+  onSetCompoundOp,
+  onStartPickOperandB,
+  onCancelCompound,
 }: SidePanelProps) => {
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'compound' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
