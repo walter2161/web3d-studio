@@ -255,6 +255,37 @@ export const Studio3D = () => {
   useEffect(() => {
     (window as any).__clipSegments = clipSegmentsByObject;
   }, [clipSegmentsByObject]);
+
+  // ---- Timeline / TrackView scoped history ----
+  // The timeline keeps its own undo stack. When the pointer is over the
+  // timeline / Track View, Ctrl+Z rolls back the last timeline edit (keys,
+  // baked tracks, clip segments) instead of the scene graph — so undoing a
+  // bad keyframe or gantt tweak never wipes an imported character. When the
+  // timeline is not focused we fall through to the regular scene undo stack.
+  type TimelineSnapshot = {
+    animationTracks: AnimationTrack[];
+    bakedClipSets: Record<string, BakedClipSet>;
+    clipSegmentsByObject: Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>;
+  };
+  const timelineUndoRef = useRef<TimelineSnapshot[]>([]);
+  const timelineRedoRef = useRef<TimelineSnapshot[]>([]);
+  const timelineHoveredRef = useRef(false);
+  const isRestoringTimelineRef = useRef(false);
+  const prevTimelineSnapshotRef = useRef<TimelineSnapshot | null>(null);
+  useEffect(() => {
+    const current: TimelineSnapshot = { animationTracks, bakedClipSets, clipSegmentsByObject };
+    const prev = prevTimelineSnapshotRef.current;
+    prevTimelineSnapshotRef.current = current;
+    if (!prev) return; // first mount — no baseline to diff against
+    if (isRestoringTimelineRef.current) {
+      // This update came from undo/redo restoring a snapshot: don't push.
+      isRestoringTimelineRef.current = false;
+      return;
+    }
+    timelineUndoRef.current.push(prev);
+    if (timelineUndoRef.current.length > 50) timelineUndoRef.current.shift();
+    timelineRedoRef.current = [];
+  }, [animationTracks, bakedClipSets, clipSegmentsByObject]);
   const [selectedKeyframe, setSelectedKeyframe] = useState<Keyframe | null>(null);
   const [armedTool, setArmedTool] = useState<string | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
