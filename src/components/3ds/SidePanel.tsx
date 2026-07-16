@@ -246,6 +246,9 @@ export const SidePanel = ({
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
+  const [showEndResult, setShowEndResult] = useState(true);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
@@ -700,27 +703,80 @@ export const SidePanel = ({
                     })()}
                   </select>
 
-                  {/* Modifier Stack — 3ds Max style: eye toggle + expand arrow + name */}
-                  <div className="bevel-inset bg-white select-none">
-                    {stackDisplay.map((m: any) => {
+                  {/* Modifier Stack — 3ds Max style: eye toggle + expand arrow + name + drag&drop + inline delete */}
+                  <div
+                    className="bevel-inset bg-white select-none"
+                    onDragOver={(e) => { if (dragId) e.preventDefault(); }}
+                    onDrop={(e) => {
+                      if (!dragId) return;
+                      e.preventDefault();
+                      const fromIdx = mods.findIndex((m) => m.id === dragId);
+                      // dropped on empty area → move to base (bottom of visual stack = index 0)
+                      const toIdx = 0;
+                      const delta = toIdx - fromIdx;
+                      const dir: -1 | 1 = delta < 0 ? -1 : 1;
+                      for (let i = 0; i < Math.abs(delta); i++) onReorderModifier?.(selectedObject.id, dragId, dir);
+                      setDragId(null); setDragOverId(null);
+                    }}
+                  >
+                    {stackDisplay.map((m: any, visualIdx: number) => {
                       const selected = selectedStackItem === m.id;
                       const enabled = m.active !== false;
                       const expanded = !!expandedStackItems[m.id];
+                      const isDragOver = dragOverId === m.id && dragId && dragId !== m.id;
+                      const realIdx = mods.findIndex((x) => x.id === m.id);
                       return (
-                        <div key={m.id}>
+                        <div
+                          key={m.id}
+                          draggable
+                          onDragStart={(e) => { setDragId(m.id); e.dataTransfer.effectAllowed = 'move'; }}
+                          onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); if (dragId && dragId !== m.id) setDragOverId(m.id); }}
+                          onDragLeave={() => { if (dragOverId === m.id) setDragOverId(null); }}
+                          onDrop={(e) => {
+                            e.preventDefault(); e.stopPropagation();
+                            if (!dragId || dragId === m.id) { setDragId(null); setDragOverId(null); return; }
+                            const fromIdx = mods.findIndex((x) => x.id === dragId);
+                            // dropping on m.id → put dragged item at m's real index
+                            const toIdx = realIdx;
+                            const delta = toIdx - fromIdx;
+                            const dir: -1 | 1 = delta < 0 ? -1 : 1;
+                            for (let i = 0; i < Math.abs(delta); i++) onReorderModifier?.(selectedObject.id, dragId, dir);
+                            setDragId(null); setDragOverId(null);
+                          }}
+                          className={cn(
+                            'relative group',
+                            isDragOver && 'before:absolute before:left-0 before:right-0 before:-top-[1px] before:h-[2px] before:bg-win-highlight',
+                            dragId === m.id && 'opacity-60',
+                          )}
+                        >
                         <div
                           className={cn(
-                            'flex items-center gap-[3px] h-[18px] px-[2px] text-[11px] cursor-pointer',
-                            selected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40'
+                            'flex items-center gap-[3px] h-[20px] px-[3px] text-[11px] cursor-pointer',
+                            selected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40',
+                            !enabled && !selected && 'italic text-win-text-disabled',
                           )}
                           onClick={() => setSelectedStackItem(m.id)}
+                          title={`${m.type} — drag to reorder`}
                         >
+                          {/* Drag grip */}
+                          <span
+                            className={cn(
+                              'w-[8px] h-[14px] flex flex-col justify-center gap-[1px] cursor-grab',
+                              selected ? 'text-white/70' : 'text-win-text-disabled',
+                            )}
+                            aria-hidden
+                          >
+                            <span className="block w-[6px] h-[1px] bg-current" />
+                            <span className="block w-[6px] h-[1px] bg-current" />
+                            <span className="block w-[6px] h-[1px] bg-current" />
+                          </span>
                           {/* Eye icon toggle (visibility / enable) */}
                           <button
                             type="button"
                             className={cn(
                               'w-[14px] h-[14px] flex items-center justify-center leading-none',
-                              selected ? 'text-white' : 'text-win-text'
+                              selected ? 'text-white' : 'text-win-text',
                             )}
                             onClick={(e) => { e.stopPropagation(); onToggleModifier?.(selectedObject.id, m.id); }}
                             title={enabled ? 'Modifier enabled (click to disable)' : 'Modifier disabled (click to enable)'}
@@ -742,7 +798,7 @@ export const SidePanel = ({
                             type="button"
                             className={cn(
                               'w-[10px] h-[14px] flex items-center justify-center text-[9px] leading-none',
-                              selected ? 'text-white' : 'text-win-text'
+                              selected ? 'text-white' : 'text-win-text',
                             )}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -753,10 +809,28 @@ export const SidePanel = ({
                             {expanded ? '▼' : '▶'}
                           </button>
                           <span className="flex-1 truncate">{m.type}</span>
+                          {/* Inline delete (hover) */}
+                          <button
+                            type="button"
+                            className={cn(
+                              'w-[14px] h-[14px] items-center justify-center leading-none opacity-0 group-hover:opacity-100 focus:opacity-100 hidden group-hover:flex',
+                              selected ? 'text-white hover:text-red-200' : 'text-win-text hover:text-red-600',
+                            )}
+                            title="Remove this modifier"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveModifier(selectedObject.id, m.id);
+                              if (selectedStackItem === m.id) setSelectedStackItem('base');
+                            }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+                              <path d="M3 4h10M6 4V2.5h4V4M4.5 4l.7 9.5h5.6L11.5 4" />
+                            </svg>
+                          </button>
                         </div>
                         {/* Sub-object children (3ds Max hierarchy under Edit Poly / Edit Mesh) */}
                         {expanded && (m.type === 'Edit Poly' || m.type === 'Edit Mesh') && (
-                          <div>
+                          <div className="border-l border-dashed border-win-shadow ml-[14px]">
                             {(m.type === 'Edit Poly'
                               ? ['Vertex', 'Edge', 'Border', 'Face', 'Polygon', 'Element']
                               : ['Vertex', 'Edge', 'Face', 'Polygon', 'Element']
@@ -768,8 +842,8 @@ export const SidePanel = ({
                                 <div
                                   key={childId}
                                   className={cn(
-                                    'flex items-center gap-[3px] h-[16px] pl-[26px] pr-[2px] text-[11px] cursor-pointer',
-                                    childSelected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40'
+                                    'flex items-center gap-[4px] h-[16px] pl-[16px] pr-[2px] text-[11px] cursor-pointer',
+                                    childSelected ? 'bg-win-highlight text-white' : 'text-win-text hover:bg-win-face-shadow/40',
                                   )}
                                   onClick={() => {
                                     setSelectedStackItem(childId);
@@ -789,16 +863,17 @@ export const SidePanel = ({
                     {/* Base object row — no eye/arrow, matches 3ds Max */}
                     <div
                       className={cn(
-                        'flex items-center gap-[3px] h-[18px] px-[2px] text-[11px] cursor-pointer',
+                        'flex items-center gap-[3px] h-[20px] px-[3px] text-[11px] cursor-pointer border-t border-win-shadow/50',
                         selectedStackItem === 'base'
                           ? 'bg-win-highlight text-white'
-                          : 'text-win-text hover:bg-win-face-shadow/40'
+                          : 'text-win-text hover:bg-win-face-shadow/40 bg-win-face-2/40',
                       )}
                       onClick={() => setSelectedStackItem('base')}
                     >
-                      <span className="w-[14px]" />
+                      <span className="w-[8px]" />
+                      <span className="w-[14px] flex items-center justify-center text-[9px] opacity-60">■</span>
                       <span className="w-[10px]" />
-                      <span className="flex-1 truncate">{baseLabel}</span>
+                      <span className="flex-1 truncate font-semibold">{baseLabel}</span>
                     </div>
                   </div>
 
@@ -814,9 +889,12 @@ export const SidePanel = ({
                     </button>
                     <button
                       type="button"
-                      className="w-[22px] h-[20px] bevel-raised flex items-center justify-center text-win-text disabled:opacity-40"
-                      title="Show End Result on/off toggle"
-                      disabled
+                      className={cn(
+                        'w-[22px] h-[20px] flex items-center justify-center text-win-text',
+                        showEndResult ? 'bevel-sunken bg-win-highlight/25' : 'bevel-raised',
+                      )}
+                      title={showEndResult ? 'Show End Result: ON (viewport shows final result even while editing lower modifiers)' : 'Show End Result: OFF (viewport reflects only up to the selected modifier)'}
+                      onClick={() => setShowEndResult((v) => !v)}
                     >
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="2.5" y="4" width="11" height="8" /><path d="M2.5 8h11" /></svg>
                     </button>
