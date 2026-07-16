@@ -170,7 +170,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
     try {
       // Always take a fresh render so the reference matches the current scene.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const ref = await doOfflineRender(engine);
+      const ref = await doOfflineRender(engine, width, height);
       if (!ref) throw new Error('No viewport render available');
       setRefRender(ref);
 
