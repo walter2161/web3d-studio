@@ -9,6 +9,10 @@ import { ENGINES, RenderEngine, useRenderEngine } from './r3/RenderEngineContext
 interface QuickRenderProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Output resolution requested by the user in Render Setup. When omitted
+   *  the offscreen render falls back to the viewport canvas size. */
+  width?: number;
+  height?: number;
 }
 
 export type { RenderEngine };
@@ -23,6 +27,8 @@ export type { RenderEngine };
  */
 const doOfflineRender = async (
   engine: RenderEngine,
+  overrideWidth?: number,
+  overrideHeight?: number,
 ): Promise<{ dataUrl: string; width: number; height: number } | null> => {
   const handle = getViewportHandle('perspective') ?? getViewportHandle();
   if (!handle) return null;
@@ -30,11 +36,13 @@ const doOfflineRender = async (
   const preset = ENGINES[engine];
 
   const canvasEl = gl.domElement;
-  const w = canvasEl.clientWidth || canvasEl.width;
-  const h = canvasEl.clientHeight || canvasEl.height;
-  const scale = Math.min(2, window.devicePixelRatio || 1);
-  const outW = Math.max(1, Math.floor(w * scale));
-  const outH = Math.max(1, Math.floor(h * scale));
+  const vw = canvasEl.clientWidth || canvasEl.width;
+  const vh = canvasEl.clientHeight || canvasEl.height;
+  // If the user chose a specific output resolution in Render Setup, honor it
+  // exactly — otherwise fall back to the current viewport size (Quick Render).
+  const useOverride = !!(overrideWidth && overrideHeight);
+  const outW = useOverride ? Math.max(1, Math.floor(overrideWidth!)) : Math.max(1, Math.floor(vw * Math.min(2, window.devicePixelRatio || 1)));
+  const outH = useOverride ? Math.max(1, Math.floor(overrideHeight!)) : Math.max(1, Math.floor(vh * Math.min(2, window.devicePixelRatio || 1)));
 
   const offscreen = new THREE.WebGLRenderer({
     antialias: true,
@@ -95,8 +103,21 @@ const doOfflineRender = async (
     }
   });
 
+  // Force the camera's aspect to match the requested output so the image
+  // fills the full width/height instead of showing black bars when the user
+  // picks a resolution whose aspect differs from the live viewport.
+  const persp = camera as THREE.PerspectiveCamera;
+  const prevAspect = persp.aspect;
+  if ((persp as any).isPerspectiveCamera) {
+    persp.aspect = outW / outH;
+    persp.updateProjectionMatrix();
+  }
   offscreen.render(scene, camera);
   const dataUrl = offscreen.domElement.toDataURL('image/png');
+  if ((persp as any).isPerspectiveCamera) {
+    persp.aspect = prevAspect;
+    persp.updateProjectionMatrix();
+  }
 
   hidden.forEach((o) => { o.visible = true; });
   meshTouched.forEach(({ mesh, cast, receive }) => {
@@ -111,7 +132,7 @@ const doOfflineRender = async (
 
 type Mode = 'standard' | 'ai';
 
-export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
+export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderProps) => {
   const [image, setImage] = useState<string | null>(null);
   const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -123,7 +144,7 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     setRendering(true);
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const res = await doOfflineRender(eng);
+      const res = await doOfflineRender(eng, width, height);
       if (res) {
         setRefRender(res);
         setImage(res.dataUrl);
@@ -149,7 +170,7 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     try {
       // Always take a fresh render so the reference matches the current scene.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const ref = await doOfflineRender(engine);
+      const ref = await doOfflineRender(engine, width, height);
       if (!ref) throw new Error('No viewport render available');
       setRefRender(ref);
 

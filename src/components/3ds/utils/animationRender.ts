@@ -224,6 +224,16 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
   });
 
+  // Force the live viewport camera's aspect to match the requested output so
+  // the recorded frame fills the full canvas — otherwise scenes whose viewport
+  // aspect differs from the chosen resolution render with black side bars.
+  const viewPersp = viewCamera as THREE.PerspectiveCamera;
+  const prevViewAspect = viewPersp.aspect;
+  if ((viewPersp as any).isPerspectiveCamera) {
+    viewPersp.aspect = width / height;
+    viewPersp.updateProjectionMatrix();
+  }
+
   try {
     let idx = 0;
     for (let f = from; f <= to; f += step) {
@@ -360,6 +370,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       gl.setPixelRatio(prevPixelRatio);
       gl.setSize(prevSize.x, prevSize.y, false);
     } catch { /* ignore restore errors */ }
+    if ((viewPersp as any).isPerspectiveCamera) {
+      viewPersp.aspect = prevViewAspect;
+      viewPersp.updateProjectionMatrix();
+    }
   }
 }
 

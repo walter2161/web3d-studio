@@ -178,6 +178,7 @@ export const Studio3D = () => {
 
   const [materialEditorOpen, setMaterialEditorOpen] = useState(false);
   const [quickRenderOpen, setQuickRenderOpen] = useState(false);
+  const [renderDims, setRenderDims] = useState<{ width?: number; height?: number }>({});
   const [renderSetupOpen, setRenderSetupOpen] = useState(false);
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
@@ -1861,11 +1862,16 @@ export const Studio3D = () => {
         onMaterialChange={handleMaterialChange}
       />
 
-      <QuickRender open={quickRenderOpen} onOpenChange={setQuickRenderOpen} />
+      <QuickRender
+        open={quickRenderOpen}
+        onOpenChange={setQuickRenderOpen}
+        width={renderDims.width}
+        height={renderDims.height}
+      />
       <RenderSetup
         open={renderSetupOpen}
         onOpenChange={setRenderSetupOpen}
-        onRender={() => setQuickRenderOpen(true)}
+        onRender={(w, h) => { setRenderDims({ width: w, height: h }); setQuickRenderOpen(true); }}
         currentFrame={currentFrame}
         totalFrames={totalFrames}
         setCurrentFrame={setAnimationRenderFrame}
