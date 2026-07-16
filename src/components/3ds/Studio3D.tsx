@@ -1615,7 +1615,7 @@ export const Studio3D = () => {
       case 'Explode': doExplode(); break;
       case 'Units Setup...': setUnitsOpen(true); break;
       case 'Grid and Snap Settings...': setSnapSettingsOpen(true); break;
-      case 'About 3ds Max...': setAboutOpen(true); break;
+      case 'About 3De...': setAboutOpen(true); break;
       default: break;
     }
   };
