@@ -1036,7 +1036,10 @@ export const Studio3D = () => {
       const replaceAlreadySaved = !!replaceKey && subObjReplaceUndoKeysRef.current.has(replaceKey);
       if (!hasExistingReplace && !replaceAlreadySaved && objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        undoOrderRef.current.push('objects');
         setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
         if (replaceKey) {
           subObjReplaceUndoKeysRef.current.add(replaceKey);
           if (subObjReplaceUndoKeysRef.current.size > 200) {
