@@ -192,3 +192,197 @@
     background: hsl(var(--win-face-2));
   }
 }
+
+/* =====================================================
+ * UI Theme: Flat (Blender-inspired)
+ * Dark grays, no bevels, subtle rounded corners.
+ * ===================================================== */
+:root[data-ui-theme='flat'] {
+  --background: 0 0% 18%;
+  --foreground: 0 0% 88%;
+
+  --win-face: 0 0% 22%;
+  --win-face-2: 0 0% 26%;
+  --win-face-light: 0 0% 30%;
+  --win-face-shadow: 0 0% 15%;
+  --win-face-dark: 0 0% 12%;
+  --win-text: 0 0% 88%;
+  --win-text-disabled: 0 0% 50%;
+
+  --win-title: 210 10% 20%;
+  --win-title-2: 210 10% 28%;
+  --win-title-fg: 0 0% 92%;
+  --win-title-inactive: 0 0% 30%;
+
+  --card: 0 0% 22%;
+  --card-foreground: 0 0% 88%;
+  --popover: 0 0% 22%;
+  --popover-foreground: 0 0% 88%;
+
+  --primary: 28 95% 55%;              /* Blender orange */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 0 0% 26%;
+  --secondary-foreground: 0 0% 88%;
+
+  --muted: 0 0% 28%;
+  --muted-foreground: 0 0% 65%;
+
+  --accent: 28 95% 55%;
+  --accent-foreground: 0 0% 100%;
+
+  --border: 0 0% 12%;
+  --input: 0 0% 15%;
+  --ring: 28 95% 55%;
+
+  --radius: 3px;
+
+  --viewport-bg: 0 0% 22%;
+  --viewport-border: 0 0% 10%;
+  --viewport-active: 28 95% 55%;
+  --viewport-label: 0 0% 75%;
+
+  --menu-bg: 0 0% 22%;
+  --menu-hover: 28 95% 45%;
+  --menu-hover-fg: 0 0% 100%;
+  --menu-active: 28 95% 45%;
+
+  --panel-bg: 0 0% 22%;
+  --panel-header: 0 0% 18%;
+  --panel-border: 0 0% 12%;
+
+  --timeline-bg: 0 0% 20%;
+  --timeline-track: 0 0% 30%;
+  --timeline-keyframe: 28 95% 55%;
+  --timeline-current: 0 85% 55%;
+
+  --grid-primary: 0 0% 45%;
+  --grid-secondary: 0 0% 30%;
+
+  --gradient-panel: linear-gradient(180deg, hsl(var(--panel-header)), hsl(var(--panel-bg)));
+  --gradient-button: linear-gradient(180deg, hsl(var(--win-face)) 0%, hsl(var(--win-face-2)) 100%);
+  --gradient-viewport: linear-gradient(145deg, hsl(var(--viewport-bg)), hsl(0 0% 12%));
+  --gradient-title: linear-gradient(90deg, hsl(var(--win-title)) 0%, hsl(var(--win-title-2)) 100%);
+}
+
+:root[data-ui-theme='flat'] body {
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-ui-theme='flat'] .bevel-raised,
+:root[data-ui-theme='flat'] .bevel-sunken,
+:root[data-ui-theme='flat'] .bevel-group,
+:root[data-ui-theme='flat'] .bevel-inset,
+:root[data-ui-theme='flat'] .bevel-pressed {
+  background: hsl(var(--win-face));
+  border: 1px solid hsl(var(--win-face-dark));
+  box-shadow: none;
+  border-radius: 3px;
+  background-image: none;
+}
+:root[data-ui-theme='flat'] .bevel-sunken,
+:root[data-ui-theme='flat'] .bevel-pressed {
+  background: hsl(var(--win-face-shadow));
+}
+:root[data-ui-theme='flat'] .bevel-inset {
+  background: hsl(var(--input));
+}
+
+/* =====================================================
+ * UI Theme: Game (Unity-inspired)
+ * Graphite dark, hard-edged flat panels with thin lines.
+ * ===================================================== */
+:root[data-ui-theme='game'] {
+  --background: 220 5% 15%;
+  --foreground: 0 0% 82%;
+
+  --win-face: 220 5% 22%;
+  --win-face-2: 220 5% 26%;
+  --win-face-light: 220 5% 30%;
+  --win-face-shadow: 220 5% 12%;
+  --win-face-dark: 220 5% 8%;
+  --win-text: 0 0% 85%;
+  --win-text-disabled: 0 0% 50%;
+
+  --win-title: 220 8% 14%;
+  --win-title-2: 220 8% 20%;
+  --win-title-fg: 0 0% 92%;
+  --win-title-inactive: 220 5% 25%;
+
+  --card: 220 5% 22%;
+  --card-foreground: 0 0% 82%;
+  --popover: 220 5% 22%;
+  --popover-foreground: 0 0% 82%;
+
+  --primary: 200 90% 55%;             /* Unity cyan */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 5% 26%;
+  --secondary-foreground: 0 0% 82%;
+
+  --muted: 220 5% 28%;
+  --muted-foreground: 0 0% 60%;
+
+  --accent: 200 90% 55%;
+  --accent-foreground: 0 0% 100%;
+
+  --border: 220 5% 8%;
+  --input: 220 5% 14%;
+  --ring: 200 90% 55%;
+
+  --radius: 0;
+
+  --viewport-bg: 220 5% 18%;
+  --viewport-border: 220 5% 8%;
+  --viewport-active: 200 90% 55%;
+  --viewport-label: 0 0% 75%;
+
+  --menu-bg: 220 5% 22%;
+  --menu-hover: 200 90% 45%;
+  --menu-hover-fg: 0 0% 100%;
+  --menu-active: 200 90% 45%;
+
+  --panel-bg: 220 5% 22%;
+  --panel-header: 220 8% 14%;
+  --panel-border: 220 5% 8%;
+
+  --timeline-bg: 220 5% 18%;
+  --timeline-track: 220 5% 30%;
+  --timeline-keyframe: 200 90% 55%;
+  --timeline-current: 0 85% 55%;
+
+  --grid-primary: 0 0% 40%;
+  --grid-secondary: 0 0% 25%;
+
+  --gradient-panel: linear-gradient(180deg, hsl(var(--panel-header)), hsl(var(--panel-bg)));
+  --gradient-button: linear-gradient(180deg, hsl(var(--win-face-2)) 0%, hsl(var(--win-face)) 100%);
+  --gradient-viewport: linear-gradient(145deg, hsl(var(--viewport-bg)), hsl(220 5% 10%));
+  --gradient-title: linear-gradient(90deg, hsl(var(--win-title)) 0%, hsl(var(--win-title-2)) 100%);
+}
+
+:root[data-ui-theme='game'] body {
+  font-family: 'Segoe UI', 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-ui-theme='game'] .bevel-raised,
+:root[data-ui-theme='game'] .bevel-sunken,
+:root[data-ui-theme='game'] .bevel-group,
+:root[data-ui-theme='game'] .bevel-inset,
+:root[data-ui-theme='game'] .bevel-pressed {
+  background: hsl(var(--win-face));
+  border: 1px solid hsl(var(--win-face-dark));
+  box-shadow: none;
+  border-radius: 0;
+  background-image: none;
+}
+:root[data-ui-theme='game'] .bevel-sunken,
+:root[data-ui-theme='game'] .bevel-pressed {
+  background: hsl(var(--win-face-shadow));
+  border-color: hsl(var(--primary));
+}
+:root[data-ui-theme='game'] .bevel-inset {
+  background: hsl(var(--input));
+  border-color: hsl(var(--win-face-dark));
+}
