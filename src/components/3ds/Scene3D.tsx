@@ -220,6 +220,22 @@ export const Scene3D = ({
             }
           }}
           onObjectChange={(e: any) => {
+            if (boneJointActive && boneJointTarget && selectedObject && boneJoint) {
+              // Sync the joint <group>'s live rotation back into the chain data.
+              // We dispatch an event so Studio3D can patch geometry.joints[i].rot
+              // in an undoable way — TransformControls has already mutated the
+              // three.js object, so children (subsequent joints) already follow
+              // via native scene-graph FK during the drag.
+              const r = boneJointTarget.rotation;
+              window.dispatchEvent(new CustomEvent('r3-bone-joint-rot', {
+                detail: {
+                  objectId: selectedObject,
+                  jointIndex: boneJoint.jointIndex,
+                  rot: [r.x, r.y, r.z] as [number, number, number],
+                },
+              }));
+              return;
+            }
             if (subGizmoActive) {
               if (!subProxyObj || !activeEditMod || !selectedObject) return;
               const replaceKey = subDragOpKeyRef.current;
