@@ -19,6 +19,10 @@ export interface ClipSegment {
   startFrame: number;
   endFrame: number;
   clipIndex: number;
+  /** Length in frames of the crossfade transition from the previous segment
+   *  into this one. Rendered as a triangular band on the segment's left edge.
+   *  0 (default) = hard cut. */
+  blendIn?: number;
 }
 
 interface Props {
@@ -29,7 +33,7 @@ interface Props {
   onChange: (next: ClipSegment[]) => void;
 }
 
-type DragMode = 'move' | 'resize-l' | 'resize-r';
+type DragMode = 'move' | 'resize-l' | 'resize-r' | 'blend';
 
 interface DragState {
   id: string;
