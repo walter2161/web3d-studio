@@ -985,7 +985,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       scale={object.scale}
       castShadow={!isGhost}
       receiveShadow={!isGhost}
-      raycast={isGhost ? () => null : undefined}
+      raycast={isGhost ? (() => null) as any : (renderMode === 'wireframe' ? (vertexOnlyRaycast as any) : undefined)}
       onClick={isGhost ? undefined : (e) => {
         e.stopPropagation();
         onSelect();
