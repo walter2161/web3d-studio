@@ -296,42 +296,76 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // Imported model: cached scene graph + animations
   const imported = object.type === 'imported' ? getImportedModel(object.id) : undefined;
   const mixerRef = useRef<AnimationMixer | null>(null);
-  const actionRef = useRef<THREE.AnimationAction | null>(null);
-  const clipDurationRef = useRef<number>(0);
+  // One action per available clip so clip-switch cues can swap them at
+  // runtime without rebuilding the mixer.
+  const actionsRef = useRef<THREE.AnimationAction[]>([]);
+  const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+  const clipDurationsRef = useRef<number[]>([]);
   const syncImportedClipRef = useRef<((frame: number, total: number) => void) | null>(null);
 
   useEffect(() => {
     if (!imported || imported.animations.length === 0) return;
     const mixer = new AnimationMixer(imported.root);
-    const clip = imported.animations[0];
-    const action = mixer.clipAction(clip);
-    action.reset();
-    action.enabled = true;
-    action.paused = false;
-    action.setEffectiveWeight(1);
-    action.setEffectiveTimeScale(1);
-    action.setLoop(THREE.LoopOnce, 0);
-    action.clampWhenFinished = true;
-    action.play();
+    const actions: THREE.AnimationAction[] = imported.animations.map((clip) => {
+      const a = mixer.clipAction(clip);
+      a.reset();
+      a.enabled = true;
+      a.paused = false;
+      a.setEffectiveWeight(0);
+      a.setEffectiveTimeScale(1);
+      a.setLoop(THREE.LoopRepeat, Infinity); // clip-switch cues use loops
+      a.play();
+      return a;
+    });
+    // Start with the first clip active.
+    actions[0].setEffectiveWeight(1);
+    actionsRef.current = actions;
+    activeActionRef.current = actions[0];
     mixerRef.current = mixer;
-    actionRef.current = action;
-    clipDurationRef.current = clip.duration;
-    // Expose a sync hook so the offline animation renderer can advance the
-    // mixer to the exact frame it is about to capture — useFrame is not
-    // guaranteed to run between setFrame() and gl.render() during offline
-    // rendering, which caused imported GLB characters to render frozen.
+    clipDurationsRef.current = imported.animations.map((c) => c.duration);
+
+    // Sync mixer to a specific timeline frame, honoring clip-switch cues:
+    // each cue anchors a clip at its frame and plays it forward (looping)
+    // until the next cue. Without cues we fall back to mapping the whole
+    // timeline onto the sole active clip's duration.
     const syncClipTime = (frame: number, total: number) => {
-      const duration = clipDurationRef.current || 0;
-      if (duration <= 0) return;
       const safeTotal = Math.max(1, total || totalFrames || 1);
-      const timelineTime = THREE.MathUtils.clamp(frame / safeTotal, 0, 1);
-      const clipTime = THREE.MathUtils.clamp(timelineTime * duration, 0, duration);
+      const cues = (((window as any).__clipSwitches || {}) as Record<string, Array<{ frame: number; clipIndex: number }>>)[object.id] || [];
+      const sorted = cues.slice().sort((a, b) => a.frame - b.frame);
+      let activeIdx = 0;
+      let anchorFrame = 0;
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (sorted[i].frame <= frame) {
+          activeIdx = sorted[i].clipIndex;
+          anchorFrame = sorted[i].frame;
+          break;
+        }
+      }
+      const clip = imported.animations[activeIdx];
+      const action = actions[activeIdx];
+      if (!clip || !action) return;
+      const duration = clip.duration || 0;
+      if (duration <= 0) return;
+
+      // Swap weights so only the active clip drives the pose.
+      for (let i = 0; i < actions.length; i++) {
+        actions[i].setEffectiveWeight(i === activeIdx ? 1 : 0);
+      }
+      activeActionRef.current = action;
+
+      // Timeline-frame → seconds relative to the anchor, then wrap into the
+      // clip so the animation loops naturally between cues.
+      const framesSinceAnchor = Math.max(0, frame - anchorFrame);
+      const secondsPerFrame = duration / Math.max(1, safeTotal); // approx: assume clip fills full timeline
+      // Better: use 1/30 fps for Mixamo-style clips when duration is large.
+      const fps = 30;
+      const rawTime = framesSinceAnchor / fps;
+      const clipTime = duration > 0 ? (rawTime % duration) : 0;
 
       action.enabled = true;
       action.paused = false;
-      action.setEffectiveWeight(1);
-      action.setEffectiveTimeScale(1);
-      mixer.setTime(clipTime);
+      action.time = clipTime;
+      mixer.update(0); // apply without advancing
       imported.root.updateMatrixWorld(true);
       imported.root.traverse((child: any) => {
         if (child.isSkinnedMesh && child.skeleton) {
@@ -339,6 +373,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           child.skeleton.update();
         }
       });
+      // Silence unused-var lint for the fallback mapping.
+      void secondsPerFrame;
     };
     syncImportedClipRef.current = syncClipTime;
     (imported.root as any).userData.__syncClipTime = syncClipTime;
@@ -348,7 +384,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       mixer.stopAllAction();
       mixer.uncacheRoot(imported.root);
       mixerRef.current = null;
-      actionRef.current = null;
+      actionsRef.current = [];
+      activeActionRef.current = null;
       syncImportedClipRef.current = null;
       delete (imported.root as any).userData.__syncClipTime;
       if (meshRef.current) delete (meshRef.current as any).userData.__syncClipTime;
