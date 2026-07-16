@@ -377,6 +377,7 @@ export const SidePanel = ({
     { name: 'Extrude', description: 'Extruda uma spline para gerar volume', category: 'shape', converts: 'mesh' },
     { name: 'Bevel', description: 'Extrusão com controle de perfis chanfrados', category: 'shape', converts: 'mesh' },
     { name: 'Slice', description: 'Corta o objeto em partes', category: 'universal' },
+    { name: 'Skin', description: 'Deforma a malha seguindo uma cadeia de Bones (rigging)', category: 'mesh' },
   ];
 
   // Base-object class. Shapes (Line/Rectangle/Circle/...) are SplineShape until
