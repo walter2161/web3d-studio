@@ -40,7 +40,7 @@ export const CloudSceneDialog = ({ open, mode, onOpenChange, onSave, onLoad, imp
     setScenes((s.data || []) as SceneRow[]);
   }, []);
 
-  useEffect(() => { if (open) { refresh(); setSelected(null); } }, [open, refresh]);
+  useEffect(() => { if (open) { refresh(); setSelected(null); if (mode === 'import' && importDefaultName) setName(importDefaultName); } }, [open, refresh, mode, importDefaultName]);
 
   const childFolders = folders.filter((f) => (f.parent_id ?? null) === currentFolder);
   const childScenes = scenes.filter((s) => (s.folder_id ?? null) === currentFolder);
