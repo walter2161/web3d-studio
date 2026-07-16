@@ -307,6 +307,23 @@ export const AnimationTimeline = ({
 
 
       {/* Timeline Content */}
+      {view === 'trackview' && bakedClipSet && onChangeBakedSet ? (
+        <TrackView
+          clipSet={bakedClipSet}
+          currentFrame={currentFrame}
+          totalFrames={totalFrames}
+          onFrameChange={onFrameChange}
+          onChange={onChangeBakedSet}
+          clipOptions={bakedClipOptions}
+          onSelectClip={onBakeClip}
+          onBake={onBakeClip ? () => onBakeClip(bakedClipSet.sourceClipIndex) : undefined}
+          bakeAvailable={!!onBakeClip}
+        />
+      ) : view === 'trackview' ? (
+        <div className="flex-1 flex items-center justify-center text-[11px] text-muted-foreground italic p-4 text-center">
+          Select an imported character with animation, then click "Bake clip → tracks" to expose every bone and channel here.
+        </div>
+      ) : (
       <div className="flex flex-1 min-h-0">
         {/* Track Labels */}
         <div className="w-40 border-r border-panel-border overflow-y-auto panel-scroll">
@@ -358,7 +375,6 @@ export const AnimationTimeline = ({
                       onFrameChange(kf.frame);
                     }}
                   >
-                    {/* Diamond shape keyframe */}
                     <div className={cn(
                       "w-3 h-3 rotate-45 mt-1.5",
                       selectedKeyframe?.id === kf.id
@@ -368,7 +384,6 @@ export const AnimationTimeline = ({
                   </div>
                 ))}
 
-                {/* Interpolation segments between keyframes */}
                 {track.keyframes.length > 1 && track.keyframes.slice(0, -1).map((kf, i) => {
                   const next = track.keyframes[i + 1];
                   const left = (kf.frame / totalFrames) * 100;
@@ -392,13 +407,13 @@ export const AnimationTimeline = ({
                 setDraggingPlayhead(true);
               }}
             >
-              {/* Playhead top marker */}
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-3 h-4 bg-destructive" 
                 style={{ clipPath: 'polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%)' }} />
             </div>
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
