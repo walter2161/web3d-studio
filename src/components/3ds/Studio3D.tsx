@@ -1361,24 +1361,45 @@ export const Studio3D = () => {
     timestamp: new Date().toISOString(),
   }), [objects, animationTracks, selectedObject, currentFrame]);
 
-  const applyScenePayload = useCallback((payload: any) => {
+  const applyScenePayload = useCallback((payload: any, meta?: { id: string; name: string; folderId: string | null }) => {
     saveState();
     setObjects(payload?.objects || []);
     setAnimationTracks(payload?.animationTracks || []);
     setSelectedObject(payload?.selectedObject || null);
     setCurrentFrame(payload?.currentFrame || 0);
+    setCurrentCloudScene(meta ?? null);
   }, [saveState]);
 
   const saveToCloud = useCallback(async (name: string, folderId: string | null) => {
     if (!user) throw new Error('login required');
-    const { error } = await supabase.from('scenes').insert({
+    const { data, error } = await supabase.from('scenes').insert({
       user_id: user.id,
       name,
       folder_id: folderId,
       data: buildScenePayload() as any,
-    });
+    }).select('id').maybeSingle();
     if (error) throw error;
+    if (data?.id) setCurrentCloudScene({ id: data.id, name, folderId });
   }, [user, buildScenePayload]);
+
+  const saveCurrentCloudInPlace = useCallback(async () => {
+    if (!currentCloudScene) return false;
+    const { error } = await supabase.from('scenes')
+      .update({ data: buildScenePayload() as any })
+      .eq('id', currentCloudScene.id);
+    if (error) { toast.error('Falha ao salvar na nuvem'); return false; }
+    toast.success(`Salvo em "${currentCloudScene.name}"`);
+    return true;
+  }, [currentCloudScene, buildScenePayload]);
+
+  const handleSaveRequest = useCallback(async () => {
+    if (currentCloudScene && user) {
+      const ok = await saveCurrentCloudInPlace();
+      if (ok) return;
+    }
+    openFileDialog('save');
+  }, [currentCloudScene, user, saveCurrentCloudInPlace, openFileDialog]);
+
 
   const gate = useCallback((run: () => void) => {
     if (!user) {
