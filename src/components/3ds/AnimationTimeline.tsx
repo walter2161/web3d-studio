@@ -3,9 +3,11 @@ import { Button } from '@/components/ui/button';
 import { 
   Play, Pause, Square, SkipBack, SkipForward, 
   Circle, Eye, EyeOff, ChevronLeft, ChevronRight,
-  Trash2, Copy, Repeat
+  Trash2, Copy, Repeat, Bone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { TrackView } from './timeline/TrackView';
+import type { BakedClipSet } from './timeline/channelTracks';
 
 export interface Keyframe {
   id: string;
@@ -44,6 +46,11 @@ interface AnimationTimelineProps {
   selectedKeyframe: Keyframe | null;
   loopPlayback?: boolean;
   onToggleLoopPlayback?: () => void;
+  // ---- Rig / imported-clip Track View ----
+  bakedClipSet?: BakedClipSet | null;
+  bakedClipOptions?: { index: number; name: string }[];
+  onBakeClip?: (clipIndex: number) => void;
+  onChangeBakedSet?: (next: BakedClipSet) => void;
 }
 
 export const AnimationTimeline = ({
