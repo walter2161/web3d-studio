@@ -1120,7 +1120,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
         />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <sphereGeometry args={[0.2, 10, 6]} />
-          <meshBasicMaterial color={iconColor} />
+          <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
         {isSelected && (
           <lineSegments userData={{ __helper: true }}>
