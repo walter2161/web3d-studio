@@ -132,7 +132,7 @@ const doOfflineRender = async (
 
 type Mode = 'standard' | 'ai';
 
-export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
+export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderProps) => {
   const [image, setImage] = useState<string | null>(null);
   const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
   const [rendering, setRendering] = useState(false);
@@ -144,7 +144,7 @@ export const QuickRender = ({ open, onOpenChange }: QuickRenderProps) => {
     setRendering(true);
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const res = await doOfflineRender(eng);
+      const res = await doOfflineRender(eng, width, height);
       if (res) {
         setRefRender(res);
         setImage(res.dataUrl);
