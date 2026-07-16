@@ -77,7 +77,10 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     (item === 'Perspective' && activeViewport === 'perspective') ||
                     (item === 'Top' && activeViewport === 'top') ||
                     (item === 'Front' && activeViewport === 'front') ||
-                    (item === 'Left' && activeViewport === 'left')
+                    (item === 'Left' && activeViewport === 'left') ||
+                    (item === 'Interface: Classic' && theme === 'classic') ||
+                    (item === 'Interface: Flat' && theme === 'flat') ||
+                    (item === 'Interface: Game' && theme === 'game')
                       ? 'bg-menu-active text-menu-hover-fg'
                       : ''
                   }`}
