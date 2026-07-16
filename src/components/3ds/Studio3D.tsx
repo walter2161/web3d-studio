@@ -250,7 +250,7 @@ export const Studio3D = () => {
   // each segment plays a specific clipIndex between startFrame..endFrame.
   // Consumed by Object3D at runtime to drive the mixer.
   const [clipSegmentsByObject, setClipSegmentsByObject] = useState<
-    Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>
+    Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>>
   >({});
   useEffect(() => {
     (window as any).__clipSegments = clipSegmentsByObject;
@@ -265,7 +265,7 @@ export const Studio3D = () => {
   type TimelineSnapshot = {
     animationTracks: AnimationTrack[];
     bakedClipSets: Record<string, BakedClipSet>;
-    clipSegmentsByObject: Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>>;
+    clipSegmentsByObject: Record<string, Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>>;
   };
   const timelineUndoRef = useRef<TimelineSnapshot[]>([]);
   const timelineRedoRef = useRef<TimelineSnapshot[]>([]);
@@ -2276,7 +2276,7 @@ export const Studio3D = () => {
           setBakedClipSets((prev) => ({ ...prev, [selectedObject]: next }));
         };
         const clipSegments = selectedObject ? (clipSegmentsByObject[selectedObject] || []) : [];
-        const setClipSegments = (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number }>) => {
+        const setClipSegments = (next: Array<{ id: string; startFrame: number; endFrame: number; clipIndex: number; blendIn?: number }>) => {
           if (!selectedObject) return;
           setClipSegmentsByObject((prev) => ({
             ...prev,

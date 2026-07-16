@@ -19,6 +19,10 @@ export interface ClipSegment {
   startFrame: number;
   endFrame: number;
   clipIndex: number;
+  /** Length in frames of the crossfade transition from the previous segment
+   *  into this one. Rendered as a triangular band on the segment's left edge.
+   *  0 (default) = hard cut. */
+  blendIn?: number;
 }
 
 interface Props {
@@ -29,7 +33,7 @@ interface Props {
   onChange: (next: ClipSegment[]) => void;
 }
 
-type DragMode = 'move' | 'resize-l' | 'resize-r';
+type DragMode = 'move' | 'resize-l' | 'resize-r' | 'blend';
 
 interface DragState {
   id: string;
@@ -37,6 +41,7 @@ interface DragState {
   startX: number;
   origStart: number;
   origEnd: number;
+  origBlend: number;
   laneWidth: number;
 }
 
@@ -67,6 +72,11 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
             const start = Math.max(0, Math.min(drag.origEnd - 1, drag.origStart + dFrame));
             return { ...s, startFrame: start };
           }
+          if (drag.mode === 'blend') {
+            const segLen = Math.max(1, drag.origEnd - drag.origStart);
+            const nextBlend = Math.max(0, Math.min(segLen, drag.origBlend + dFrame));
+            return { ...s, blendIn: nextBlend };
+          }
           const end = Math.max(drag.origStart + 1, Math.min(totalFrames, drag.origEnd + dFrame));
           return { ...s, endFrame: end };
         }),
@@ -95,6 +105,7 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
       startX: e.clientX,
       origStart: seg.startFrame,
       origEnd: seg.endFrame,
+      origBlend: seg.blendIn || 0,
       laneWidth: laneRef.current.clientWidth,
     });
   };
@@ -114,6 +125,8 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
         const clip = clipOptions.find((c) => c.index === seg.clipIndex);
         const leftPct = (seg.startFrame / Math.max(1, totalFrames)) * 100;
         const widthPct = Math.max(0.5, ((seg.endFrame - seg.startFrame) / Math.max(1, totalFrames)) * 100);
+        const blendLen = Math.max(0, Math.min(seg.blendIn || 0, seg.endFrame - seg.startFrame));
+        const blendWidthPct = ((blendLen) / Math.max(1, totalFrames)) * 100;
         return (
           <div
             key={seg.id}
@@ -122,15 +135,36 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
               "bg-primary/85 hover:bg-primary shadow cursor-grab active:cursor-grabbing select-none z-10"
             )}
             style={{ left: `${leftPct}%`, width: `${widthPct}%` }}
-            title={`${clip?.name || 'clip ' + seg.clipIndex} · F${seg.startFrame}–F${seg.endFrame}`}
+            title={`${clip?.name || 'clip ' + seg.clipIndex} · F${seg.startFrame}–F${seg.endFrame}${blendLen > 0 ? ` · transition ${blendLen}f` : ''}`}
             onMouseDown={(e) => beginDrag(e, seg, 'move')}
           >
+            {/* Transition (blend-in) band: gradient overlay on the left of the
+                segment representing the crossfade from the previous clip. */}
+            {blendLen > 0 && (
+              <div
+                className="absolute left-0 top-0 bottom-0 pointer-events-none rounded-l z-[5]"
+                style={{
+                  width: `${(blendLen / Math.max(1, seg.endFrame - seg.startFrame)) * 100}%`,
+                  background:
+                    'linear-gradient(to right, hsl(var(--accent)) 0%, hsl(var(--accent) / 0.7) 40%, transparent 100%)',
+                }}
+              />
+            )}
             {/* Left resize handle */}
             <div
-              className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-primary-foreground/25 hover:bg-primary-foreground/60"
+              className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-primary-foreground/25 hover:bg-primary-foreground/60 z-[15]"
               onMouseDown={(e) => beginDrag(e, seg, 'resize-l')}
             />
-            <span className="ml-1 truncate">
+            {/* Transition drag handle: small pill sitting on the segment's
+                top-left. Drag right to lengthen the crossfade from the
+                previous clip, left to shorten it. */}
+            <div
+              className="absolute top-0 left-1.5 h-2 w-2 -translate-y-1/2 rounded-full bg-accent border border-accent-foreground/40 cursor-ew-resize z-[16] shadow"
+              style={{ left: `calc(${(blendLen / Math.max(1, seg.endFrame - seg.startFrame)) * 100}% - 4px)` }}
+              onMouseDown={(e) => beginDrag(e, seg, 'blend')}
+              title="Drag to set transition length from previous clip"
+            />
+            <span className="ml-1 truncate relative z-[12]">
               F{seg.startFrame}
             </span>
             <select
@@ -140,7 +174,7 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
                 const nextIndex = parseInt(e.target.value, 10);
                 onChange(segments.map((s) => (s.id === seg.id ? { ...s, clipIndex: nextIndex } : s)));
               }}
-              className="bg-transparent text-primary-foreground text-[9px] outline-none max-w-[80px] cursor-pointer"
+              className="bg-transparent text-primary-foreground text-[9px] outline-none max-w-[80px] cursor-pointer relative z-[12]"
             >
               {clipOptions.map((c) => (
                 <option key={c.index} value={c.index} className="text-foreground">
@@ -148,9 +182,14 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
                 </option>
               ))}
             </select>
-            <span className="truncate">–F{seg.endFrame}</span>
+            <span className="truncate relative z-[12]">–F{seg.endFrame}</span>
+            {blendLen > 0 && (
+              <span className="truncate text-[8px] opacity-80 relative z-[12]" title="Crossfade length">
+                ~{blendLen}f
+              </span>
+            )}
             <button
-              className="ml-auto mr-1 hover:text-destructive-foreground"
+              className="ml-auto mr-1 hover:text-destructive-foreground relative z-[12]"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
@@ -162,9 +201,10 @@ export const ClipGanttLane = ({ segments, clipOptions, currentFrame, totalFrames
             </button>
             {/* Right resize handle */}
             <div
-              className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-primary-foreground/25 hover:bg-primary-foreground/60"
+              className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize bg-primary-foreground/25 hover:bg-primary-foreground/60 z-[15]"
               onMouseDown={(e) => beginDrag(e, seg, 'resize-r')}
             />
+            {void blendWidthPct}
           </div>
         );
       })}
