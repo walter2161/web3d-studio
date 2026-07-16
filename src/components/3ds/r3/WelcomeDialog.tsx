@@ -71,20 +71,28 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
       {/* Tabs */}
       <div className="flex items-end mt-3 pl-1" style={{ borderBottom: '1px solid hsl(var(--win-face-dark))' }}>
         <TabButton id="welcome">boas-vindas</TabButton>
-        <TabButton id="request">solicitar acesso</TabButton>
+        <TabButton id="request">assinatura</TabButton>
       </div>
 
-      <div className="bevel-raised bg-win-face p-2" style={{ marginTop: -1, minHeight: 180 }}>
+      <div className="bevel-raised bg-win-face p-2" style={{ marginTop: -1, minHeight: 200 }}>
         {tab === 'welcome' && (
-          <div className="text-[11px] text-win-text leading-snug" style={{ textTransform: 'lowercase' }}>
-            aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
+          <div className="text-[11px] text-win-text leading-snug flex flex-col gap-2" style={{ textTransform: 'lowercase' }}>
+            <p>
+              aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
+            </p>
+            <p>
+              acesso gratuito: o app pode ser utilizado sem login, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao 3de.app é necessário possuir uma assinatura ativa.
+            </p>
+            <p>
+              assinatura promocional: durante o período promocional, a assinatura custa apenas <b>us$ 1,00 por mês</b>. veja a aba "assinatura" para solicitar o seu acesso.
+            </p>
           </div>
         )}
 
         {tab === 'request' && (
           <>
             <div className="text-[10px] mb-2 opacity-80" style={{ textTransform: 'lowercase' }}>
-              o acesso é restrito e liberado manualmente pelo administrador. preencha os campos abaixo para enviar seu pedido.
+              assinatura promocional por us$ 1,00/mês. preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.
             </div>
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-1">
@@ -123,7 +131,6 @@ export const WelcomeDialog = ({ open, onOpenChange }: Props) => {
       <div className="mt-3 flex justify-end gap-1">
         {tab === 'welcome' ? (
           <>
-            <R3Button width={140} onClick={() => setTab('request')}>solicitar acesso →</R3Button>
             <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
           </>
         ) : (
