@@ -63,6 +63,7 @@ interface Object3DData {
     | 'wall' | 'door' | 'window'
     | 'helper'
     | 'bone_chain'
+    | 'print_bed'
     | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
     | 'camera_target' | 'camera_free' | 'target_helper';
 
