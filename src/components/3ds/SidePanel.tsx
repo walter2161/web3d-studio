@@ -721,6 +721,26 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCat === 'geometry' && createCategory === 'foliage' && foliagePrimitives.map((p, idx) => {
+                  const armedFol = (window as any).__foliageSpecies;
+                  const pressed = armedTool === p.type && armedFol === p.foliageSpecies;
+                  return (
+                    <button
+                      key={`${p.type}-${p.foliageSpecies ?? idx}`}
+                      onClick={() => {
+                        (window as any).__foliageSpecies = p.foliageSpecies;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={`Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
                 {createCat === 'geometry' && createCategory === 'compound' && compoundTools.map((t) => {
                   const pressed = compoundState?.tool === t.id;
                   return (
