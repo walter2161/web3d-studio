@@ -367,6 +367,10 @@ export const SidePanel = ({
     { type: 'cone', icon: Triangle, label: 'Cone' },
     { type: 'torus', icon: Torus, label: 'Torus' },
     { type: 'plane', icon: Square, label: 'Plane' },
+    { type: 'teapot', icon: Circle, label: 'Teapot' },
+    { type: 'tube', icon: Cylinder, label: 'Tube' },
+    { type: 'pyramid', icon: Triangle, label: 'Pyramid' },
+    { type: 'geoSphere', icon: Circle, label: 'GeoSphere' },
   ];
 
   const extendedPrimitives = [
@@ -379,6 +383,10 @@ export const SidePanel = ({
     { type: 'torusKnot',  label: 'Torus Knot' },
     { type: 'ringWave',   label: 'RingWave' },
     { type: 'prism',      label: 'Prism' },
+    { type: 'capsule',    label: 'Capsule' },
+    { type: 'lExt',       label: 'L-Ext' },
+    { type: 'cExt',       label: 'C-Ext' },
+    { type: 'hose',       label: 'Hose' },
   ];
 
   const shapes = [
