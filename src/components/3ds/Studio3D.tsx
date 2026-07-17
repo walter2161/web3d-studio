@@ -2262,6 +2262,8 @@ export const Studio3D = () => {
       case 'Ungroup': doUngroup(); break;
       case 'Open': doOpenGroup(); break;
       case 'Close': doCloseGroup(); break;
+      case 'Attach': doAttach(); break;
+      case 'Detach': doDetach(); break;
       case 'Explode': doExplode(); break;
       case 'Units Setup...': setUnitsOpen(true); break;
       case 'Grid and Snap Settings...': setSnapSettingsOpen(true); break;
