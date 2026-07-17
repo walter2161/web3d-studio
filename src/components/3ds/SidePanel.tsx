@@ -341,7 +341,7 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'compound' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -415,19 +415,22 @@ export const SidePanel = ({
 
   // AEC Extended (Architecture / Engineering / Construction). Só Wall está
   // implementado hoje; os demais ficam listados como "em breve".
+  // AEC Extended — apenas objetos arquitetônicos (Wall, Doors, Windows, Stairs, Railings).
   const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean; foliageSpecies?: number }> = [
     { type: 'wall',     label: 'Wall' },
     { type: 'door',     label: 'Doors' },
     { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
-    // Foliage — one button per species, matching 3ds Max's plant palette.
-    ...FOLIAGE_SPECIES.map((sp) => ({
+  ];
+
+  // Foliage — categoria separada, uma espécie por botão (paleta do 3ds Max).
+  const foliagePrimitives: Array<{ type: string; label: string; disabled?: boolean; foliageSpecies?: number }> =
+    FOLIAGE_SPECIES.map((sp) => ({
       type: 'foliage',
       label: sp.label,
       foliageSpecies: sp.id,
-    })),
-  ];
+    }));
 
   // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
   // 2D-path sweeping (Loft) or surface distribution (Scatter). Loft & Scatter
@@ -633,11 +636,11 @@ export const SidePanel = ({
               <select
                 value={createCategory === 'extended' ? 'extended'
                       : createCategory === 'aec' ? 'aec'
+                      : createCategory === 'foliage' ? 'foliage'
                       : createCategory === 'compound' ? 'compound'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
-                  // Leaving compound category cancels any pending boolean pick.
                   if (e.target.value !== 'compound') onCancelCompound?.();
                 }}
                 className="w-full h-[22px] text-[11px] bevel-sunken bg-win-face px-1 text-win-text"
@@ -645,6 +648,7 @@ export const SidePanel = ({
                 <option value="standard">Standard Primitives</option>
                 <option value="extended">Extended Primitives</option>
                 <option value="aec">AEC Extended</option>
+                <option value="foliage">AEC Foliage</option>
                 <option value="compound">Compound Objects</option>
               </select>
             )}
@@ -711,6 +715,26 @@ export const SidePanel = ({
                         p.disabled
                           ? 'bevel-raised opacity-40 cursor-not-allowed'
                           : pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+                {createCat === 'geometry' && createCategory === 'foliage' && foliagePrimitives.map((p, idx) => {
+                  const armedFol = (window as any).__foliageSpecies;
+                  const pressed = armedTool === p.type && armedFol === p.foliageSpecies;
+                  return (
+                    <button
+                      key={`${p.type}-${p.foliageSpecies ?? idx}`}
+                      onClick={() => {
+                        (window as any).__foliageSpecies = p.foliageSpecies;
+                        onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
+                      }}
+                      title={`Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
                       )}
                     >
                       {p.label}
