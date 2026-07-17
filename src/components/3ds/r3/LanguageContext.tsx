@@ -86,7 +86,7 @@ const dict: Record<Lang, Record<string, string>> = {
     'User Reference': 'Referência do Usuário', 'MAXScript Reference': 'Referência MAXScript',
     Tutorials: 'Tutoriais', 'Welcome...': 'Bem-vindo...', 'About 3De...': 'Sobre 3De...',
     // Common UI
-    OK: 'OK', Cancel: 'Cancelar', Apply: 'Aplicar', Close: 'Fechar', Yes: 'Sim', No: 'Não',
+    OK: 'OK', Cancel: 'Cancelar', Apply: 'Aplicar', Yes: 'Sim', No: 'Não',
     Name: 'Nome', Color: 'Cor', Size: 'Tamanho', Position: 'Posição', Rotation: 'Rotação',
     Scale: 'Escala', Width: 'Largura', Height: 'Altura', Length: 'Comprimento',
     Radius: 'Raio', 'Radius 1': 'Raio 1', 'Radius 2': 'Raio 2', Segments: 'Segmentos',
