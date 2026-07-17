@@ -729,7 +729,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         // Stage 0 begins.
         const p = raycastBase(e);
         if (!p) return;
-        stageRef.current = { stage: 0, start: p.clone() };
+        stageRef.current = { stage: 0, start: p.clone(), heightStartClientY: e.clientY };
         setGhost(buildGhost(armed, 0, p, p, heightAxis));
         dom.setPointerCapture?.(e.pointerId);
       } else if (s.stage >= 1) {
