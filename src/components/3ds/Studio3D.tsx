@@ -174,7 +174,7 @@ export const Studio3D = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
   const [loopPlayback, setLoopPlayback] = useState(false);
-  const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('single');
+  const [viewportLayout, setViewportLayout] = useState<ViewportLayout>('quad');
   const [viewportCameras, setViewportCameras] = useState<Record<string, string | null>>({
     perspective: null, top: null, front: null, left: null,
   });
@@ -2046,6 +2046,12 @@ export const Studio3D = () => {
       case 'Grid and Snap Settings...': setSnapSettingsOpen(true); break;
       case 'Welcome...': setWelcomeOpen(true); break;
       case 'About 3De...': setAboutOpen(true); break;
+      case 'Layout: Single': setViewportLayout('single'); break;
+      case 'Layout: Quad (3 Wire + Persp)': setViewportLayout('quad'); break;
+      case 'Layout: 2 Cols — Top (Wire) + Persp': setViewportLayout('2col-top-persp'); break;
+      case 'Layout: 2 Cols — Front (Wire) + Persp': setViewportLayout('2col-front-persp'); break;
+      case 'Layout: 2 Cols — Left (Wire) + Persp': setViewportLayout('2col-left-persp'); break;
+      case 'Layout: 2 Rows — Top (Wire) + Persp': setViewportLayout('2row-top-persp'); break;
       default: break;
     }
   };

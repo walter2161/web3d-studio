@@ -93,7 +93,7 @@ interface StatusBarProps {
   onFrameChange: (frame: number) => void;
   selectedPosition?: [number, number, number] | null;
   prompt?: string;
-  viewportLayout: 'single' | 'quad';
+  viewportLayout: 'single' | 'quad' | '2col-top-persp' | '2col-front-persp' | '2col-left-persp' | '2row-top-persp';
   onToggleViewportLayout: () => void;
   gridSpacing?: number;
   units?: { system: string; metric: string; us: string; precision: number };
