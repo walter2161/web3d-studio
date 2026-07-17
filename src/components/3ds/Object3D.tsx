@@ -406,7 +406,7 @@ interface Object3DProps {
     ref?: React.MutableRefObject<any>;
   };
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (additive?: boolean, remove?: boolean) => void;
   renderMode: 'solid' | 'textured' | 'wireframe' | 'semi-transparent' | 'edged' | 'bbox';
   currentFrame?: number;
   totalFrames?: number;
@@ -421,6 +421,10 @@ interface Object3DProps {
 export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false, isActiveViewport = false }: Object3DProps) => {
 
   const meshRef = useRef<Mesh>(null);
+  const selectFromEvent = (e: any) => {
+    const native = e?.nativeEvent ?? e;
+    onSelect(!!(e?.ctrlKey || e?.metaKey || native?.ctrlKey || native?.metaKey), !!(e?.altKey || native?.altKey));
+  };
 
   // Modify-panel gate: Edit Mesh / Edit Poly sub-object overlay only appears
   // when the user is on the Modify panel (matches 3ds Max behavior).
@@ -1480,7 +1484,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         scale={object.scale}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect();
+          selectFromEvent(e);
         }}
       >
         {imported ? (
@@ -1506,7 +1510,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
-        onClick={ghostH ? undefined : (e) => { e.stopPropagation(); onSelect(); }}
+        onClick={ghostH ? undefined : (e) => { e.stopPropagation(); selectFromEvent(e); }}
       >
         <HelperGizmo data={object.geometry} selected={isSelected} ghost={ghostH} />
         {/* Invisible pick-proxy so users can click helpers easily. */}
@@ -1585,7 +1589,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       raycast={isGhost ? (() => null) as any : (renderMode === 'wireframe' ? (vertexOnlyRaycast as any) : undefined)}
       onClick={isGhost ? undefined : (e) => {
         e.stopPropagation();
-        onSelect();
+        selectFromEvent(e);
       }}
       onPointerUp={isGhost ? undefined : (e) => {
         const payload = (window as any).__matDragPayload;
@@ -1721,7 +1725,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 interface EntityRendererProps {
   object: any;
   isSelected: boolean;
-  onSelect: () => void;
+  onSelect: (additive?: boolean, remove?: boolean) => void;
   meshRef: React.MutableRefObject<any>;
   targetLookup?: (id: string) => [number, number, number] | null;
   isActiveViewCamera?: boolean;
@@ -1730,6 +1734,10 @@ interface EntityRendererProps {
 const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, isActiveViewCamera = false }: EntityRendererProps) => {
 
   const groupRef = useRef<Group>(null);
+  const selectFromEvent = (e: any) => {
+    const native = e?.nativeEvent ?? e;
+    onSelect(!!(e?.ctrlKey || e?.metaKey || native?.ctrlKey || native?.metaKey), !!(e?.altKey || native?.altKey));
+  };
   const pointLightRef = useRef<THREE.PointLight>(null);
   const spotLightRef = useRef<THREE.SpotLight>(null);
   const spotTargetRef = useRef<THREE.Object3D>(null);
@@ -1799,7 +1807,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     return (
       <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
         <ambientLight color={object.color} intensity={ambientIntensity} />
-        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <sphereGeometry args={[0.25, 8, 6]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
@@ -1814,7 +1822,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           groundColor={object.lightData?.groundColor || '#404040'}
           intensity={hemiIntensity}
         />
-        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <octahedronGeometry args={[0.3, 0]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
@@ -1832,7 +1840,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           decay={object.lightData?.decay ?? 2}
           castShadow={!!object.lightData?.castShadow}
         />
-        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <sphereGeometry args={[0.2, 10, 6]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
@@ -1870,7 +1878,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
             <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.6} />
           </mesh>
         </group>
-        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <boxGeometry args={[0.3, 0.3, 0.5]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
@@ -1896,7 +1904,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
             <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.4} />
           </mesh>
         </group>
-        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <boxGeometry args={[0.4, 0.4, 0.4]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
@@ -1924,7 +1932,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
       <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
         {/* Body (wireframe) — pickable box */}
-        <mesh userData={{ __helper: true }} position={[0, 0, 0.4]} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} position={[0, 0, 0.4]} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <boxGeometry args={[0.6, 0.4, 0.6]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
@@ -1963,7 +1971,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   if (t === 'target_helper') {
     return (
       <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
-        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+        <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <boxGeometry args={[0.25, 0.25, 0.25]} />
           <meshBasicMaterial color={iconColor} wireframe />
         </mesh>
