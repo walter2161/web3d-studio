@@ -1209,7 +1209,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const H = maxA - minA;
     if (H < 1e-8 || Math.abs(angle) < 1e-8) return geometry;
 
-    const r = H / angle;
+    // 3ds Max style: limits are measured from the gizmo center (assumed 0 in local
+    // space) along the bend axis. Upper Limit >= 0, Lower Limit <= 0. Points inside
+    // [lower, upper] bend proportionally; points outside extend straight with the
+    // tangent at the limit boundary. When limits are off, the whole extent bends.
+    const center = 0;
+    let aLo: number, aHi: number, span: number;
+    if (useLimits) {
+      aHi = center + Math.max(0, upperLim);
+      aLo = center + Math.min(0, lowerLim);
+      span = aHi - aLo;
+      if (span < 1e-8) return geometry;
+    } else {
+      aLo = minA; aHi = maxA; span = H;
+    }
+
+    const r = span / angle;
     const cosD = Math.cos(direction);
     const sinD = Math.sin(direction);
 
@@ -1218,30 +1233,24 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       const uRaw = positions[i + uIdx];
       const vRaw = positions[i + vIdx];
 
-      // Rotate perpendicular plane by -direction so bend always goes along local u'.
       const uP = uRaw * cosD + vRaw * sinD;
       const vP = -uRaw * sinD + vRaw * cosD;
 
-      // t = distance along bend axis from the lower extreme.
-      let t = a - minA;
+      // Clamp a into the bend region and remember overshoot for rigid extension.
+      let aClamped = a;
       let extraStraight = 0;
-      if (useLimits) {
-        const aLo = Math.min(lowerLim, upperLim);
-        const aHi = Math.max(lowerLim, upperLim);
-        if (a < aLo) { t = aLo - minA; extraStraight = a - aLo; }
-        else if (a > aHi) { t = aHi - minA; extraStraight = a - aHi; }
-      }
+      if (a < aLo) { aClamped = aLo; extraStraight = a - aLo; }
+      else if (a > aHi) { aClamped = aHi; extraStraight = a - aHi; }
+      const t = aClamped - aLo; // 0..span
 
-      const theta = angle * (t / H);
+      const theta = angle * (t / span);
       const sinT = Math.sin(theta);
       const cosT = Math.cos(theta);
 
-      // Bent frame: axis line becomes an arc of radius r, offsets ride the local frame.
-      const newA = minA + (r - uP) * sinT + extraStraight * cosT;
+      const newA = aLo + (r - uP) * sinT + extraStraight * cosT;
       const newUp = r - (r - uP) * cosT + extraStraight * sinT;
       const newVp = vP;
 
-      // Rotate back into world-perpendicular plane by +direction.
       const newU = newUp * cosD - newVp * sinD;
       const newV = newUp * sinD + newVp * cosD;
 
