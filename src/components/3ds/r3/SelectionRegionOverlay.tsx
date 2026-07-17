@@ -90,6 +90,9 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      // Don't hijack pointer events when a creation tool is armed — the
+      // CreationController needs the pointerdown to start ghost placement.
+      if ((window as any).__r3ArmedTool) return;
       const target = e.target as HTMLElement;
       if (target.closest('[data-viewport-chrome]')) return;
 
