@@ -28,7 +28,7 @@ interface Scene3DProps {
   selectedObject: string | null;
   selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
-  onSelectObject: (id: string | null) => void;
+  onSelectObject: (id: string | null, additive?: boolean, remove?: boolean) => void;
   onTransformObject: (id: string, transform: any) => void;
   viewportType: string;
   transformMode: 'translate' | 'rotate' | 'scale';
@@ -200,7 +200,7 @@ export const Scene3D = ({
           key={object.id}
           object={object}
           isSelected={selectedObjectIdSet.has(object.id)}
-          onSelect={() => onSelectObject(object.id)}
+          onSelect={(additive, remove) => onSelectObject(object.id, additive, remove)}
           renderMode={renderMode}
           currentFrame={currentFrame}
           totalFrames={totalFrames}
@@ -256,6 +256,9 @@ export const Scene3D = ({
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
+            if (!boneJointActive && !subGizmoActive && !importedSubActive && !modGizmoActive && selectedObject) {
+              window.dispatchEvent(new CustomEvent('r3-transform-start', { detail: { objectId: selectedObject } }));
+            }
             if (boneJointActive && boneJointTarget) {
               boneJointDragStartRef.current = boneJointTarget.rotation.clone();
             }
