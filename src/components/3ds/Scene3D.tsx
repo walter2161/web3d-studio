@@ -281,10 +281,14 @@ export const Scene3D = ({
         <object3D ref={setMultiProxy} position={multiCenter} />
       )}
 
-      {selectedObject && transformTarget && (
+      {selectedObject && transformTarget && (!multiActive || multiProxy) && (
         <TransformControls
           ref={transformControlsRef}
-
+          key={
+            multiActive
+              ? `multi-${selectedObjectIds.slice().sort().join('|')}`
+              : `single-${selectedObject}${selectedSubUuid ? ':' + selectedSubUuid : ''}`
+          }
           object={transformTarget}
           mode={effectiveTransformMode}
           size={0.8}
