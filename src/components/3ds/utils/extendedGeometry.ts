@@ -72,6 +72,9 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   lExt:       { frontLen: 1, sideLen: 1, frontWidth: 0.2, sideWidth: 0.2, height: 0.8 },
   cExt:       { backLen: 1, sideLen: 0.6, frontLen: 1, backWidth: 0.2, sideWidth: 0.2, frontWidth: 0.2, height: 0.8 },
   hose:       { radius: 0.15, height: 1, sides: 12, segments: 40, bumps: 4, bumpDepth: 0.05 },
+  // ---- AEC Extended: Foliage (procedural tree) ----
+  // species: 0=Oak 1=Maple 2=Palm 3=Pine 4=Ash 5=Birch 6=Generic 7=Shrub
+  foliage:    { height: 6, crownRadius: 3, density: 1, seed: 1, species: 0, leafSize: 0.35, branchDensity: 1, age: 1, displayAsBox: false },
 };
 
 // Shape defaults mirror 3ds Max R3 Shapes rollout. Every shape carries the
