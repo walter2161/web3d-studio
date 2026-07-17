@@ -460,9 +460,11 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       const rr = (a: number, b: number) => a + (b - a) * rand();
 
       // Species-specific traits
-      const isPalm    = species === 2;
-      const isPine    = species === 3;
-      const isShrub   = species === 7;
+      const kind = foliageKind(species);
+      const isPalm    = kind === 'palm';
+      const isPine    = kind === 'pine';
+      const isShrub   = kind === 'shrub';
+      const isWeeping = kind === 'weeping';
       const trunkR   = h * (isShrub ? 0.02 : isPalm ? 0.03 : 0.05) * age;
       const trunkH   = isShrub ? h * 0.3 : isPalm ? h * 0.9 : h * 0.55;
       const trunkTopR = trunkR * (isPalm ? 0.7 : 0.55);
