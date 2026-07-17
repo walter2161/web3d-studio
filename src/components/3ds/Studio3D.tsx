@@ -2049,6 +2049,82 @@ export const Studio3D = () => {
     }, 'Fetch');
   };
 
+  // ---------- Select and Link (3ds Max hierarchy) ----------
+  // A parent/child relationship built via world-space delta cascading:
+  // moving/rotating/scaling a parent applies the same world-space delta to
+  // every descendant (like Max), while descendants remain stored in world
+  // coordinates so unlinking never causes the object to "jump".
+  const [linkTool, setLinkTool] = useState<'link' | null>(null);
+  useEffect(() => {
+    (window as any).__r3LinkTool = linkTool;
+  }, [linkTool]);
+
+  const collectDescendantIds = (parentId: string, list: Object3DData[]): Set<string> => {
+    const out = new Set<string>();
+    const stack = [parentId];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      for (const o of list) {
+        if (o.parentId === cur && !out.has(o.id)) {
+          out.add(o.id);
+          stack.push(o.id);
+        }
+      }
+    }
+    return out;
+  };
+
+  const isAncestorOf = (maybeAncestor: string, node: string, list: Object3DData[]): boolean => {
+    let cur: string | undefined | null = list.find((o) => o.id === node)?.parentId;
+    while (cur) {
+      if (cur === maybeAncestor) return true;
+      cur = list.find((o) => o.id === cur!)?.parentId;
+    }
+    return false;
+  };
+
+  const doLinkSelectionTo = (parentId: string) => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    if (!ids.length) return;
+    const parent = objectsRef.current.find((o) => o.id === parentId);
+    if (!parent) return;
+    const validIds = ids.filter((id) => {
+      if (id === parentId) return false;
+      if (isAncestorOf(id, parentId, objectsRef.current)) return false;
+      return true;
+    });
+    if (!validIds.length) { toast.error('Cannot link an object to itself or to its descendant'); return; }
+    saveState();
+    setObjects((prev) => prev.map((o) => validIds.includes(o.id) ? { ...o, parentId } : o));
+    toast.success(`Linked ${validIds.length} object(s) → ${parent.type === 'group' || parent.isGroup ? 'group' : parentId.slice(0, 8)}`);
+  };
+
+  const doUnlinkSelection = () => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    if (!ids.length) { toast.error('Select object(s) to unlink'); return; }
+    const targets = ids.filter((id) => objectsRef.current.find((o) => o.id === id)?.parentId);
+    if (!targets.length) { toast.info('Selected object(s) have no parent link'); return; }
+    saveState();
+    setObjects((prev) => prev.map((o) => targets.includes(o.id) ? { ...o, parentId: null } : o));
+    toast.success(`Unlinked ${targets.length} object(s)`);
+  };
+
+  const armLinkTool = () => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    if (!ids.length) { toast.error('Select the child object(s) first, then click Select and Link'); return; }
+    setLinkTool('link');
+    toast.info('Click the parent object to link to (Esc to cancel)');
+  };
+
+  useEffect(() => {
+    if (!linkTool) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLinkTool(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [linkTool]);
+
+
+
   // ---------- Groups (3ds Max style) ----------
   // Model: a group is a hidden "head" node (isGroup:true) + members carrying its
   // groupId. When closed, clicking any member selects the entire group as one
