@@ -90,6 +90,11 @@ interface Object3DData {
   groupId?: string;
   groupOpen?: boolean;
   isGroup?: boolean;
+  // 3ds Max "Select and Link" hierarchy — a real parent/child relationship
+  // (independent from Group). Position/rotation/scale remain in world space;
+  // parent transforms cascade to descendants via delta composition.
+  parentId?: string | null;
+
   properties?: {
     renderable?: boolean;
     castShadows?: boolean;
@@ -1384,11 +1389,18 @@ export const Studio3D = () => {
   }, [selectedObject, objects, compoundState.op, saveState]);
 
   const handleSelectObject = useCallback((id: string | null, additive = false, remove = false) => {
+    // Select and Link — consume the click as "pick parent"
+    if ((window as any).__r3LinkTool === 'link' && id) {
+      (window as any).__r3DoLink?.(id);
+      return;
+    }
+
     // If a compound Boolean is waiting for Operand B, consume the click.
     if (id && compoundState.picking && compoundState.tool && selectedObject && id !== selectedObject) {
       performBoolean(id);
       return;
     }
+
     if (!id) {
       if (additive || remove) return;
       setSelectedObject(null);
@@ -1445,11 +1457,71 @@ export const Studio3D = () => {
       }> | undefined;
       if (!updates?.length) return;
       const byId = new Map(updates.map((u) => [u.id, u]));
-      setObjects((prev) => prev.map((o) => {
-        const u = byId.get(o.id);
-        return u ? { ...o, position: u.position, rotation: u.rotation, scale: u.scale } : o;
-      }));
+      setObjects((prev) => {
+        // Hierarchical cascade (Select and Link): moving/rotating/scaling a
+        // parent applies the same world-space delta to every descendant, so
+        // linked children follow their parent like in 3ds Max.
+        const hasChildren = prev.some((o) => o.parentId && byId.has(o.parentId));
+        if (!hasChildren) {
+          return prev.map((o) => {
+            const u = byId.get(o.id);
+            return u ? { ...o, position: u.position, rotation: u.rotation, scale: u.scale } : o;
+          });
+        }
+        const oldById = new Map(prev.map((o) => [o.id, o] as const));
+        const cascade = new Map<string, { pos: [number, number, number]; rot: [number, number, number]; scl: [number, number, number] }>();
+        const mOld = new THREE.Matrix4();
+        const mNew = new THREE.Matrix4();
+        const q = new THREE.Quaternion();
+        const eu = new THREE.Euler();
+        const p = new THREE.Vector3();
+        const s = new THREE.Vector3();
+        // For each source, compute world delta = M_new * M_old^-1 and apply
+        // to every descendant that is NOT itself in the source list.
+        for (const u of updates) {
+          const old = oldById.get(u.id);
+          if (!old) continue;
+          mOld.compose(
+            new THREE.Vector3(...old.position),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(...old.rotation)),
+            new THREE.Vector3(...old.scale),
+          );
+          mNew.compose(
+            new THREE.Vector3(...u.position),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(...u.rotation)),
+            new THREE.Vector3(...u.scale),
+          );
+          const delta = mNew.clone().multiply(mOld.clone().invert());
+          const desc = collectDescendantIds(u.id, prev);
+          for (const dId of desc) {
+            if (byId.has(dId) || cascade.has(dId)) continue;
+            const d = oldById.get(dId);
+            if (!d) continue;
+            const md = new THREE.Matrix4().compose(
+              new THREE.Vector3(...d.position),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler(...d.rotation)),
+              new THREE.Vector3(...d.scale),
+            );
+            const mdNew = delta.clone().multiply(md);
+            mdNew.decompose(p, q, s);
+            eu.setFromQuaternion(q);
+            cascade.set(dId, {
+              pos: [p.x, p.y, p.z],
+              rot: [eu.x, eu.y, eu.z],
+              scl: [s.x, s.y, s.z],
+            });
+          }
+        }
+        return prev.map((o) => {
+          const u = byId.get(o.id);
+          if (u) return { ...o, position: u.position, rotation: u.rotation, scale: u.scale };
+          const c = cascade.get(o.id);
+          if (c) return { ...o, position: c.pos, rotation: c.rot, scale: c.scl };
+          return o;
+        });
+      });
     };
+
     window.addEventListener('r3-transform-start', onTransformStart as EventListener);
     window.addEventListener('r3-transform-many', onTransformMany as EventListener);
     return () => {
@@ -1490,10 +1562,23 @@ export const Studio3D = () => {
 
 
   const handleTransformObject = useCallback((id: string, transform: any) => {
-    setObjects(prev => prev.map(obj => 
+    // Route through r3-transform-many so hierarchical cascade (Select and Link)
+    // applies uniformly — the listener handles descendant propagation.
+    const cur = objectsRef.current.find((o) => o.id === id);
+    if (cur && (transform.position || transform.rotation || transform.scale)) {
+      window.dispatchEvent(new CustomEvent('r3-transform-many', { detail: { updates: [{
+        id,
+        position: transform.position ?? cur.position,
+        rotation: transform.rotation ?? cur.rotation,
+        scale: transform.scale ?? cur.scale,
+      }] } }));
+      return;
+    }
+    setObjects(prev => prev.map(obj =>
       obj.id === id ? { ...obj, ...transform } : obj
     ));
   }, []);
+
 
   // Object operations
   const deleteObject = useCallback((id: string) => {
@@ -2044,6 +2129,94 @@ export const Studio3D = () => {
     }, 'Fetch');
   };
 
+  // ---------- Select and Link (3ds Max hierarchy) ----------
+  // A parent/child relationship built via world-space delta cascading:
+  // moving/rotating/scaling a parent applies the same world-space delta to
+  // every descendant (like Max), while descendants remain stored in world
+  // coordinates so unlinking never causes the object to "jump".
+  const [linkTool, setLinkTool] = useState<'link' | null>(null);
+  const linkToolRef = useRef<'link' | null>(null);
+  useEffect(() => {
+    linkToolRef.current = linkTool;
+    (window as any).__r3LinkTool = linkTool;
+  }, [linkTool]);
+
+
+  const collectDescendantIds = (parentId: string, list: Object3DData[]): Set<string> => {
+    const out = new Set<string>();
+    const stack = [parentId];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      for (const o of list) {
+        if (o.parentId === cur && !out.has(o.id)) {
+          out.add(o.id);
+          stack.push(o.id);
+        }
+      }
+    }
+    return out;
+  };
+
+  const isAncestorOf = (maybeAncestor: string, node: string, list: Object3DData[]): boolean => {
+    let cur: string | undefined | null = list.find((o) => o.id === node)?.parentId;
+    while (cur) {
+      if (cur === maybeAncestor) return true;
+      cur = list.find((o) => o.id === cur!)?.parentId;
+    }
+    return false;
+  };
+
+  const doLinkSelectionTo = (parentId: string) => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    if (!ids.length) return;
+    const parent = objectsRef.current.find((o) => o.id === parentId);
+    if (!parent) return;
+    const validIds = ids.filter((id) => {
+      if (id === parentId) return false;
+      if (isAncestorOf(id, parentId, objectsRef.current)) return false;
+      return true;
+    });
+    if (!validIds.length) { toast.error('Cannot link an object to itself or to its descendant'); return; }
+    saveState();
+    setObjects((prev) => prev.map((o) => validIds.includes(o.id) ? { ...o, parentId } : o));
+    toast.success(`Linked ${validIds.length} object(s) → ${parent.isGroup ? 'group' : parentId.slice(0, 8)}`);
+  };
+
+  useEffect(() => {
+    (window as any).__r3DoLink = (parentId: string) => {
+      doLinkSelectionTo(parentId);
+      setLinkTool(null);
+    };
+    return () => { delete (window as any).__r3DoLink; };
+  }, [selectedObjectIds, selectedObject]);
+
+
+  const doUnlinkSelection = () => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    if (!ids.length) { toast.error('Select object(s) to unlink'); return; }
+    const targets = ids.filter((id) => objectsRef.current.find((o) => o.id === id)?.parentId);
+    if (!targets.length) { toast.info('Selected object(s) have no parent link'); return; }
+    saveState();
+    setObjects((prev) => prev.map((o) => targets.includes(o.id) ? { ...o, parentId: null } : o));
+    toast.success(`Unlinked ${targets.length} object(s)`);
+  };
+
+  const armLinkTool = () => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    if (!ids.length) { toast.error('Select the child object(s) first, then click Select and Link'); return; }
+    setLinkTool('link');
+    toast.info('Click the parent object to link to (Esc to cancel)');
+  };
+
+  useEffect(() => {
+    if (!linkTool) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLinkTool(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [linkTool]);
+
+
+
   // ---------- Groups (3ds Max style) ----------
   // Model: a group is a hidden "head" node (isGroup:true) + members carrying its
   // groupId. When closed, clicking any member selects the entire group as one
@@ -2406,7 +2579,11 @@ export const Studio3D = () => {
           onOpenLibrary={() => setLibraryWindowOpen(true)}
           viewportLayout={viewportLayout}
           onToggleViewportLayout={() => setViewportLayout((v) => v === 'quad' ? 'single' : 'quad')}
+          onSelectAndLink={armLinkTool}
+          onUnlinkSelection={doUnlinkSelection}
+          linkToolActive={linkTool === 'link'}
         />
+
 
       </div>
 

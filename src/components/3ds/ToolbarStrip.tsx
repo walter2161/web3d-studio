@@ -57,12 +57,16 @@ interface MainToolbarProps {
   onToggleViewportLayout?: () => void;
   onOpenHierarchy?: () => void;
   onOpenLibrary?: () => void;
+  onSelectAndLink?: () => void;
+  onUnlinkSelection?: () => void;
+  linkToolActive?: boolean;
 }
 
 export const MainToolbar = ({
   transformMode, onTransformMode, onUndo, onRedo, onOpenMaterialEditor, onQuickRender,
   onMirror, onAlign, onArray, onLayerManager, onSelectByName, onRenderSetup,
   viewportLayout, onToggleViewportLayout, onOpenHierarchy, onOpenLibrary,
+  onSelectAndLink, onUnlinkSelection, linkToolActive,
 }: MainToolbarProps) => {
 
   return (
@@ -76,8 +80,13 @@ export const MainToolbar = ({
       <ToolButton title="Select and Rotate (E)" active={transformMode === 'rotate'} onClick={() => onTransformMode('rotate')}><RotateCw size={14} /></ToolButton>
       <ToolButton title="Select and Scale (R)" active={transformMode === 'scale'} onClick={() => onTransformMode('scale')}><ScaleIcon size={14} /></ToolButton>
       <Sep />
-      <ToolButton title="Select and Link"><Link2 size={14} /></ToolButton>
-      <ToolButton title="Unlink Selection"><Unlink size={14} /></ToolButton>
+      <ToolButton
+        title={linkToolActive ? 'Select and Link — click parent to link to (Esc to cancel)' : 'Select and Link'}
+        active={linkToolActive}
+        onClick={onSelectAndLink}
+      ><Link2 size={14} /></ToolButton>
+      <ToolButton title="Unlink Selection" onClick={onUnlinkSelection}><Unlink size={14} /></ToolButton>
+
       <Sep />
       <ToolButton title="Mirror" onClick={onMirror}><FlipHorizontal size={14} /></ToolButton>
       <ToolButton title="Array" onClick={onArray}><Grid3x3 size={14} /></ToolButton>
