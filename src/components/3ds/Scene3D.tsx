@@ -351,6 +351,16 @@ export const Scene3D = ({
             if (boneJointActive) {
               boneJointDragStartRef.current = null;
             }
+            if (multiActive && multiProxy) {
+              // Re-seat the proxy at the (new) selection centroid so subsequent
+              // drags start from identity rather than accumulating deltas.
+              multiStartRef.current = null;
+              multiProxy.position.set(multiCenter[0], multiCenter[1], multiCenter[2]);
+              multiProxy.rotation.set(0, 0, 0);
+              multiProxy.scale.set(1, 1, 1);
+              multiProxy.updateMatrixWorld(true);
+            }
+
             if (importedSubActive && transformTarget && importedSubDragStartRef.current && selectedObject && selectedSubUuid) {
               const p = transformTarget.position;
               const r = transformTarget.rotation;
