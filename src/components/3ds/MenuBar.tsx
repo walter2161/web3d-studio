@@ -82,7 +82,10 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     (item === 'Left' && activeViewport === 'left') ||
                     (item === 'Interface: Classic' && theme === 'classic') ||
                     (item === 'Interface: Flat' && theme === 'flat') ||
-                    (item === 'Interface: Game' && theme === 'game')
+                    (item === 'Interface: Game' && theme === 'game') ||
+                    (item === 'Language: English' && lang === 'en') ||
+                    (item === 'Language: Português' && lang === 'pt') ||
+                    (item === 'Language: Español' && lang === 'es')
                       ? 'bg-menu-active text-menu-hover-fg'
                       : ''
                   }`}
