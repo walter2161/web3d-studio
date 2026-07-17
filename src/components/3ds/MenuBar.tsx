@@ -76,55 +76,85 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
             sideOffset={0}
             className="min-w-[180px] rounded-none p-0 bevel-raised text-win-text"
           >
-            {menu.items.map((item, index) =>
-              item === 'sep' ? (
-                <DropdownMenuSeparator key={`sep-${index}`} className="my-0 bg-win-shadow h-px" />
-              ) : (
+            {menu.items.map((item, index) => {
+              if (item === 'sep') {
+                return <DropdownMenuSeparator key={`sep-${index}`} className="my-0 bg-win-shadow h-px" />;
+              }
+              const handleClick = (label: string) => {
+                if (label.startsWith('Material Editor')) onOpenMaterialEditor();
+                if (label.startsWith('Material/Map Browser')) onMaterialBrowser?.();
+                if (label === 'Render...') onQuickRender?.();
+                if (label.startsWith('Render Setup')) onRenderSetup?.();
+                if (label.startsWith('Environment')) onEnvironment?.();
+                if (label.startsWith('View Image File')) onViewImageFile?.();
+                if (label.startsWith('Save As')) onFileOperation('save');
+                if (label === 'Open...') onFileOperation('open');
+                if (label === 'Export...') onFileOperation('export');
+                if (label === 'Import...') onFileOperation('import');
+                if (label === 'Perspective') onViewportChange('perspective');
+                if (label === 'Top') onViewportChange('top');
+                if (label === 'Front') onViewportChange('front');
+                if (label === 'Left') onViewportChange('left');
+                if (label === 'Interface: Classic') setTheme('classic');
+                if (label === 'Interface: Flat') setTheme('flat');
+                if (label === 'Interface: Game') setTheme('game');
+                if (label === 'Language: English') setLang('en');
+                if (label === 'Language: Português') setLang('pt');
+                if (label === 'Language: Español') setLang('es');
+                onMenuAction?.(label);
+              };
+              const itemClass = (label: string) => `text-[11px] rounded-none px-4 py-0.5 cursor-default focus:bg-menu-hover focus:text-menu-hover-fg ${
+                (label === 'Perspective' && activeViewport === 'perspective') ||
+                (label === 'Top' && activeViewport === 'top') ||
+                (label === 'Front' && activeViewport === 'front') ||
+                (label === 'Left' && activeViewport === 'left') ||
+                (label === 'Interface: Classic' && theme === 'classic') ||
+                (label === 'Interface: Flat' && theme === 'flat') ||
+                (label === 'Interface: Game' && theme === 'game') ||
+                (label === 'Language: English' && lang === 'en') ||
+                (label === 'Language: Português' && lang === 'pt') ||
+                (label === 'Language: Español' && lang === 'es')
+                  ? 'bg-menu-active text-menu-hover-fg'
+                  : ''
+              }`;
+              if (typeof item === 'object') {
+                // Strip common prefix like "Interface: " or "Language: " from display
+                const displayLabel = (s: string) => {
+                  const i = s.indexOf(': ');
+                  return i >= 0 ? s.slice(i + 2) : s;
+                };
+                return (
+                  <DropdownMenuSub key={item.label}>
+                    <DropdownMenuSubTrigger className={`text-[11px] rounded-none px-4 py-0.5 cursor-default focus:bg-menu-hover focus:text-menu-hover-fg data-[state=open]:bg-menu-hover data-[state=open]:text-menu-hover-fg`}>
+                      {t(item.label)}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="min-w-[140px] rounded-none p-0 bevel-raised text-win-text">
+                        {item.sub.map((sub) => (
+                          <DropdownMenuItem
+                            key={sub}
+                            className={itemClass(sub)}
+                            onClick={() => handleClick(sub)}
+                          >
+                            {t(displayLabel(sub))}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                );
+              }
+              return (
                 <DropdownMenuItem
                   key={item}
-                  className={`text-[11px] rounded-none px-4 py-0.5 cursor-default focus:bg-menu-hover focus:text-menu-hover-fg ${
-                    (item === 'Perspective' && activeViewport === 'perspective') ||
-                    (item === 'Top' && activeViewport === 'top') ||
-                    (item === 'Front' && activeViewport === 'front') ||
-                    (item === 'Left' && activeViewport === 'left') ||
-                    (item === 'Interface: Classic' && theme === 'classic') ||
-                    (item === 'Interface: Flat' && theme === 'flat') ||
-                    (item === 'Interface: Game' && theme === 'game') ||
-                    (item === 'Language: English' && lang === 'en') ||
-                    (item === 'Language: Português' && lang === 'pt') ||
-                    (item === 'Language: Español' && lang === 'es')
-                      ? 'bg-menu-active text-menu-hover-fg'
-                      : ''
-                  }`}
-                  onClick={() => {
-                    if (item.startsWith('Material Editor')) onOpenMaterialEditor();
-                    if (item.startsWith('Material/Map Browser')) onMaterialBrowser?.();
-                    if (item === 'Render...') onQuickRender?.();
-                    if (item.startsWith('Render Setup')) onRenderSetup?.();
-                    if (item.startsWith('Environment')) onEnvironment?.();
-                    if (item.startsWith('View Image File')) onViewImageFile?.();
-                    if (item.startsWith('Save As')) onFileOperation('save');
-                    if (item === 'Open...') onFileOperation('open');
-                    if (item === 'Export...') onFileOperation('export');
-                    if (item === 'Import...') onFileOperation('import');
-                    if (item === 'Perspective') onViewportChange('perspective');
-                    if (item === 'Top') onViewportChange('top');
-                    if (item === 'Front') onViewportChange('front');
-                    if (item === 'Left') onViewportChange('left');
-                    if (item === 'Interface: Classic') setTheme('classic');
-                    if (item === 'Interface: Flat') setTheme('flat');
-                    if (item === 'Interface: Game') setTheme('game');
-                    if (item === 'Language: English') setLang('en');
-                    if (item === 'Language: Português') setLang('pt');
-                    if (item === 'Language: Español') setLang('es');
-                    // Broadcast raw label for any handler wired via onMenuAction
-                    onMenuAction?.(item);
-                  }}
+                  className={itemClass(item)}
+                  onClick={() => handleClick(item)}
                 >
                   {t(item)}
                 </DropdownMenuItem>
-              )
-            )}
+              );
+            })}
+
           </DropdownMenuContent>
         </DropdownMenu>
       ))}
