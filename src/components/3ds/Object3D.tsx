@@ -1185,18 +1185,18 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // with `direction` rotating the bend plane around that axis, and optional
   // limits that restrict the bend region (outside → rigid tangent extension).
   /**
-   * Build the gizmo → mesh-local matrix from `params.gizmo` (TRS) and the
-   * inverse. Vertices are transformed into gizmo space, deformed, then sent
-   * back to mesh-local. `centerPos` is subtracted from the vertex inside
-   * gizmo space so the deformation origin follows the Center sub-object.
-   *
-   * All modifiers that expose Gizmo + Center (Bend, Twist, Taper, Noise) share
-   * this pipeline — see `applyDeformInGizmoSpace` below.
+   * Build the gizmo → mesh matrices from `params.gizmo` + `params.center` and
+   * temporarily transform `geometry`'s position buffer *into* gizmo space so
+   * the modifier math (which is hardcoded around local axes / origin) sees
+   * vertices in the user-chosen frame. After `deform()` runs, positions are
+   * transformed back to mesh-local space. This is exactly how 3ds Max lets a
+   * gizmo move / rotate / scale the deformation region without touching the
+   * mesh transform.
    */
-  function applyDeformInGizmoSpace(
+  function withGizmoSpace(
     geometry: BufferGeometry,
     params: any,
-    deform: (x: number, y: number, z: number) => [number, number, number],
+    deform: (g: BufferGeometry, p: any) => BufferGeometry,
   ): BufferGeometry {
     const g = params?.gizmo || {};
     const c = params?.center || {};
@@ -1204,6 +1204,14 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const gRot = Array.isArray(g.rot) ? g.rot : [0, 0, 0];
     const gScl = Array.isArray(g.scale) ? g.scale : [1, 1, 1];
     const cPos = Array.isArray(c.pos) ? c.pos : [0, 0, 0];
+
+    const hasGizmo =
+      gPos[0] || gPos[1] || gPos[2] ||
+      gRot[0] || gRot[1] || gRot[2] ||
+      (gScl[0] !== 1) || (gScl[1] !== 1) || (gScl[2] !== 1) ||
+      cPos[0] || cPos[1] || cPos[2];
+
+    if (!hasGizmo) return deform(geometry, params);
 
     const G = new THREE.Matrix4().compose(
       new THREE.Vector3(gPos[0], gPos[1], gPos[2]),
@@ -1216,19 +1224,31 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const arr = pos.array as Float32Array;
     const v = new THREE.Vector3();
 
+    // Mesh → gizmo space, subtract center offset.
     for (let i = 0; i < arr.length; i += 3) {
       v.set(arr[i], arr[i + 1], arr[i + 2]).applyMatrix4(Ginv);
-      v.x -= cPos[0]; v.y -= cPos[1]; v.z -= cPos[2];
-      const [dx, dy, dz] = deform(v.x, v.y, v.z);
-      v.set(dx + cPos[0], dy + cPos[1], dz + cPos[2]).applyMatrix4(G);
-      arr[i] = v.x; arr[i + 1] = v.y; arr[i + 2] = v.z;
+      arr[i] = v.x - cPos[0];
+      arr[i + 1] = v.y - cPos[1];
+      arr[i + 2] = v.z - cPos[2];
     }
     pos.needsUpdate = true;
+
+    deform(geometry, params);
+
+    // Re-read (deform() may have replaced the attribute via computeVertexNormals but
+    // not the position buffer — same reference is fine).
+    const pos2 = geometry.getAttribute('position');
+    const arr2 = pos2.array as Float32Array;
+    for (let i = 0; i < arr2.length; i += 3) {
+      v.set(arr2[i] + cPos[0], arr2[i + 1] + cPos[1], arr2[i + 2] + cPos[2]).applyMatrix4(G);
+      arr2[i] = v.x; arr2[i + 1] = v.y; arr2[i + 2] = v.z;
+    }
+    pos2.needsUpdate = true;
     geometry.computeVertexNormals();
     return geometry;
   }
 
-  function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyBendCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const direction = (params.direction || 0) * Math.PI / 180;
     const axisName = (params.bendAxis || 'Z') as 'X' | 'Y' | 'Z';
