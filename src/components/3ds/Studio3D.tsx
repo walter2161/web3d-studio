@@ -1389,11 +1389,18 @@ export const Studio3D = () => {
   }, [selectedObject, objects, compoundState.op, saveState]);
 
   const handleSelectObject = useCallback((id: string | null, additive = false, remove = false) => {
+    // Select and Link — consume the click as "pick parent"
+    if (linkTool === 'link' && id) {
+      doLinkSelectionTo(id);
+      setLinkTool(null);
+      return;
+    }
     // If a compound Boolean is waiting for Operand B, consume the click.
     if (id && compoundState.picking && compoundState.tool && selectedObject && id !== selectedObject) {
       performBoolean(id);
       return;
     }
+
     if (!id) {
       if (additive || remove) return;
       setSelectedObject(null);
