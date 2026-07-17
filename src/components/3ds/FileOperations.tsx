@@ -162,8 +162,8 @@ export const FileOperations = ({
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   <div>3D: OBJ, FBX, GLTF, GLB, DAE, 3DS, MAX</div>
-                  <div>CAD (2D): <span className="font-mono">DXF</span> — LINE / POLYLINE viram paredes paramétricas.</div>
-                  <div className="opacity-70">DWG não é suportado direto (formato binário Autodesk). Converta para DXF em qualquer CAD gratuito.</div>
+                  <div>CAD (2D): <span className="font-mono">DXF, DWG</span> — LINE / POLYLINE viram paredes paramétricas.</div>
+                  <div className="opacity-70">DWG (binário Autodesk) é convertido automaticamente para DXF via LibreDWG (WASM) no próprio navegador.</div>
                 </div>
               </CardContent>
             </Card>
