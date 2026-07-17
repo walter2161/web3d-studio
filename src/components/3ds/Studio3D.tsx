@@ -1604,29 +1604,33 @@ export const Studio3D = () => {
   const importModel = useCallback(async (file: File) => {
     const nameLc = file.name.toLowerCase();
 
-    // DWG is proprietary Autodesk binary — cannot parse in-browser. Ask the
-    // user to convert to DXF (any free CAD tool does this).
-    if (nameLc.endsWith('.dwg')) {
-      toast.error('DWG não é suportado diretamente. Converta para DXF (LibreCAD, ODA File Converter ou o conversor online da Autodesk) e importe o .dxf.', { duration: 8000 });
-      return;
-    }
-
-    // DXF → creates parametric Wall objects from LINE / POLYLINE entities.
-    if (nameLc.endsWith('.dxf')) {
-      const loadingId = toast.loading(`Parsing ${file.name}...`);
+    // DXF (native text) and DWG (binary, converted via LibreDWG WASM) both
+    // produce parametric Wall objects from LINE / POLYLINE entities.
+    if (nameLc.endsWith('.dxf') || nameLc.endsWith('.dwg')) {
+      const isDwg = nameLc.endsWith('.dwg');
+      const loadingId = toast.loading(
+        isDwg ? `Convertendo ${file.name} (DWG → DXF)...` : `Parsing ${file.name}...`,
+      );
       try {
-        const { parseDxfFile } = await import('./utils/dxfImport');
-        const result = await parseDxfFile(file);
+        let result;
+        if (isDwg) {
+          const { parseDwgFile } = await import('./utils/dwgImport');
+          result = await parseDwgFile(file);
+        } else {
+          const { parseDxfFile } = await import('./utils/dxfImport');
+          result = await parseDxfFile(file);
+        }
         if (result.walls.length === 0) {
           toast.dismiss(loadingId);
-          toast.error('Nenhuma LINE / POLYLINE encontrada no DXF.');
+          toast.error(`Nenhuma LINE / POLYLINE encontrada no ${isDwg ? 'DWG' : 'DXF'}.`);
           return;
         }
         saveState();
         const now = Date.now();
+        const prefix = isDwg ? 'DWG' : 'DXF';
         const newObjs: Object3DData[] = result.walls.map((w, i) => ({
-          id: `wall_dxf_${now}_${i}`,
-          name: (w.layer ? `${w.layer}_` : 'DXF_') + `wall${i + 1}`,
+          id: `wall_${prefix.toLowerCase()}_${now}_${i}`,
+          name: (w.layer ? `${w.layer}_` : `${prefix}_`) + `wall${i + 1}`,
           type: 'wall' as any,
           position: w.position,
           rotation: [0, 0, 0],
@@ -1653,13 +1657,13 @@ export const Studio3D = () => {
           ? ` Ignorado: ${Object.entries(result.ignoredEntities).map(([k, v]) => `${k}×${v}`).join(', ')}.`
           : '';
         toast.success(
-          `DXF importado: ${result.walls.length} parede(s), ${bx.toFixed(1)}×${by.toFixed(1)}m (units: ${result.units}).${ignoredNote}`,
+          `${prefix} importado: ${result.walls.length} parede(s), ${bx.toFixed(1)}×${by.toFixed(1)}m (units: ${result.units}).${ignoredNote}`,
           { duration: 7000 },
         );
       } catch (err: any) {
         toast.dismiss(loadingId);
-        console.error('DXF import failed:', err);
-        toast.error(`DXF falhou: ${err?.message || 'unknown error'}`);
+        console.error(`${isDwg ? 'DWG' : 'DXF'} import failed:`, err);
+        toast.error(`${isDwg ? 'DWG' : 'DXF'} falhou: ${err?.message || 'unknown error'}`);
       }
       return;
     }
