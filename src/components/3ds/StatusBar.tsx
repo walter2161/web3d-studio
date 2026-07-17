@@ -417,11 +417,26 @@ const ViewportNavCluster = ({
         ]}
       />
       <FlyoutTool
-        title={viewportLayout === 'quad' ? 'Min/Max Viewport → Single (Alt+W)' : 'Min/Max Viewport → Quad (Alt+W)'}
-        active={viewportLayout === 'quad'}
-        onClick={onToggleViewportLayout}
+        title="Maximize App (F11 / fullscreen)"
+        active={typeof document !== 'undefined' && !!document.fullscreenElement}
+        onClick={() => {
+          if (typeof document === 'undefined') return;
+          if (document.fullscreenElement) {
+            document.exitFullscreen?.().catch(() => {});
+          } else {
+            (document.documentElement.requestFullscreen?.() ?? Promise.resolve()).catch(() => {});
+          }
+        }}
         icon={<Maximize2 size={12} />}
+        flyout={[
+          { title: 'Toggle Fullscreen (F11)', icon: <Maximize2 size={12} />, onClick: () => {
+              if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+              else document.documentElement.requestFullscreen?.().catch(() => {});
+            } },
+          { title: viewportLayout === 'quad' ? 'Min Viewport → Single (Alt+W)' : 'Max Viewport → Quad (Alt+W)', icon: <Maximize2 size={12} />, onClick: onToggleViewportLayout, active: viewportLayout === 'quad' },
+        ]}
       />
+
     </div>
   );
 };
