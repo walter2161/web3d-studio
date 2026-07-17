@@ -68,6 +68,28 @@ export const Scene3D = ({
   const transformControlsRef = useRef<any>(null);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
   const selectedObjectIdSet = useMemo(() => new Set(selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : [])), [selectedObjectIds, selectedObject]);
+  const selectedList = useMemo(
+    () => objects.filter((o) => selectedObjectIdSet.has(o.id)),
+    [objects, selectedObjectIdSet],
+  );
+  const isMulti = selectedList.length > 1;
+
+  // ---- Multi-selection proxy (3ds Max "Selection Center") --------------------
+  const [multiProxy, setMultiProxy] = useState<THREE.Object3D | null>(null);
+  const multiStartRef = useRef<{
+    proxyPos: THREE.Vector3;
+    proxyQuat: THREE.Quaternion;
+    proxyScale: THREE.Vector3;
+    items: Array<{ id: string; pos: THREE.Vector3; quat: THREE.Quaternion; scale: THREE.Vector3 }>;
+  } | null>(null);
+  const multiCenter = useMemo<[number, number, number]>(() => {
+    if (!isMulti) return [0, 0, 0];
+    let x = 0, y = 0, z = 0;
+    for (const o of selectedList) { x += o.position[0]; y += o.position[1]; z += o.position[2]; }
+    const n = selectedList.length;
+    return [x / n, y / n, z / n];
+  }, [isMulti, selectedList]);
+
 
   // ---- Sub-object gizmo state -------------------------------------------------
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
