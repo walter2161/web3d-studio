@@ -175,9 +175,8 @@ const SliderRow = ({
   };
 
   return (
-    <div className="flex items-center gap-[4px] mb-[2px]">
-      <span className="min-w-[54px] text-[11px] text-win-text">{label}</span>
-      <div className="flex-1" />
+    <div className="flex items-center gap-[3px] mb-[2px] w-full min-w-0">
+      <span className="flex-1 min-w-0 truncate text-[11px] text-win-text">{label}</span>
       <input
         type="number"
         value={format(value)}
@@ -188,25 +187,25 @@ const SliderRow = ({
           const n = parseFloat(e.target.value);
           if (Number.isFinite(n)) onChange(clamp(n));
         }}
-        className="w-[64px] h-[18px] bevel-sunken bg-white text-[11px] px-[3px] outline-none text-right"
+        className="w-[56px] shrink-0 h-[18px] bevel-sunken bg-white text-[11px] px-[3px] outline-none text-right"
       />
-      <div className="flex flex-col select-none" style={{ height: 18 }}>
+      <div className="flex flex-col select-none shrink-0" style={{ height: 18 }}>
         <button
           type="button"
           tabIndex={-1}
           onPointerDown={startDrag(1)}
-          className="bevel-raised h-[9px] w-[13px] flex items-center justify-center text-[8px] leading-none text-win-text active:bevel-sunken cursor-ns-resize"
+          className="bevel-raised h-[9px] w-[11px] flex items-center justify-center text-[7px] leading-none text-win-text active:bevel-sunken cursor-ns-resize"
           aria-label="Increase"
         >▲</button>
         <button
           type="button"
           tabIndex={-1}
           onPointerDown={startDrag(-1)}
-          className="bevel-raised h-[9px] w-[13px] flex items-center justify-center text-[8px] leading-none text-win-text active:bevel-sunken cursor-ns-resize"
+          className="bevel-raised h-[9px] w-[11px] flex items-center justify-center text-[7px] leading-none text-win-text active:bevel-sunken cursor-ns-resize"
           aria-label="Decrease"
         >▼</button>
       </div>
-      {unit && <span className="text-[10px] text-win-text w-[8px]">{unit}</span>}
+      {unit && <span className="text-[10px] text-win-text shrink-0 w-[8px]">{unit}</span>}
     </div>
   );
 };
