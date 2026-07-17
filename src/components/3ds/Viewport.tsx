@@ -81,7 +81,7 @@ interface ViewportProps {
   selectedObject: string | null;
   selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
-  onSelectObject: (id: string | null) => void;
+  onSelectObject: (id: string | null, additive?: boolean, remove?: boolean) => void;
   onTransformObject: (id: string, transform: any) => void;
   transformMode: 'translate' | 'rotate' | 'scale';
   animationTracks?: AnimationTrack[];
@@ -299,7 +299,10 @@ export const Viewport = ({
           gl.outputColorSpace = THREE.SRGBColorSpace;
           scene.background = new THREE.Color(env.backgroundColor);
         }}
-        onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
+        onPointerMissed={(e) => {
+          const ev = e as any;
+          if (ev.button === 0 || e.type === 'click') onSelectObject(null, !!(ev.ctrlKey || ev.metaKey), !!ev.altKey);
+        }}
       >
         <ViewportRegistrar vkey={type} isActive={isActive} />
         {orthographic && <OrthoZoomSync distance={distanceRef.current} />}

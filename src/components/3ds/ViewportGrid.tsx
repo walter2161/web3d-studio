@@ -19,7 +19,7 @@ interface ViewportGridProps {
   selectedObject: string | null;
   selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
-  onSelectObject: (id: string | null) => void;
+  onSelectObject: (id: string | null, additive?: boolean, remove?: boolean) => void;
   onTransformObject: (id: string, transform: any) => void;
   transformMode: 'translate' | 'rotate' | 'scale';
   animationTracks?: AnimationTrack[];
