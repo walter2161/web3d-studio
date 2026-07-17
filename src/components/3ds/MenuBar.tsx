@@ -33,7 +33,7 @@ const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] 
   { label: 'Animation', access: 'A', items: ['Set Key', 'Auto Key', 'sep', 'Track View', 'Curve Editor', 'sep', 'Position Constraint', 'LookAt Constraint'] },
   { label: 'Graph Editors', access: 'D', items: ['Track View - Curve Editor', 'Track View - Dope Sheet', 'sep', 'Schematic View'] },
   { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
-  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Interface: Classic', 'Interface: Flat', 'Interface: Game', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
+  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Interface: Classic', 'Interface: Flat', 'Interface: Game', 'sep', 'Language: English', 'Language: Português', 'Language: Español', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
   { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About 3De...'] },
 ];
