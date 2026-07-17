@@ -52,6 +52,7 @@ const renderLabel = (label: string, access: string) => {
 
 export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport, onQuickRender, onRenderSetup, onEnvironment, onMaterialBrowser, onViewImageFile, onMenuAction }: MenuBarProps) => {
   const { theme, setTheme } = useUITheme();
+  const { lang, setLang, t } = useLanguage();
   return (
     <div className="h-[22px] bg-win-face flex items-stretch px-1 border-b border-win-shadow">
       {menuItems.map((menu) => (
