@@ -50,17 +50,16 @@ const COLOR_GHOST = '#f5a742';
 
 const STAGES: Record<CreatableTool, number> = {
   box: 2, plane: 1, cylinder: 2, cone: 2, sphere: 1, torus: 2,
+  teapot: 1, tube: 2, pyramid: 2, geoSphere: 1,
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
+  capsule: 2, lExt: 2, cExt: 2, hose: 2,
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
-  wall: 1, // multi-click, handled by dedicated branch below
-  door: 2, window: 2, // stage 0 drag = width × depth (box-like), stage 1 = height
-  // Helpers: single-click place. Tape uses its own 2-click branch below.
+  wall: 1,
+  door: 2, window: 2,
   helper_point: 1, helper_dummy: 1, helper_grid: 1, helper_compass: 1, helper_tape: 1,
-  sys_bones: 1, // handled by its own multi-click branch below
-  sys_biped: 1, // click-drag to define height, releases spawn the whole skeleton
-  sys_print_bed: 1, // single-click placement on the base plane
-
-
+  sys_bones: 1,
+  sys_biped: 1,
+  sys_print_bed: 1,
 };
 
 
@@ -91,7 +90,10 @@ function buildGhost(
   switch (tool) {
     case 'box':
     case 'chamferBox':
-    case 'prism': {
+    case 'prism':
+    case 'pyramid':
+    case 'lExt':
+    case 'cExt': {
       // Stage 0 (base): drag two corners → width + depth. Freeze base at stage ≥1.
       let w: number, d: number, cA: number, cB: number;
       if (stage === 0) {
@@ -127,7 +129,9 @@ function buildGhost(
       geometry = { ...geometry, width: w, height: d };
       break;
     }
-    case 'sphere': {
+    case 'sphere':
+    case 'teapot':
+    case 'geoSphere': {
       const r = Math.max(0.001, baseDist);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
@@ -141,6 +145,9 @@ function buildGhost(
     case 'oilTank':
     case 'spindle':
     case 'gengon':
+    case 'capsule':
+    case 'hose':
+    case 'tube':
     case 'helix': {
       // Stage 0: radius from center. Stage 1+: freeze radius, drag height.
       const r = stage === 0 ? Math.max(0.001, baseDist) : (prev?.geometry?.radius ?? 0.001);

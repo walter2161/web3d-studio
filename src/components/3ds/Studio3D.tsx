@@ -559,8 +559,8 @@ export const Studio3D = () => {
   }, [objects]);
 
   const createObject = useCallback((type: string) => {
-    const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane'];
-    const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism'];
+    const standard = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'plane', 'teapot', 'tube', 'pyramid', 'geoSphere'];
+    const extended = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism', 'capsule', 'lExt', 'cExt', 'hose'];
     const shapes = ['line', 'rectangle', 'circle', 'ellipse', 'arc', 'donut', 'ngon', 'star', 'helix'];
     const aec = ['wall', 'door', 'window'];
     const lightTypes = ['light_omni', 'light_spot', 'light_spot_free', 'light_direct', 'light_direct_free', 'light_skylight', 'light_ambient'];
