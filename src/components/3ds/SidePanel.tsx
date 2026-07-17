@@ -13,6 +13,7 @@ import { EditableSplinePanel } from './r3/EditableSplinePanel';
 import { RigHierarchyPanel } from './r3/RigHierarchyPanel';
 import { setSplineSel, getSplineSel, subscribeSplineSel } from './editable/splineSelStore';
 import type { SplineSubLevel } from './editable/EditableSpline';
+import { setModifierSub, GIZMO_MODIFIER_TYPES } from './r3/modifierSubStore';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
