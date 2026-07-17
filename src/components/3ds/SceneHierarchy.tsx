@@ -24,7 +24,7 @@ interface SceneHierarchyProps {
   selectedObject: string | null;
   selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
-  onSelectObject: (id: string | null) => void;
+  onSelectObject: (id: string | null, additive?: boolean, remove?: boolean) => void;
   onSelectSubObject?: (objectId: string, uuid: string | null) => void;
   onDeleteObject: (id: string) => void;
   onDuplicateObject: (id: string) => void;
@@ -118,7 +118,7 @@ export const SceneHierarchy = ({
           style={{ paddingLeft: `${depth * 14 + 20}px` }}
           onClick={(e) => {
             e.stopPropagation();
-            onSelectObject(objectId);
+            onSelectObject(objectId, e.ctrlKey || e.metaKey, e.altKey);
             onSelectSubObject?.(objectId, node.uuid);
           }}
         >
@@ -163,8 +163,8 @@ export const SceneHierarchy = ({
             isSelected && 'bg-primary/20 border-l-2 border-primary'
           )}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
-          onClick={() => {
-            onSelectObject(obj.id);
+          onClick={(e) => {
+            onSelectObject(obj.id, e.ctrlKey || e.metaKey, e.altKey);
             onSelectSubObject?.(obj.id, null);
           }}
           onDoubleClick={() => startRename(obj.id, getObjectName(obj))}
