@@ -35,7 +35,8 @@ export async function parseDwgFile(file: File): Promise<DxfImportResult> {
   }
 
   // Wrap the DXF bytes as a synthetic File so we can reuse parseDxfFile.
-  const dxfBlob = new Blob([dxfBytes], { type: 'application/dxf' });
+  const dxfBuffer = dxfBytes.slice().buffer as ArrayBuffer;
+  const dxfBlob = new Blob([dxfBuffer], { type: 'application/dxf' });
   const dxfFile = new File([dxfBlob], file.name.replace(/\.dwg$/i, '.dxf'), {
     type: 'application/dxf',
   });
