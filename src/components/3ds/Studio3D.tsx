@@ -2579,7 +2579,11 @@ export const Studio3D = () => {
           onOpenLibrary={() => setLibraryWindowOpen(true)}
           viewportLayout={viewportLayout}
           onToggleViewportLayout={() => setViewportLayout((v) => v === 'quad' ? 'single' : 'quad')}
+          onSelectAndLink={armLinkTool}
+          onUnlinkSelection={doUnlinkSelection}
+          linkToolActive={linkTool === 'link'}
         />
+
 
       </div>
 
