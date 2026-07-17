@@ -141,8 +141,11 @@ export const Viewport = ({
   }, [view]);
   const cameraUp = useMemo(() => VIEW_UP[view], [view]);
   const orthographic = view !== 'perspective' && view !== 'user';
-  // Ortho zoom that matches perspective visible height at same distance (fov≈50°).
-  const orthoZoom = useMemo(() => 21.44 / Math.max(0.001, distanceRef.current), [view]);
+  // NOTE: With R3F's default ortho frustum (left=-w/2 ... in *pixels*), the
+  // effective zoom must be sized to the canvas. OrthoZoomSync below sets it
+  // from the live size — this initial value is just a sane fallback until
+  // the first frame arrives.
+  const orthoZoom = 40;
   const effectiveShowGrid = showGridProp && showGridLocal;
   const hasActiveSceneLights = useMemo(
     () => objects.some((o) => o.visible !== false && String(o.type || '').startsWith('light_') && o.lightData?.on !== false),
