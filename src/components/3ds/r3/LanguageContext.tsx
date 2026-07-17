@@ -368,12 +368,14 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     // Set up mutation observer once (idempotent per-mount).
     if (!observerRef.current && typeof MutationObserver !== 'undefined') {
       const obs = new MutationObserver((mutations) => {
+        if (selfWriting > 0) return; // ignore mutations we caused
         const currentLookup = (s: string) => dict[langRef.current]?.[s] ?? s;
         for (const m of mutations) {
           if (m.type === 'characterData' && m.target.nodeType === 3) {
             const tn = m.target as Text;
-            // React just wrote to this node — treat the new value as the new source.
-            originalText.set(tn, tn.nodeValue ?? '');
+            // React just wrote to this node — its current value is the new
+            // English source (recover if it happens to already be translated).
+            originalText.set(tn, recoverSource(tn.nodeValue ?? ''));
             translateTextNode(tn, currentLookup);
           } else if (m.type === 'childList') {
             m.addedNodes.forEach((n) => walkAndTranslate(n, currentLookup));
@@ -381,13 +383,13 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
             const el = m.target as Element;
             const bag = originalAttr.get(el);
             if (bag && m.attributeName && m.attributeName in bag) {
-              // React updated the attribute — refresh source.
-              bag[m.attributeName] = el.getAttribute(m.attributeName) ?? '';
+              bag[m.attributeName] = recoverSource(el.getAttribute(m.attributeName) ?? '');
             }
             translateAttrs(el, currentLookup);
           }
         }
       });
+
       obs.observe(document.body, {
         subtree: true, childList: true, characterData: true,
         attributes: true, attributeFilter: TRANSLATABLE_ATTRS,
