@@ -69,7 +69,7 @@ export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: P
 
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Object Properties" width={340}>
-      <div className="space-y-[2px] text-[9px] leading-[11px]">
+      <div className="space-y-[2px] text-[6px] leading-[8px]">
         <GroupBox title="Object Information">
           <Row label="Name:" labelWidth={50}>
             <input value={name} onChange={(e) => setName(e.target.value)} className="bevel-inset bg-white text-[9px] px-1 flex-1 h-[13px]" style={{ width: 180 }} />
