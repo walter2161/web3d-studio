@@ -181,7 +181,10 @@ export const Viewport = ({
         "relative w-full h-full bg-viewport",
         isActive ? "outline outline-2 outline-viewport-active -outline-offset-2" : "outline outline-1 outline-viewport-border -outline-offset-1"
       )}
-      onClick={onActivate}
+      // Capture-phase pointerdown → mark the viewport active *before* the click
+      // reaches the R3F canvas / creation controller, so activation never eats
+      // or delays the selection/creation gesture (no preventDefault, no stop).
+      onPointerDownCapture={onActivate}
     >
       {/* R3-style clickable label at top-left → opens the viewport menu (Views / Display / Grid / Safe Frame / Camera). */}
       <div className="absolute top-1 left-1 z-10 flex items-center gap-1">

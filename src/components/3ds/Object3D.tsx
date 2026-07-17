@@ -43,6 +43,43 @@ function vertexOnlyRaycast(this: THREE.Mesh, raycaster: THREE.Raycaster, interse
   if (!pos) return;
   this.updateMatrixWorld();
   const mw = this.matrixWorld;
+
+  // Pass 1 — run the normal mesh raycast, but only accept hits that are close
+  // to any wire edge. This gives users a fat pick radius along the whole wire
+  // instead of forcing them to hit a vertex exactly.
+  const faceHits: THREE.Intersection[] = [];
+  THREE.Mesh.prototype.raycast.call(this, raycaster, faceHits);
+  const vA = new THREE.Vector3();
+  const vB = new THREE.Vector3();
+  const vC = new THREE.Vector3();
+  const closestOnSegment = (p: THREE.Vector3, a: THREE.Vector3, b: THREE.Vector3, out: THREE.Vector3) => {
+    const ab = b.clone().sub(a);
+    const t = Math.max(0, Math.min(1, p.clone().sub(a).dot(ab) / Math.max(1e-8, ab.lengthSq())));
+    out.copy(a).addScaledVector(ab, t);
+  };
+  for (const hit of faceHits) {
+    if (!hit.face) continue;
+    vA.set(pos.getX(hit.face.a), pos.getY(hit.face.a), pos.getZ(hit.face.a)).applyMatrix4(mw);
+    vB.set(pos.getX(hit.face.b), pos.getY(hit.face.b), pos.getZ(hit.face.b)).applyMatrix4(mw);
+    vC.set(pos.getX(hit.face.c), pos.getY(hit.face.c), pos.getZ(hit.face.c)).applyMatrix4(mw);
+    const p = hit.point;
+    const proj = new THREE.Vector3();
+    let dMin = Infinity;
+    for (const [a, b] of [[vA, vB], [vB, vC], [vC, vA]] as const) {
+      closestOnSegment(p, a, b, proj);
+      const d = proj.distanceTo(p);
+      if (d < dMin) dMin = d;
+    }
+    // ~16px at typical FOV; scale with distance for consistent pick radius.
+    const threshold = Math.max(0.1, hit.distance * 0.04);
+    if (dMin < threshold) {
+      intersects.push(hit);
+    }
+  }
+  if (intersects.length) return;
+
+  // Pass 2 — fallback: vertex proximity, so isolated vertices remain pickable
+  // even when the ray doesn't cross any triangle (e.g. splines, sparse meshes).
   const v = new THREE.Vector3();
   const worldV = new THREE.Vector3();
   let bestDist = Infinity;
@@ -51,8 +88,7 @@ function vertexOnlyRaycast(this: THREE.Mesh, raycaster: THREE.Raycaster, interse
     v.set(pos.getX(i), pos.getY(i), pos.getZ(i));
     worldV.copy(v).applyMatrix4(mw);
     const distAlongRay = raycaster.ray.origin.distanceTo(worldV);
-    // ~8px at typical FOV; scale with distance for consistent pick radius.
-    const threshold = Math.max(0.05, distAlongRay * 0.02);
+    const threshold = Math.max(0.1, distAlongRay * 0.04);
     const perp = raycaster.ray.distanceToPoint(worldV);
     if (perp < threshold && distAlongRay < bestDist) {
       bestDist = distAlongRay;
