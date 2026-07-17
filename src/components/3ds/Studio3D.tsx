@@ -1117,11 +1117,46 @@ export const Studio3D = () => {
         };
       }));
     };
+    const onGizmoOp = (ev: Event) => {
+      const d = (ev as CustomEvent).detail as {
+        objectId: string; modifierId: string; part: 'gizmo' | 'center';
+        pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number];
+        commit: boolean;
+      };
+      // Snapshot for undo only when the drag commits (mouseup), so live drag
+      // updates collapse into a single history entry.
+      if (d.commit && objectsRef.current.some((obj) => obj.id === d.objectId)) {
+        setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+        undoOrderRef.current.push('objects');
+        setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
+      }
+      setObjects((prev) => prev.map((obj) => {
+        if (obj.id !== d.objectId) return obj;
+        return {
+          ...obj,
+          modifiers: (obj.modifiers ?? []).map((m: any) => {
+            if (m.id !== d.modifierId) return m;
+            const params = { ...(m.params || {}) };
+            if (d.part === 'gizmo') {
+              params.gizmo = { pos: d.pos, rot: d.rot, scale: d.scale };
+            } else {
+              // Center is translation-only in 3ds Max.
+              params.center = { pos: d.pos };
+            }
+            return { ...m, params };
+          }),
+        };
+      }));
+    };
     window.addEventListener('r3-subobj-select', onPick as any);
     window.addEventListener('r3-subobj-op', onOp as any);
+    window.addEventListener('r3-modifier-gizmo-op', onGizmoOp as any);
     return () => {
       window.removeEventListener('r3-subobj-select', onPick as any);
       window.removeEventListener('r3-subobj-op', onOp as any);
+      window.removeEventListener('r3-modifier-gizmo-op', onGizmoOp as any);
     };
   }, []);
 
