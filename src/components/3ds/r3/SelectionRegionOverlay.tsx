@@ -121,8 +121,21 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       });
     };
 
-    canvas.addEventListener('pointerdown', onPointerDown, { capture: true });
-    return () => canvas.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
+    const tryAttach = () => {
+      if (disposed || attached) return;
+      const handle = getViewportHandle(vkey);
+      if (!handle) return;
+      canvas = handle.gl.domElement as HTMLCanvasElement;
+      canvas.addEventListener('pointerdown', onPointerDown, { capture: true });
+      attached = true;
+    };
+    tryAttach();
+    const iv = attached ? null : window.setInterval(() => { tryAttach(); if (attached && iv) window.clearInterval(iv); }, 100);
+    return () => {
+      disposed = true;
+      if (iv) window.clearInterval(iv);
+      if (canvas && attached) canvas.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
+    };
   }, [region.regionMode, vkey]);
 
   // While dragging: track pointer on window so we don't lose the release even
