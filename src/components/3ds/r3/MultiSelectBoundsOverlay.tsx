@@ -64,17 +64,6 @@ export function MultiSelectBoundsOverlay({ objects }: Props) {
   return (
     <>
       <lineSegments ref={boxRef} geometry={geom} material={mat} renderOrder={999} />
-      <Html
-        as="div"
-        prepend
-        center
-        position={[0, 0, 0]}
-        style={{ pointerEvents: 'none' }}
-      >
-        <div style={{ position: 'absolute', transform: 'translate(-50%, -50%)' }}>
-          <div ref={labelW} style={labelStyle('#ffee00')} />
-        </div>
-      </Html>
       <BoundsLabels
         labelWRef={labelW}
         labelHRef={labelH}
