@@ -431,15 +431,19 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       return g;
     }
     case 'foliage': {
-      // Stylized silhouette per species: trunk cylinder + crown built from
-      // primitive volumes (sphere / cone stacks / radial blades / clumped
-      // spheres). Deterministic per seed with light jitter for variation.
-      const h = Math.max(0.1, p.height);
-      const crown = Math.max(0.1, p.crownRadius);
+      // Fractal recursive tree — mirrors the Three.js reference implementation:
+      // - Trunk = cylinder oriented along a direction vector.
+      // - Recursive sub-branches with per-node rotation offsets + gravity.
+      // - Leaves = cone primitives spawned at random along the last depths.
+      // Everything is merged into ONE indexed geometry with a `color` vertex
+      // attribute (bark = brown, leaves = green) so a single material renders
+      // both parts with the right hue via vertexColors=true in Object3D.
+      const h = Math.max(0.5, p.height);
+      const crown = Math.max(0.2, p.crownRadius);
       const density = Math.max(0.1, p.density);
       const seed = Math.max(1, p.seed | 0);
       const species = p.species | 0;
-      const leafSize = Math.max(0.02, p.leafSize);
+      const leafSize = Math.max(0.03, p.leafSize);
       const branchDensity = Math.max(0.1, p.branchDensity);
       const age = Math.max(0.1, p.age);
 
@@ -460,168 +464,142 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       const rr = (a: number, b: number) => a + (b - a) * rand();
 
       const kind = foliageKind(species);
-      const isPalm    = kind === 'palm';
-      const isPine    = kind === 'pine';
-      const isShrub   = kind === 'shrub';
-      const isWeeping = kind === 'weeping';
+      type Cfg = {
+        maxDepth: number; branchLoss: number; lengthLoss: number;
+        angleX: number; branchesPerNode: number;
+        trunkLength: number; trunkRadius: number;
+        gravityFactor: number; leafColor: [number, number, number];
+        leafSize: number; leafCountFactor: number;
+      };
+      const cfg: Cfg = (() => {
+        if (kind === 'pine') return {
+          maxDepth: 6, branchLoss: 0.85, lengthLoss: 0.70, angleX: 0.6,
+          branchesPerNode: 4, trunkLength: h * 0.75, trunkRadius: crown * 0.13 * age,
+          gravityFactor: 0.10, leafColor: [0.08, 0.24, 0.10],
+          leafSize: leafSize * 0.5, leafCountFactor: 3.0 * branchDensity,
+        };
+        if (kind === 'weeping') return {
+          maxDepth: 5, branchLoss: 0.72, lengthLoss: 0.82, angleX: 0.5,
+          branchesPerNode: 2, trunkLength: h * 0.55, trunkRadius: crown * 0.14 * age,
+          gravityFactor: -0.45, leafColor: [0.33, 0.48, 0.20],
+          leafSize, leafCountFactor: 2.5 * branchDensity,
+        };
+        if (kind === 'palm') return {
+          maxDepth: 3, branchLoss: 0.90, lengthLoss: 0.70, angleX: 0.95,
+          branchesPerNode: 5, trunkLength: h * 0.80, trunkRadius: crown * 0.10 * age,
+          gravityFactor: 0.35, leafColor: [0.14, 0.44, 0.15],
+          leafSize: leafSize * 1.6, leafCountFactor: 1.8 * branchDensity,
+        };
+        if (kind === 'shrub') return {
+          maxDepth: 4, branchLoss: 0.75, lengthLoss: 0.72, angleX: 0.55,
+          branchesPerNode: 3, trunkLength: h * 0.50, trunkRadius: crown * 0.08 * age,
+          gravityFactor: 0.05, leafColor: [0.28, 0.45, 0.18],
+          leafSize, leafCountFactor: 2.0 * branchDensity,
+        };
+        // broadleaf default (oak / birch / cherry / elm / banyan)
+        return {
+          maxDepth: 5, branchLoss: 0.75, lengthLoss: 0.75, angleX: 0.45,
+          branchesPerNode: 3, trunkLength: h * 0.62, trunkRadius: crown * 0.15 * age,
+          gravityFactor: 0.05, leafColor: [0.18, 0.36, 0.12],
+          leafSize, leafCountFactor: 1.5 * branchDensity,
+        };
+      })();
+      const BARK: [number, number, number] = [0.29, 0.20, 0.10];
 
-      const trunkParts: THREE.BufferGeometry[] = [];
-      const leafParts:  THREE.BufferGeometry[] = [];
+      const parts: Array<{ g: THREE.BufferGeometry; c: [number, number, number] }> = [];
+      const up = new THREE.Vector3(0, 1, 0);
 
-      const trunkR = h * (isShrub ? 0.02 : isPalm ? 0.03 : 0.06) * age;
+      const buildBranch = (
+        startPos: THREE.Vector3, direction: THREE.Vector3,
+        length: number, radius: number, depth: number,
+      ) => {
+        if (depth > cfg.maxDepth || length < 0.08 || radius < 0.005) return;
+        // Gravity / phototropism per depth.
+        const adjustedDir = direction.clone();
+        if (depth > 0) {
+          adjustedDir.y += cfg.gravityFactor * (depth / cfg.maxDepth);
+          adjustedDir.normalize();
+        }
+        const endPos = startPos.clone().add(adjustedDir.clone().multiplyScalar(length));
 
-      if (isShrub) {
-        // Clumped spheres, no trunk (like the "bush" reference).
-        const clumps = Math.max(4, Math.round(6 * density * branchDensity));
-        for (let i = 0; i < clumps; i++) {
-          const r = crown * rr(0.5, 0.9);
-          const sph = new THREE.SphereGeometry(r, 12, 12);
-          sph.translate(
-            rr(-1, 1) * crown * 0.7,
-            r * 0.9 + rr(0, crown * 0.4),
-            rr(-1, 1) * crown * 0.7,
+        // Branch cylinder oriented along adjustedDir, pivot at base.
+        const branchGeo = new THREE.CylinderGeometry(radius * cfg.branchLoss, radius, length, 7, 1);
+        branchGeo.translate(0, length / 2, 0);
+        const q = new THREE.Quaternion().setFromUnitVectors(up, adjustedDir);
+        branchGeo.applyQuaternion(q);
+        branchGeo.translate(startPos.x, startPos.y, startPos.z);
+        parts.push({ g: branchGeo, c: BARK });
+
+        // Leaves at last two depth levels.
+        if (depth >= cfg.maxDepth - 2) {
+          const leafCount = Math.max(
+            0,
+            Math.floor((cfg.maxDepth - depth + 1) * cfg.leafCountFactor * 3 * density),
           );
-          leafParts.push(sph);
-        }
-      } else if (isPine) {
-        // Trunk + stacked cones (like the "pine" reference).
-        const trunkH = h;
-        const trunk = new THREE.CylinderGeometry(trunkR * 0.6, trunkR, trunkH, 10);
-        trunk.translate(0, trunkH / 2, 0);
-        trunkParts.push(trunk);
-
-        const layers = Math.max(3, Math.round(4 * branchDensity));
-        const baseR = crown;
-        const layerH = h * 0.35;
-        const startY = h * 0.35;
-        for (let i = 0; i < layers; i++) {
-          const r = baseR - i * (baseR / (layers + 0.5));
-          const cone = new THREE.ConeGeometry(Math.max(0.05, r), layerH * rr(0.9, 1.1), 14);
-          cone.translate(0, startY + i * layerH * 0.55 + layerH / 2, 0);
-          leafParts.push(cone);
-        }
-      } else if (isPalm) {
-        // Tilted trunk + radial leaf blades (like the "palm" reference).
-        const trunkH = h;
-        const tilt = rr(-0.18, 0.18);
-        const trunk = new THREE.CylinderGeometry(trunkR * 0.55, trunkR, trunkH, 10);
-        trunk.translate(0, trunkH / 2, 0);
-        trunk.rotateZ(tilt);
-        trunkParts.push(trunk);
-
-        // Top of tilted trunk
-        const topX = Math.sin(tilt) * trunkH * 0.5 * -1;   // approx
-        const topY = Math.cos(tilt) * trunkH;
-        const fronds = Math.max(6, Math.round(9 * branchDensity));
-        for (let i = 0; i < fronds; i++) {
-          const bladeLen = crown * rr(1.6, 2.2);
-          const blade = new THREE.BoxGeometry(bladeLen, leafSize * 0.5, leafSize * 1.6);
-          // pivot at base: shift so left edge is origin
-          blade.translate(bladeLen / 2, 0, 0);
-          const ang = (i / fronds) * Math.PI * 2 + rr(-0.1, 0.1);
-          const droop = rr(0.35, 0.65);
-          const m = new THREE.Matrix4();
-          m.makeRotationZ(-droop);
-          blade.applyMatrix4(m);
-          m.makeRotationY(ang);
-          blade.applyMatrix4(m);
-          blade.translate(topX, topY, 0);
-          leafParts.push(blade);
-        }
-      } else if (isWeeping) {
-        // Trunk + rounded crown + drooping strands.
-        const trunkH = h * 0.55;
-        const trunk = new THREE.CylinderGeometry(trunkR * 0.75, trunkR, trunkH, 10);
-        trunk.translate(0, trunkH / 2, 0);
-        trunkParts.push(trunk);
-
-        // Flattened crown
-        const cy = trunkH + crown * 0.55;
-        const dome = new THREE.SphereGeometry(crown, 20, 20);
-        dome.scale(1.1, 0.75, 1.1);
-        dome.translate(0, cy, 0);
-        leafParts.push(dome);
-
-        // Drooping strands: thin tapered cones pointing down around the crown edge.
-        const strands = Math.round(20 * density);
-        for (let i = 0; i < strands; i++) {
-          const ang = (i / strands) * Math.PI * 2 + rr(-0.1, 0.1);
-          const rad = crown * rr(0.75, 1.0);
-          const droopLen = crown * rr(0.9, 1.4);
-          const strand = new THREE.ConeGeometry(leafSize * 0.6, droopLen, 6);
-          // Tip should point down; default cone points +Y, so flip
-          strand.rotateX(Math.PI);
-          strand.translate(Math.cos(ang) * rad, cy - droopLen / 2, Math.sin(ang) * rad);
-          leafParts.push(strand);
-        }
-      } else {
-        // Broadleaf (oak / birch / cherry / maple / elm / banyan / ficus / araucaria-ish).
-        // Trunk + spherical crown, with a couple satellite spheres for silhouette variety.
-        const trunkH = h * 0.55;
-        const trunk = new THREE.CylinderGeometry(trunkR * 0.75, trunkR, trunkH, 12);
-        trunk.translate(0, trunkH / 2, 0);
-        trunkParts.push(trunk);
-
-        // For "Big Palm-like" or "Araucaria-like" wide flat crowns we could
-        // squash the sphere; keep round for broadleaves.
-        const cy = trunkH + crown * 0.7;
-        const main = new THREE.SphereGeometry(crown, 22, 22);
-        main.translate(0, cy, 0);
-        leafParts.push(main);
-
-        const extras = Math.round(3 * density);
-        for (let i = 0; i < extras; i++) {
-          const r = crown * rr(0.45, 0.7);
-          const ang = rr(0, Math.PI * 2);
-          const rad = crown * rr(0.4, 0.8);
-          const sph = new THREE.SphereGeometry(r, 14, 14);
-          sph.translate(
-            Math.cos(ang) * rad,
-            cy + rr(-crown * 0.3, crown * 0.4),
-            Math.sin(ang) * rad,
-          );
-          leafParts.push(sph);
+          for (let i = 0; i < leafCount; i++) {
+            const t = rand();
+            const pos = new THREE.Vector3().lerpVectors(startPos, endPos, t);
+            pos.x += (rand() - 0.5) * (length * 0.4);
+            pos.y += (rand() - 0.5) * (length * 0.4);
+            pos.z += (rand() - 0.5) * (length * 0.4);
+            const sc = 0.7 + rand() * 0.6;
+            const leaf = new THREE.ConeGeometry(cfg.leafSize * sc, cfg.leafSize * 2.5 * sc, 3);
+            leaf.rotateX(Math.PI / 2);
+            const qe = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+              rand() * Math.PI, rand() * Math.PI, rand() * Math.PI,
+            ));
+            leaf.applyQuaternion(qe);
+            leaf.translate(pos.x, pos.y, pos.z);
+            parts.push({ g: leaf, c: cfg.leafColor });
+          }
         }
 
-        // A few branch stubs poking into the crown for detail.
-        const stubs = Math.round(3 * branchDensity);
-        for (let i = 0; i < stubs; i++) {
-          const ang = (i / Math.max(1, stubs)) * Math.PI * 2 + rr(-0.4, 0.4);
-          const tilt = rr(0.3, 0.7);
-          const len = crown * rr(0.6, 0.9);
-          const br = new THREE.CylinderGeometry(trunkR * 0.25, trunkR * 0.45, len, 6);
-          br.translate(0, len / 2, 0);
-          const m = new THREE.Matrix4();
-          m.makeRotationZ(tilt);
-          br.applyMatrix4(m);
-          m.makeRotationY(ang);
-          br.applyMatrix4(m);
-          br.translate(0, trunkH, 0);
-          trunkParts.push(br);
+        // Recurse.
+        const nextDepth = depth + 1;
+        const nextLength = length * cfg.lengthLoss;
+        const nextRadius = radius * cfg.branchLoss;
+        for (let i = 0; i < cfg.branchesPerNode; i++) {
+          const angleOffset = (i * (Math.PI * 2 / cfg.branchesPerNode)) + rand() * 0.2;
+          const branchDir = adjustedDir.clone();
+          const rx = (rand() * 0.3 + cfg.angleX) * (rand() > 0.5 ? 1 : -1);
+          const dummyAxis = new THREE.Vector3(Math.cos(angleOffset), 0, Math.sin(angleOffset)).normalize();
+          branchDir.applyAxisAngle(dummyAxis, rx);
+          branchDir.normalize();
+          buildBranch(endPos, branchDir, nextLength, nextRadius, nextDepth);
         }
-      }
+      };
 
-      // Merge trunk parts and leaf parts into two groups so a materials array
-      // (bark, leaves) could render them differently. With a single material
-      // it just renders as one solid mesh — fine for now.
-      const all: THREE.BufferGeometry[] = [];
-      if (trunkParts.length) {
-        const bg = mergeGeometries(trunkParts, false);
-        if (bg) all.push(bg);
-      }
-      if (leafParts.length) {
-        const lg = mergeGeometries(leafParts, false);
-        if (lg) all.push(lg);
-      }
-      const merged = all.length ? mergeGeometries(all, true) : null;
+      buildBranch(
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        cfg.trunkLength,
+        cfg.trunkRadius,
+        0,
+      );
+
+      // Bake per-vertex color on each part so a single-material mesh still
+      // shows bark vs foliage colors via vertexColors=true.
+      const colored = parts.map(({ g, c }) => {
+        const count = g.attributes.position.count;
+        const arr = new Float32Array(count * 3);
+        for (let i = 0; i < count; i++) {
+          arr[i * 3] = c[0]; arr[i * 3 + 1] = c[1]; arr[i * 3 + 2] = c[2];
+        }
+        g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+        return g;
+      });
+
+      const merged = colored.length ? mergeGeometries(colored, false) : null;
       if (merged) {
         merged.computeVertexNormals();
+        (merged as any).userData = { ...(merged as any).userData, hasVertexColors: true };
         return merged;
       }
-      const fb = new THREE.CylinderGeometry(trunkR, trunkR, h, 8);
+      const fb = new THREE.CylinderGeometry(cfg.trunkRadius, cfg.trunkRadius, h, 8);
       fb.translate(0, h / 2, 0);
       return fb;
     }
+
   }
 }
 
