@@ -1434,6 +1434,7 @@ export const Studio3D = () => {
       for (const did of idsToDelete) delete next[did];
       return next;
     });
+    setSelectedObjectIds((prev) => prev.filter((sid) => !idsToDelete.has(sid)));
     if (selectedObject && idsToDelete.has(selectedObject)) setSelectedObject(null);
     // NOTE: we intentionally do NOT purge the imported-model cache or the
     // persisted blob here. If we did, an Undo restoring this object would
@@ -1818,15 +1819,19 @@ export const Studio3D = () => {
 
 
   const handleDeleteSelected = useCallback(() => {
-    if (selectedObject) deleteObject(selectedObject);
-  }, [selectedObject, deleteObject]);
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    ids.forEach((id) => deleteObject(id));
+  }, [selectedObjectIds, selectedObject, deleteObject]);
 
   const handleSelectAll = useCallback(() => {
-    toast.info('Multi-selection not yet implemented');
-  }, []);
+    const ids = objects.filter((o) => o.visible !== false && !o.isGroup).map((o) => o.id);
+    setSelectedObjectIds(ids);
+    setSelectedObject(ids[ids.length - 1] ?? null);
+  }, [objects]);
 
   const handleDeselectAll = useCallback(() => {
     setSelectedObject(null);
+    setSelectedObjectIds([]);
   }, []);
 
   const handleFocusSelected = useCallback(() => {
@@ -2285,6 +2290,7 @@ export const Studio3D = () => {
               availableCameras={objects.filter((o) => o.type === 'camera_target' || o.type === 'camera_free')}
 
               selectedObject={selectedObject}
+              selectedObjectIds={selectedObjectIds}
               selectedSubUuid={selectedSubUuid}
               onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
               onTransformObject={handleTransformObject}
