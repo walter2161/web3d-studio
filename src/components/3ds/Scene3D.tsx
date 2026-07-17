@@ -144,6 +144,25 @@ export const Scene3D = ({
   >(null);
   const importedSubActive = selectedObjectData?.type === 'imported' && !!selectedSubUuid;
 
+  // ---- Modifier Gizmo / Center sub-object ------------------------------------
+  // Bend / Twist / Taper / Noise expose a Gizmo and a Center sub-object in the
+  // modifier stack (3ds Max style). When one is active, we mount a proxy inside
+  // the object's local frame and TransformControls attaches to it. Drag end
+  // dispatches r3-modifier-gizmo-op → Studio3D writes params.gizmo / params.center.
+  const [modSub, setModSub] = useState<ModifierSubSelection | null>(getModifierSub());
+  useEffect(() => subscribeModifierSub(setModSub), []);
+  const [modGizmoProxy, setModGizmoProxy] = useState<THREE.Object3D | null>(null);
+  const activeGizmoModifier = useMemo(() => {
+    if (!selectedObjectData || !modSub || modSub.objectId !== selectedObjectData.id) return null;
+    return (selectedObjectData.modifiers ?? []).find(
+      (m: any) => m.id === modSub.modifierId && m.active,
+    ) || null;
+  }, [selectedObjectData, modSub]);
+  const modGizmoActive = !!activeGizmoModifier && !!modSub && !!modGizmoProxy;
+  const modGizmoDragStartRef = useRef<
+    { pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number] } | null
+  >(null);
+
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
   if (selectedObjectData?.type === 'imported' && selectedSubUuid) {
@@ -159,6 +178,9 @@ export const Scene3D = ({
   }
   if (boneJointActive && boneJointTarget) {
     transformTarget = boneJointTarget;
+  }
+  if (modGizmoActive && modGizmoProxy) {
+    transformTarget = modGizmoProxy;
   }
 
 
