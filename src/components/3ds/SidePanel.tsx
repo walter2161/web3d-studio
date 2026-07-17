@@ -410,7 +410,7 @@ export const SidePanel = ({
     { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
-    { type: 'foliage',  label: 'Foliage',  disabled: true },
+    { type: 'foliage',  label: 'Foliage' },
   ];
 
   // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
