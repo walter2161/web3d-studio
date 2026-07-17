@@ -296,8 +296,23 @@ export const Scene3D = ({
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
             if (!boneJointActive && !subGizmoActive && !importedSubActive && !modGizmoActive && selectedObject) {
+              // Snapshot every selected node's TRS so undo restores the whole set.
               window.dispatchEvent(new CustomEvent('r3-transform-start', { detail: { objectId: selectedObject } }));
             }
+            if (multiActive && multiProxy) {
+              multiStartRef.current = {
+                proxyPos: multiProxy.position.clone(),
+                proxyQuat: multiProxy.quaternion.clone(),
+                proxyScale: multiProxy.scale.clone(),
+                items: selectedList.map((o) => ({
+                  id: o.id,
+                  pos: new THREE.Vector3(o.position[0], o.position[1], o.position[2]),
+                  quat: new THREE.Quaternion().setFromEuler(new THREE.Euler(o.rotation[0], o.rotation[1], o.rotation[2])),
+                  scale: new THREE.Vector3(o.scale[0], o.scale[1], o.scale[2]),
+                })),
+              };
+            }
+
             if (boneJointActive && boneJointTarget) {
               boneJointDragStartRef.current = boneJointTarget.rotation.clone();
             }
