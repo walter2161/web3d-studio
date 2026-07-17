@@ -53,7 +53,7 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
   );
 
   return (
-    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Bem-vindo ao 3de.app" width={520}>
+    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Bem-vindo ao Walt3D" width={520}>
       {/* Banner */}
       <div
         className="bevel-inset flex items-center justify-center text-white"
@@ -64,7 +64,7 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
       >
         <div className="text-center leading-tight">
           <div style={{ fontFamily: 'serif', fontSize: 34, fontWeight: 'bold', letterSpacing: 1 }}>
-            3de<span style={{ color: '#ffcc00' }}>.app</span>
+            Walt<span style={{ color: '#ffcc00' }}>3D</span>
           </div>
           <div className="text-[10px] tracking-[0.3em] opacity-90">web 3d modeler</div>
         </div>
@@ -80,10 +80,10 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
         {tab === 'welcome' && (
           <div className="text-[11px] text-win-text leading-snug flex flex-col gap-2" style={{ textTransform: 'lowercase' }}>
             <p>
-              aviso legal: o 3de.app é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
+              aviso legal: o walt3d é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
             </p>
             <p>
-              acesso gratuito (demo): o app pode ser utilizado sem login em modo demonstração, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao 3de.app é necessário possuir uma assinatura ativa. veja a aba "assinatura" para mais detalhes.
+              acesso gratuito (demo): o app pode ser utilizado sem login em modo demonstração, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao walt3d é necessário possuir uma assinatura ativa. veja a aba "assinatura" para mais detalhes.
             </p>
           </div>
         )}

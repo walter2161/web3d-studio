@@ -41,7 +41,7 @@ const menuItems: { label: string; access: string; items: MenuEntry[] }[] = [
   { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
   { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', { label: 'Interface', sub: ['Interface: Classic', 'Interface: Flat', 'Interface: Game'] }, { label: 'Language', sub: ['Language: English', 'Language: Português', 'Language: Español'] }, 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
-  { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About 3De...'] },
+  { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About Walt3D...'] },
 ];
 
 

@@ -2080,7 +2080,7 @@ export const Studio3D = () => {
       case 'Units Setup...': setUnitsOpen(true); break;
       case 'Grid and Snap Settings...': setSnapSettingsOpen(true); break;
       case 'Welcome...': setWelcomeOpen(true); break;
-      case 'About 3De...': setAboutOpen(true); break;
+      case 'About Walt3D...': setAboutOpen(true); break;
       case 'Layout: Single': setViewportLayout('single'); break;
       case 'Layout: Quad (3 Wire + Persp)': setViewportLayout('quad'); break;
       case 'Layout: 2 Cols — Top (Wire) + Persp': setViewportLayout('2col-top-persp'); break;
@@ -2129,7 +2129,7 @@ export const Studio3D = () => {
       <div className="titlebar-gradient h-[20px] px-1.5 flex items-center justify-between text-[11px] font-bold shrink-0">
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 bevel-raised bg-win-face flex items-center justify-center text-[10px] text-win-title">3</div>
-          <span>{currentCloudScene ? `${currentCloudScene.name} - 3De` : 'Untitled - 3De'}</span>
+          <span>{currentCloudScene ? `${currentCloudScene.name} - Walt3D` : 'Untitled - Walt3D'}</span>
           <span className="ml-3 font-normal opacity-90">
             {user ? `● ${user.email}${isAdmin ? ' (admin)' : ''}` : '○ not logged in'}
           </span>

@@ -84,7 +84,7 @@ const dict: Record<Lang, Record<string, string>> = {
     'Run Script...': 'Executar Script...', 'MAXScript Listener': 'Listener MAXScript',
     // Help
     'User Reference': 'Referência do Usuário', 'MAXScript Reference': 'Referência MAXScript',
-    Tutorials: 'Tutoriais', 'Welcome...': 'Bem-vindo...', 'About 3De...': 'Sobre 3De...',
+    Tutorials: 'Tutoriais', 'Welcome...': 'Bem-vindo...', 'About Walt3D...': 'Sobre Walt3D...',
     // Common UI
     OK: 'OK', Cancel: 'Cancelar', Apply: 'Aplicar', Yes: 'Sim', No: 'Não',
     Name: 'Nome', Color: 'Cor', Size: 'Tamanho', Position: 'Posição', Rotation: 'Rotação',
@@ -191,7 +191,7 @@ const dict: Record<Lang, Record<string, string>> = {
     'New Script': 'Nuevo Script', 'Open Script...': 'Abrir Script...',
     'Run Script...': 'Ejecutar Script...', 'MAXScript Listener': 'Listener MAXScript',
     'User Reference': 'Referencia del Usuario', 'MAXScript Reference': 'Referencia MAXScript',
-    Tutorials: 'Tutoriales', 'Welcome...': 'Bienvenido...', 'About 3De...': 'Acerca de 3De...',
+    Tutorials: 'Tutoriales', 'Welcome...': 'Bienvenido...', 'About Walt3D...': 'Acerca de Walt3D...',
     OK: 'OK', Cancel: 'Cancelar', Apply: 'Aplicar', Yes: 'Sí', No: 'No',
     Name: 'Nombre', Color: 'Color', Size: 'Tamaño', Position: 'Posición', Rotation: 'Rotación',
     Scale: 'Escala', Width: 'Ancho', Height: 'Altura', Length: 'Longitud',
