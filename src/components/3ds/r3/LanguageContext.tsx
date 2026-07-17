@@ -153,7 +153,7 @@ const dict: Record<Lang, Record<string, string>> = {
     'Fill in the fields below to request your subscription — access is manually granted by the administrator after payment confirmation.':
       'Preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.',
     'Name:': 'Nome:', 'E-mail:': 'E-mail:', 'Reason:': 'Motivo:',
-    Close: 'Fechar', '← Back': '← Voltar',
+    '← Back': '← Voltar',
     'Sending...': 'Enviando...',
     'Send registration request': 'Enviar pedido de registro',
     'Please enter your e-mail': 'Informe seu e-mail',
