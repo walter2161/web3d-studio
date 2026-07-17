@@ -19,6 +19,7 @@ import {
   getSplineSel, setSplineSel, subscribeSplineSel,
 } from './editable/splineSelStore';
 import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
+import { MultiSelectBoundsOverlay } from './r3/MultiSelectBoundsOverlay';
 import {
   getModifierSub, subscribeModifierSub, type ModifierSubSelection,
 } from './r3/modifierSubStore';
