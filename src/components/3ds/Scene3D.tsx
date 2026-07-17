@@ -278,7 +278,21 @@ export const Scene3D = ({
           Cameras, Splines, Bones or any mix, because everything shares the
           same Position/Rotation/Scale interface). */}
       {multiActive && (
-        <object3D ref={setMultiProxy} position={multiCenter} />
+        <object3D
+          ref={(o) => {
+            setMultiProxy(o);
+            // Seat the proxy at the selection centroid only when no drag is in
+            // progress. During a drag the ref callback may fire on re-renders
+            // triggered by r3-transform-many; resetting the position there would
+            // fight the TransformControls delta.
+            if (o && !multiStartRef.current) {
+              o.position.set(multiCenter[0], multiCenter[1], multiCenter[2]);
+              o.rotation.set(0, 0, 0);
+              o.scale.set(1, 1, 1);
+              o.updateMatrixWorld(true);
+            }
+          }}
+        />
       )}
 
       {selectedObject && transformTarget && (!multiActive || multiProxy) && (
