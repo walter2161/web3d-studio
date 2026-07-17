@@ -1797,7 +1797,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   // Ambient / Skylight are non-directional and don't need helpers beyond an icon.
   if (t === 'light_ambient') {
     return (
-      <group ref={groupRef} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
         <ambientLight color={object.color} intensity={ambientIntensity} />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <sphereGeometry args={[0.25, 8, 6]} />
@@ -1808,7 +1808,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   }
   if (t === 'light_skylight') {
     return (
-      <group ref={groupRef} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
         <hemisphereLight
           color={object.lightData?.skyColor || object.color}
           groundColor={object.lightData?.groundColor || '#404040'}
@@ -1823,7 +1823,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   }
   if (t === 'light_omni') {
     return (
-      <group ref={groupRef} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
         <pointLight
           ref={pointLightRef}
           color={object.color}
@@ -1849,7 +1849,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     const angle = object.lightData?.angle ?? Math.PI / 6;
     const dist = object.lightData?.distance ?? 10;
     return (
-      <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
         {/* SpotLight in three.js emits down -Z; child target at (0,0,-1) does that automatically */}
         <spotLight
           ref={spotLightRef}
