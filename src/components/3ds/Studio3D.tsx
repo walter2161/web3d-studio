@@ -1562,10 +1562,23 @@ export const Studio3D = () => {
 
 
   const handleTransformObject = useCallback((id: string, transform: any) => {
-    setObjects(prev => prev.map(obj => 
+    // Route through r3-transform-many so hierarchical cascade (Select and Link)
+    // applies uniformly — the listener handles descendant propagation.
+    const cur = objectsRef.current.find((o) => o.id === id);
+    if (cur && (transform.position || transform.rotation || transform.scale)) {
+      window.dispatchEvent(new CustomEvent('r3-transform-many', { detail: { updates: [{
+        id,
+        position: transform.position ?? cur.position,
+        rotation: transform.rotation ?? cur.rotation,
+        scale: transform.scale ?? cur.scale,
+      }] } }));
+      return;
+    }
+    setObjects(prev => prev.map(obj =>
       obj.id === id ? { ...obj, ...transform } : obj
     ));
   }, []);
+
 
   // Object operations
   const deleteObject = useCallback((id: string) => {
