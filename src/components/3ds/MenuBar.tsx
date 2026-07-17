@@ -27,10 +27,6 @@ interface MenuBarProps {
 }
 
 // R3 menu list. Underlined access-key hint via <u>.
-const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] = [
-  { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'Export Cloud...', 'Import Cloud...', 'sep', 'Import...', 'Export...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
-  { label: 'Edit', access: 'E', items: ['Undo', 'Redo', 'sep', 'Hold', 'Fetch', 'sep', 'Delete', 'Clone', 'sep', 'Select All', 'Select None', 'Select Invert', 'sep', 'Region', 'Object Properties...'] },
-  { label: 'Group', access: 'G', items: ['Group', 'Ungroup', 'Open', 'Close', 'Attach', 'Detach', 'Explode'] },
 type MenuEntry = string | 'sep' | { label: string; sub: string[] };
 const menuItems: { label: string; access: string; items: MenuEntry[] }[] = [
   { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'Export Cloud...', 'Import Cloud...', 'sep', 'Import...', 'Export...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
