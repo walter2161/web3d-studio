@@ -145,6 +145,9 @@ function buildGhost(
     case 'oilTank':
     case 'spindle':
     case 'gengon':
+    case 'capsule':
+    case 'hose':
+    case 'tube':
     case 'helix': {
       // Stage 0: radius from center. Stage 1+: freeze radius, drag height.
       const r = stage === 0 ? Math.max(0.001, baseDist) : (prev?.geometry?.radius ?? 0.001);
