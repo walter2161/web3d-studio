@@ -1629,22 +1629,27 @@ export const Studio3D = () => {
         const now = Date.now();
         const prefix = isDwg ? 'DWG' : 'DXF';
         const newObjs: Object3DData[] = result.walls.map((w, i) => ({
-          id: `wall_${prefix.toLowerCase()}_${now}_${i}`,
-          name: (w.layer ? `${w.layer}_` : `${prefix}_`) + `wall${i + 1}`,
-          type: 'wall' as any,
+          id: `line_${prefix.toLowerCase()}_${now}_${i}`,
+          name: (w.layer ? `${w.layer}_` : `${prefix}_`) + `line${i + 1}`,
+          type: 'line' as any,
           position: w.position,
           rotation: [0, 0, 0],
           scale: [1, 1, 1],
-          color: '#c9bfae',
+          color: '#ffcc33',
           visible: true,
           locked: false,
           modifiers: [],
           geometry: {
-            path: w.path,
-            width: 0.2,
-            height: 2.7,
-            justification: 'center',
+            knots: w.path.map((p) => ({
+              pos: [p[0], p[1], p[2]] as [number, number, number],
+              inH: [0, 0, 0] as [number, number, number],
+              outH: [0, 0, 0] as [number, number, number],
+            })),
             closed: w.closed,
+            // Rendering (extrusion) OFF by default — imported DXF/DWG stay as
+            // 2D vectors / splines, matching 3ds Max shape import behavior.
+            renderable: false,
+            displayRenderMesh: false,
           },
           ref: { current: null } as any,
         }));
@@ -1657,7 +1662,7 @@ export const Studio3D = () => {
           ? ` Ignorado: ${Object.entries(result.ignoredEntities).map(([k, v]) => `${k}×${v}`).join(', ')}.`
           : '';
         toast.success(
-          `${prefix} importado: ${result.walls.length} parede(s), ${bx.toFixed(1)}×${by.toFixed(1)}m (units: ${result.units}).${ignoredNote}`,
+          `${prefix} importado: ${result.walls.length} spline(s), ${bx.toFixed(1)}×${by.toFixed(1)}m (units: ${result.units}).${ignoredNote}`,
           { duration: 7000 },
         );
       } catch (err: any) {
