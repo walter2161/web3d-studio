@@ -636,11 +636,11 @@ export const SidePanel = ({
               <select
                 value={createCategory === 'extended' ? 'extended'
                       : createCategory === 'aec' ? 'aec'
+                      : createCategory === 'foliage' ? 'foliage'
                       : createCategory === 'compound' ? 'compound'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
-                  // Leaving compound category cancels any pending boolean pick.
                   if (e.target.value !== 'compound') onCancelCompound?.();
                 }}
                 className="w-full h-[22px] text-[11px] bevel-sunken bg-win-face px-1 text-win-text"
@@ -648,6 +648,7 @@ export const SidePanel = ({
                 <option value="standard">Standard Primitives</option>
                 <option value="extended">Extended Primitives</option>
                 <option value="aec">AEC Extended</option>
+                <option value="foliage">AEC Foliage</option>
                 <option value="compound">Compound Objects</option>
               </select>
             )}
