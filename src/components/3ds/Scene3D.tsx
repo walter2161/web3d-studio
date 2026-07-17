@@ -273,6 +273,9 @@ export const Scene3D = ({
       {/* Editable Spline sub-object overlay for the selected editable_spline. */}
       <EditableSplineOverlay selectedObject={selectedObjectData} />
 
+      {/* Multi-selection total bounding box (W/D/H) — 3ds Max style. */}
+      {isMulti && <MultiSelectBoundsOverlay objects={selectedList as any} />}
+
 
 
 
