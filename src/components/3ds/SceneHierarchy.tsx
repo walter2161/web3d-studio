@@ -263,7 +263,7 @@ export const SceneHierarchy = ({
               No objects in scene
             </div>
           ) : (
-            objects.map((obj) => renderObject(obj))
+            objects.filter((o: any) => !o.groupId).map((obj) => renderObject(obj))
           )}
         </div>
       </CardContent>
