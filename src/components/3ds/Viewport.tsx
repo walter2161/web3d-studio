@@ -350,6 +350,7 @@ export const Viewport = ({
           snapAngleDeg={snapAngleDeg}
           snapPercent={snapPercent}
           activeCameraId={cameraObjectId || null}
+          isActiveViewport={isActive}
         />
 
 
