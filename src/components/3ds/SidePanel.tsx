@@ -13,6 +13,7 @@ import { EditableSplinePanel } from './r3/EditableSplinePanel';
 import { RigHierarchyPanel } from './r3/RigHierarchyPanel';
 import { setSplineSel, getSplineSel, subscribeSplineSel } from './editable/splineSelStore';
 import type { SplineSubLevel } from './editable/EditableSpline';
+import { setModifierSub, GIZMO_MODIFIER_TYPES } from './r3/modifierSubStore';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
@@ -1033,6 +1034,41 @@ export const SidePanel = ({
                                 >
                                   <span className={cn('w-[8px] h-[8px] inline-block', activeLvl ? 'bg-win-highlight border border-white' : 'border border-win-shadow')} />
                                   <span className="flex-1 truncate">{lvl}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Deformation-modifier sub-objects: Gizmo + Center (3ds Max style).
+                            Clicking sets modifierSubStore so Scene3D reattaches
+                            TransformControls to the gizmo/center proxy. */}
+                        {expanded && GIZMO_MODIFIER_TYPES.has(m.type) && (
+                          <div className="border-l border-dashed border-win-shadow ml-[14px]">
+                            {(['Gizmo', 'Center'] as const).map((lbl) => {
+                              const part = lbl.toLowerCase() as 'gizmo' | 'center';
+                              const childId = `${m.id}:${part}`;
+                              const childSelected = selectedStackItem === childId;
+                              return (
+                                <div
+                                  key={childId}
+                                  className={cn(
+                                    'flex items-center gap-[4px] h-[16px] pl-[16px] pr-[2px] text-[11px] cursor-pointer',
+                                    childSelected ? 'bg-[#7a1f2b] text-white font-semibold' : 'text-black hover:bg-win-face-shadow/40',
+                                  )}
+                                  onClick={() => {
+                                    setSelectedStackItem(childId);
+                                    setModifierSub({ objectId: selectedObject.id, modifierId: m.id, part });
+                                  }}
+                                >
+                                  <span
+                                    className={cn(
+                                      'w-[8px] h-[8px] inline-block',
+                                      part === 'gizmo'
+                                        ? 'bg-[#f5c518] border border-win-shadow'
+                                        : 'bg-[#4aa3ff] rounded-full border border-win-shadow',
+                                    )}
+                                  />
+                                  <span className="flex-1 truncate">{lbl}</span>
                                 </div>
                               );
                             })}

@@ -18,6 +18,10 @@ import { EditableSpline } from './editable/EditableSpline';
 import {
   getSplineSel, setSplineSel, subscribeSplineSel,
 } from './editable/splineSelStore';
+import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
+import {
+  getModifierSub, subscribeModifierSub, type ModifierSubSelection,
+} from './r3/modifierSubStore';
 
 interface Scene3DProps {
   objects: any[];
@@ -140,6 +144,25 @@ export const Scene3D = ({
   >(null);
   const importedSubActive = selectedObjectData?.type === 'imported' && !!selectedSubUuid;
 
+  // ---- Modifier Gizmo / Center sub-object ------------------------------------
+  // Bend / Twist / Taper / Noise expose a Gizmo and a Center sub-object in the
+  // modifier stack (3ds Max style). When one is active, we mount a proxy inside
+  // the object's local frame and TransformControls attaches to it. Drag end
+  // dispatches r3-modifier-gizmo-op → Studio3D writes params.gizmo / params.center.
+  const [modSub, setModSub] = useState<ModifierSubSelection | null>(getModifierSub());
+  useEffect(() => subscribeModifierSub(setModSub), []);
+  const [modGizmoProxy, setModGizmoProxy] = useState<THREE.Object3D | null>(null);
+  const activeGizmoModifier = useMemo(() => {
+    if (!selectedObjectData || !modSub || modSub.objectId !== selectedObjectData.id) return null;
+    return (selectedObjectData.modifiers ?? []).find(
+      (m: any) => m.id === modSub.modifierId && m.active,
+    ) || null;
+  }, [selectedObjectData, modSub]);
+  const modGizmoActive = !!activeGizmoModifier && !!modSub && !!modGizmoProxy;
+  const modGizmoDragStartRef = useRef<
+    { pos: [number, number, number]; rot: [number, number, number]; scale: [number, number, number] } | null
+  >(null);
+
   // Resolve the actual THREE.Object3D that TransformControls should attach to.
   let transformTarget: any = selectedObjectData?.ref?.current || null;
   if (selectedObjectData?.type === 'imported' && selectedSubUuid) {
@@ -155,6 +178,9 @@ export const Scene3D = ({
   }
   if (boneJointActive && boneJointTarget) {
     transformTarget = boneJointTarget;
+  }
+  if (modGizmoActive && modGizmoProxy) {
+    transformTarget = modGizmoProxy;
   }
 
 
@@ -205,6 +231,16 @@ export const Scene3D = ({
         </group>
       )}
 
+      {/* Modifier Gizmo / Center overlay (Bend / Twist / Taper / Noise). */}
+      {modSub && activeGizmoModifier && selectedObjectData && (
+        <ModifierGizmoOverlay
+          object={selectedObjectData}
+          modifier={activeGizmoModifier}
+          part={modSub.part}
+          onProxyReady={setModGizmoProxy}
+        />
+      )}
+
       {selectedObject && transformTarget && (
         <TransformControls
           ref={transformControlsRef}
@@ -234,6 +270,16 @@ export const Scene3D = ({
               const r = transformTarget.rotation;
               const s = transformTarget.scale;
               importedSubDragStartRef.current = {
+                pos: [p.x, p.y, p.z],
+                rot: [r.x, r.y, r.z],
+                scale: [s.x, s.y, s.z],
+              };
+            }
+            if (modGizmoActive && modGizmoProxy) {
+              const p = modGizmoProxy.position;
+              const r = modGizmoProxy.rotation;
+              const s = modGizmoProxy.scale;
+              modGizmoDragStartRef.current = {
                 pos: [p.x, p.y, p.z],
                 rot: [r.x, r.y, r.z],
                 scale: [s.x, s.y, s.z],
@@ -277,6 +323,23 @@ export const Scene3D = ({
               subDragPivotRef.current = null;
               subDragOpKeyRef.current = null;
               subDragMovedRef.current = false;
+            }
+            if (modGizmoActive && modGizmoProxy && activeGizmoModifier && modSub && selectedObject) {
+              const p = modGizmoProxy.position;
+              const r = modGizmoProxy.rotation;
+              const s = modGizmoProxy.scale;
+              window.dispatchEvent(new CustomEvent('r3-modifier-gizmo-op', {
+                detail: {
+                  objectId: selectedObject,
+                  modifierId: activeGizmoModifier.id,
+                  part: modSub.part,
+                  pos: [p.x, p.y, p.z],
+                  rot: [r.x, r.y, r.z],
+                  scale: [s.x, s.y, s.z],
+                  commit: true,
+                },
+              }));
+              modGizmoDragStartRef.current = null;
             }
           }}
           onObjectChange={(e: any) => {
@@ -346,6 +409,24 @@ export const Scene3D = ({
                   }));
                 }
               }
+              return;
+            }
+            if (modGizmoActive) {
+              if (!modGizmoProxy || !activeGizmoModifier || !modSub || !selectedObject) return;
+              const p = modGizmoProxy.position;
+              const r = modGizmoProxy.rotation;
+              const s = modGizmoProxy.scale;
+              window.dispatchEvent(new CustomEvent('r3-modifier-gizmo-op', {
+                detail: {
+                  objectId: selectedObject,
+                  modifierId: activeGizmoModifier.id,
+                  part: modSub.part,
+                  pos: [p.x, p.y, p.z],
+                  rot: [r.x, r.y, r.z],
+                  scale: [s.x, s.y, s.z],
+                  commit: false,
+                },
+              }));
               return;
             }
             if (e?.target?.object && !selectedSubUuid) {

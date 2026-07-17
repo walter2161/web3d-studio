@@ -1184,7 +1184,85 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // 3ds Max-style Bend: bends geometry along the chosen axis by `angle`,
   // with `direction` rotating the bend plane around that axis, and optional
   // limits that restrict the bend region (outside → rigid tangent extension).
+  /**
+   * Build the gizmo → mesh matrices from `params.gizmo` + `params.center` and
+   * temporarily transform `geometry`'s position buffer *into* gizmo space so
+   * the modifier math (which is hardcoded around local axes / origin) sees
+   * vertices in the user-chosen frame. After `deform()` runs, positions are
+   * transformed back to mesh-local space. This is exactly how 3ds Max lets a
+   * gizmo move / rotate / scale the deformation region without touching the
+   * mesh transform.
+   */
+  function withGizmoSpace(
+    geometry: BufferGeometry,
+    params: any,
+    deform: (g: BufferGeometry, p: any) => BufferGeometry,
+  ): BufferGeometry {
+    const g = params?.gizmo || {};
+    const c = params?.center || {};
+    const gPos = Array.isArray(g.pos) ? g.pos : [0, 0, 0];
+    const gRot = Array.isArray(g.rot) ? g.rot : [0, 0, 0];
+    const gScl = Array.isArray(g.scale) ? g.scale : [1, 1, 1];
+    const cPos = Array.isArray(c.pos) ? c.pos : [0, 0, 0];
+
+    const hasGizmo =
+      gPos[0] || gPos[1] || gPos[2] ||
+      gRot[0] || gRot[1] || gRot[2] ||
+      (gScl[0] !== 1) || (gScl[1] !== 1) || (gScl[2] !== 1) ||
+      cPos[0] || cPos[1] || cPos[2];
+
+    if (!hasGizmo) return deform(geometry, params);
+
+    const G = new THREE.Matrix4().compose(
+      new THREE.Vector3(gPos[0], gPos[1], gPos[2]),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(gRot[0], gRot[1], gRot[2], 'XYZ')),
+      new THREE.Vector3(gScl[0] || 1, gScl[1] || 1, gScl[2] || 1),
+    );
+    const Ginv = new THREE.Matrix4().copy(G).invert();
+
+    const pos = geometry.getAttribute('position');
+    const arr = pos.array as Float32Array;
+    const v = new THREE.Vector3();
+
+    // Mesh → gizmo space, subtract center offset.
+    for (let i = 0; i < arr.length; i += 3) {
+      v.set(arr[i], arr[i + 1], arr[i + 2]).applyMatrix4(Ginv);
+      arr[i] = v.x - cPos[0];
+      arr[i + 1] = v.y - cPos[1];
+      arr[i + 2] = v.z - cPos[2];
+    }
+    pos.needsUpdate = true;
+
+    deform(geometry, params);
+
+    // Re-read (deform() may have replaced the attribute via computeVertexNormals but
+    // not the position buffer — same reference is fine).
+    const pos2 = geometry.getAttribute('position');
+    const arr2 = pos2.array as Float32Array;
+    for (let i = 0; i < arr2.length; i += 3) {
+      v.set(arr2[i] + cPos[0], arr2[i + 1] + cPos[1], arr2[i + 2] + cPos[2]).applyMatrix4(G);
+      arr2[i] = v.x; arr2[i + 1] = v.y; arr2[i + 2] = v.z;
+    }
+    pos2.needsUpdate = true;
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  // Public wrappers apply the Gizmo/Center transform, then run the core math.
   function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyBendCore);
+  }
+  function applyTwist(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyTwistCore);
+  }
+  function applyTaper(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyTaperCore);
+  }
+  function applyNoise(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyNoiseCore);
+  }
+
+  function applyBendCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const direction = (params.direction || 0) * Math.PI / 180;
     const axisName = (params.bendAxis || 'Z') as 'X' | 'Y' | 'Z';
@@ -1264,7 +1342,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
-  function applyTwist(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyTwistCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const bias = params.bias || 0;
     
@@ -1289,7 +1367,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
-  function applyTaper(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyTaperCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const amount = params.amount || 0;
     const curve = params.curve || 0;
     
@@ -1311,7 +1389,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
-  function applyNoise(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyNoiseCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const scale = params.scale || 1;
     const strengthX = params.strengthX || 0;
     const strengthY = params.strengthY || 0;
