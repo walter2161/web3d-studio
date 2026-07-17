@@ -713,7 +713,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           if (ghostRef.current) commit(ghostRef.current);
           stageRef.current = null;
         } else {
-          stageRef.current = { ...s, stage: s.stage + 1 };
+          stageRef.current = { ...s, stage: s.stage + 1, heightStartClientY: e.clientY };
         }
       }
       e.preventDefault();
