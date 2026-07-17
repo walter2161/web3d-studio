@@ -167,6 +167,15 @@ export const Studio3D = () => {
   const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
   const [selectedSubUuid, setSelectedSubUuid] = useState<string | null>(null);
 
+  // Expose current selection to the StatusBar viewport nav (Zoom Extents Selected,
+  // Arc Rotate Selected). Uses a window-global so non-r3f code can read it
+  // without threading props through the entire viewport tree.
+  useEffect(() => {
+    (window as any).__r3SelectedIds = selectedObject ? [selectedObject] : [];
+  }, [selectedObject]);
+
+
+
   const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
   const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
