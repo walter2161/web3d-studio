@@ -1356,15 +1356,47 @@ export const Studio3D = () => {
     });
   }, [selectedObject, objects, compoundState.op, saveState]);
 
-  const handleSelectObject = useCallback((id: string | null) => {
+  const handleSelectObject = useCallback((id: string | null, additive = false, remove = false) => {
     // If a compound Boolean is waiting for Operand B, consume the click.
     if (id && compoundState.picking && compoundState.tool && selectedObject && id !== selectedObject) {
       performBoolean(id);
       return;
     }
+    if (!id) {
+      if (additive || remove) return;
+      setSelectedObject(null);
+      setSelectedObjectIds([]);
+      return;
+    }
+    if (remove) {
+      const next = selectedObjectIds.filter((sid) => sid !== id);
+      setSelectedObjectIds(next);
+      setSelectedObject(next[next.length - 1] ?? null);
+      return;
+    }
+    if (additive) {
+      const next = selectedObjectIds.includes(id) ? selectedObjectIds : [...selectedObjectIds, id];
+      setSelectedObjectIds(next);
+      setSelectedObject(id);
+      return;
+    }
     setSelectedObject(id);
-    setSelectedObjectIds(id ? [id] : []);
-  }, [compoundState.picking, compoundState.tool, selectedObject, performBoolean]);
+    setSelectedObjectIds([id]);
+  }, [compoundState.picking, compoundState.tool, selectedObject, selectedObjectIds, performBoolean]);
+
+  useEffect(() => {
+    const onTransformStart = (e: Event) => {
+      const id = (e as CustomEvent).detail?.objectId as string | undefined;
+      if (!id || !objectsRef.current.some((obj) => obj.id === id)) return;
+      setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+      undoOrderRef.current.push('objects');
+      setRedoStack([]);
+      redoOrderRef.current = [];
+      rigRedoRef.current = [];
+    };
+    window.addEventListener('r3-transform-start', onTransformStart as EventListener);
+    return () => window.removeEventListener('r3-transform-start', onTransformStart as EventListener);
+  }, []);
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
   // Until true multi-select lands, we pick the last matched id as the primary
