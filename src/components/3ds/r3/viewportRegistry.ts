@@ -24,3 +24,5 @@ export const unregisterViewport = (key: string) => {
 export const getViewportHandle = (key: string = 'perspective'): ViewportHandle | undefined => {
   return handles.get(key) ?? handles.values().next().value;
 };
+
+export const getAllViewportHandles = (): ViewportHandle[] => Array.from(handles.values());
