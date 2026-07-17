@@ -290,6 +290,113 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       // Triangular prism approximated as 3-sided cylinder.
       return new THREE.CylinderGeometry(p.side1 / 2, p.side1 / 2, p.height, 3);
     }
+    // ---------- Standard extras ----------
+    case 'teapot': {
+      const g = new TeapotGeometry(
+        p.radius, Math.max(2, p.segments | 0),
+        !!p.bottom, !!p.body, !!p.lid, false, !!p.spout, !!p.handle
+      );
+      return g;
+    }
+    case 'tube': {
+      // Two concentric cylinders + top/bottom rings via Lathe.
+      const r1 = Math.max(0.001, p.radius1);
+      const r2 = Math.max(0, Math.min(p.radius2, r1 - 0.001));
+      const h = p.height / 2;
+      const pts: THREE.Vector2[] = [
+        new THREE.Vector2(r2, -h),
+        new THREE.Vector2(r1, -h),
+        new THREE.Vector2(r1,  h),
+        new THREE.Vector2(r2,  h),
+        new THREE.Vector2(r2, -h),
+      ];
+      return new THREE.LatheGeometry(pts, Math.max(3, p.sides));
+    }
+    case 'pyramid': {
+      // 4-sided pyramid with a rectangular base.
+      const w = p.width / 2, d = p.depth / 2, h = p.height;
+      const verts = new Float32Array([
+        // base (two tris)
+        -w, 0, -d,   w, 0, -d,   w, 0,  d,
+        -w, 0, -d,   w, 0,  d,  -w, 0,  d,
+        // sides
+        -w, 0, -d,   0, h, 0,    w, 0, -d,
+         w, 0, -d,   0, h, 0,    w, 0,  d,
+         w, 0,  d,   0, h, 0,   -w, 0,  d,
+        -w, 0,  d,   0, h, 0,   -w, 0, -d,
+      ]);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      g.computeVertexNormals();
+      return g;
+    }
+    case 'geoSphere': {
+      const r = p.radius, det = Math.max(0, p.segments | 0);
+      switch (p.family) {
+        case 1: return new THREE.OctahedronGeometry(r, det);
+        case 2: return new THREE.TetrahedronGeometry(r);
+        default: return new THREE.IcosahedronGeometry(r, det);
+      }
+    }
+    // ---------- Extended extras ----------
+    case 'capsule': {
+      const r = Math.max(0.001, p.radius);
+      const h = Math.max(0.001, p.height);
+      return new THREE.CapsuleGeometry(r, h, Math.max(2, p.heightSegs | 0), Math.max(3, p.sides));
+    }
+    case 'lExt': {
+      // Extruded L-shape footprint. Front runs along +X, side along +Z.
+      const fl = p.frontLen, sl = p.sideLen, fw = p.frontWidth, sw = p.sideWidth;
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.lineTo(fl, 0);
+      shape.lineTo(fl, fw);
+      shape.lineTo(sw, fw);
+      shape.lineTo(sw, sl);
+      shape.lineTo(0, sl);
+      shape.lineTo(0, 0);
+      const g = new THREE.ExtrudeGeometry(shape, { depth: p.height, bevelEnabled: false });
+      // Extrude is in XY; rotate so extrusion runs up along +Y (like 3ds Max).
+      g.rotateX(-Math.PI / 2);
+      g.translate(-fl / 2, 0, -sl / 2);
+      return g;
+    }
+    case 'cExt': {
+      const bl = p.backLen, sl = p.sideLen, fl = p.frontLen;
+      const bw = p.backWidth, sw = p.sideWidth, fw = p.frontWidth;
+      const w = Math.max(bl, fl);
+      const shape = new THREE.Shape();
+      shape.moveTo(0, 0);
+      shape.lineTo(w, 0);
+      shape.lineTo(w, fw);
+      shape.lineTo(sw, fw);
+      shape.lineTo(sw, sl - bw);
+      shape.lineTo(w, sl - bw);
+      shape.lineTo(w, sl);
+      shape.lineTo(0, sl);
+      shape.lineTo(0, 0);
+      const g = new THREE.ExtrudeGeometry(shape, { depth: p.height, bevelEnabled: false });
+      g.rotateX(-Math.PI / 2);
+      g.translate(-w / 2, 0, -sl / 2);
+      return g;
+    }
+    case 'hose': {
+      // Flexible hose approximated as a cylinder with sinusoidal radial ripples.
+      const seg = Math.max(4, p.segments | 0);
+      const sides = Math.max(3, p.sides | 0);
+      const h = p.height, r = p.radius, d = p.bumpDepth, b = Math.max(0, p.bumps);
+      const g = new THREE.CylinderGeometry(r, r, h, sides, seg, false);
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const y = pos.getY(i);
+        const t = (y / h + 0.5); // 0..1
+        const ripple = 1 + d * Math.sin(t * b * Math.PI * 2);
+        pos.setX(i, pos.getX(i) * ripple);
+        pos.setZ(i, pos.getZ(i) * ripple);
+      }
+      g.computeVertexNormals();
+      return g;
+    }
   }
 }
 
