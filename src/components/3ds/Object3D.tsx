@@ -1182,7 +1182,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   if (object.type === 'imported') {
     // Toggle wireframe on every material inside the imported scene graph so
     // imported models honor the viewport's render mode (Wire / Solid / etc).
-    React.useEffect(() => {
+    useEffect(() => {
       if (!imported) return;
       const wire = renderMode === 'wireframe';
       const touched: any[] = [];
