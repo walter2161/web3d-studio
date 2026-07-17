@@ -63,9 +63,9 @@ export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: P
     onOpenChange(false);
   };
 
-  const cbCls = "flex items-center gap-[2px] text-[9px] leading-[11px] py-0";
-  const cb = "w-[9px] h-[9px] m-0";
-  const lbl = "text-[9px] leading-[11px]";
+  const cbCls = "flex items-center gap-[2px] text-[6px] leading-[8px] py-0";
+  const cb = "w-[6px] h-[6px] m-0";
+  const lbl = "text-[6px] leading-[8px]";
 
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Object Properties" width={340}>
