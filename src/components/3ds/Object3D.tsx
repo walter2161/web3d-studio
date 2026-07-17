@@ -439,10 +439,11 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // ref would break TransformControls attach for those entities.
   useEffect(() => {
     if (isEntityType(object.type)) return;
+    if (!isActiveViewport) return;
     if (object.ref) {
       object.ref.current = meshRef.current;
     }
-  }, [object.ref, object.type]);
+  }, [object.ref, object.type, isActiveViewport]);
 
 
   // Imported model: cached scene graph + animations
