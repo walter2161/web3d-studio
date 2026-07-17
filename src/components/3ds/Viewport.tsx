@@ -21,6 +21,7 @@ import { AnimationTrack, Keyframe } from './AnimationTimeline';
 import { useEnvironment } from './r3/EnvironmentContext';
 import { registerViewport, unregisterViewport } from './r3/viewportRegistry';
 import { CreationController } from './r3/creation/CreationController';
+import { SelectionRegionOverlay } from './r3/SelectionRegionOverlay';
 
 // Full R3-style view type set (7 orthographic directions + Perspective + User)
 type ViewType = 'perspective' | 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right' | 'user';
@@ -415,6 +416,20 @@ export const Viewport = ({
           </GizmoHelper>
         )}
       </Canvas>
+
+      {/* 3ds Max-style Selection Region marquee (Rectangle / Circle / Fence /
+          Lasso / Paint). Sits on top of the Canvas but only captures the
+          pointer when it decides the click started on empty background. */}
+      <SelectionRegionOverlay
+        vkey={type}
+        isActive={isActive}
+        objects={objects}
+        onSelectObjects={(ids, additive, remove) => {
+          window.dispatchEvent(new CustomEvent('r3-region-select', {
+            detail: { ids, additive, remove, viewport: type },
+          }));
+        }}
+      />
     </div>
   );
 };
