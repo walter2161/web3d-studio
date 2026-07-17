@@ -110,18 +110,14 @@ const NumField = ({
   step?: number;
   onChange: (v: number) => void;
 }) => (
-  <label className="flex items-center gap-[4px] text-[11px] text-win-text mb-[2px]">
-    {label && <span className="min-w-[54px]">{label}</span>}
-    <input
-      type="number"
-      value={Number.isFinite(value) ? value : 0}
-      min={min}
-      max={max}
-      step={step}
-      onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="flex-1 h-[18px] bevel-sunken bg-white text-[11px] px-[3px] outline-none"
-    />
-  </label>
+  <SliderRow
+    label={label ?? ''}
+    value={value}
+    min={min}
+    max={max}
+    step={step}
+    onChange={onChange}
+  />
 );
 
 // 3ds Max style spinner: numeric field + up/down arrows. Click arrows to step,
