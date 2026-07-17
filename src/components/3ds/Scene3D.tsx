@@ -206,6 +206,12 @@ export const Scene3D = ({
   if (modGizmoActive && modGizmoProxy) {
     transformTarget = modGizmoProxy;
   }
+  const multiActive =
+    isMulti && !subGizmoActive && !boneJointActive && !modGizmoActive && !importedSubActive;
+  if (multiActive && multiProxy) {
+    transformTarget = multiProxy;
+  }
+
 
 
   // Lookup a target object's world position for target-camera / target-spot / target-direct.
