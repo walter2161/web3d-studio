@@ -686,14 +686,23 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCat === 'geometry' && createCategory === 'aec' && aecPrimitives.map((p) => {
-                  const pressed = armedTool === p.type;
+                {createCat === 'geometry' && createCategory === 'aec' && aecPrimitives.map((p, idx) => {
+                  const armedFol = (window as any).__foliageSpecies;
+                  const pressed = armedTool === p.type
+                    && (p.foliageSpecies === undefined || armedFol === p.foliageSpecies);
                   return (
                     <button
-                      key={p.type}
+                      key={`${p.type}-${p.foliageSpecies ?? idx}`}
                       disabled={p.disabled}
                       onClick={() => {
                         if (p.disabled) return;
+                        if (p.foliageSpecies !== undefined) {
+                          // Store species preset so CreationController seeds
+                          // the correct defaults when it builds the ghost.
+                          (window as any).__foliageSpecies = p.foliageSpecies;
+                        } else {
+                          delete (window as any).__foliageSpecies;
+                        }
                         onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
                       }}
                       title={p.disabled ? `${p.label} — em breve` : `Create ${p.label}`}
