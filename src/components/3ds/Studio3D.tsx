@@ -2096,7 +2096,7 @@ export const Studio3D = () => {
     if (!validIds.length) { toast.error('Cannot link an object to itself or to its descendant'); return; }
     saveState();
     setObjects((prev) => prev.map((o) => validIds.includes(o.id) ? { ...o, parentId } : o));
-    toast.success(`Linked ${validIds.length} object(s) → ${parent.type === 'group' || parent.isGroup ? 'group' : parentId.slice(0, 8)}`);
+    toast.success(`Linked ${validIds.length} object(s) → ${parent.isGroup ? 'group' : parentId.slice(0, 8)}`);
   };
 
   const doUnlinkSelection = () => {
