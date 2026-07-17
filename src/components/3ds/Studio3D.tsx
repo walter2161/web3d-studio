@@ -1439,7 +1439,7 @@ export const Studio3D = () => {
     }
     setSelectedObjectIds(expandIds);
     setSelectedObject(expandIds[expandIds.length - 1]);
-  }, [compoundState.picking, compoundState.tool, selectedObject, selectedObjectIds, performBoolean, linkTool]);
+  }, [compoundState.picking, compoundState.tool, selectedObject, selectedObjectIds, performBoolean]);
 
   useEffect(() => {
     const onTransformStart = (e: Event) => {
