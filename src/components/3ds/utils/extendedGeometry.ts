@@ -37,7 +37,8 @@ export type ExtPrimType =
   | 'capsule'
   | 'lExt'
   | 'cExt'
-  | 'hose';
+  | 'hose'
+  | 'foliage';
 
 export type ShapeType =
   | 'line'
