@@ -415,13 +415,18 @@ export const SidePanel = ({
 
   // AEC Extended (Architecture / Engineering / Construction). Só Wall está
   // implementado hoje; os demais ficam listados como "em breve".
-  const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+  const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean; foliageSpecies?: number }> = [
     { type: 'wall',     label: 'Wall' },
     { type: 'door',     label: 'Doors' },
     { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
-    { type: 'foliage',  label: 'Foliage' },
+    // Foliage — one button per species, matching 3ds Max's plant palette.
+    ...FOLIAGE_SPECIES.map((sp) => ({
+      type: 'foliage',
+      label: sp.label,
+      foliageSpecies: sp.id,
+    })),
   ];
 
   // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
