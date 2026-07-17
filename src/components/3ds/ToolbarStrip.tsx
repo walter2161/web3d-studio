@@ -107,7 +107,7 @@ export const MainToolbar = ({
 // Selection Region cluster — Rectangle / Circle / Fence / Lasso / Paint,
 // Window vs Crossing toggle and Ignore Backfacing (matches 3ds Max).
 // ────────────────────────────────────────────────────────────────────────────
-const MODE_META: Record<RegionMode, { title: string; Icon: React.ComponentType<{ size?: number }> }> = {
+const MODE_META: Record<RegionMode, { title: string; Icon: React.ComponentType<any> }> = {
   rectangle: { title: 'Rectangular Selection Region', Icon: SquareIcon },
   circle:    { title: 'Circular Selection Region',    Icon: CircleIcon },
   fence:     { title: 'Fence Selection Region',       Icon: Waves },
