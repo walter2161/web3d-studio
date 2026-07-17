@@ -90,7 +90,10 @@ function buildGhost(
   switch (tool) {
     case 'box':
     case 'chamferBox':
-    case 'prism': {
+    case 'prism':
+    case 'pyramid':
+    case 'lExt':
+    case 'cExt': {
       // Stage 0 (base): drag two corners → width + depth. Freeze base at stage ≥1.
       let w: number, d: number, cA: number, cB: number;
       if (stage === 0) {
