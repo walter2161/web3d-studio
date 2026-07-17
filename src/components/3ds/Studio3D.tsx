@@ -1999,15 +1999,31 @@ export const Studio3D = () => {
     }, 'Fetch');
   };
 
-  // ---------- Groups ----------
+  // ---------- Groups (3ds Max style) ----------
+  // Model: a group is a hidden "head" node (isGroup:true) + members carrying its
+  // groupId. When closed, clicking any member selects the entire group as one
+  // (multi-select). When open, members can be edited individually and new
+  // objects can be Attached/Detached.
+
+  const resolveGroupIdFromSelection = (): string | null => {
+    const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+    for (const id of ids) {
+      const o = objects.find((x) => x.id === id);
+      if (!o) continue;
+      if (o.isGroup) return o.id;
+      if (o.groupId) return o.groupId;
+    }
+    return null;
+  };
 
   const doGroup = () => {
-    // Group all currently visible top-level selected + everything if none, but we only have single-select.
-    // Behavior: convert selected + all non-grouped as a new group? R3 requires multi-select.
-    // We approximate: group the selected object with the previously duplicated/created objects that share color.
-    // For now, prompt to name and group ALL top-level ungrouped objects.
-    if (objects.filter((o) => !o.groupId && !o.isGroup).length < 2) {
-      toast.error('Select at least 2 objects (multi-select coming soon)');
+    const memberIds = (selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []))
+      .filter((id) => {
+        const o = objects.find((x) => x.id === id);
+        return o && !o.isGroup && !o.groupId;
+      });
+    if (memberIds.length < 2) {
+      toast.error('Select at least 2 objects (Ctrl+click) before grouping');
       return;
     }
     const name = window.prompt('Group name?', `Group${(objects.filter((o) => o.isGroup).length || 0) + 1}`);
@@ -2019,40 +2035,100 @@ export const Studio3D = () => {
         id: groupId, name, type: 'box', position: [0,0,0], rotation: [0,0,0], scale: [1,1,1],
         color: '#888', isGroup: true, groupOpen: false, visible: true,
       };
+      const memberSet = new Set(memberIds);
       return [
         groupNode,
-        ...prev.map((o) => o.groupId || o.isGroup ? o : { ...o, groupId }),
+        ...prev.map((o) => memberSet.has(o.id) ? { ...o, groupId } : o),
       ];
     });
-    setSelectedObject(groupId);
-    toast.success(`Grouped as "${name}"`);
+    // Selection stays on all members so the multi-proxy gizmo appears at the
+    // shared centroid immediately — this is what makes the group behave as one.
+    setSelectedObjectIds(memberIds);
+    setSelectedObject(memberIds[memberIds.length - 1]);
+    toast.success(`Grouped ${memberIds.length} objects as "${name}"`);
   };
+
   const doUngroup = () => {
-    const sel = objects.find((o) => o.id === selectedObject);
-    if (!sel || !sel.isGroup) { toast.error('Select a group to ungroup'); return; }
+    const groupId = resolveGroupIdFromSelection();
+    if (!groupId) { toast.error('Select a group (or a group member) to ungroup'); return; }
     saveState();
     setObjects((prev) => prev
-      .filter((o) => o.id !== sel.id)
-      .map((o) => o.groupId === sel.id ? { ...o, groupId: undefined } : o));
+      .filter((o) => o.id !== groupId)
+      .map((o) => o.groupId === groupId ? { ...o, groupId: undefined } : o));
     setSelectedObject(null);
+    setSelectedObjectIds([]);
     toast.success('Ungrouped');
   };
+
   const doOpenGroup = () => {
-    const sel = objects.find((o) => o.id === selectedObject);
-    if (!sel?.isGroup) return;
-    setObjects((prev) => prev.map((o) => o.id === sel.id ? { ...o, groupOpen: true } : o));
+    const groupId = resolveGroupIdFromSelection();
+    if (!groupId) { toast.error('Select a group first'); return; }
+    setObjects((prev) => prev.map((o) => o.id === groupId ? { ...o, groupOpen: true } : o));
+    toast.success('Group opened — edit members individually');
   };
+
   const doCloseGroup = () => {
-    const sel = objects.find((o) => o.id === selectedObject);
-    if (!sel?.isGroup) return;
-    setObjects((prev) => prev.map((o) => o.id === sel.id ? { ...o, groupOpen: false } : o));
+    const groupId = resolveGroupIdFromSelection();
+    if (!groupId) { toast.error('Select a group first'); return; }
+    setObjects((prev) => prev.map((o) => o.id === groupId ? { ...o, groupOpen: false } : o));
+    toast.success('Group closed');
   };
-  const doExplode = () => {
-    // Remove all group containers, keep members ungrouped.
+
+  const doAttach = () => {
+    // Attach: requires an OPEN group + one or more selected non-grouped objects.
+    const openGroup = objects.find((o) => o.isGroup && o.groupOpen);
+    if (!openGroup) { toast.error('Open a group first (Group → Open)'); return; }
+    const ids = (selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []))
+      .filter((id) => {
+        const o = objects.find((x) => x.id === id);
+        return o && !o.isGroup && !o.groupId;
+      });
+    if (!ids.length) { toast.error('Select ungrouped object(s) to attach'); return; }
     saveState();
-    setObjects((prev) => prev.filter((o) => !o.isGroup).map((o) => ({ ...o, groupId: undefined })));
+    const idSet = new Set(ids);
+    setObjects((prev) => prev.map((o) => idSet.has(o.id) ? { ...o, groupId: openGroup.id } : o));
+    toast.success(`Attached ${ids.length} object(s) to "${openGroup.name}"`);
+  };
+
+  const doDetach = () => {
+    // Detach: currently selected members leave their group. Group survives if
+    // 2+ members remain, otherwise it is dissolved (matches 3ds Max).
+    const ids = (selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []))
+      .filter((id) => {
+        const o = objects.find((x) => x.id === id);
+        return o && !o.isGroup && o.groupId;
+      });
+    if (!ids.length) { toast.error('Select group member(s) to detach'); return; }
+    saveState();
+    const idSet = new Set(ids);
+    setObjects((prev) => {
+      const next = prev.map((o) => idSet.has(o.id) ? { ...o, groupId: undefined } : o);
+      // Dissolve groups that no longer have >=2 members
+      const alive = new Set<string>();
+      for (const o of next) if (o.groupId) alive.add(o.groupId);
+      return next
+        .filter((o) => !o.isGroup || alive.has(o.id))
+        .map((o) => (o.groupId && !alive.has(o.groupId)) ? { ...o, groupId: undefined } : o);
+    });
+    toast.success(`Detached ${ids.length} object(s)`);
+  };
+
+  const doExplode = () => {
+    // Remove EVERY group container (nested or not) touching the selection —
+    // or all groups when nothing is selected — leaving members independent.
+    const groupId = resolveGroupIdFromSelection();
+    saveState();
+    setObjects((prev) => {
+      if (!groupId) {
+        return prev.filter((o) => !o.isGroup).map((o) => ({ ...o, groupId: undefined }));
+      }
+      return prev
+        .filter((o) => o.id !== groupId)
+        .map((o) => o.groupId === groupId ? { ...o, groupId: undefined } : o);
+    });
     setSelectedObject(null);
-    toast.success('Exploded groups');
+    setSelectedObjectIds([]);
+    toast.success('Exploded');
   };
 
   const saveObjectProperties = (id: string, updates: { name?: string; color?: string; properties: any }) => {
