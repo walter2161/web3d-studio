@@ -271,9 +271,20 @@ export const Scene3D = ({
         />
       )}
 
+      {/* Multi-selection proxy: sits at the average position of the selected
+          nodes so TransformControls attaches to a single virtual pivot that
+          then broadcasts a Move/Rotate/Scale delta to every selected node
+          (3ds Max "Selection Center" behavior — works for Boxes, Lights,
+          Cameras, Splines, Bones or any mix, because everything shares the
+          same Position/Rotation/Scale interface). */}
+      {multiActive && (
+        <object3D ref={setMultiProxy} position={multiCenter} />
+      )}
+
       {selectedObject && transformTarget && (
         <TransformControls
           ref={transformControlsRef}
+
           object={transformTarget}
           mode={effectiveTransformMode}
           size={0.8}
