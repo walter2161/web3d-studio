@@ -333,7 +333,8 @@ export const Scene3D = ({
           object={transformTarget}
           mode={effectiveTransformMode}
           size={0.8}
-          showX showY showZ
+          enabled={!modifierHeld}
+          showX={!modifierHeld} showY={!modifierHeld} showZ={!modifierHeld}
           translationSnap={snapEnabled && effectiveTransformMode === 'translate' ? snapGridSpacing : null}
           rotationSnap={snapEnabled && effectiveTransformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
           scaleSnap={snapEnabled && effectiveTransformMode === 'scale' ? snapPercent / 100 : null}
