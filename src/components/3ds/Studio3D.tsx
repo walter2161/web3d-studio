@@ -1457,11 +1457,71 @@ export const Studio3D = () => {
       }> | undefined;
       if (!updates?.length) return;
       const byId = new Map(updates.map((u) => [u.id, u]));
-      setObjects((prev) => prev.map((o) => {
-        const u = byId.get(o.id);
-        return u ? { ...o, position: u.position, rotation: u.rotation, scale: u.scale } : o;
-      }));
+      setObjects((prev) => {
+        // Hierarchical cascade (Select and Link): moving/rotating/scaling a
+        // parent applies the same world-space delta to every descendant, so
+        // linked children follow their parent like in 3ds Max.
+        const hasChildren = prev.some((o) => o.parentId && byId.has(o.parentId));
+        if (!hasChildren) {
+          return prev.map((o) => {
+            const u = byId.get(o.id);
+            return u ? { ...o, position: u.position, rotation: u.rotation, scale: u.scale } : o;
+          });
+        }
+        const oldById = new Map(prev.map((o) => [o.id, o] as const));
+        const cascade = new Map<string, { pos: [number, number, number]; rot: [number, number, number]; scl: [number, number, number] }>();
+        const mOld = new THREE.Matrix4();
+        const mNew = new THREE.Matrix4();
+        const q = new THREE.Quaternion();
+        const eu = new THREE.Euler();
+        const p = new THREE.Vector3();
+        const s = new THREE.Vector3();
+        // For each source, compute world delta = M_new * M_old^-1 and apply
+        // to every descendant that is NOT itself in the source list.
+        for (const u of updates) {
+          const old = oldById.get(u.id);
+          if (!old) continue;
+          mOld.compose(
+            new THREE.Vector3(...old.position),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(...old.rotation)),
+            new THREE.Vector3(...old.scale),
+          );
+          mNew.compose(
+            new THREE.Vector3(...u.position),
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(...u.rotation)),
+            new THREE.Vector3(...u.scale),
+          );
+          const delta = mNew.clone().multiply(mOld.clone().invert());
+          const desc = collectDescendantIds(u.id, prev);
+          for (const dId of desc) {
+            if (byId.has(dId) || cascade.has(dId)) continue;
+            const d = oldById.get(dId);
+            if (!d) continue;
+            const md = new THREE.Matrix4().compose(
+              new THREE.Vector3(...d.position),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler(...d.rotation)),
+              new THREE.Vector3(...d.scale),
+            );
+            const mdNew = delta.clone().multiply(md);
+            mdNew.decompose(p, q, s);
+            eu.setFromQuaternion(q);
+            cascade.set(dId, {
+              pos: [p.x, p.y, p.z],
+              rot: [eu.x, eu.y, eu.z],
+              scl: [s.x, s.y, s.z],
+            });
+          }
+        }
+        return prev.map((o) => {
+          const u = byId.get(o.id);
+          if (u) return { ...o, position: u.position, rotation: u.rotation, scale: u.scale };
+          const c = cascade.get(o.id);
+          if (c) return { ...o, position: c.pos, rotation: c.rot, scale: c.scl };
+          return o;
+        });
+      });
     };
+
     window.addEventListener('r3-transform-start', onTransformStart as EventListener);
     window.addEventListener('r3-transform-many', onTransformMany as EventListener);
     return () => {
