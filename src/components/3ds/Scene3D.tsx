@@ -90,6 +90,17 @@ export const Scene3D = ({
     return [x / n, y / n, z / n];
   }, [isMulti, selectedList]);
 
+  // Re-seat the multi-selection proxy at the fresh centroid whenever the
+  // selection composition changes and we're not currently dragging.
+  useEffect(() => {
+    if (!multiProxy || multiStartRef.current) return;
+    multiProxy.position.set(multiCenter[0], multiCenter[1], multiCenter[2]);
+    multiProxy.rotation.set(0, 0, 0);
+    multiProxy.scale.set(1, 1, 1);
+    multiProxy.updateMatrixWorld(true);
+  }, [multiProxy, multiCenter]);
+
+
 
   // ---- Sub-object gizmo state -------------------------------------------------
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
