@@ -1248,6 +1248,20 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
+  // Public wrappers apply the Gizmo/Center transform, then run the core math.
+  function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyBendCore);
+  }
+  function applyTwist(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyTwistCore);
+  }
+  function applyTaper(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyTaperCore);
+  }
+  function applyNoise(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, applyNoiseCore);
+  }
+
   function applyBendCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const direction = (params.direction || 0) * Math.PI / 180;
