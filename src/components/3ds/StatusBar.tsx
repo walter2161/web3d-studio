@@ -528,48 +528,6 @@ export const StatusBar = ({
 
 
 
-      {/* Time / playback cluster */}
-      <div className="bevel-sunken bg-win-face flex items-center gap-0.5 px-1">
-        <Tool title="Go to Start (Home)" onClick={() => onFrameChange(0)}>
-          <SkipBack size={12} />
-        </Tool>
-        <Tool title="Previous Frame" onClick={() => onFrameChange(Math.max(0, currentFrame - 1))}>
-          <ChevronLeft size={12} />
-        </Tool>
-        {isPlaying ? (
-          <Tool title="Pause" onClick={onPause} active>
-            <Pause size={12} />
-          </Tool>
-        ) : (
-          <Tool title="Play (/)" onClick={onPlay}>
-            <Play size={12} />
-          </Tool>
-        )}
-        <Tool title="Stop" onClick={onStop}>
-          <Square size={10} />
-        </Tool>
-        <Tool title="Next Frame" onClick={() => onFrameChange(Math.min(totalFrames, currentFrame + 1))}>
-          <ChevronRight size={12} />
-        </Tool>
-        <Tool title="Go to End (End)" onClick={() => onFrameChange(totalFrames)}>
-          <SkipForward size={12} />
-        </Tool>
-
-        {/* Current frame numeric */}
-        <div className="ml-1 bevel-sunken bg-white h-[18px] px-1 flex items-center min-w-[46px] text-[11px] font-mono">
-          {currentFrame}/{totalFrames}
-        </div>
-
-        {onToggleLoopPlayback && (
-          <Tool
-            title={loopPlayback ? 'Loop Playback: ON' : 'Loop Playback: OFF'}
-            onClick={onToggleLoopPlayback}
-            active={loopPlayback}
-          >
-            <Repeat size={12} />
-          </Tool>
-        )}
-      </div>
 
       {/* Viewport navigation cluster (right) — 3ds Max style 4×2 grid with
           small flyout menus (triangle in bottom-right corner) for zoom
