@@ -802,7 +802,10 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       }
       const s = stageRef.current;
       if (!s) return;
-      const pt = s.stage === 0 ? raycastBase(e) : raycastHeight(e, s.start);
+      // Foliage: um único stage cuja "base" fica ancorada no ponto de clique
+      // e a distância vertical do cursor define a altura da árvore.
+      const useHeightRay = armed === 'foliage' || s.stage >= 1;
+      const pt = useHeightRay ? raycastHeight(e, s.start) : raycastBase(e);
       if (!pt) return;
       setGhost(buildGhost(armed, s.stage, s.start, pt, heightAxis, ghostRef.current));
     };
