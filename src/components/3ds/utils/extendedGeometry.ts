@@ -27,7 +27,17 @@ export type ExtPrimType =
   | 'gengon'
   | 'torusKnot'
   | 'ringWave'
-  | 'prism';
+  | 'prism'
+  // Standard primitives (missing from three's built-ins in raw form)
+  | 'teapot'
+  | 'tube'
+  | 'pyramid'
+  | 'geoSphere'
+  // Extended primitives
+  | 'capsule'
+  | 'lExt'
+  | 'cExt'
+  | 'hose';
 
 export type ShapeType =
   | 'line'
@@ -51,6 +61,16 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   torusKnot:  { radius: 0.5, tube: 0.15, tubularSegments: 100, radialSegments: 16, p: 2, q: 3 },
   ringWave:   { outerRadius: 0.8, innerRadius: 0.5, sides: 32, height: 0.1 },
   prism:      { side1: 1, side2: 1, side3: 1, height: 1 },
+  // ---- Standard extras (Utah teapot / tube / pyramid / geosphere) ----
+  teapot:     { radius: 0.5, segments: 10, lid: true, body: true, bottom: true, handle: true, spout: true },
+  tube:       { radius1: 0.5, radius2: 0.35, height: 1, sides: 24, capSegs: 1, heightSegs: 1 },
+  pyramid:    { width: 1, depth: 1, height: 1 },
+  geoSphere:  { radius: 0.5, segments: 2, family: 0 }, // 0=icosa 1=octa 2=tetra
+  // ---- Extended extras ----
+  capsule:    { radius: 0.3, height: 1, sides: 24, heightSegs: 8 },
+  lExt:       { frontLen: 1, sideLen: 1, frontWidth: 0.2, sideWidth: 0.2, height: 0.8 },
+  cExt:       { backLen: 1, sideLen: 0.6, frontLen: 1, backWidth: 0.2, sideWidth: 0.2, frontWidth: 0.2, height: 0.8 },
+  hose:       { radius: 0.15, height: 1, sides: 12, segments: 40, bumps: 4, bumpDepth: 0.05 },
 };
 
 // Shape defaults mirror 3ds Max R3 Shapes rollout. Every shape carries the
