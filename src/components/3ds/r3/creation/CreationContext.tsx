@@ -2,7 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, R
 
 export type CreatableTool =
   | 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane'
+  | 'teapot' | 'tube' | 'pyramid' | 'geoSphere'
   | 'hedra' | 'chamferBox' | 'chamferCyl' | 'oilTank' | 'spindle' | 'gengon' | 'torusKnot' | 'ringWave' | 'prism'
+  | 'capsule' | 'lExt' | 'cExt' | 'hose'
   | 'line' | 'rectangle' | 'circle' | 'ellipse' | 'arc' | 'donut' | 'ngon' | 'star' | 'helix' | 'text'
   | 'wall' | 'door' | 'window'
   | 'helper_point' | 'helper_dummy' | 'helper_tape' | 'helper_grid' | 'helper_compass'
