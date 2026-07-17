@@ -50,7 +50,10 @@ export const CreationProvider = ({ children, onCommit, onArmedChange, onGhostCha
   const [armed, setArmed] = useState<CreatableTool | null>(null);
   const [ghost, setGhost] = useState<GhostObject | null>(null);
 
-  useEffect(() => { onArmedChange?.(armed); }, [armed, onArmedChange]);
+  useEffect(() => {
+    onArmedChange?.(armed);
+    (window as any).__r3ArmedTool = armed;
+  }, [armed, onArmedChange]);
   useEffect(() => { onGhostChange?.(ghost); }, [ghost, onGhostChange]);
 
 
