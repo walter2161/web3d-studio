@@ -171,21 +171,31 @@ export const Viewport = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [isActive]);
 
+  // Native capture-phase pointerdown on the wrapper → mark this viewport active
+  // BEFORE any descendant listener (canvas overlays, R3F, creation controller)
+  // can call stopPropagation() and prevent React synthetic events from firing.
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const handler = () => { onActivate(); };
+    el.addEventListener('pointerdown', handler, { capture: true });
+    return () => el.removeEventListener('pointerdown', handler, { capture: true } as any);
+  }, [onActivate]);
+
   const headerLabel = cameraObjectId
     ? (availableCameras.find((c) => c.id === cameraObjectId)?.name || 'Camera')
     : VIEW_LABELS[view];
 
   return (
     <div
+      ref={wrapperRef}
       className={cn(
         "relative w-full h-full bg-viewport",
         isActive ? "outline outline-2 outline-viewport-active -outline-offset-2" : "outline outline-1 outline-viewport-border -outline-offset-1"
       )}
-      // Capture-phase pointerdown → mark the viewport active *before* the click
-      // reaches the R3F canvas / creation controller, so activation never eats
-      // or delays the selection/creation gesture (no preventDefault, no stop).
-      onPointerDownCapture={onActivate}
     >
+
       {/* R3-style clickable label at top-left → opens the viewport menu (Views / Display / Grid / Safe Frame / Camera). */}
       <div className="absolute top-1 left-1 z-10 flex items-center gap-1">
         <DropdownMenu>
