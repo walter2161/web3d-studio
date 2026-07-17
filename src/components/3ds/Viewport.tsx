@@ -97,6 +97,7 @@ interface ViewportProps {
   cameraObjectId?: string | null;
   onChangeCameraObject?: (id: string | null) => void;
   availableCameras?: any[];
+  initialRenderMode?: RenderMode;
 }
 
 export const Viewport = ({
@@ -106,9 +107,10 @@ export const Viewport = ({
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing, snapAngleDeg, snapPercent, showGrid: showGridProp = true,
   cameraObjectId, onChangeCameraObject, availableCameras = [],
+  initialRenderMode = 'solid',
 }: ViewportProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [renderMode, setRenderMode] = useState<RenderMode>('solid');
+  const [renderMode, setRenderMode] = useState<RenderMode>(initialRenderMode);
   // Per-cell view override lets a single grid cell show any of the 7 R3 views.
   const [viewOverride, setViewOverride] = useState<ViewType | null>(null);
   const [showGridLocal, setShowGridLocal] = useState(true);
