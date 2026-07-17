@@ -456,6 +456,30 @@ const ViewportRegistrar = ({ vkey, isActive }: { vkey: string; isActive: boolean
 };
 
 /**
+ * OrthoZoomSync — sizes the orthographic camera's zoom to the live canvas
+ * so that visible world height ≈ 0.933 × distance (matches perspective fov ≈ 50°).
+ * Runs once on mount and re-syncs whenever the canvas is resized. Without this,
+ * R3F's default pixel-based ortho frustum makes objects look zoomed way out
+ * on Top / Front / Left viewports after a page refresh.
+ */
+const OrthoZoomSync = ({ distance }: { distance: number }) => {
+  const { camera, size } = useThree();
+  const didInit = useRef(false);
+  useEffect(() => {
+    const oc = camera as THREE.OrthographicCamera;
+    if (!oc.isOrthographicCamera) return;
+    const targetZoom = size.height / Math.max(0.001, 0.933 * distance);
+    // Only auto-fit on first mount or when the canvas is resized — never
+    // override the user's manual wheel zoom afterwards.
+    if (!didInit.current) {
+      oc.zoom = targetZoom;
+      oc.updateProjectionMatrix();
+      didInit.current = true;
+    }
+  }, [camera, size.width, size.height, distance]);
+  return null;
+
+/**
  * Camera-view controller: drives the viewport's active camera from a scene
  * Camera object, and mounts an OrbitControls whose pivot is the camera's
  * focal point (target helper for a Target Camera, or a virtual focal point
