@@ -90,6 +90,17 @@ export const Scene3D = ({
     return [x / n, y / n, z / n];
   }, [isMulti, selectedList]);
 
+  // Re-seat the multi-selection proxy at the fresh centroid whenever the
+  // selection composition changes and we're not currently dragging.
+  useEffect(() => {
+    if (!multiProxy || multiStartRef.current) return;
+    multiProxy.position.set(multiCenter[0], multiCenter[1], multiCenter[2]);
+    multiProxy.rotation.set(0, 0, 0);
+    multiProxy.scale.set(1, 1, 1);
+    multiProxy.updateMatrixWorld(true);
+  }, [multiProxy, multiCenter]);
+
+
 
   // ---- Sub-object gizmo state -------------------------------------------------
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
@@ -278,13 +289,31 @@ export const Scene3D = ({
           Cameras, Splines, Bones or any mix, because everything shares the
           same Position/Rotation/Scale interface). */}
       {multiActive && (
-        <object3D ref={setMultiProxy} position={multiCenter} />
+        <object3D
+          ref={(o) => {
+            setMultiProxy(o);
+            // Seat the proxy at the selection centroid only when no drag is in
+            // progress. During a drag the ref callback may fire on re-renders
+            // triggered by r3-transform-many; resetting the position there would
+            // fight the TransformControls delta.
+            if (o && !multiStartRef.current) {
+              o.position.set(multiCenter[0], multiCenter[1], multiCenter[2]);
+              o.rotation.set(0, 0, 0);
+              o.scale.set(1, 1, 1);
+              o.updateMatrixWorld(true);
+            }
+          }}
+        />
       )}
 
-      {selectedObject && transformTarget && (
+      {selectedObject && transformTarget && (!multiActive || multiProxy) && (
         <TransformControls
           ref={transformControlsRef}
-
+          key={
+            multiActive
+              ? `multi-${selectedObjectIds.slice().sort().join('|')}`
+              : `single-${selectedObject}${selectedSubUuid ? ':' + selectedSubUuid : ''}`
+          }
           object={transformTarget}
           mode={effectiveTransformMode}
           size={0.8}
