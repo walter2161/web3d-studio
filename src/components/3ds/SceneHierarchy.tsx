@@ -153,14 +153,21 @@ export const SceneHierarchy = ({
     // Compute sub-tree for imported objects
     const importedModel = obj.type === 'imported' ? getImportedModel(obj.id) : undefined;
     const subTree: SubNode[] = importedModel ? buildSubTree(importedModel.root) : [];
-    const hasChildren = subTree.length > 0;
+
+    // Group members shown as nested children of a group head.
+    const groupMembers: any[] = obj.isGroup
+      ? objects.filter((o: any) => o.groupId === obj.id)
+      : [];
+
+    const hasChildren = subTree.length > 0 || groupMembers.length > 0;
 
     return (
       <div key={obj.id} className="select-none">
         <div
           className={cn(
             'flex items-center gap-1 py-1 px-2 text-sm hover:bg-menu-hover cursor-pointer',
-            isSelected && 'bg-primary/20 border-l-2 border-primary'
+            isSelected && 'bg-primary/20 border-l-2 border-primary',
+            obj.isGroup && obj.groupOpen && 'text-fuchsia-300'
           )}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={(e) => {
@@ -185,7 +192,7 @@ export const SceneHierarchy = ({
             )}
           </div>
 
-          <Layers className="w-4 h-4 text-muted-foreground" />
+          <Layers className={cn('w-4 h-4', obj.isGroup ? 'text-fuchsia-400' : 'text-muted-foreground')} />
 
           <div className="flex-1 min-w-0">
             {isEditing ? (
@@ -205,7 +212,9 @@ export const SceneHierarchy = ({
                 onClick={(e) => e.stopPropagation()}
               />
             ) : (
-              <span className="truncate text-foreground">{getObjectName(obj)}</span>
+              <span className="truncate text-foreground">
+                {obj.isGroup ? (obj.groupOpen ? '[' : '{') : ''}{getObjectName(obj)}{obj.isGroup ? (obj.groupOpen ? ']' : '}') : ''}
+              </span>
             )}
           </div>
 
@@ -230,7 +239,10 @@ export const SceneHierarchy = ({
         </div>
 
         {hasChildren && isExpanded && (
-          <div>{subTree.map((n) => renderSubNode(obj.id, n, depth + 1))}</div>
+          <div>
+            {groupMembers.map((m) => renderObject(m, depth + 1))}
+            {subTree.map((n) => renderSubNode(obj.id, n, depth + 1))}
+          </div>
         )}
       </div>
     );
