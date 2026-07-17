@@ -77,13 +77,18 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
   };
 
   // ---- Pointer handling ------------------------------------------------------
+  // We attach the capture-phase pointerdown listener on the Canvas element
+  // itself (not on the overlay div, which has pointer-events:none unless a
+  // drag is active). Capture phase lets us decide BEFORE R3F whether to start
+  // a region drag or let the Canvas process the click normally.
   useEffect(() => {
+    const handle = getViewportHandle(vkey);
+    const canvas = handle?.gl.domElement as HTMLCanvasElement | undefined;
     const wrapper = wrapperRef.current;
-    if (!wrapper) return;
+    if (!canvas || !wrapper) return;
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return; // Only left mouse triggers region select.
-      // Ignore clicks that started on UI chrome (viewport label, dropdowns).
+      if (e.button !== 0) return;
       const target = e.target as HTMLElement;
       if (target.closest('[data-viewport-chrome]')) return;
 
@@ -91,14 +96,9 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       const localX = e.clientX - rect.left;
       const localY = e.clientY - rect.top;
 
-      // If a scene object is under the cursor, let R3F handle the click.
       if (rayHitsObject(localX, localY, rect)) return;
 
-      // Empty background → begin a region drag. Stop Canvas from also
-      // interpreting this as a "click-in-empty-space" pointerdown.
       e.stopPropagation();
-      // Do NOT preventDefault here — that would kill focus/text selection
-      // system-wide; stopPropagation is enough to shield the R3F canvas.
 
       const additive = e.ctrlKey || e.metaKey;
       const remove = e.altKey;
@@ -120,8 +120,8 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       });
     };
 
-    wrapper.addEventListener('pointerdown', onPointerDown, { capture: true });
-    return () => wrapper.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
+    canvas.addEventListener('pointerdown', onPointerDown, { capture: true });
+    return () => canvas.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
   }, [region.regionMode, vkey]);
 
   // While dragging: track pointer on window so we don't lose the release even
