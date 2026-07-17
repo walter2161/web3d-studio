@@ -107,11 +107,14 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item === 'Interface: Classic') setTheme('classic');
                     if (item === 'Interface: Flat') setTheme('flat');
                     if (item === 'Interface: Game') setTheme('game');
+                    if (item === 'Language: English') setLang('en');
+                    if (item === 'Language: Português') setLang('pt');
+                    if (item === 'Language: Español') setLang('es');
                     // Broadcast raw label for any handler wired via onMenuAction
                     onMenuAction?.(item);
                   }}
                 >
-                  {item}
+                  {t(item)}
                 </DropdownMenuItem>
               )
             )}
