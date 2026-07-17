@@ -817,7 +817,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           if (ghostRef.current) commit(ghostRef.current);
           stageRef.current = null;
         } else {
-          stageRef.current = { ...s, stage: 1 };
+          stageRef.current = { ...s, stage: 1, heightStartClientY: e.clientY };
         }
       }
       dom.releasePointerCapture?.(e.pointerId);
