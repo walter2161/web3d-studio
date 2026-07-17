@@ -2340,7 +2340,7 @@ export const Studio3D = () => {
               selectedObject={selectedObject}
               selectedObjectIds={selectedObjectIds}
               selectedSubUuid={selectedSubUuid}
-              onSelectObject={(id) => { handleSelectObject(id); if (id === null) setSelectedSubUuid(null); }}
+              onSelectObject={(id, additive, remove) => { handleSelectObject(id, additive, remove); if (id === null) setSelectedSubUuid(null); }}
               onTransformObject={handleTransformObject}
               transformMode={transformMode}
               animationTracks={animationTracks}
@@ -2626,7 +2626,7 @@ export const Studio3D = () => {
             selectedObject={selectedObject}
             selectedObjectIds={selectedObjectIds}
             selectedSubUuid={selectedSubUuid}
-            onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
+            onSelectObject={(id, additive, remove) => { handleSelectObject(id, additive, remove); setSelectedSubUuid(null); }}
             onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}
             onDeleteObject={deleteObject}
             onDuplicateObject={duplicateObject}
