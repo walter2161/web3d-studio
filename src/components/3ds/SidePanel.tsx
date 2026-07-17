@@ -729,6 +729,11 @@ export const SidePanel = ({
                       key={`${p.type}-${p.foliageSpecies ?? idx}`}
                       onClick={() => {
                         (window as any).__foliageSpecies = p.foliageSpecies;
+                        // Expõe o dicionário de presets para o CreationController
+                        // usar os defaults de crownRadius/height ao construir o ghost.
+                        (window as any).__foliageSpeciesPreset = Object.fromEntries(
+                          FOLIAGE_SPECIES.map((s) => [s.id, s])
+                        );
                         onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
                       }}
                       title={`Create ${p.label}`}
