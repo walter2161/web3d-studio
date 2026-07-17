@@ -141,8 +141,11 @@ export const Viewport = ({
   }, [view]);
   const cameraUp = useMemo(() => VIEW_UP[view], [view]);
   const orthographic = view !== 'perspective' && view !== 'user';
-  // Ortho zoom that matches perspective visible height at same distance (fov≈50°).
-  const orthoZoom = useMemo(() => 21.44 / Math.max(0.001, distanceRef.current), [view]);
+  // NOTE: With R3F's default ortho frustum (left=-w/2 ... in *pixels*), the
+  // effective zoom must be sized to the canvas. OrthoZoomSync below sets it
+  // from the live size — this initial value is just a sane fallback until
+  // the first frame arrives.
+  const orthoZoom = 40;
   const effectiveShowGrid = showGridProp && showGridLocal;
   const hasActiveSceneLights = useMemo(
     () => objects.some((o) => o.visible !== false && String(o.type || '').startsWith('light_') && o.lightData?.on !== false),
@@ -297,6 +300,7 @@ export const Viewport = ({
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
         <ViewportRegistrar vkey={type} isActive={isActive} />
+        {orthographic && <OrthoZoomSync distance={distanceRef.current} />}
         <SceneEnvSync
           backgroundColor={env.backgroundColor}
           fogEnabled={env.fogEnabled}
@@ -450,6 +454,33 @@ const ViewportRegistrar = ({ vkey, isActive }: { vkey: string; isActive: boolean
   }, [vkey, gl, scene, camera, state]);
   return null;
 };
+
+/**
+ * OrthoZoomSync — sizes the orthographic camera's zoom to the live canvas
+ * so that visible world height ≈ 0.933 × distance (matches perspective fov ≈ 50°).
+ * Runs once on mount and re-syncs whenever the canvas is resized. Without this,
+ * R3F's default pixel-based ortho frustum makes objects look zoomed way out
+ * on Top / Front / Left viewports after a page refresh.
+ */
+const OrthoZoomSync = ({ distance }: { distance: number }) => {
+  const { camera, size } = useThree();
+  const didInit = useRef(false);
+  useEffect(() => {
+    const oc = camera as THREE.OrthographicCamera;
+    if (!oc.isOrthographicCamera) return;
+    const targetZoom = size.height / Math.max(0.001, 0.933 * distance);
+    // Only auto-fit on first mount or when the canvas is resized — never
+    // override the user's manual wheel zoom afterwards.
+    if (!didInit.current) {
+      oc.zoom = targetZoom;
+      oc.updateProjectionMatrix();
+      didInit.current = true;
+    }
+  }, [camera, size.width, size.height, distance]);
+  return null;
+};
+
+
 
 /**
  * Camera-view controller: drives the viewport's active camera from a scene
