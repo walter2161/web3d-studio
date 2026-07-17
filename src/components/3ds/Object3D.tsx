@@ -1601,6 +1601,17 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         isGhost={!!isGhost}
       />
 
+      {/* Wireframe view: show only feature edges (no triangulation diagonals
+          nor internal longitudinal/transversal segment lines), keeping the
+          silhouette clean. Threshold ~22° collapses coplanar/near-coplanar
+          neighbours (sphere/cylinder ring subdivisions) into their outlines. */}
+      {renderMode === 'wireframe' && !isGhost && (
+        <lineSegments renderOrder={997}>
+          <edgesGeometry args={[modifiedGeometry, 22]} />
+          <lineBasicMaterial color={isSelected ? '#ffffff' : '#cbd5e1'} />
+        </lineSegments>
+      )}
+
 
       {/* Selection outline — silhouette edges plus internal subdivisions so
           segment/geometry-parameter changes are visible in solid mode. */}
