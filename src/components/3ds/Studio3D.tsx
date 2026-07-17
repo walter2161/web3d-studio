@@ -1394,9 +1394,25 @@ export const Studio3D = () => {
       redoOrderRef.current = [];
       rigRedoRef.current = [];
     };
+    const onTransformMany = (e: Event) => {
+      const updates = (e as CustomEvent).detail?.updates as Array<{
+        id: string; position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number];
+      }> | undefined;
+      if (!updates?.length) return;
+      const byId = new Map(updates.map((u) => [u.id, u]));
+      setObjects((prev) => prev.map((o) => {
+        const u = byId.get(o.id);
+        return u ? { ...o, position: u.position, rotation: u.rotation, scale: u.scale } : o;
+      }));
+    };
     window.addEventListener('r3-transform-start', onTransformStart as EventListener);
-    return () => window.removeEventListener('r3-transform-start', onTransformStart as EventListener);
+    window.addEventListener('r3-transform-many', onTransformMany as EventListener);
+    return () => {
+      window.removeEventListener('r3-transform-start', onTransformStart as EventListener);
+      window.removeEventListener('r3-transform-many', onTransformMany as EventListener);
+    };
   }, []);
+
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
   // Until true multi-select lands, we pick the last matched id as the primary
