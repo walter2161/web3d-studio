@@ -31,6 +31,11 @@ const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] 
   { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'Export Cloud...', 'Import Cloud...', 'sep', 'Import...', 'Export...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
   { label: 'Edit', access: 'E', items: ['Undo', 'Redo', 'sep', 'Hold', 'Fetch', 'sep', 'Delete', 'Clone', 'sep', 'Select All', 'Select None', 'Select Invert', 'sep', 'Region', 'Object Properties...'] },
   { label: 'Group', access: 'G', items: ['Group', 'Ungroup', 'Open', 'Close', 'Attach', 'Detach', 'Explode'] },
+type MenuEntry = string | 'sep' | { label: string; sub: string[] };
+const menuItems: { label: string; access: string; items: MenuEntry[] }[] = [
+  { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'Export Cloud...', 'Import Cloud...', 'sep', 'Import...', 'Export...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
+  { label: 'Edit', access: 'E', items: ['Undo', 'Redo', 'sep', 'Hold', 'Fetch', 'sep', 'Delete', 'Clone', 'sep', 'Select All', 'Select None', 'Select Invert', 'sep', 'Region', 'Object Properties...'] },
+  { label: 'Group', access: 'G', items: ['Group', 'Ungroup', 'Open', 'Close', 'Attach', 'Detach', 'Explode'] },
   { label: 'Views', access: 'V', items: ['Perspective', 'Top', 'Front', 'Left', 'sep', 'Layout: Single', 'Layout: Quad (3 Wire + Persp)', 'Layout: 2 Cols — Top (Wire) + Persp', 'Layout: 2 Cols — Front (Wire) + Persp', 'Layout: 2 Cols — Left (Wire) + Persp', 'Layout: 2 Rows — Top (Wire) + Persp', 'sep', 'Viewport Configuration...', 'Show Grid', 'Show Statistics', 'sep', 'Update During Spinner Drag'] },
   { label: 'Create', access: 'C', items: ['Standard Primitives', 'Extended Primitives', 'AEC Objects', 'Compound Objects', 'Particle Systems', 'sep', 'Lights', 'Cameras', 'Helpers'] },
   { label: 'Modifiers', access: 'M', items: ['Selection Modifiers', 'Parametric Deformers', 'Free Form Deformers', 'sep', 'Edit Poly', 'Edit Mesh', 'Bend', 'Twist', 'Taper', 'Noise', 'TurboSmooth'] },
@@ -38,10 +43,11 @@ const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] 
   { label: 'Animation', access: 'A', items: ['Set Key', 'Auto Key', 'sep', 'Track View', 'Curve Editor', 'sep', 'Position Constraint', 'LookAt Constraint'] },
   { label: 'Graph Editors', access: 'D', items: ['Track View - Curve Editor', 'Track View - Dope Sheet', 'sep', 'Schematic View'] },
   { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
-  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Interface: Classic', 'Interface: Flat', 'Interface: Game', 'sep', 'Language: English', 'Language: Português', 'Language: Español', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
+  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', { label: 'Interface', sub: ['Interface: Classic', 'Interface: Flat', 'Interface: Game'] }, { label: 'Language', sub: ['Language: English', 'Language: Português', 'Language: Español'] }, 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
   { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About 3De...'] },
 ];
+
 
 const renderLabel = (label: string, access: string) => {
   const idx = label.toUpperCase().indexOf(access.toUpperCase());
