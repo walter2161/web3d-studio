@@ -1022,6 +1022,27 @@ export const Studio3D = () => {
   }, []);
 
   // Modifier operations
+  // Resolve modifier-target ids. If the target belongs to a *closed* group (or
+  // is the group head itself), the modifier operation is broadcast to every
+  // member so the group deforms as a single object — mirroring 3ds Max's
+  // behaviour where a modifier on a group affects all members simultaneously.
+  const resolveModifierTargets = useCallback((objectId: string): Set<string> => {
+    const list = objectsRef.current;
+    const obj = list.find((o) => o.id === objectId);
+    if (!obj) return new Set([objectId]);
+    let groupId: string | undefined;
+    if (obj.isGroup) groupId = obj.id;
+    else if (obj.groupId) {
+      const head = list.find((o) => o.id === obj.groupId);
+      if (head && !head.groupOpen) groupId = head.id;
+    }
+    if (!groupId) return new Set([objectId]);
+    const ids = new Set<string>();
+    for (const o of list) if (o.groupId === groupId && !o.isGroup) ids.add(o.id);
+    if (ids.size === 0) ids.add(objectId);
+    return ids;
+  }, []);
+
   const addModifier = useCallback((objectId: string, modifierType: string) => {
     const defaultParams: Record<string, any> = {
       Extrude: { amount: 1, segments: 1, capStart: true, capEnd: true, bevelEnabled: false },
@@ -1033,35 +1054,38 @@ export const Studio3D = () => {
         overrideEdgeMatId: false,  edgeMatId: 2,
       },
     };
-    const newModifier: Modifier = {
-      id: `${modifierType}_${Date.now()}`,
-      type: modifierType,
-      params: defaultParams[modifierType] || {},
-      active: true
-    };
-    
-    setObjects(prev => prev.map(obj => 
-      obj.id === objectId 
-        ? { ...obj, modifiers: [...(obj.modifiers || []), newModifier] }
+    // Shared id across group members so subsequent updates find them together.
+    const sharedId = `${modifierType}_${Date.now()}`;
+    const targets = resolveModifierTargets(objectId);
+
+    setObjects(prev => prev.map(obj =>
+      targets.has(obj.id)
+        ? { ...obj, modifiers: [...(obj.modifiers || []), {
+            id: sharedId,
+            type: modifierType,
+            params: JSON.parse(JSON.stringify(defaultParams[modifierType] || {})),
+            active: true,
+          } as Modifier] }
         : obj
     ));
-    
-    toast.success(`${modifierType} modifier added`);
-  }, []);
+
+    toast.success(`${modifierType} modifier added${targets.size > 1 ? ` to ${targets.size} objects` : ''}`);
+  }, [resolveModifierTargets]);
 
   const updateModifier = useCallback((objectId: string, modifierId: string, params: any) => {
     saveState();
-    setObjects(prev => prev.map(obj => 
-      obj.id === objectId 
-        ? { 
-            ...obj, 
-            modifiers: obj.modifiers?.map(mod => 
+    const targets = resolveModifierTargets(objectId);
+    setObjects(prev => prev.map(obj =>
+      targets.has(obj.id)
+        ? {
+            ...obj,
+            modifiers: obj.modifiers?.map(mod =>
               mod.id === modifierId ? { ...mod, params } : mod
             ) || []
           }
         : obj
     ));
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
   // Sub-object picking & op dispatch from viewport / modifier panel.
   useEffect(() => {
@@ -1181,22 +1205,24 @@ export const Studio3D = () => {
 
   const removeModifier = useCallback((objectId: string, modifierId: string) => {
     saveState();
-    setObjects(prev => prev.map(obj => 
-      obj.id === objectId 
-        ? { 
-            ...obj, 
+    const targets = resolveModifierTargets(objectId);
+    setObjects(prev => prev.map(obj =>
+      targets.has(obj.id)
+        ? {
+            ...obj,
             modifiers: obj.modifiers?.filter(mod => mod.id !== modifierId) || []
           }
         : obj
     ));
-    
+
     toast.success('Modifier removed');
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
   const toggleModifier = useCallback((objectId: string, modifierId: string) => {
     saveState();
+    const targets = resolveModifierTargets(objectId);
     setObjects(prev => prev.map(obj =>
-      obj.id === objectId
+      targets.has(obj.id)
         ? {
             ...obj,
             modifiers: obj.modifiers?.map(m =>
@@ -1205,12 +1231,13 @@ export const Studio3D = () => {
           }
         : obj
     ));
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
   const reorderModifier = useCallback((objectId: string, modifierId: string, direction: -1 | 1) => {
     saveState();
+    const targets = resolveModifierTargets(objectId);
     setObjects(prev => prev.map(obj => {
-      if (obj.id !== objectId || !obj.modifiers) return obj;
+      if (!targets.has(obj.id) || !obj.modifiers) return obj;
       const mods = [...obj.modifiers];
       const idx = mods.findIndex(m => m.id === modifierId);
       if (idx < 0) return obj;
@@ -1219,7 +1246,7 @@ export const Studio3D = () => {
       [mods[idx], mods[swap]] = [mods[swap], mods[idx]];
       return { ...obj, modifiers: mods };
     }));
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
 
 
