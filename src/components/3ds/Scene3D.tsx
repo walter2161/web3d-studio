@@ -18,6 +18,10 @@ import { EditableSpline } from './editable/EditableSpline';
 import {
   getSplineSel, setSplineSel, subscribeSplineSel,
 } from './editable/splineSelStore';
+import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
+import {
+  getModifierSub, subscribeModifierSub, type ModifierSubSelection,
+} from './r3/modifierSubStore';
 
 interface Scene3DProps {
   objects: any[];
