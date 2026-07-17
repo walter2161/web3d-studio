@@ -1180,6 +1180,29 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // Render imported models as their full scene graph (preserves materials,
   // textures, skinning, and animations).
   if (object.type === 'imported') {
+    // Toggle wireframe on every material inside the imported scene graph so
+    // imported models honor the viewport's render mode (Wire / Solid / etc).
+    useEffect(() => {
+      if (!imported) return;
+      const wire = renderMode === 'wireframe';
+      const touched: any[] = [];
+      imported.root.traverse((child: any) => {
+        const mat = child.material;
+        if (!mat) return;
+        const mats = Array.isArray(mat) ? mat : [mat];
+        for (const m of mats) {
+          if (typeof m.wireframe === 'boolean' && m.wireframe !== wire) {
+            m.wireframe = wire;
+            m.needsUpdate = true;
+            touched.push(m);
+          }
+        }
+      });
+      return () => {
+        // Leave state as-is on unmount; next effect run will re-sync.
+      };
+    }, [imported, renderMode]);
+
     return (
       <group
         ref={meshRef as any}
