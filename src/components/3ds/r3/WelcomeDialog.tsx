@@ -21,7 +21,7 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
 
   const sendRequest = async () => {
     if (!email.trim()) {
-      toast({ title: 'informe seu e-mail', variant: 'destructive' });
+      toast({ title: 'Please enter your e-mail', variant: 'destructive' });
       return;
     }
     setSending(true);
@@ -32,11 +32,11 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
         reason: reason.trim() || null,
       });
       if (error) throw error;
-      toast({ title: 'pedido enviado', description: 'aguarde a liberação do administrador.' });
+      toast({ title: 'Request sent', description: 'Please wait for admin approval.' });
       setEmail(''); setName(''); setReason('');
       onOpenChange(false);
     } catch (e: any) {
-      toast({ title: 'erro ao enviar', description: e.message, variant: 'destructive' });
+      toast({ title: 'Send error', description: e.message, variant: 'destructive' });
     } finally {
       setSending(false);
     }
@@ -53,7 +53,7 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
   );
 
   return (
-    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Bem-vindo ao Walt3D" width={520}>
+    <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Welcome to Walt3D" width={520}>
       {/* Banner */}
       <div
         className="bevel-inset flex items-center justify-center text-white"
@@ -72,31 +72,27 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
 
       {/* Tabs */}
       <div className="flex items-end mt-3 pl-1" style={{ borderBottom: '1px solid hsl(var(--win-face-dark))' }}>
-        <TabButton id="welcome">boas-vindas</TabButton>
-        <TabButton id="request">assinatura</TabButton>
+        <TabButton id="welcome">Welcome</TabButton>
+        <TabButton id="request">Subscription</TabButton>
       </div>
 
       <div className="bevel-raised bg-win-face p-2" style={{ marginTop: -1, minHeight: 200 }}>
         {tab === 'welcome' && (
-          <div className="text-[11px] text-win-text leading-snug flex flex-col gap-2" style={{ textTransform: 'lowercase' }}>
-            <p>
-              aviso legal: o walt3d é um modelador 3d web independente e proprietário. este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. todas as marcas e marcas registradas sugeridas ou de referência pertencem aos seus respectivos proprietários.
-            </p>
-            <p>
-              acesso gratuito (demo): o app pode ser utilizado sem login em modo demonstração, porém com funcionalidades limitadas. para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao walt3d é necessário possuir uma assinatura ativa. veja a aba "assinatura" para mais detalhes.
-            </p>
+          <div className="text-[11px] text-win-text leading-snug flex flex-col gap-2">
+            <p>Legal notice: Walt3D is an independent and proprietary web 3D modeler. This project has no affiliation, association or endorsement with the developers of commercial modeling software on the market. All trademarks and registered marks referenced belong to their respective owners.</p>
+            <p>Free access (demo): the app can be used without login in demonstration mode, but with limited functionality. To unlock all tools, save scenes to the cloud, and have full access to Walt3D, an active subscription is required. See the "Subscription" tab for more details.</p>
           </div>
         )}
 
         {tab === 'request' && (
           <>
-            <div className="text-[11px] mb-2 leading-snug" style={{ textTransform: 'lowercase' }}>
-              <p>assinatura promocional: durante o período promocional, a assinatura custa apenas <b>us$ 1,00 por mês</b>.</p>
-              <p className="mt-1 opacity-80">preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.</p>
+            <div className="text-[11px] mb-2 leading-snug">
+              <p>Promotional subscription: during the promotional period, the subscription costs only <b>US$ 1.00 per month</b>.</p>
+              <p className="mt-1 opacity-80">Fill in the fields below to request your subscription — access is manually granted by the administrator after payment confirmation.</p>
             </div>
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-1">
-                <span className="text-[11px]" style={{ width: 70 }}>nome:</span>
+                <span className="text-[11px]" style={{ width: 70 }}>Name:</span>
                 <input
                   className="bevel-inset bg-white px-1 flex-1 outline-none"
                   style={{ height: 18 }}
@@ -105,7 +101,7 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
                 />
               </label>
               <label className="flex items-center gap-1">
-                <span className="text-[11px]" style={{ width: 70 }}>e-mail:</span>
+                <span className="text-[11px]" style={{ width: 70 }}>E-mail:</span>
                 <input
                   type="email"
                   className="bevel-inset bg-white px-1 flex-1 outline-none"
@@ -115,7 +111,7 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
                 />
               </label>
               <label className="flex items-start gap-1">
-                <span className="text-[11px]" style={{ width: 70 }}>motivo:</span>
+                <span className="text-[11px]" style={{ width: 70 }}>Reason:</span>
                 <textarea
                   className="bevel-inset bg-white px-1 flex-1 outline-none"
                   rows={3}
@@ -131,15 +127,15 @@ export const WelcomeDialog = ({ open, onOpenChange, initialTab = 'welcome' }: Pr
       <div className="mt-3 flex justify-end gap-1">
         {tab === 'welcome' ? (
           <>
-            <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
+            <R3Button width={80} onClick={() => onOpenChange(false)}>Close</R3Button>
           </>
         ) : (
           <>
-            <R3Button width={80} onClick={() => setTab('welcome')}>← voltar</R3Button>
+            <R3Button width={80} onClick={() => setTab('welcome')}>← Back</R3Button>
             <R3Button width={160} onClick={sendRequest} disabled={sending}>
-              {sending ? 'enviando...' : 'enviar pedido de registro'}
+              {sending ? 'Sending...' : 'Send registration request'}
             </R3Button>
-            <R3Button width={80} onClick={() => onOpenChange(false)}>fechar</R3Button>
+            <R3Button width={80} onClick={() => onOpenChange(false)}>Close</R3Button>
           </>
         )}
       </div>

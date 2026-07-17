@@ -128,6 +128,38 @@ const dict: Record<Lang, Record<string, string>> = {
     Line: 'Linha', Rectangle: 'Retângulo', Circle: 'Círculo', Ellipse: 'Elipse',
     Arc: 'Arco', Donut: 'Rosca', NGon: 'NGon', Star: 'Estrela', Helix: 'Hélice', Text: 'Texto',
     Wall: 'Parede', Camera: 'Câmera', Light: 'Luz',
+    // About / Welcome dialogs
+    'About Walt3D': 'Sobre o Walt3D',
+    'WEB 3D MODELER': 'MODELADOR 3D WEB',
+    'web 3d modeler': 'modelador 3d web',
+    'Walt3D · Web Edition': 'Walt3D · Edição Web',
+    'Version 3.0.1 · Build 2026.07': 'Versão 3.0.1 · Build 2026.07',
+    'Copyright © 2026 Walt3D': 'Copyright © 2026 Walt3D',
+    'Real-time 3D authoring, non-destructive modifiers, animation timeline, and integrated scanline renderer — running fully in the browser via WebGL / three.js.':
+      'Autoria 3D em tempo real, modificadores não-destrutivos, linha do tempo de animação e renderizador scanline integrado — rodando totalmente no navegador via WebGL / three.js.',
+    'This product is licensed to:': 'Este produto está licenciado para:',
+    'Local User': 'Usuário Local',
+    'Welcome to Walt3D': 'Bem-vindo ao Walt3D',
+    Welcome: 'Boas-vindas',
+    Subscription: 'Assinatura',
+    'Legal notice: Walt3D is an independent and proprietary web 3D modeler. This project has no affiliation, association or endorsement with the developers of commercial modeling software on the market. All trademarks and registered marks referenced belong to their respective owners.':
+      'Aviso legal: o Walt3D é um modelador 3D web independente e proprietário. Este projeto não possui qualquer vínculo, afiliação ou endosso com os desenvolvedores de softwares de modelagem comercial do mercado. Todas as marcas e marcas registradas referenciadas pertencem aos seus respectivos proprietários.',
+    'Free access (demo): the app can be used without login in demonstration mode, but with limited functionality. To unlock all tools, save scenes to the cloud, and have full access to Walt3D, an active subscription is required. See the "Subscription" tab for more details.':
+      'Acesso gratuito (demo): o app pode ser utilizado sem login em modo demonstração, porém com funcionalidades limitadas. Para desbloquear todas as ferramentas, salvar cenas na nuvem e ter acesso completo ao Walt3D é necessário possuir uma assinatura ativa. Veja a aba "Assinatura" para mais detalhes.',
+    'Promotional subscription: during the promotional period, the subscription costs only':
+      'Assinatura promocional: durante o período promocional, a assinatura custa apenas',
+    'US$ 1.00 per month': 'US$ 1,00 por mês',
+    'per month': 'por mês',
+    'Fill in the fields below to request your subscription — access is manually granted by the administrator after payment confirmation.':
+      'Preencha os campos abaixo para solicitar sua assinatura — o acesso é liberado manualmente pelo administrador após a confirmação do pagamento.',
+    'Name:': 'Nome:', 'E-mail:': 'E-mail:', 'Reason:': 'Motivo:',
+    '← Back': '← Voltar',
+    'Sending...': 'Enviando...',
+    'Send registration request': 'Enviar pedido de registro',
+    'Please enter your e-mail': 'Informe seu e-mail',
+    'Request sent': 'Pedido enviado',
+    'Please wait for admin approval.': 'Aguarde a liberação do administrador.',
+    'Send error': 'Erro ao enviar',
   },
   es: {
     File: 'Archivo', Edit: 'Editar', Group: 'Grupo', Views: 'Vistas',
@@ -230,6 +262,38 @@ const dict: Record<Lang, Record<string, string>> = {
     Line: 'Línea', Rectangle: 'Rectángulo', Circle: 'Círculo', Ellipse: 'Elipse',
     Arc: 'Arco', Donut: 'Rosquilla', NGon: 'NGon', Star: 'Estrella', Helix: 'Hélice', Text: 'Texto',
     Wall: 'Pared', Camera: 'Cámara', Light: 'Luz',
+    // About / Welcome dialogs
+    'About Walt3D': 'Acerca de Walt3D',
+    'WEB 3D MODELER': 'MODELADOR 3D WEB',
+    'web 3d modeler': 'modelador 3d web',
+    'Walt3D · Web Edition': 'Walt3D · Edición Web',
+    'Version 3.0.1 · Build 2026.07': 'Versión 3.0.1 · Build 2026.07',
+    'Copyright © 2026 Walt3D': 'Copyright © 2026 Walt3D',
+    'Real-time 3D authoring, non-destructive modifiers, animation timeline, and integrated scanline renderer — running fully in the browser via WebGL / three.js.':
+      'Autoría 3D en tiempo real, modificadores no destructivos, línea de tiempo de animación y renderizador scanline integrado — funcionando totalmente en el navegador vía WebGL / three.js.',
+    'This product is licensed to:': 'Este producto está licenciado a:',
+    'Local User': 'Usuario Local',
+    'Welcome to Walt3D': 'Bienvenido a Walt3D',
+    Welcome: 'Bienvenida',
+    Subscription: 'Suscripción',
+    'Legal notice: Walt3D is an independent and proprietary web 3D modeler. This project has no affiliation, association or endorsement with the developers of commercial modeling software on the market. All trademarks and registered marks referenced belong to their respective owners.':
+      'Aviso legal: Walt3D es un modelador 3D web independiente y propietario. Este proyecto no tiene vínculo, afiliación ni respaldo con los desarrolladores de software de modelado comercial del mercado. Todas las marcas y marcas registradas referenciadas pertenecen a sus respectivos propietarios.',
+    'Free access (demo): the app can be used without login in demonstration mode, but with limited functionality. To unlock all tools, save scenes to the cloud, and have full access to Walt3D, an active subscription is required. See the "Subscription" tab for more details.':
+      'Acceso gratuito (demo): la app puede usarse sin login en modo demostración, pero con funcionalidad limitada. Para desbloquear todas las herramientas, guardar escenas en la nube y tener acceso completo a Walt3D, se necesita una suscripción activa. Vea la pestaña "Suscripción" para más detalles.',
+    'Promotional subscription: during the promotional period, the subscription costs only':
+      'Suscripción promocional: durante el período promocional, la suscripción cuesta solo',
+    'US$ 1.00 per month': 'US$ 1,00 por mes',
+    'per month': 'por mes',
+    'Fill in the fields below to request your subscription — access is manually granted by the administrator after payment confirmation.':
+      'Complete los campos a continuación para solicitar su suscripción — el acceso es otorgado manualmente por el administrador tras la confirmación del pago.',
+    'Name:': 'Nombre:', 'E-mail:': 'Correo:', 'Reason:': 'Motivo:',
+    '← Back': '← Atrás',
+    'Sending...': 'Enviando...',
+    'Send registration request': 'Enviar solicitud de registro',
+    'Please enter your e-mail': 'Ingrese su correo',
+    'Request sent': 'Solicitud enviada',
+    'Please wait for admin approval.': 'Espere la aprobación del administrador.',
+    'Send error': 'Error al enviar',
   },
 };
 

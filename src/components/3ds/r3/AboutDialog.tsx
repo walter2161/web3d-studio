@@ -19,7 +19,9 @@ export const AboutDialog = ({ open, onOpenChange }: Props) => (
         <div className="mt-1">Version 3.0.1 · Build 2026.07</div>
         <div className="mt-2">Copyright © 2026 Walt3D</div>
         <div className="mt-2">Real-time 3D authoring, non-destructive modifiers, animation timeline, and integrated scanline renderer — running fully in the browser via WebGL / three.js.</div>
-        <div className="mt-2 opacity-70">This product is licensed to: <b>Local User</b></div>
+        <div className="mt-2 opacity-70">
+          <span>This product is licensed to:</span> <b>Local User</b>
+        </div>
       </div>
     </div>
     <div className="mt-3 flex justify-end">
