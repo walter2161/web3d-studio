@@ -116,6 +116,58 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'side3',  label: 'Side 3', kind: 'float', default: EXT_PRIM_DEFAULTS.prism.side3, min: 0.001, step: 0.1 },
     { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.prism.height, min: 0.001, step: 0.1 },
   ],
+  // Standard extras
+  teapot: [
+    { key: 'radius',   label: 'Radius',   kind: 'float', default: EXT_PRIM_DEFAULTS.teapot.radius, min: 0.001, step: 0.1 },
+    { key: 'segments', label: 'Segments', kind: 'int',   default: EXT_PRIM_DEFAULTS.teapot.segments, min: 2 },
+  ],
+  tube: [
+    { key: 'radius1', label: 'Outer R', kind: 'float', default: EXT_PRIM_DEFAULTS.tube.radius1, min: 0.001, step: 0.1 },
+    { key: 'radius2', label: 'Inner R', kind: 'float', default: EXT_PRIM_DEFAULTS.tube.radius2, min: 0,     step: 0.1 },
+    { key: 'height',  label: 'Height',  kind: 'float', default: EXT_PRIM_DEFAULTS.tube.height,  min: 0.001, step: 0.1 },
+    { key: 'sides',   label: 'Sides',   kind: 'int',   default: EXT_PRIM_DEFAULTS.tube.sides,   min: 3 },
+  ],
+  pyramid: [
+    { key: 'width',  label: 'Width',  kind: 'float', default: EXT_PRIM_DEFAULTS.pyramid.width,  min: 0.001, step: 0.1 },
+    { key: 'depth',  label: 'Depth',  kind: 'float', default: EXT_PRIM_DEFAULTS.pyramid.depth,  min: 0.001, step: 0.1 },
+    { key: 'height', label: 'Height', kind: 'float', default: EXT_PRIM_DEFAULTS.pyramid.height, min: 0.001, step: 0.1 },
+  ],
+  geoSphere: [
+    { key: 'radius',   label: 'Radius',       kind: 'float', default: EXT_PRIM_DEFAULTS.geoSphere.radius, min: 0.001, step: 0.1 },
+    { key: 'segments', label: 'Subdivisions', kind: 'int',   default: EXT_PRIM_DEFAULTS.geoSphere.segments, min: 0 },
+    { key: 'family',   label: 'Base (0-2)',   kind: 'int',   default: EXT_PRIM_DEFAULTS.geoSphere.family, min: 0 },
+  ],
+  // Extended extras
+  capsule: [
+    { key: 'radius',     label: 'Radius',     kind: 'float', default: EXT_PRIM_DEFAULTS.capsule.radius, min: 0.001, step: 0.1 },
+    { key: 'height',     label: 'Height',     kind: 'float', default: EXT_PRIM_DEFAULTS.capsule.height, min: 0.001, step: 0.1 },
+    { key: 'sides',      label: 'Sides',      kind: 'int',   default: EXT_PRIM_DEFAULTS.capsule.sides, min: 3 },
+    { key: 'heightSegs', label: 'Cap Segs',   kind: 'int',   default: EXT_PRIM_DEFAULTS.capsule.heightSegs, min: 1 },
+  ],
+  lExt: [
+    { key: 'frontLen',   label: 'Front Len',   kind: 'float', default: EXT_PRIM_DEFAULTS.lExt.frontLen,   min: 0.001, step: 0.1 },
+    { key: 'sideLen',    label: 'Side Len',    kind: 'float', default: EXT_PRIM_DEFAULTS.lExt.sideLen,    min: 0.001, step: 0.1 },
+    { key: 'frontWidth', label: 'Front Width', kind: 'float', default: EXT_PRIM_DEFAULTS.lExt.frontWidth, min: 0.001, step: 0.05 },
+    { key: 'sideWidth',  label: 'Side Width',  kind: 'float', default: EXT_PRIM_DEFAULTS.lExt.sideWidth,  min: 0.001, step: 0.05 },
+    { key: 'height',     label: 'Height',      kind: 'float', default: EXT_PRIM_DEFAULTS.lExt.height,     min: 0.001, step: 0.1 },
+  ],
+  cExt: [
+    { key: 'backLen',    label: 'Back Len',    kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.backLen,    min: 0.001, step: 0.1 },
+    { key: 'sideLen',    label: 'Side Len',    kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.sideLen,    min: 0.001, step: 0.1 },
+    { key: 'frontLen',   label: 'Front Len',   kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.frontLen,   min: 0.001, step: 0.1 },
+    { key: 'backWidth',  label: 'Back Width',  kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.backWidth,  min: 0.001, step: 0.05 },
+    { key: 'sideWidth',  label: 'Side Width',  kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.sideWidth,  min: 0.001, step: 0.05 },
+    { key: 'frontWidth', label: 'Front Width', kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.frontWidth, min: 0.001, step: 0.05 },
+    { key: 'height',     label: 'Height',      kind: 'float', default: EXT_PRIM_DEFAULTS.cExt.height,     min: 0.001, step: 0.1 },
+  ],
+  hose: [
+    { key: 'radius',    label: 'Radius',     kind: 'float', default: EXT_PRIM_DEFAULTS.hose.radius,    min: 0.001, step: 0.05 },
+    { key: 'height',    label: 'Height',     kind: 'float', default: EXT_PRIM_DEFAULTS.hose.height,    min: 0.001, step: 0.1 },
+    { key: 'sides',     label: 'Sides',      kind: 'int',   default: EXT_PRIM_DEFAULTS.hose.sides,     min: 3 },
+    { key: 'segments',  label: 'Segments',   kind: 'int',   default: EXT_PRIM_DEFAULTS.hose.segments,  min: 4 },
+    { key: 'bumps',     label: 'Bumps',      kind: 'int',   default: EXT_PRIM_DEFAULTS.hose.bumps,     min: 0 },
+    { key: 'bumpDepth', label: 'Bump Depth', kind: 'float', default: EXT_PRIM_DEFAULTS.hose.bumpDepth, min: 0,   step: 0.01 },
+  ],
   // Shapes
   rectangle: [
     { key: 'width',  label: 'Width',  kind: 'float', default: SHAPE_DEFAULTS.rectangle.width,  min: 0.001, step: 0.1 },
