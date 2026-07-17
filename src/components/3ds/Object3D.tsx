@@ -1328,7 +1328,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
-  function applyTwist(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyTwistCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const bias = params.bias || 0;
     
@@ -1353,7 +1353,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
-  function applyTaper(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyTaperCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const amount = params.amount || 0;
     const curve = params.curve || 0;
     
@@ -1375,7 +1375,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return geometry;
   }
 
-  function applyNoise(geometry: BufferGeometry, params: any): BufferGeometry {
+  function applyNoiseCore(geometry: BufferGeometry, params: any): BufferGeometry {
     const scale = params.scale || 1;
     const strengthX = params.strengthX || 0;
     const strengthY = params.strengthY || 0;
