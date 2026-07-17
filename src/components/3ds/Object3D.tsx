@@ -1326,24 +1326,10 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         </>
       )}
 
-      {/* Wireframe pick markers — only for the currently selected object to
-          avoid rendering N points buffers per scene object (memory + draw calls). */}
-      {renderMode === 'wireframe' && isSelected && !isGhost && modifiedGeometry && (
-        <points
-          geometry={modifiedGeometry}
-          renderOrder={997}
-          raycast={(() => null) as any}
-        >
-          <pointsMaterial
-            size={7}
-            sizeAttenuation={false}
-            color={'#00bfff'}
-            depthTest={false}
-            transparent
-            opacity={0.9}
-          />
-        </points>
-      )}
+      {/* Wireframe vertex dots removed — they were rendering N points buffers
+          (heavy for dense meshes like spheres). Vertex-proximity picking on the
+          mesh still works via vertexOnlyRaycast; sub-object editing shows its
+          own overlay dots only when the Edit Mesh/Spline sub-mode is active. */}
 
       {/* Edged Faces (F4): show wire on top of solid */}
       {renderMode === 'edged' && !isGhost && !isSelected && (
