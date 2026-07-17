@@ -158,7 +158,10 @@ function buildGhost(
       // Foliage sits ON the ground (pivot at base) instead of centered.
       if (tool === 'foliage') {
         setH(start[heightAxis]);
-        geometry = { ...geometry, radius: r, crownRadius: r, height: h };
+        // Read the species preset the palette stashed on window when arming.
+        const sp = (window as any).__foliageSpecies;
+        const species = typeof sp === 'number' ? sp : (prev?.geometry?.species ?? 0);
+        geometry = { ...geometry, species, radius: r, crownRadius: r, height: h };
       } else {
         setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
         geometry = { ...geometry, radius: r, radiusTop: r, radiusBottom: r, height: h };

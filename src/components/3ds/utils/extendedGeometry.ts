@@ -73,9 +73,38 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   cExt:       { backLen: 1, sideLen: 0.6, frontLen: 1, backWidth: 0.2, sideWidth: 0.2, frontWidth: 0.2, height: 0.8 },
   hose:       { radius: 0.15, height: 1, sides: 12, segments: 40, bumps: 4, bumpDepth: 0.05 },
   // ---- AEC Extended: Foliage (procedural tree) ----
-  // species: 0=Oak 1=Maple 2=Palm 3=Pine 4=Ash 5=Birch 6=Generic 7=Shrub
+  // See FOLIAGE_SPECIES catalog below for the full species list.
   foliage:    { height: 6, crownRadius: 3, density: 1, seed: 1, species: 0, leafSize: 0.35, branchDensity: 1, age: 1, displayAsBox: false },
 };
+
+// 3ds Max AEC Extended > Foliage species catalog. Each preset seeds sensible
+// defaults so the palette buttons produce a plausible tree on first drag.
+export type FoliageKind = 'broadleaf' | 'palm' | 'pine' | 'shrub' | 'weeping';
+export interface FoliageSpecies {
+  id: number;
+  label: string;
+  kind: FoliageKind;
+  height: number;
+  crownRadius: number;
+  leafSize: number;
+  branchDensity: number;
+}
+export const FOLIAGE_SPECIES: FoliageSpecies[] = [
+  { id: 0,  label: 'Generic Oak',              kind: 'broadleaf', height: 8,  crownRadius: 4,   leafSize: 0.40, branchDensity: 1.0 },
+  { id: 1,  label: 'American Elm',             kind: 'broadleaf', height: 10, crownRadius: 5,   leafSize: 0.35, branchDensity: 1.1 },
+  { id: 2,  label: 'Society Garlic',           kind: 'palm',      height: 1.2,crownRadius: 0.6, leafSize: 0.15, branchDensity: 1.4 },
+  { id: 3,  label: 'Yucca',                    kind: 'palm',      height: 2,  crownRadius: 1.2, leafSize: 0.30, branchDensity: 1.3 },
+  { id: 4,  label: 'Banyan Tree',              kind: 'broadleaf', height: 9,  crownRadius: 6,   leafSize: 0.45, branchDensity: 1.4 },
+  { id: 5,  label: 'Weeping Willow',           kind: 'weeping',   height: 7,  crownRadius: 4.5, leafSize: 0.30, branchDensity: 1.5 },
+  { id: 6,  label: 'Big Palm',                 kind: 'palm',      height: 8,  crownRadius: 3,   leafSize: 0.55, branchDensity: 1.0 },
+  { id: 7,  label: 'Japanese Flowering Cherry',kind: 'broadleaf', height: 5,  crownRadius: 3,   leafSize: 0.32, branchDensity: 1.2 },
+  { id: 8,  label: 'Blue Spruce',              kind: 'pine',      height: 8,  crownRadius: 2.5, leafSize: 0.28, branchDensity: 1.2 },
+  { id: 9,  label: 'Scotch Pine',              kind: 'pine',      height: 9,  crownRadius: 3,   leafSize: 0.30, branchDensity: 1.1 },
+  { id: 10, label: 'Silver Birch',             kind: 'broadleaf', height: 7,  crownRadius: 2.5, leafSize: 0.28, branchDensity: 0.9 },
+  { id: 11, label: 'Generic Shrub',            kind: 'shrub',     height: 1.2,crownRadius: 1,   leafSize: 0.22, branchDensity: 1.2 },
+];
+export const foliageKind = (species: number): FoliageKind =>
+  FOLIAGE_SPECIES.find((s) => s.id === (species | 0))?.kind ?? 'broadleaf';
 
 // Shape defaults mirror 3ds Max R3 Shapes rollout. Every shape carries the
 // common "Rendering" (renderable / thickness / sides / angle / rectangular
@@ -431,9 +460,11 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       const rr = (a: number, b: number) => a + (b - a) * rand();
 
       // Species-specific traits
-      const isPalm    = species === 2;
-      const isPine    = species === 3;
-      const isShrub   = species === 7;
+      const kind = foliageKind(species);
+      const isPalm    = kind === 'palm';
+      const isPine    = kind === 'pine';
+      const isShrub   = kind === 'shrub';
+      const isWeeping = kind === 'weeping';
       const trunkR   = h * (isShrub ? 0.02 : isPalm ? 0.03 : 0.05) * age;
       const trunkH   = isShrub ? h * 0.3 : isPalm ? h * 0.9 : h * 0.55;
       const trunkTopR = trunkR * (isPalm ? 0.7 : 0.55);
@@ -451,8 +482,11 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       for (let i = 0; i < branchCount; i++) {
         const yStart = isPalm ? trunkH * rr(0.9, 1.0) : trunkH * rr(0.35, 0.95);
         const ang = rr(0, Math.PI * 2);
-        const tilt = isPalm ? rr(0.15, 0.55) : isPine ? rr(0.25, 0.7) : rr(0.35, 0.9);
-        const len = crown * (isShrub ? rr(0.5, 1.0) : rr(0.6, 1.1));
+        const tilt = isPalm ? rr(0.15, 0.55)
+                    : isPine ? rr(0.25, 0.7)
+                    : isWeeping ? rr(1.2, 1.9)   // steeper downward tilt for willow
+                    : rr(0.35, 0.9);
+        const len = crown * (isShrub ? rr(0.5, 1.0) : isWeeping ? rr(0.8, 1.3) : rr(0.6, 1.1));
         const br = trunkR * rr(0.25, 0.5);
         const b = new THREE.CylinderGeometry(br * 0.4, br, len, 6);
         b.translate(0, len / 2, 0);

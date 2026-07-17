@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
-import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS } from './utils/extendedGeometry';
+import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS, FOLIAGE_SPECIES } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 import { EditableSplinePanel } from './r3/EditableSplinePanel';
@@ -415,13 +415,18 @@ export const SidePanel = ({
 
   // AEC Extended (Architecture / Engineering / Construction). Só Wall está
   // implementado hoje; os demais ficam listados como "em breve".
-  const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean }> = [
+  const aecPrimitives: Array<{ type: string; label: string; disabled?: boolean; foliageSpecies?: number }> = [
     { type: 'wall',     label: 'Wall' },
     { type: 'door',     label: 'Doors' },
     { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
-    { type: 'foliage',  label: 'Foliage' },
+    // Foliage — one button per species, matching 3ds Max's plant palette.
+    ...FOLIAGE_SPECIES.map((sp) => ({
+      type: 'foliage',
+      label: sp.label,
+      foliageSpecies: sp.id,
+    })),
   ];
 
   // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
@@ -681,14 +686,23 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCat === 'geometry' && createCategory === 'aec' && aecPrimitives.map((p) => {
-                  const pressed = armedTool === p.type;
+                {createCat === 'geometry' && createCategory === 'aec' && aecPrimitives.map((p, idx) => {
+                  const armedFol = (window as any).__foliageSpecies;
+                  const pressed = armedTool === p.type
+                    && (p.foliageSpecies === undefined || armedFol === p.foliageSpecies);
                   return (
                     <button
-                      key={p.type}
+                      key={`${p.type}-${p.foliageSpecies ?? idx}`}
                       disabled={p.disabled}
                       onClick={() => {
                         if (p.disabled) return;
+                        if (p.foliageSpecies !== undefined) {
+                          // Store species preset so CreationController seeds
+                          // the correct defaults when it builds the ghost.
+                          (window as any).__foliageSpecies = p.foliageSpecies;
+                        } else {
+                          delete (window as any).__foliageSpecies;
+                        }
                         onArmTool ? onArmTool(p.type) : onCreateObject(p.type);
                       }}
                       title={p.disabled ? `${p.label} — em breve` : `Create ${p.label}`}
