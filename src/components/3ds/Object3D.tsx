@@ -125,8 +125,9 @@ function MaterialWithMaps({
   const opacityMap = showMaps ? rawOpacity : null;
   const emissiveMap = showMaps ? rawEmissive : null;
   const baseOpacity = material?.opacity ?? 1;
-  const transparent = renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || baseOpacity < 1 || !!opacityMap;
-  const opacity = isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (renderMode === 'semi-transparent' ? 0.5 : baseOpacity));
+  const isWire = renderMode === 'wireframe';
+  const transparent = renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || baseOpacity < 1 || !!opacityMap || isWire;
+  const opacity = isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (isWire ? 0 : (renderMode === 'semi-transparent' ? 0.5 : baseOpacity)));
   return (
     <meshStandardMaterial
       color={color}
@@ -137,8 +138,9 @@ function MaterialWithMaps({
       emissiveMap={emissiveMap || undefined}
       transparent={transparent}
       opacity={opacity}
-      depthWrite={renderMode !== 'bbox'}
-      wireframe={renderMode === 'wireframe'}
+      depthWrite={renderMode !== 'bbox' && !isWire}
+      colorWrite={!isWire}
+      wireframe={false}
       metalness={material?.metalness ?? 0.15}
       roughness={material?.roughness ?? 0.55}
       emissive={material?.emissive ?? '#000000'}
