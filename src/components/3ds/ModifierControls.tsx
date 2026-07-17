@@ -124,6 +124,8 @@ const NumField = ({
   </label>
 );
 
+// 3ds Max style spinner: numeric field + up/down arrows. Click arrows to step,
+// or press-and-drag vertically on them to scrub the value continuously.
 const SliderRow = ({
   label,
   value,
@@ -135,35 +137,80 @@ const SliderRow = ({
 }: {
   label: string;
   value: number;
-  min: number;
-  max: number;
+  min?: number;
+  max?: number;
   step?: number;
   onChange: (v: number) => void;
   unit?: string;
-}) => (
-  <div className="flex items-center gap-[4px] mb-[2px]">
-    <span className="min-w-[54px] text-[11px] text-win-text">{label}</span>
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="flex-1 h-[14px]"
-    />
-    <input
-      type="number"
-      value={Number.isFinite(value) ? value : 0}
-      min={min}
-      max={max}
-      step={step}
-      onChange={(e) => onChange(parseFloat(e.target.value))}
-      className="w-[52px] h-[18px] bevel-sunken bg-white text-[11px] px-[3px] outline-none text-right"
-    />
-    {unit && <span className="text-[10px] text-win-text w-[8px]">{unit}</span>}
-  </div>
-);
+}) => {
+  const clamp = (v: number) => {
+    if (min !== undefined && v < min) v = min;
+    if (max !== undefined && v > max) v = max;
+    return v;
+  };
+  const decimals = step < 1 ? Math.min(3, Math.max(0, String(step).split('.')[1]?.length ?? 0)) : 0;
+  const format = (v: number) => (Number.isFinite(v) ? v.toFixed(decimals) : '0');
+  const bump = (dir: 1 | -1, mult = 1) => onChange(clamp(+(value + dir * step * mult).toFixed(6)));
+
+  const startDrag = (dir: 1 | -1) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    const startY = e.clientY;
+    const startVal = value;
+    let dragged = false;
+    const move = (ev: PointerEvent) => {
+      const dy = startY - ev.clientY; // up = positive
+      if (Math.abs(dy) > 2) dragged = true;
+      const mult = ev.shiftKey ? 10 : ev.ctrlKey ? 0.1 : 1;
+      const next = clamp(+(startVal + dy * step * mult).toFixed(6));
+      if (next !== value) onChange(next);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (!dragged) bump(dir); // treat as a click when no drag occurred
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <div className="flex items-center gap-[4px] mb-[2px]">
+      <span className="min-w-[54px] text-[11px] text-win-text">{label}</span>
+      <div className="flex-1" />
+      <input
+        type="number"
+        value={format(value)}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => {
+          const n = parseFloat(e.target.value);
+          if (Number.isFinite(n)) onChange(clamp(n));
+        }}
+        className="w-[64px] h-[18px] bevel-sunken bg-white text-[11px] px-[3px] outline-none text-right"
+      />
+      <div className="flex flex-col select-none" style={{ height: 18 }}>
+        <button
+          type="button"
+          tabIndex={-1}
+          onPointerDown={startDrag(1)}
+          className="bevel-raised h-[9px] w-[13px] flex items-center justify-center text-[8px] leading-none text-win-text active:bevel-sunken cursor-ns-resize"
+          aria-label="Increase"
+        >▲</button>
+        <button
+          type="button"
+          tabIndex={-1}
+          onPointerDown={startDrag(-1)}
+          className="bevel-raised h-[9px] w-[13px] flex items-center justify-center text-[8px] leading-none text-win-text active:bevel-sunken cursor-ns-resize"
+          aria-label="Decrease"
+        >▼</button>
+      </div>
+      {unit && <span className="text-[10px] text-win-text w-[8px]">{unit}</span>}
+    </div>
+  );
+};
+
 
 const CheckRow = ({
   label,
