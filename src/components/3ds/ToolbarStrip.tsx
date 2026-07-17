@@ -103,6 +103,92 @@ export const MainToolbar = ({
 };
 
 
+// ────────────────────────────────────────────────────────────────────────────
+// Selection Region cluster — Rectangle / Circle / Fence / Lasso / Paint,
+// Window vs Crossing toggle and Ignore Backfacing (matches 3ds Max).
+// ────────────────────────────────────────────────────────────────────────────
+const MODE_META: Record<RegionMode, { title: string; Icon: React.ComponentType<{ size?: number }> }> = {
+  rectangle: { title: 'Rectangular Selection Region', Icon: SquareIcon },
+  circle:    { title: 'Circular Selection Region',    Icon: CircleIcon },
+  fence:     { title: 'Fence Selection Region',       Icon: Waves },
+  lasso:     { title: 'Lasso Selection Region',       Icon: Lasso },
+  paint:     { title: 'Paint Selection Region',       Icon: Paintbrush },
+};
+
+const SelectionRegionButtons = () => {
+  const region = useSyncExternalStore(subscribeRegion, () => getRegionState(), () => getRegionState());
+  const CurrentIcon = MODE_META[region.regionMode].Icon;
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            title={`${MODE_META[region.regionMode].title} — click to change`}
+            className="h-[24px] px-1 flex items-center bevel-raised hover:brightness-105 text-win-text"
+          >
+            <CurrentIcon size={14} />
+            <ChevronDown size={9} className="ml-0.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="text-xs">
+          <DropdownMenuLabel>Selection Region</DropdownMenuLabel>
+          {(Object.keys(MODE_META) as RegionMode[]).map((m) => {
+            const Icon = MODE_META[m].Icon;
+            return (
+              <DropdownMenuItem key={m} onClick={() => setRegionState({ regionMode: m })}>
+                <Icon size={12} className="mr-2" />
+                {MODE_META[m].title}{region.regionMode === m ? '  ✓' : ''}
+              </DropdownMenuItem>
+            );
+          })}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>Window / Crossing</DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={region.windowCrossing === 'window'}
+            onCheckedChange={() => setRegionState({ windowCrossing: 'window' })}
+          >
+            Window — fully inside
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={region.windowCrossing === 'crossing'}
+            onCheckedChange={() => setRegionState({ windowCrossing: 'crossing' })}
+          >
+            Crossing — touches region
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuCheckboxItem
+            checked={region.ignoreBackfacing}
+            onCheckedChange={(v) => setRegionState({ ignoreBackfacing: !!v })}
+          >
+            Ignore Backfacing
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ToolButton
+        title={`Window/Crossing Toggle (currently ${region.windowCrossing})`}
+        active={region.windowCrossing === 'window'}
+        onClick={() => setRegionState({ windowCrossing: region.windowCrossing === 'window' ? 'crossing' : 'window' })}
+      >
+        <span className="text-[10px] font-mono leading-none">{region.windowCrossing === 'window' ? 'W' : 'C'}</span>
+      </ToolButton>
+
+      <ToolButton
+        title="Ignore Backfacing"
+        active={region.ignoreBackfacing}
+        onClick={() => setRegionState({ ignoreBackfacing: !region.ignoreBackfacing })}
+      >
+        <Eye size={14} />
+      </ToolButton>
+    </>
+  );
+};
+
+
+
+
+
 interface SnapsToolbarProps {
   snapEnabled?: boolean;
   onToggleSnap?: () => void;
