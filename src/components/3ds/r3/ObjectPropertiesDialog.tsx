@@ -63,13 +63,13 @@ export const ObjectPropertiesDialog = ({ open, onOpenChange, object, onSave }: P
     onOpenChange(false);
   };
 
-  const cbCls = "flex items-center gap-[2px] text-[9px] leading-[11px] py-0";
-  const cb = "w-[9px] h-[9px] m-0";
-  const lbl = "text-[9px] leading-[11px]";
+  const cbCls = "flex items-center gap-[2px] text-[6px] leading-[8px] py-0";
+  const cb = "w-[6px] h-[6px] m-0";
+  const lbl = "text-[6px] leading-[8px]";
 
   return (
     <R3Dialog open={open} onClose={() => onOpenChange(false)} title="Object Properties" width={340}>
-      <div className="space-y-[2px] text-[9px] leading-[11px]">
+      <div className="space-y-[2px] text-[6px] leading-[8px]">
         <GroupBox title="Object Information">
           <Row label="Name:" labelWidth={50}>
             <input value={name} onChange={(e) => setName(e.target.value)} className="bevel-inset bg-white text-[9px] px-1 flex-1 h-[13px]" style={{ width: 180 }} />
