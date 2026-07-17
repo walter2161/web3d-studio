@@ -1,0 +1,379 @@
+/**
+ * SelectionRegionOverlay — HTML/SVG marquee layer that reproduces the 3ds Max
+ * "Selection Region" system per viewport. It supports Rectangle, Circle,
+ * Fence, Lasso and Paint modes with Window vs Crossing behavior, plus Ctrl
+ * (add) and Alt (remove) modifier keys.
+ *
+ * How it plugs in:
+ *   - Sits on top of the R3F Canvas inside each Viewport wrapper.
+ *   - Listens to pointerdown in the CAPTURE phase so it can decide before the
+ *     Canvas whether the click starts on an empty area (region drag) or hits
+ *     an existing object (let R3F handle the normal click-select).
+ *   - Does its own manual raycast against the registered scene to detect
+ *     "empty" clicks (via `viewportRegistry`).
+ *
+ * On release the overlay projects every scene object's position (and a small
+ * screen-space extent) to screen coordinates and tests whether it falls
+ * inside the drawn region. Matched ids are dispatched via a
+ * `r3-region-select` window event which Studio3D consumes to update the
+ * scene selection.
+ */
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import * as THREE from 'three';
+import { getRegionState, subscribeRegion } from './selectionRegionStore';
+import { getViewportHandle } from './viewportRegistry';
+
+type Pt = { x: number; y: number };
+
+interface Props {
+  vkey: string;
+  isActive: boolean;
+  objects: Array<{ id: string; position?: [number, number, number]; scale?: [number, number, number]; visible?: boolean; parentId?: string | null }>;
+  onSelectObjects: (ids: string[], additive: boolean, remove: boolean) => void;
+}
+
+const DRAG_THRESHOLD = 3; // px — below this counts as a plain click and passes through to Canvas.
+
+export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObjects }: Props) => {
+  const region = useSyncExternalStore(subscribeRegion, () => getRegionState(), () => getRegionState());
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<null | {
+    kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint';
+    start: Pt;
+    current: Pt;
+    points: Pt[]; // for fence/lasso/paint
+    additive: boolean;
+    remove: boolean;
+    painted: Set<string>; // for paint mode we accumulate hits as we move
+  }>(null);
+
+  // ---- Cursor +/- feedback --------------------------------------------------
+  const [modKeys, setModKeys] = useState<{ ctrl: boolean; alt: boolean }>({ ctrl: false, alt: false });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => setModKeys({ ctrl: e.ctrlKey || e.metaKey, alt: e.altKey });
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); };
+  }, []);
+
+  // Manual raycast so we can decide if a mousedown is on empty space and
+  // therefore should start a region drag rather than a click-pick.
+  const rayHitsObject = (localX: number, localY: number, rect: DOMRect): boolean => {
+    const handle = getViewportHandle(vkey);
+    if (!handle) return false;
+    const ndc = new THREE.Vector2(
+      (localX / rect.width) * 2 - 1,
+      -(localY / rect.height) * 2 + 1,
+    );
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(ndc, handle.camera as any);
+    // Only test against user-visible objects: skip helpers/gizmos.
+    const targets: THREE.Object3D[] = [];
+    handle.scene.traverse((n) => {
+      if ((n as any).isMesh && !(n as any).userData?.__helper) targets.push(n);
+    });
+    const hits = ray.intersectObjects(targets, false);
+    return hits.length > 0;
+  };
+
+  // ---- Pointer handling ------------------------------------------------------
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return; // Only left mouse triggers region select.
+      // Ignore clicks that started on UI chrome (viewport label, dropdowns).
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-viewport-chrome]')) return;
+
+      const rect = wrapper.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+
+      // If a scene object is under the cursor, let R3F handle the click.
+      if (rayHitsObject(localX, localY, rect)) return;
+
+      // Empty background → begin a region drag. Stop Canvas from also
+      // interpreting this as a "click-in-empty-space" pointerdown.
+      e.stopPropagation();
+      // Do NOT preventDefault here — that would kill focus/text selection
+      // system-wide; stopPropagation is enough to shield the R3F canvas.
+
+      const additive = e.ctrlKey || e.metaKey;
+      const remove = e.altKey;
+
+      const kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint' =
+        region.regionMode === 'rectangle' ? 'rect'
+        : region.regionMode === 'circle' ? 'circle'
+        : region.regionMode === 'fence' ? 'fence'
+        : region.regionMode === 'paint' ? 'paint'
+        : 'lasso';
+
+      setDrag({
+        kind,
+        start: { x: localX, y: localY },
+        current: { x: localX, y: localY },
+        points: [{ x: localX, y: localY }],
+        additive, remove,
+        painted: new Set(),
+      });
+    };
+
+    wrapper.addEventListener('pointerdown', onPointerDown, { capture: true });
+    return () => wrapper.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
+  }, [region.regionMode, vkey]);
+
+  // While dragging: track pointer on window so we don't lose the release even
+  // if it leaves the viewport.
+  useEffect(() => {
+    if (!drag) return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const localFromEvent = (e: PointerEvent | MouseEvent): Pt => {
+      const r = wrapper.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+
+    const onMove = (e: PointerEvent) => {
+      const p = localFromEvent(e);
+      setDrag((prev) => {
+        if (!prev) return prev;
+        if (prev.kind === 'fence' || prev.kind === 'lasso' || prev.kind === 'paint') {
+          const last = prev.points[prev.points.length - 1];
+          const dx = p.x - last.x, dy = p.y - last.y;
+          // sample the polyline; keep it light so SVG stays cheap
+          const step = prev.kind === 'lasso' ? 4 : 6;
+          if (dx * dx + dy * dy < step * step) {
+            return { ...prev, current: p };
+          }
+          const nextPts = [...prev.points, p];
+          const nextPainted = prev.painted;
+          if (prev.kind === 'paint') {
+            const hits = pickByPaint([p], region.paintRadius, objects, vkey);
+            hits.forEach((id) => nextPainted.add(id));
+          }
+          return { ...prev, current: p, points: nextPts, painted: nextPainted };
+        }
+        return { ...prev, current: p };
+      });
+    };
+
+    const onUp = (e: PointerEvent) => {
+      const p = localFromEvent(e);
+      setDrag((prev) => {
+        if (!prev) return null;
+        const dragged = Math.hypot(p.x - prev.start.x, p.y - prev.start.y) >= DRAG_THRESHOLD || prev.points.length > 2;
+        if (!dragged) {
+          // Micro-drag → treat as an empty-space click: clear selection.
+          onSelectObjects([], prev.additive, prev.remove);
+          return null;
+        }
+        let ids: string[] = [];
+        if (prev.kind === 'rect') {
+          ids = pickByRect(prev.start, p, objects, vkey, region.windowCrossing);
+        } else if (prev.kind === 'circle') {
+          ids = pickByCircle(prev.start, p, objects, vkey);
+        } else if (prev.kind === 'fence') {
+          ids = pickByFence(prev.points, objects, vkey);
+        } else if (prev.kind === 'lasso') {
+          ids = pickByLasso(prev.points, objects, vkey, region.windowCrossing);
+        } else if (prev.kind === 'paint') {
+          ids = Array.from(prev.painted);
+        }
+        onSelectObjects(ids, prev.additive, prev.remove);
+        return null;
+      });
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [drag, objects, vkey, region.windowCrossing, region.paintRadius, onSelectObjects]);
+
+  // ---- Cursor style ----------------------------------------------------------
+  const cursor = useMemo(() => {
+    // Show +/- in the corner via CSS cursor SVG so it feels like 3ds Max.
+    if (modKeys.ctrl) return "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><path d='M2 2h1v16h-1zM2 2h16v1h-16z' fill='white'/><text x='11' y='16' font-size='12' fill='white' font-family='monospace'>+</text></svg>\") 2 2, crosshair";
+    if (modKeys.alt) return "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><path d='M2 2h1v16h-1zM2 2h16v1h-16z' fill='white'/><text x='11' y='16' font-size='12' fill='white' font-family='monospace'>-</text></svg>\") 2 2, crosshair";
+    return 'crosshair';
+  }, [modKeys]);
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="absolute inset-0 z-[6]"
+      style={{ pointerEvents: drag ? 'auto' : 'none', cursor: drag ? cursor : undefined }}
+    >
+      {/* Invisible capture layer sits above the canvas ONLY when dragging so
+          click-picks pass through to R3F the rest of the time. Even when not
+          dragging we still catch pointerdown via a capture-phase listener
+          registered above (bubbles up from the child canvas region). */}
+      <div className="absolute inset-0" style={{ pointerEvents: 'auto', cursor, opacity: drag ? 1 : 0 }} />
+
+      {drag && (
+        <RegionShape drag={drag} paintRadius={region.paintRadius} />
+      )}
+
+      {isActive && (
+        <div
+          className="absolute top-1 right-8 z-10 pointer-events-none text-[9px] font-mono px-1 bg-black/50 text-viewport-label"
+          style={{ opacity: 0.85 }}
+        >
+          {region.regionMode.toUpperCase()} · {region.windowCrossing.toUpperCase()}{region.ignoreBackfacing ? ' · IBF' : ''}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ---- Region shape SVG --------------------------------------------------------
+const RegionShape = ({ drag, paintRadius }: { drag: NonNullable<Props extends any ? any : never>; paintRadius: number }) => {
+  const { kind, start, current, points } = drag as any;
+  let content: React.ReactNode = null;
+  const stroke = '#e5e7eb';
+  const fill = 'rgba(59,130,246,0.12)';
+  if (kind === 'rect') {
+    const x = Math.min(start.x, current.x); const y = Math.min(start.y, current.y);
+    const w = Math.abs(current.x - start.x); const h = Math.abs(current.y - start.y);
+    content = <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeDasharray="4 3" strokeWidth={1} />;
+  } else if (kind === 'circle') {
+    const r = Math.hypot(current.x - start.x, current.y - start.y);
+    content = <circle cx={start.x} cy={start.y} r={r} fill={fill} stroke={stroke} strokeDasharray="4 3" strokeWidth={1} />;
+  } else if (kind === 'fence') {
+    const d = points.map((p: Pt, i: number) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+    content = <path d={d} fill="none" stroke={stroke} strokeDasharray="4 3" strokeWidth={1} />;
+  } else if (kind === 'lasso') {
+    const d = points.map((p: Pt, i: number) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + ' Z';
+    content = <path d={d} fill={fill} stroke={stroke} strokeDasharray="4 3" strokeWidth={1} />;
+  } else if (kind === 'paint') {
+    content = (
+      <>
+        {points.map((p: Pt, i: number) => (
+          <circle key={i} cx={p.x} cy={p.y} r={paintRadius} fill="rgba(59,130,246,0.06)" stroke="none" />
+        ))}
+        <circle cx={current.x} cy={current.y} r={paintRadius} fill="none" stroke={stroke} strokeWidth={1} />
+      </>
+    );
+  }
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ overflow: 'visible' }}>
+      {content}
+    </svg>
+  );
+};
+
+// ---- Picking helpers ---------------------------------------------------------
+function projectObject(vkey: string, objId: string, worldPos: THREE.Vector3): Pt | null {
+  const handle = getViewportHandle(vkey);
+  if (!handle) return null;
+  const el = handle.gl.domElement as HTMLCanvasElement;
+  const rect = el.getBoundingClientRect();
+  const v = worldPos.clone().project(handle.camera as any);
+  // In front of camera only (Z in NDC roughly < 1 & > -1). For ortho this is always true.
+  if (v.z < -1 || v.z > 1) return null;
+  return {
+    x: (v.x + 1) * 0.5 * rect.width,
+    y: (1 - (v.y + 1) * 0.5) * rect.height,
+  };
+}
+
+function objectWorldPositions(objects: Props['objects']) {
+  return objects
+    .filter((o) => o.visible !== false)
+    .map((o) => ({ id: o.id, pos: new THREE.Vector3(...(o.position || [0, 0, 0])) }));
+}
+
+function pickByRect(a: Pt, b: Pt, objects: Props['objects'], vkey: string, mode: 'window' | 'crossing'): string[] {
+  // With a single test point per object, Window and Crossing collapse to the
+  // same predicate. Passed here for API symmetry (multi-point extents in the
+  // future).
+  void mode;
+  const x1 = Math.min(a.x, b.x), y1 = Math.min(a.y, b.y);
+  const x2 = Math.max(a.x, b.x), y2 = Math.max(a.y, b.y);
+  const out: string[] = [];
+  for (const { id, pos } of objectWorldPositions(objects)) {
+    const p = projectObject(vkey, id, pos); if (!p) continue;
+    if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) out.push(id);
+  }
+  return out;
+}
+
+function pickByCircle(center: Pt, edge: Pt, objects: Props['objects'], vkey: string): string[] {
+  const r = Math.hypot(edge.x - center.x, edge.y - center.y);
+  const r2 = r * r;
+  const out: string[] = [];
+  for (const { id, pos } of objectWorldPositions(objects)) {
+    const p = projectObject(vkey, id, pos); if (!p) continue;
+    const dx = p.x - center.x, dy = p.y - center.y;
+    if (dx * dx + dy * dy <= r2) out.push(id);
+  }
+  return out;
+}
+
+function pointInPolygon(pt: Pt, poly: Pt[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+    const intersect = ((yi > pt.y) !== (yj > pt.y)) && (pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi + 1e-9) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function segmentsIntersect(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
+  const ccw = (p: Pt, q: Pt, r: Pt) => (r.y - p.y) * (q.x - p.x) - (q.y - p.y) * (r.x - p.x);
+  return (ccw(a, c, d) > 0) !== (ccw(b, c, d) > 0) && (ccw(a, b, c) > 0) !== (ccw(a, b, d) > 0);
+}
+
+function pickByFence(points: Pt[], objects: Props['objects'], vkey: string): string[] {
+  // Fence selects anything the polyline crosses. With single-point object
+  // projection, "crosses" reduces to a small radius around the polyline.
+  const R = 8;
+  const out: string[] = [];
+  for (const { id, pos } of objectWorldPositions(objects)) {
+    const p = projectObject(vkey, id, pos); if (!p) continue;
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i], b = points[i + 1];
+      if (distancePointToSegment(p, a, b) <= R) { out.push(id); break; }
+    }
+  }
+  return out;
+}
+
+function distancePointToSegment(p: Pt, a: Pt, b: Pt): number {
+  const abx = b.x - a.x, aby = b.y - a.y;
+  const apx = p.x - a.x, apy = p.y - a.y;
+  const len2 = abx * abx + aby * aby || 1;
+  let t = (apx * abx + apy * aby) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = a.x + t * abx, cy = a.y + t * aby;
+  return Math.hypot(p.x - cx, p.y - cy);
+}
+
+function pickByLasso(points: Pt[], objects: Props['objects'], vkey: string, mode: 'window' | 'crossing'): string[] {
+  void mode;
+  const out: string[] = [];
+  for (const { id, pos } of objectWorldPositions(objects)) {
+    const p = projectObject(vkey, id, pos); if (!p) continue;
+    if (pointInPolygon(p, points)) out.push(id);
+  }
+  return out;
+}
+
+function pickByPaint(brushPts: Pt[], radius: number, objects: Props['objects'], vkey: string): string[] {
+  const r2 = radius * radius;
+  const out: string[] = [];
+  for (const { id, pos } of objectWorldPositions(objects)) {
+    const p = projectObject(vkey, id, pos); if (!p) continue;
+    for (const bp of brushPts) {
+      const dx = p.x - bp.x, dy = p.y - bp.y;
+      if (dx * dx + dy * dy <= r2) { out.push(id); break; }
+    }
+  }
+  return out;
+}
