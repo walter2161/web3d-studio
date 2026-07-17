@@ -177,40 +177,47 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       });
     };
 
-    const onUp = (e: PointerEvent) => {
+    const finish = (e: PointerEvent, cancelled: boolean) => {
       const p = localFromEvent(e);
-      setDrag((prev) => {
-        if (!prev) return null;
-        const dragged = Math.hypot(p.x - prev.start.x, p.y - prev.start.y) >= DRAG_THRESHOLD || prev.points.length > 2;
-        if (!dragged) {
-          // Micro-drag → treat as an empty-space click: clear selection.
-          onSelectObjects([], prev.additive, prev.remove);
-          return null;
-        }
-        let ids: string[] = [];
-        if (prev.kind === 'rect') {
-          ids = pickByRect(prev.start, p, objects, vkey, region.windowCrossing);
-        } else if (prev.kind === 'circle') {
-          ids = pickByCircle(prev.start, p, objects, vkey);
-        } else if (prev.kind === 'fence') {
-          ids = pickByFence(prev.points, objects, vkey);
-        } else if (prev.kind === 'lasso') {
-          ids = pickByLasso(prev.points, objects, vkey, region.windowCrossing);
-        } else if (prev.kind === 'paint') {
-          ids = Array.from(prev.painted);
-        }
-        onSelectObjects(ids, prev.additive, prev.remove);
-        return null;
-      });
+      const prev = drag;
+      // Always clear the marquee first so the overlay disappears reliably,
+      // even if the selection handler triggers a heavy re-render.
+      setDrag(null);
+      if (!prev || cancelled) return;
+      const dragged = Math.hypot(p.x - prev.start.x, p.y - prev.start.y) >= DRAG_THRESHOLD || prev.points.length > 2;
+      if (!dragged) {
+        onSelectObjects([], prev.additive, prev.remove);
+        return;
+      }
+      let ids: string[] = [];
+      if (prev.kind === 'rect') {
+        ids = pickByRect(prev.start, p, objects, vkey, region.windowCrossing);
+      } else if (prev.kind === 'circle') {
+        ids = pickByCircle(prev.start, p, objects, vkey);
+      } else if (prev.kind === 'fence') {
+        ids = pickByFence(prev.points, objects, vkey);
+      } else if (prev.kind === 'lasso') {
+        ids = pickByLasso(prev.points, objects, vkey, region.windowCrossing);
+      } else if (prev.kind === 'paint') {
+        ids = Array.from(prev.painted);
+      }
+      onSelectObjects(ids, prev.additive, prev.remove);
     };
+
+    const onUp = (e: PointerEvent) => finish(e, false);
+    const onCancel = (e: PointerEvent) => finish(e, true);
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('blur', () => setDrag(null), { once: true });
     return () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
     };
   }, [drag, objects, vkey, region.windowCrossing, region.paintRadius, onSelectObjects]);
+
 
   // ---- Cursor style ----------------------------------------------------------
   const cursor = useMemo(() => {
