@@ -2062,9 +2062,12 @@ export const Studio3D = () => {
   // every descendant (like Max), while descendants remain stored in world
   // coordinates so unlinking never causes the object to "jump".
   const [linkTool, setLinkTool] = useState<'link' | null>(null);
+  const linkToolRef = useRef<'link' | null>(null);
   useEffect(() => {
+    linkToolRef.current = linkTool;
     (window as any).__r3LinkTool = linkTool;
   }, [linkTool]);
+
 
   const collectDescendantIds = (parentId: string, list: Object3DData[]): Set<string> => {
     const out = new Set<string>();
