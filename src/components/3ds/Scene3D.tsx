@@ -275,6 +275,16 @@ export const Scene3D = ({
                 scale: [s.x, s.y, s.z],
               };
             }
+            if (modGizmoActive && modGizmoProxy) {
+              const p = modGizmoProxy.position;
+              const r = modGizmoProxy.rotation;
+              const s = modGizmoProxy.scale;
+              modGizmoDragStartRef.current = {
+                pos: [p.x, p.y, p.z],
+                rot: [r.x, r.y, r.z],
+                scale: [s.x, s.y, s.z],
+              };
+            }
           }}
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
