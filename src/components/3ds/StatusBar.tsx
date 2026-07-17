@@ -243,6 +243,189 @@ const NumFieldStr = ({ label, text }: { label: string; text: string }) => (
   </div>
 );
 
+// ---------------------------------------------------------------------------
+// FlyoutTool: a small 22×22 square button with an optional flyout triangle
+// in its bottom-right corner. Clicking the main icon runs the primary action;
+// clicking the triangle (or right-clicking the button) opens a Popover showing
+// the alternative actions of the same "family" — exactly like 3ds Max.
+// ---------------------------------------------------------------------------
+const FlyoutTool = ({
+  title, active, onClick, onMouseDown, icon, flyout,
+}: {
+  title: string;
+  active?: boolean;
+  onClick?: (e?: any) => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
+  icon: React.ReactNode;
+  flyout?: { title: string; icon: React.ReactNode; onClick: () => void; active?: boolean }[];
+}) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        title={title}
+        onClick={onClick}
+        onMouseDown={onMouseDown}
+        onContextMenu={(e) => { if (flyout && flyout.length) { e.preventDefault(); setOpen(true); } }}
+        className={cn(
+          'w-[22px] h-[22px] flex items-center justify-center text-win-text',
+          active ? 'bevel-sunken' : 'bevel-raised hover:brightness-105'
+        )}
+      >
+        {icon}
+      </button>
+      {flyout && flyout.length > 0 && (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <button
+              title="More…"
+              onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+              className="absolute bottom-0 right-0 w-[6px] h-[6px] cursor-pointer"
+              style={{
+                background:
+                  'linear-gradient(135deg, transparent 0 45%, hsl(var(--foreground)) 45% 100%)',
+              }}
+            />
+          </PopoverTrigger>
+          <PopoverContent
+            side="top"
+            align="end"
+            className="p-0.5 w-auto bg-win-face border border-black/40 text-win-text"
+          >
+            <div className="flex flex-col gap-0.5">
+              {flyout.map((f, i) => (
+                <button
+                  key={i}
+                  title={f.title}
+                  onClick={() => { setOpen(false); f.onClick(); }}
+                  className={cn(
+                    'flex items-center gap-1 px-1 py-0.5 text-[11px]',
+                    f.active ? 'bevel-sunken' : 'bevel-raised hover:brightness-105'
+                  )}
+                >
+                  <span className="w-[16px] h-[16px] flex items-center justify-center">{f.icon}</span>
+                  <span className="whitespace-nowrap pr-1">{f.title}</span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+};
+
+// 4×2 grid of viewport nav tools with flyouts (matches 3ds Max nav cluster).
+const ViewportNavCluster = ({
+  dolly, dollyAll, startZoomDrag,
+  zoomExtents, zoomExtentsSelected, zoomExtentsAll, zoomExtentsAllSelected,
+  fovValue, setFovValue,
+  mouseMode, setMouseMode,
+  walkOn, setWalkOn,
+  arcRotateSelected,
+  viewportLayout, onToggleViewportLayout,
+}: any) => {
+  return (
+    <div className="bevel-sunken bg-win-face px-1 py-0.5 grid grid-cols-4 gap-0.5" style={{ gridAutoRows: '22px' }}>
+      {/* Row 1 */}
+      <FlyoutTool
+        title="Zoom (drag up = in, down = out)"
+        onMouseDown={startZoomDrag}
+        onClick={(e: any) => dolly(e?.shiftKey ? 1.25 : 0.8)}
+        icon={<ZoomIn size={12} />}
+      />
+      <FlyoutTool
+        title="Zoom All Viewports"
+        onClick={(e: any) => dollyAll(e?.shiftKey ? 1.25 : 0.8)}
+        icon={<div className="relative"><ZoomIn size={12} /><span className="absolute -bottom-1 -right-1 text-[7px] leading-none font-bold">A</span></div>}
+      />
+      <FlyoutTool
+        title="Zoom Extents (Ctrl+Alt+Z)"
+        onClick={zoomExtents}
+        icon={<Focus size={12} />}
+        flyout={[
+          { title: 'Zoom Extents', icon: <Focus size={12} />, onClick: zoomExtents },
+          { title: 'Zoom Extents Selected (Z)', icon: <Target size={12} />, onClick: zoomExtentsSelected },
+        ]}
+      />
+      <FlyoutTool
+        title="Zoom Extents All Viewports (Ctrl+Shift+Z)"
+        onClick={zoomExtentsAll}
+        icon={<div className="relative"><Focus size={12} /><span className="absolute -bottom-1 -right-1 text-[7px] leading-none font-bold">A</span></div>}
+        flyout={[
+          { title: 'Zoom Extents All', icon: <Focus size={12} />, onClick: zoomExtentsAll },
+          { title: 'Zoom Extents All Selected', icon: <Target size={12} />, onClick: zoomExtentsAllSelected },
+        ]}
+      />
+      {/* Row 2 */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            title="Field of View / Zoom Region"
+            className="w-[22px] h-[22px] flex items-center justify-center text-win-text bevel-raised hover:brightness-105"
+            onClick={() => setFovValue(getFOV())}
+          >
+            <div className="relative">
+              <CameraIcon size={12} />
+              <span
+                className="absolute bottom-0 right-0 w-[6px] h-[6px]"
+                style={{ background: 'linear-gradient(135deg, transparent 0 45%, hsl(var(--foreground)) 45% 100%)' }}
+              />
+            </div>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="top" className="w-56 p-2 bg-win-face border border-black/30 text-win-text">
+          <div className="text-[11px] mb-1 flex items-center justify-between">
+            <span>Field Of View</span>
+            <span className="font-mono">{fovValue.toFixed(0)}°</span>
+          </div>
+          <input
+            type="range" min={5} max={150} step={1} value={fovValue}
+            onChange={(e) => { const v = Number(e.target.value); setFovValue(v); setFOV(v); }}
+            className="w-full"
+          />
+          <div className="flex justify-between text-[9px] mt-0.5 opacity-70">
+            <span>Tele (15°)</span><span>Normal (50°)</span><span>Fisheye (150°)</span>
+          </div>
+          <button
+            className="mt-2 w-full bevel-raised text-[11px] py-0.5 flex items-center justify-center gap-1"
+            onClick={() => dolly(0.5)}
+          >
+            <Crop size={12} /> Zoom Region (2× closer)
+          </button>
+        </PopoverContent>
+      </Popover>
+      <FlyoutTool
+        title="Pan View"
+        active={mouseMode === 'pan'}
+        onClick={() => { setPrimaryMouse('pan'); setMouseMode('pan'); }}
+        icon={<PanIcon size={12} />}
+        flyout={[
+          { title: 'Pan View', icon: <PanIcon size={12} />, onClick: () => { setPrimaryMouse('pan'); setMouseMode('pan'); }, active: mouseMode === 'pan' },
+          { title: 'Walkthrough (WASD/QE, arrows)', icon: <PersonStanding size={12} />, onClick: () => { walkOn ? stopWalkthrough() : startWalkthrough(setWalkOn); }, active: walkOn },
+        ]}
+      />
+      <FlyoutTool
+        title="Orbit / Arc Rotate"
+        active={mouseMode === 'rotate'}
+        onClick={() => { setPrimaryMouse('rotate'); setMouseMode('rotate'); }}
+        icon={<Orbit size={12} />}
+        flyout={[
+          { title: 'Arc Rotate', icon: <Orbit size={12} />, onClick: () => { setPrimaryMouse('rotate'); setMouseMode('rotate'); }, active: mouseMode === 'rotate' },
+          { title: 'Arc Rotate Selected', icon: <Frame size={12} />, onClick: arcRotateSelected },
+          { title: 'Select', icon: <MousePointer2 size={12} />, onClick: () => { setPrimaryMouse('select'); setMouseMode('select'); }, active: mouseMode === 'select' },
+        ]}
+      />
+      <FlyoutTool
+        title={viewportLayout === 'quad' ? 'Min/Max Viewport → Single (Alt+W)' : 'Min/Max Viewport → Quad (Alt+W)'}
+        active={viewportLayout === 'quad'}
+        onClick={onToggleViewportLayout}
+        icon={<Maximize2 size={12} />}
+      />
+    </div>
+  );
+};
+
 export const StatusBar = ({
   currentFrame, totalFrames, isPlaying, autoKey, onToggleAutoKey, onSetKey,
   onPlay, onPause, onStop, onFrameChange, selectedPosition, prompt = 'Click and drag to select and move objects',
