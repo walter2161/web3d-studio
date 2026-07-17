@@ -277,6 +277,13 @@ export const Scene3D = ({
       {/* Multi-selection total bounding box (W/D/H) — 3ds Max style. */}
       {isMulti && <MultiSelectBoundsOverlay objects={selectedList as any} />}
 
+      {/* Select and Link drag&drop — child(ren) already selected, drag onto parent. */}
+      <LinkDragController
+        objects={objects as any}
+        selectedIds={selectedObjectIds}
+        onLink={(pid) => (window as any).__r3DoLink?.(pid)}
+      />
+
 
 
 
