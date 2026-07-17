@@ -1184,6 +1184,50 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // 3ds Max-style Bend: bends geometry along the chosen axis by `angle`,
   // with `direction` rotating the bend plane around that axis, and optional
   // limits that restrict the bend region (outside → rigid tangent extension).
+  /**
+   * Build the gizmo → mesh-local matrix from `params.gizmo` (TRS) and the
+   * inverse. Vertices are transformed into gizmo space, deformed, then sent
+   * back to mesh-local. `centerPos` is subtracted from the vertex inside
+   * gizmo space so the deformation origin follows the Center sub-object.
+   *
+   * All modifiers that expose Gizmo + Center (Bend, Twist, Taper, Noise) share
+   * this pipeline — see `applyDeformInGizmoSpace` below.
+   */
+  function applyDeformInGizmoSpace(
+    geometry: BufferGeometry,
+    params: any,
+    deform: (x: number, y: number, z: number) => [number, number, number],
+  ): BufferGeometry {
+    const g = params?.gizmo || {};
+    const c = params?.center || {};
+    const gPos = Array.isArray(g.pos) ? g.pos : [0, 0, 0];
+    const gRot = Array.isArray(g.rot) ? g.rot : [0, 0, 0];
+    const gScl = Array.isArray(g.scale) ? g.scale : [1, 1, 1];
+    const cPos = Array.isArray(c.pos) ? c.pos : [0, 0, 0];
+
+    const G = new THREE.Matrix4().compose(
+      new THREE.Vector3(gPos[0], gPos[1], gPos[2]),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(gRot[0], gRot[1], gRot[2], 'XYZ')),
+      new THREE.Vector3(gScl[0] || 1, gScl[1] || 1, gScl[2] || 1),
+    );
+    const Ginv = new THREE.Matrix4().copy(G).invert();
+
+    const pos = geometry.getAttribute('position');
+    const arr = pos.array as Float32Array;
+    const v = new THREE.Vector3();
+
+    for (let i = 0; i < arr.length; i += 3) {
+      v.set(arr[i], arr[i + 1], arr[i + 2]).applyMatrix4(Ginv);
+      v.x -= cPos[0]; v.y -= cPos[1]; v.z -= cPos[2];
+      const [dx, dy, dz] = deform(v.x, v.y, v.z);
+      v.set(dx + cPos[0], dy + cPos[1], dz + cPos[2]).applyMatrix4(G);
+      arr[i] = v.x; arr[i + 1] = v.y; arr[i + 2] = v.z;
+    }
+    pos.needsUpdate = true;
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
   function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const direction = (params.direction || 0) * Math.PI / 180;
