@@ -1650,7 +1650,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         color={(object as any).material?.color ?? object.color}
         renderMode={renderMode}
         isGhost={!!isGhost}
+        useVertexColors={(object as any).type === 'foliage'}
       />
+
 
       {/* Wireframe view: keep longitudinal/transversal segment rings but
           filter out the diagonal edges that split each quad into two
