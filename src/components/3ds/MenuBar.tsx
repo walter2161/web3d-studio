@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUITheme } from './r3/UIThemeContext';
+import { useLanguage } from './r3/LanguageContext';
 
 interface MenuBarProps {
   onOpenMaterialEditor: () => void;
