@@ -1368,20 +1368,38 @@ export const Studio3D = () => {
       setSelectedObjectIds([]);
       return;
     }
+    // 3ds Max groups: clicking a member of a CLOSED group promotes the pick to
+    // every member (so the group acts as a single object). Clicking the group
+    // head does the same. When the group is OPEN, the click stays local.
+    const clicked = objectsRef.current.find((o) => o.id === id);
+    const expandIds: string[] = (() => {
+      if (!clicked) return [id];
+      if (clicked.isGroup) {
+        return objectsRef.current.filter((o) => o.groupId === clicked.id).map((o) => o.id);
+      }
+      if (clicked.groupId) {
+        const head = objectsRef.current.find((o) => o.id === clicked.groupId);
+        if (head && !head.groupOpen) {
+          return objectsRef.current.filter((o) => o.groupId === head.id).map((o) => o.id);
+        }
+      }
+      return [id];
+    })();
     if (remove) {
-      const next = selectedObjectIds.filter((sid) => sid !== id);
+      const drop = new Set(expandIds);
+      const next = selectedObjectIds.filter((sid) => !drop.has(sid));
       setSelectedObjectIds(next);
       setSelectedObject(next[next.length - 1] ?? null);
       return;
     }
     if (additive) {
-      const next = selectedObjectIds.includes(id) ? selectedObjectIds : [...selectedObjectIds, id];
+      const next = Array.from(new Set([...selectedObjectIds, ...expandIds]));
       setSelectedObjectIds(next);
-      setSelectedObject(id);
+      setSelectedObject(expandIds[expandIds.length - 1]);
       return;
     }
-    setSelectedObject(id);
-    setSelectedObjectIds([id]);
+    setSelectedObjectIds(expandIds);
+    setSelectedObject(expandIds[expandIds.length - 1]);
   }, [compoundState.picking, compoundState.tool, selectedObject, selectedObjectIds, performBoolean]);
 
   useEffect(() => {
