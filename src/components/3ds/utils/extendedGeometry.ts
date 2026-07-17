@@ -294,7 +294,7 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
     case 'teapot': {
       const g = new TeapotGeometry(
         p.radius, Math.max(2, p.segments | 0),
-        !!p.bottom, !!p.body, !!p.lid, false, !!p.spout, !!p.handle
+        !!p.bottom, !!p.lid, !!p.body, false, true
       );
       return g;
     }
