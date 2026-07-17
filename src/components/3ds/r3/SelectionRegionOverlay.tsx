@@ -82,10 +82,11 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
   // drag is active). Capture phase lets us decide BEFORE R3F whether to start
   // a region drag or let the Canvas process the click normally.
   useEffect(() => {
-    const handle = getViewportHandle(vkey);
-    const canvas = handle?.gl.domElement as HTMLCanvasElement | undefined;
+    let canvas: HTMLCanvasElement | undefined;
+    let disposed = false;
+    let attached = false;
     const wrapper = wrapperRef.current;
-    if (!canvas || !wrapper) return;
+    if (!wrapper) return;
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
