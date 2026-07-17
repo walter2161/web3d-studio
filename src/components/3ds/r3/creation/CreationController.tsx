@@ -52,7 +52,7 @@ const STAGES: Record<CreatableTool, number> = {
   box: 2, plane: 1, cylinder: 2, cone: 2, sphere: 1, torus: 2,
   teapot: 1, tube: 2, pyramid: 2, geoSphere: 1,
   hedra: 1, chamferBox: 2, chamferCyl: 2, oilTank: 2, spindle: 2, gengon: 2, torusKnot: 1, ringWave: 1, prism: 2,
-  capsule: 2, lExt: 2, cExt: 2, hose: 2,
+  capsule: 2, lExt: 2, cExt: 2, hose: 2, foliage: 2,
   line: 1, rectangle: 1, circle: 1, ellipse: 1, arc: 1, donut: 1, ngon: 1, star: 1, helix: 2, text: 1,
   wall: 1,
   door: 2, window: 2,
@@ -148,14 +148,21 @@ function buildGhost(
     case 'capsule':
     case 'hose':
     case 'tube':
-    case 'helix': {
+    case 'helix':
+    case 'foliage': {
       // Stage 0: radius from center. Stage 1+: freeze radius, drag height.
       const r = stage === 0 ? Math.max(0.001, baseDist) : (prev?.geometry?.radius ?? 0.001);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
       const h = stage >= 1 ? Math.max(0.001, Math.abs(dHeight)) : 0.001;
-      setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
-      geometry = { ...geometry, radius: r, radiusTop: r, radiusBottom: r, height: h };
+      // Foliage sits ON the ground (pivot at base) instead of centered.
+      if (tool === 'foliage') {
+        setH(start[heightAxis]);
+        geometry = { ...geometry, radius: r, crownRadius: r, height: h };
+      } else {
+        setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
+        geometry = { ...geometry, radius: r, radiusTop: r, radiusBottom: r, height: h };
+      }
       break;
     }
     case 'torus':

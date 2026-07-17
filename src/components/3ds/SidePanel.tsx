@@ -168,6 +168,17 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'bumps',     label: 'Bumps',      kind: 'int',   default: EXT_PRIM_DEFAULTS.hose.bumps,     min: 0 },
     { key: 'bumpDepth', label: 'Bump Depth', kind: 'float', default: EXT_PRIM_DEFAULTS.hose.bumpDepth, min: 0,   step: 0.01 },
   ],
+  // AEC — Foliage (procedural tree)
+  foliage: [
+    { key: 'height',         label: 'Height',        kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.height,        min: 0.1,  step: 0.5 },
+    { key: 'crownRadius',    label: 'Crown Radius',  kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.crownRadius,   min: 0.1,  step: 0.25 },
+    { key: 'species',        label: 'Species (0-7)', kind: 'int',   default: EXT_PRIM_DEFAULTS.foliage.species,       min: 0 },
+    { key: 'seed',           label: 'Seed',          kind: 'int',   default: EXT_PRIM_DEFAULTS.foliage.seed,          min: 1 },
+    { key: 'density',        label: 'Density',       kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.density,       min: 0.1,  step: 0.1 },
+    { key: 'branchDensity',  label: 'Branch Dens.',  kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.branchDensity, min: 0.1,  step: 0.1 },
+    { key: 'leafSize',       label: 'Leaf Size',     kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.leafSize,      min: 0.02, step: 0.05 },
+    { key: 'age',            label: 'Age',           kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.age,           min: 0.1,  step: 0.1 },
+  ],
   // Shapes
   rectangle: [
     { key: 'width',  label: 'Width',  kind: 'float', default: SHAPE_DEFAULTS.rectangle.width,  min: 0.001, step: 0.1 },
@@ -410,7 +421,7 @@ export const SidePanel = ({
     { type: 'window',   label: 'Windows' },
     { type: 'stairs',   label: 'Stairs',   disabled: true },
     { type: 'railing',  label: 'Railings', disabled: true },
-    { type: 'foliage',  label: 'Foliage',  disabled: true },
+    { type: 'foliage',  label: 'Foliage' },
   ];
 
   // Compound Objects — combine 2+ existing meshes via CSG (Boolean/ProBoolean),
