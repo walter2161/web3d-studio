@@ -336,12 +336,36 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       return hit;
     };
 
-    // Vertical plane through the base center used to read height during stage >= 1.
+    // Height stage: in a perspective viewport we intersect a vertical plane;
+    // in an orthographic viewport the height axis is perpendicular to the
+    // screen, so any world-vertical plane through `base` ends up parallel to
+    // the picking ray and `intersectPlane` fails. Fall back to screen-Y
+    // displacement (drag up on screen ⇒ height grows toward the camera).
     const raycastHeight = (e: PointerEvent, base: THREE.Vector3) => {
-      raycaster.setFromCamera(toNdc(e), camera);
       const heightVec = heightAxis === 'y' ? new THREE.Vector3(0, 1, 0)
         : heightAxis === 'z' ? new THREE.Vector3(0, 0, 1)
         : new THREE.Vector3(1, 0, 0);
+
+      const isOrtho = (camera as THREE.OrthographicCamera).isOrthographicCamera === true;
+      if (isOrtho) {
+        // Convert screen-Y delta (pixels, up = +) into world units using the
+        // orthographic camera's visible height and zoom.
+        const rect = dom.getBoundingClientRect();
+        const startY = stageRef.current?.heightStartClientY ?? e.clientY;
+        const dyPx = startY - e.clientY;
+        const ortho = camera as THREE.OrthographicCamera;
+        const worldHeight = (ortho.top - ortho.bottom) / Math.max(ortho.zoom, 1e-6);
+        const worldPerPixel = worldHeight / Math.max(1, rect.height);
+        // Sign: point the growth toward the viewer along the height axis.
+        const camToBase = new THREE.Vector3().subVectors(base, camera.position);
+        const sign = Math.sign(-camToBase.dot(heightVec)) || 1;
+        const dWorld = dyPx * worldPerPixel * sign;
+        const hit = base.clone().add(heightVec.clone().multiplyScalar(dWorld));
+        if (snapEnabled) return snapPoint(hit, snapGridSpacing);
+        return hit;
+      }
+
+      raycaster.setFromCamera(toNdc(e), camera);
       const camDir = new THREE.Vector3().subVectors(camera.position, base);
       // Project into base plane, then use that direction as vertical-plane normal.
       camDir.sub(heightVec.clone().multiplyScalar(camDir.dot(heightVec)));
@@ -349,7 +373,8 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       camDir.normalize();
       const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, base);
       const hit = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, hit);
+      const ok = raycaster.ray.intersectPlane(plane, hit);
+      if (!ok) return null;
       if (snapEnabled) return snapPoint(hit, snapGridSpacing);
       return hit;
     };
