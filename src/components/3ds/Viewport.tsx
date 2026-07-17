@@ -300,6 +300,7 @@ export const Viewport = ({
         onPointerMissed={(e) => { if ((e as any).button === 0 || e.type === 'click') onSelectObject(null); }}
       >
         <ViewportRegistrar vkey={type} isActive={isActive} />
+        {orthographic && <OrthoZoomSync distance={distanceRef.current} />}
         <SceneEnvSync
           backgroundColor={env.backgroundColor}
           fogEnabled={env.fogEnabled}
