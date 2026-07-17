@@ -256,6 +256,48 @@ export const StatusBar = ({
   const prec = units?.precision ?? 3;
   const fmt = (n: number) => n.toFixed(prec) + suffix;
   const [mouseMode, setMouseMode] = useState<'select' | 'pan' | 'rotate'>('select');
+  const [walkOn, setWalkOn] = useState(false);
+  const [fovValue, setFovValue] = useState<number>(50);
+
+  // Zoom-drag session: mousedown on the Zoom button starts a vertical drag.
+  // Drag up → dolly in; drag down → dolly out. Matches classic 3ds Max Zoom.
+  const startZoomDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    let lastY = startY;
+    const onMove = (ev: MouseEvent) => {
+      const dy = ev.clientY - lastY; lastY = ev.clientY;
+      if (Math.abs(dy) < 0.5) return;
+      dolly(dy < 0 ? Math.pow(0.98, -dy) : Math.pow(1.02, dy));
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  // 3ds Max keyboard shortcuts: Z (Zoom Extents Selected), Ctrl+Alt+Z (Zoom
+  // Extents), Ctrl+Shift+Z (Zoom Extents All), Alt+W (Maximize toggle).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault(); onToggleViewportLayout();
+      } else if (e.ctrlKey && e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault(); zoomExtents();
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault(); zoomExtentsAll();
+      } else if (!e.ctrlKey && !e.altKey && !e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault(); zoomExtentsSelected();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onToggleViewportLayout]);
+
+
 
 
   return (
