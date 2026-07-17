@@ -482,8 +482,11 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       for (let i = 0; i < branchCount; i++) {
         const yStart = isPalm ? trunkH * rr(0.9, 1.0) : trunkH * rr(0.35, 0.95);
         const ang = rr(0, Math.PI * 2);
-        const tilt = isPalm ? rr(0.15, 0.55) : isPine ? rr(0.25, 0.7) : rr(0.35, 0.9);
-        const len = crown * (isShrub ? rr(0.5, 1.0) : rr(0.6, 1.1));
+        const tilt = isPalm ? rr(0.15, 0.55)
+                    : isPine ? rr(0.25, 0.7)
+                    : isWeeping ? rr(1.2, 1.9)   // steeper downward tilt for willow
+                    : rr(0.35, 0.9);
+        const len = crown * (isShrub ? rr(0.5, 1.0) : isWeeping ? rr(0.8, 1.3) : rr(0.6, 1.1));
         const br = trunkR * rr(0.25, 0.5);
         const b = new THREE.CylinderGeometry(br * 0.4, br, len, 6);
         b.translate(0, len / 2, 0);
