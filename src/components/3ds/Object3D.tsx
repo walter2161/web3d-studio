@@ -303,6 +303,25 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   const clipDurationsRef = useRef<number[]>([]);
   const syncImportedClipRef = useRef<((frame: number, total: number) => void) | null>(null);
 
+  // Imported models: mirror the viewport render mode onto every material inside
+  // the scene graph so Wireframe/Solid modes visually apply to imports too.
+  useEffect(() => {
+    if (!imported) return;
+    const wire = renderMode === 'wireframe';
+    imported.root.traverse((child: any) => {
+      const mat = child.material;
+      if (!mat) return;
+      const mats = Array.isArray(mat) ? mat : [mat];
+      for (const m of mats) {
+        if (typeof m.wireframe === 'boolean' && m.wireframe !== wire) {
+          m.wireframe = wire;
+          m.needsUpdate = true;
+        }
+      }
+    });
+  }, [imported, renderMode]);
+
+
   useEffect(() => {
     if (!imported || imported.animations.length === 0) return;
     const mixer = new AnimationMixer(imported.root);
