@@ -1356,6 +1356,31 @@ export const Studio3D = () => {
     setSelectedObject(id);
   }, [compoundState.picking, compoundState.tool, selectedObject, performBoolean]);
 
+  // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
+  // Until true multi-select lands, we pick the last matched id as the primary
+  // scene selection (or clear when the region hit nothing and wasn't additive).
+  useEffect(() => {
+    const onRegion = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { ids: string[]; additive: boolean; remove: boolean } | undefined;
+      if (!detail) return;
+      const { ids, additive, remove } = detail;
+      if (remove) {
+        if (selectedObject && ids.includes(selectedObject)) setSelectedObject(null);
+        return;
+      }
+      if (ids.length === 0) {
+        if (!additive) setSelectedObject(null);
+        return;
+      }
+      // Prefer keeping current selection when additive and it's already in
+      // the hit set; otherwise pick the last (top-most) hit.
+      if (additive && selectedObject && ids.includes(selectedObject)) return;
+      setSelectedObject(ids[ids.length - 1]);
+    };
+    window.addEventListener('r3-region-select', onRegion as EventListener);
+    return () => window.removeEventListener('r3-region-select', onRegion as EventListener);
+  }, [selectedObject]);
+
 
   const handleTransformObject = useCallback((id: string, transform: any) => {
     setObjects(prev => prev.map(obj => 
