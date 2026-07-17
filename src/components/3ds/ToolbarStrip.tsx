@@ -44,7 +44,7 @@ interface MainToolbarProps {
   onLayerManager?: () => void;
   onSelectByName?: () => void;
   onRenderSetup?: () => void;
-  viewportLayout?: 'single' | 'quad';
+  viewportLayout?: 'single' | 'quad' | '2col-top-persp' | '2col-front-persp' | '2col-left-persp' | '2row-top-persp';
   onToggleViewportLayout?: () => void;
   onOpenHierarchy?: () => void;
   onOpenLibrary?: () => void;
