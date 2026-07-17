@@ -301,7 +301,11 @@ export const Viewport = ({
         }}
         onPointerMissed={(e) => {
           const ev = e as any;
-          if (ev.button === 0 || e.type === 'click') onSelectObject(null, !!(ev.ctrlKey || ev.metaKey), !!ev.altKey);
+          // 3ds Max behavior: Ctrl/Shift-click on empty space must NOT clear the
+          // current selection — the user is trying to add another node to the
+          // set and momentarily missed it. Only bare left-clicks deselect.
+          if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+          if (ev.button === 0 || e.type === 'click') onSelectObject(null, false, false);
         }}
       >
         <ViewportRegistrar vkey={type} isActive={isActive} />
