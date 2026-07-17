@@ -1880,7 +1880,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   if (t === 'light_direct') {
     const dist = object.lightData?.distance ?? 20;
     return (
-      <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <directionalLight
           ref={directLightRef}
           color={object.color}
@@ -1921,7 +1921,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     const showCone = object.cameraData?.showCone !== false;
     // Build a small camera-shaped helper (body only), fully wireframe.
     return (
-      <group ref={groupRef} position={object.position} rotation={targetId ? undefined : object.rotation}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
         {/* Body (wireframe) — pickable box */}
         <mesh userData={{ __helper: true }} position={[0, 0, 0.4]} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
@@ -1962,7 +1962,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
 
   if (t === 'target_helper') {
     return (
-      <group ref={groupRef} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
           <boxGeometry args={[0.25, 0.25, 0.25]} />
           <meshBasicMaterial color={iconColor} wireframe />
