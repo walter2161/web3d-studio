@@ -2576,6 +2576,7 @@ export const Studio3D = () => {
           <SceneHierarchy
             objects={objects}
             selectedObject={selectedObject}
+            selectedObjectIds={selectedObjectIds}
             selectedSubUuid={selectedSubUuid}
             onSelectObject={(id) => { handleSelectObject(id); setSelectedSubUuid(null); }}
             onSelectSubObject={(_id, uuid) => setSelectedSubUuid(uuid)}

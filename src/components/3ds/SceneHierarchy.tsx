@@ -22,6 +22,7 @@ import { getImportedModel } from './utils/modelImport';
 interface SceneHierarchyProps {
   objects: any[];
   selectedObject: string | null;
+  selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
   onSelectObject: (id: string | null) => void;
   onSelectSubObject?: (objectId: string, uuid: string | null) => void;
@@ -59,6 +60,7 @@ function buildSubTree(root: any): SubNode[] {
 export const SceneHierarchy = ({
   objects,
   selectedObject,
+  selectedObjectIds = [],
   selectedSubUuid,
   onSelectObject,
   onSelectSubObject,
@@ -144,7 +146,7 @@ export const SceneHierarchy = ({
   };
 
   const renderObject = (obj: any, depth: number = 0) => {
-    const isSelected = selectedObject === obj.id && !selectedSubUuid;
+    const isSelected = (selectedObject === obj.id || selectedObjectIds.includes(obj.id)) && !selectedSubUuid;
     const isExpanded = expandedNodes.has(obj.id);
     const isEditing = editingName === obj.id;
 
