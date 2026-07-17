@@ -1,27 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import * as THREE from 'three';
 import {
   Play, Pause, Square, SkipBack, SkipForward, ChevronLeft, ChevronRight,
-  Key, ZoomIn, ZoomOut, Maximize2, Move as PanIcon, Orbit, MousePointer2, Search, Focus, ChevronsDown, ChevronsUp, Repeat,
+  Key, ZoomIn, Maximize2, Move as PanIcon, Orbit, MousePointer2,
+  Focus, ChevronsDown, ChevronsUp, Repeat,
+  Frame, Crop, Camera as CameraIcon, PersonStanding, Target,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { getAllViewportHandles } from './r3/viewportRegistry';
 
 // --- Viewport navigation helpers -------------------------------------------
-// These act on the currently active OrbitControls (registered globally by
-// Viewport.tsx as `__activeOrbitControls`) and the active three.js scene
-// (`__r3Scene`). They mirror the 3ds Max bottom-right nav cluster.
+// Full 3ds Max bottom-right nav cluster: Zoom / Zoom All / Zoom Extents /
+// Zoom Extents All / Zoom Extents Selected / Field-of-View / Zoom Region /
+// Pan / Walkthrough / Arc Rotate (+Selected) / Maximize.
+//
+// These operate on the currently active OrbitControls (registered globally by
+// Viewport.tsx) plus, for the "*All*" variants, every registered viewport in
+// the ViewportRegistry.
 
 const getControls = (): any => (window as any).__activeOrbitControls || (window as any).__orbitControls;
 const getScene = (): THREE.Scene | null => (window as any).__r3Scene || null;
+const getSelectedIds = (): Set<string> => new Set(((window as any).__r3SelectedIds as string[]) || []);
 
-const dolly = (factor: number) => {
-  const c = getControls(); if (!c?.object || !c?.target) return;
-  const dir = new THREE.Vector3().subVectors(c.object.position, c.target);
+const applyDolly = (controls: any, factor: number) => {
+  if (!controls?.object || !controls?.target) return;
+  const dir = new THREE.Vector3().subVectors(controls.object.position, controls.target);
   dir.multiplyScalar(factor);
-  c.object.position.copy(c.target).add(dir);
-  const cam: any = c.object;
+  controls.object.position.copy(controls.target).add(dir);
+  const cam: any = controls.object;
   if (cam.isOrthographicCamera) { cam.zoom = Math.max(0.001, cam.zoom / factor); cam.updateProjectionMatrix(); }
-  c.update();
+  controls.update();
+};
+
+const dolly = (factor: number) => applyDolly(getControls(), factor);
+const dollyAll = (factor: number) => {
+  for (const h of getAllViewportHandles()) applyDolly((h as any).controls, factor);
 };
 
 const computeSceneBBox = (targetsOnly: THREE.Object3D[] | null = null): THREE.Box3 | null => {
@@ -41,34 +55,64 @@ const computeSceneBBox = (targetsOnly: THREE.Object3D[] | null = null): THREE.Bo
   return has ? box : null;
 };
 
-const frameBox = (box: THREE.Box3) => {
-  const c = getControls(); if (!c?.object) return;
-  const cam: any = c.object;
+const computeSelectedBBox = (): THREE.Box3 | null => {
+  const scene = getScene(); if (!scene) return null;
+  const sel = getSelectedIds();
+  if (sel.size === 0) return null;
+  const roots: THREE.Object3D[] = [];
+  scene.traverse((o: any) => {
+    if (o.userData?.objectId && sel.has(o.userData.objectId)) roots.push(o);
+  });
+  if (roots.length === 0) return null;
+  return computeSceneBBox(roots);
+};
+
+const frameBoxOn = (controls: any, box: THREE.Box3) => {
+  if (!controls?.object) return;
+  const cam: any = controls.object;
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   const radius = Math.max(size.x, size.y, size.z) * 0.5 || 1;
   if (cam.isPerspectiveCamera) {
     const fov = (cam.fov * Math.PI) / 180;
     const dist = (radius / Math.sin(fov / 2)) * 1.4;
-    const dir = new THREE.Vector3().subVectors(cam.position, c.target).normalize();
+    const dir = new THREE.Vector3().subVectors(cam.position, controls.target).normalize();
     if (dir.lengthSq() < 1e-6) dir.set(1, 1, 1).normalize();
     cam.position.copy(center).addScaledVector(dir, dist);
-    c.target.copy(center);
+    controls.target.copy(center);
   } else if (cam.isOrthographicCamera) {
-    const dir = new THREE.Vector3().subVectors(cam.position, c.target).normalize();
+    const dir = new THREE.Vector3().subVectors(cam.position, controls.target).normalize();
     if (dir.lengthSq() < 1e-6) dir.set(0, 1, 0).normalize();
     cam.position.copy(center).addScaledVector(dir, Math.max(10, radius * 4));
-    c.target.copy(center);
+    controls.target.copy(center);
     const halfH = (cam.top - cam.bottom) * 0.5 || 10;
     cam.zoom = (halfH / (radius * 1.2));
     cam.updateProjectionMatrix();
   }
   cam.lookAt(center);
-  c.update();
+  controls.update();
 };
 
-const zoomExtents = () => { const b = computeSceneBBox(); if (b) frameBox(b); };
+const zoomExtents = () => { const b = computeSceneBBox(); if (b) frameBoxOn(getControls(), b); };
+const zoomExtentsAll = () => {
+  const b = computeSceneBBox(); if (!b) return;
+  for (const h of getAllViewportHandles()) frameBoxOn((h as any).controls, b);
+};
+const zoomExtentsSelected = () => {
+  const b = computeSelectedBBox() ?? computeSceneBBox(); if (b) frameBoxOn(getControls(), b);
+};
 
+// Field-of-View: only meaningful on perspective cameras. Adjusts fov in place.
+const setFOV = (deg: number) => {
+  const c = getControls(); const cam: any = c?.object;
+  if (!cam?.isPerspectiveCamera) return;
+  cam.fov = Math.min(179, Math.max(1, deg));
+  cam.updateProjectionMatrix();
+};
+const getFOV = (): number => {
+  const c = getControls(); const cam: any = c?.object;
+  return cam?.isPerspectiveCamera ? cam.fov : 50;
+};
 
 const setPrimaryMouse = (button: 'rotate' | 'pan' | 'dolly' | 'select') => {
   const c = getControls(); if (!c) return;
@@ -78,6 +122,69 @@ const setPrimaryMouse = (button: 'rotate' | 'pan' | 'dolly' | 'select') => {
   else if (button === 'dolly') c.mouseButtons = { LEFT: M.DOLLY, MIDDLE: M.DOLLY, RIGHT: M.PAN };
   else c.mouseButtons = { LEFT: M.ROTATE, MIDDLE: M.DOLLY, RIGHT: M.PAN };
   c.update();
+};
+
+// Arc-Rotate-Selected: retarget the OrbitControls pivot to the selection center.
+const arcRotateSelected = () => {
+  const c = getControls(); if (!c) return;
+  const b = computeSelectedBBox(); if (!b) return;
+  const center = b.getCenter(new THREE.Vector3());
+  c.target.copy(center);
+  c.update();
+  setPrimaryMouse('rotate');
+};
+
+// Walkthrough (FPS): WASD/QE moves the active camera, arrow keys look around.
+// Toggled by the button; ESC or clicking the button again disables it.
+const startWalkthrough = (setOn: (v: boolean) => void) => {
+  const c = getControls(); const cam: any = c?.object;
+  if (!cam?.isPerspectiveCamera) return; // ortho views can't walkthrough
+  setOn(true);
+  const speed = 0.15;
+  const turn = 0.03;
+  const keys = new Set<string>();
+  const onDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') { stop(); return; }
+    keys.add(e.key.toLowerCase());
+  };
+  const onUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
+  let raf = 0;
+  const tick = () => {
+    const forward = new THREE.Vector3();
+    cam.getWorldDirection(forward);
+    const right = new THREE.Vector3().crossVectors(forward, cam.up).normalize();
+    const up = cam.up.clone();
+    let moved = false;
+    if (keys.has('w')) { cam.position.addScaledVector(forward, speed); c.target.addScaledVector(forward, speed); moved = true; }
+    if (keys.has('s')) { cam.position.addScaledVector(forward, -speed); c.target.addScaledVector(forward, -speed); moved = true; }
+    if (keys.has('a')) { cam.position.addScaledVector(right, -speed); c.target.addScaledVector(right, -speed); moved = true; }
+    if (keys.has('d')) { cam.position.addScaledVector(right, speed); c.target.addScaledVector(right, speed); moved = true; }
+    if (keys.has('q')) { cam.position.addScaledVector(up, -speed); c.target.addScaledVector(up, -speed); moved = true; }
+    if (keys.has('e')) { cam.position.addScaledVector(up, speed); c.target.addScaledVector(up, speed); moved = true; }
+    // Arrow-key look: rotate target around camera.
+    const rel = new THREE.Vector3().subVectors(c.target, cam.position);
+    if (keys.has('arrowleft')) { rel.applyAxisAngle(up, turn); moved = true; }
+    if (keys.has('arrowright')) { rel.applyAxisAngle(up, -turn); moved = true; }
+    if (keys.has('arrowup')) { rel.applyAxisAngle(right, turn); moved = true; }
+    if (keys.has('arrowdown')) { rel.applyAxisAngle(right, -turn); moved = true; }
+    if (moved) { c.target.copy(cam.position).add(rel); c.update(); }
+    raf = requestAnimationFrame(tick);
+  };
+  const stop = () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener('keydown', onDown);
+    window.removeEventListener('keyup', onUp);
+    (window as any).__walkthroughStop = null;
+    setOn(false);
+  };
+  window.addEventListener('keydown', onDown);
+  window.addEventListener('keyup', onUp);
+  (window as any).__walkthroughStop = stop;
+  tick();
+};
+const stopWalkthrough = () => {
+  const stop = (window as any).__walkthroughStop;
+  if (typeof stop === 'function') stop();
 };
 
 interface StatusBarProps {
