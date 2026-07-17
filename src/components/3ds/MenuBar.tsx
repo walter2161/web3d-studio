@@ -61,7 +61,7 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
             <button
               className="px-2 text-[11px] text-win-text hover:bg-menu-hover hover:text-menu-hover-fg data-[state=open]:bg-menu-hover data-[state=open]:text-menu-hover-fg outline-none flex items-center"
             >
-              {renderLabel(menu.label, menu.access)}
+              {renderLabel(t(menu.label), menu.access)}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
