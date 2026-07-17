@@ -3,8 +3,17 @@ import {
   Undo2, Redo2, MousePointer2, Move, RotateCw, Maximize as ScaleIcon,
   Link2, Unlink, FlipHorizontal, AlignCenter, Layers, Palette, Camera,
   Play, Magnet, Grid3x3, Percent, RotateCcw, Search, LayoutGrid, Square as SquareIcon,
-  ListTree, LibraryBig,
+  ListTree, LibraryBig, Circle as CircleIcon, Waves, Lasso, Paintbrush, Eye,
+  ChevronDown,
 } from 'lucide-react';
+import { useSyncExternalStore } from 'react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
+import {
+  getRegionState, setRegionState, subscribeRegion, RegionMode,
+} from './r3/selectionRegionStore';
 
 
 interface ToolButtonProps {
@@ -62,6 +71,7 @@ export const MainToolbar = ({
       <ToolButton title="Redo (Ctrl+Y)" onClick={onRedo}><Redo2 size={14} /></ToolButton>
       <Sep />
       <ToolButton title="Select Object (H)" onClick={onSelectByName}><MousePointer2 size={14} /></ToolButton>
+      <SelectionRegionButtons />
       <ToolButton title="Select and Move (W)" active={transformMode === 'translate'} onClick={() => onTransformMode('translate')}><Move size={14} /></ToolButton>
       <ToolButton title="Select and Rotate (E)" active={transformMode === 'rotate'} onClick={() => onTransformMode('rotate')}><RotateCw size={14} /></ToolButton>
       <ToolButton title="Select and Scale (R)" active={transformMode === 'scale'} onClick={() => onTransformMode('scale')}><ScaleIcon size={14} /></ToolButton>
