@@ -90,6 +90,11 @@ interface Object3DData {
   groupId?: string;
   groupOpen?: boolean;
   isGroup?: boolean;
+  // 3ds Max "Select and Link" hierarchy — a real parent/child relationship
+  // (independent from Group). Position/rotation/scale remain in world space;
+  // parent transforms cascade to descendants via delta composition.
+  parentId?: string | null;
+
   properties?: {
     renderable?: boolean;
     castShadows?: boolean;
