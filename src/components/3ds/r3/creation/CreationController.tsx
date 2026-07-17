@@ -129,7 +129,9 @@ function buildGhost(
       geometry = { ...geometry, width: w, height: d };
       break;
     }
-    case 'sphere': {
+    case 'sphere':
+    case 'teapot':
+    case 'geoSphere': {
       const r = Math.max(0.001, baseDist);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
