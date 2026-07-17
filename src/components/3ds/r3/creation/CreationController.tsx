@@ -148,14 +148,21 @@ function buildGhost(
     case 'capsule':
     case 'hose':
     case 'tube':
-    case 'helix': {
+    case 'helix':
+    case 'foliage': {
       // Stage 0: radius from center. Stage 1+: freeze radius, drag height.
       const r = stage === 0 ? Math.max(0.001, baseDist) : (prev?.geometry?.radius ?? 0.001);
       setBase(baseAxes[0], start[baseAxes[0]]);
       setBase(baseAxes[1], start[baseAxes[1]]);
       const h = stage >= 1 ? Math.max(0.001, Math.abs(dHeight)) : 0.001;
-      setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
-      geometry = { ...geometry, radius: r, radiusTop: r, radiusBottom: r, height: h };
+      // Foliage sits ON the ground (pivot at base) instead of centered.
+      if (tool === 'foliage') {
+        setH(start[heightAxis]);
+        geometry = { ...geometry, radius: r, crownRadius: r, height: h };
+      } else {
+        setH(start[heightAxis] + (h / 2) * (stage >= 1 ? Math.sign(dHeight || 1) : 1));
+        geometry = { ...geometry, radius: r, radiusTop: r, radiusBottom: r, height: h };
+      }
       break;
     }
     case 'torus':
