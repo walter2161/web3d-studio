@@ -488,7 +488,46 @@ export const Scene3D = ({
               }));
               return;
             }
+            if (multiActive && multiProxy && multiStartRef.current) {
+              // Compose the delta between the proxy's start pose and its current
+              // pose, then apply that same delta to every stored node relative to
+              // the selection center. Works uniformly for translate / rotate /
+              // scale regardless of node type (Box, Light, Camera, Spline, ...).
+              const start = multiStartRef.current;
+              const center = start.proxyPos;
+              const dPos = multiProxy.position.clone().sub(start.proxyPos);
+              const invStartQuat = start.proxyQuat.clone().invert();
+              const dQuat = multiProxy.quaternion.clone().multiply(invStartQuat);
+              const sFactor = new THREE.Vector3(
+                start.proxyScale.x !== 0 ? multiProxy.scale.x / start.proxyScale.x : 1,
+                start.proxyScale.y !== 0 ? multiProxy.scale.y / start.proxyScale.y : 1,
+                start.proxyScale.z !== 0 ? multiProxy.scale.z / start.proxyScale.z : 1,
+              );
+              const updates: Array<{ id: string; position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number] }> = [];
+              const tmp = new THREE.Vector3();
+              const tmpQ = new THREE.Quaternion();
+              const tmpE = new THREE.Euler();
+              for (const it of start.items) {
+                // Offset from center → scale → rotate → translate → add back center + delta.
+                tmp.copy(it.pos).sub(center);
+                tmp.multiply(sFactor);
+                tmp.applyQuaternion(dQuat);
+                tmp.add(center).add(dPos);
+                tmpQ.copy(dQuat).multiply(it.quat);
+                tmpE.setFromQuaternion(tmpQ);
+                const ns = it.scale.clone().multiply(sFactor);
+                updates.push({
+                  id: it.id,
+                  position: [tmp.x, tmp.y, tmp.z],
+                  rotation: [tmpE.x, tmpE.y, tmpE.z],
+                  scale: [ns.x, ns.y, ns.z],
+                });
+              }
+              window.dispatchEvent(new CustomEvent('r3-transform-many', { detail: { updates } }));
+              return;
+            }
             if (e?.target?.object && !selectedSubUuid) {
+
               const obj = e.target.object;
               const { position, rotation, scale } = obj;
               onTransformObject(selectedObject, {
