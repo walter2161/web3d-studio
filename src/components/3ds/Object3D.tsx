@@ -146,8 +146,8 @@ function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Text
 }
 
 function MaterialWithMaps({
-  material, color, renderMode, isGhost,
-}: { material: any; color: string; renderMode: string; isGhost: boolean }) {
+  material, color, renderMode, isGhost, useVertexColors = false,
+}: { material: any; color: string; renderMode: string; isGhost: boolean; useVertexColors?: boolean }) {
   // Show maps in any shaded/textured/edged/transparent view — hide only in
   // wireframe and bbox (Max behavior: bitmaps always visible once "Show Map
   // in Viewport" is on, regardless of viewport shading mode).
@@ -164,9 +164,14 @@ function MaterialWithMaps({
   const isWire = renderMode === 'wireframe';
   const transparent = renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || baseOpacity < 1 || !!opacityMap || isWire;
   const opacity = isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (isWire ? 0 : (renderMode === 'semi-transparent' ? 0.5 : baseOpacity)));
+  // When vertex colors are baked into the geometry (foliage bark vs leaf),
+  // use white as the base color so vertex colors aren't tinted, unless the
+  // user explicitly overrode the material color.
+  const effectiveColor = useVertexColors && !material?.color ? '#ffffff' : color;
   return (
     <meshStandardMaterial
-      color={color}
+      color={effectiveColor}
+      vertexColors={useVertexColors}
       map={map || undefined}
       bumpMap={bumpMap || undefined}
       bumpScale={material?.bumpScale ?? 0.3}
@@ -185,6 +190,7 @@ function MaterialWithMaps({
     />
   );
 }
+
 
 function cloneMaterialInstance(material: any): any {
   if (!material) return material;
@@ -1644,7 +1650,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         color={(object as any).material?.color ?? object.color}
         renderMode={renderMode}
         isGhost={!!isGhost}
+        useVertexColors={(object as any).type === 'foliage'}
       />
+
 
       {/* Wireframe view: keep longitudinal/transversal segment rings but
           filter out the diagonal edges that split each quad into two
