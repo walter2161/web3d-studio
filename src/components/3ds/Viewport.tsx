@@ -275,7 +275,13 @@ export const Viewport = ({
         camera={{
           position: cameraPosition,
           up: cameraUp,
-          ...(orthographic && { left: -10, right: 10, top: 10, bottom: -10, near: -1000, far: 1000, zoom: orthoZoom }),
+          // For orthographic viewports (Top/Front/Left) we intentionally do NOT
+          // pass explicit left/right/top/bottom — R3F derives them from the
+          // canvas size (width/-2, width/2, height/2, height/-2) so the aspect
+          // ratio of the cell is respected. Passing fixed values here would
+          // stretch geometry whenever the cell is non-square (quad / 2-col
+          // layouts). Only near/far/zoom are customized.
+          ...(orthographic && { near: -1000, far: 1000, zoom: orthoZoom }),
         }}
         orthographic={orthographic}
         className="w-full h-full"
