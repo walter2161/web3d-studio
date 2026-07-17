@@ -1181,26 +1181,73 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   }
 
 
+  // 3ds Max-style Bend: bends geometry along the chosen axis by `angle`,
+  // with `direction` rotating the bend plane around that axis, and optional
+  // limits that restrict the bend region (outside → rigid tangent extension).
   function applyBend(geometry: BufferGeometry, params: any): BufferGeometry {
     const angle = (params.angle || 0) * Math.PI / 180;
     const direction = (params.direction || 0) * Math.PI / 180;
-    const bendAxis = params.bendAxis || 'Z';
-    
+    const axisName = (params.bendAxis || 'Z') as 'X' | 'Y' | 'Z';
+    const useLimits = !!params.limits;
+    const upperLim = Number(params.upperLimit ?? 0);
+    const lowerLim = Number(params.lowerLimit ?? 0);
+
+    const axisIdx = axisName === 'X' ? 0 : axisName === 'Y' ? 1 : 2;
+    const uIdx = (axisIdx + 1) % 3;
+    const vIdx = (axisIdx + 2) % 3;
+
     const positionAttribute = geometry.getAttribute('position');
     const positions = positionAttribute.array as Float32Array;
 
+    // Extent along bend axis
+    let minA = Infinity, maxA = -Infinity;
     for (let i = 0; i < positions.length; i += 3) {
-      let x = positions[i];
-      let y = positions[i + 1];
-      let z = positions[i + 2];
+      const a = positions[i + axisIdx];
+      if (a < minA) minA = a;
+      if (a > maxA) maxA = a;
+    }
+    const H = maxA - minA;
+    if (H < 1e-8 || Math.abs(angle) < 1e-8) return geometry;
 
-      if (bendAxis === 'Z' && angle !== 0) {
-        const factor = (y + 0.5) * angle;
-        const newX = x * Math.cos(factor) - z * Math.sin(factor);
-        const newZ = x * Math.sin(factor) + z * Math.cos(factor);
-        positions[i] = newX;
-        positions[i + 2] = newZ;
+    const r = H / angle;
+    const cosD = Math.cos(direction);
+    const sinD = Math.sin(direction);
+
+    for (let i = 0; i < positions.length; i += 3) {
+      const a = positions[i + axisIdx];
+      const uRaw = positions[i + uIdx];
+      const vRaw = positions[i + vIdx];
+
+      // Rotate perpendicular plane by -direction so bend always goes along local u'.
+      const uP = uRaw * cosD + vRaw * sinD;
+      const vP = -uRaw * sinD + vRaw * cosD;
+
+      // t = distance along bend axis from the lower extreme.
+      let t = a - minA;
+      let extraStraight = 0;
+      if (useLimits) {
+        const aLo = Math.min(lowerLim, upperLim);
+        const aHi = Math.max(lowerLim, upperLim);
+        if (a < aLo) { t = aLo - minA; extraStraight = a - aLo; }
+        else if (a > aHi) { t = aHi - minA; extraStraight = a - aHi; }
       }
+
+      const theta = angle * (t / H);
+      const sinT = Math.sin(theta);
+      const cosT = Math.cos(theta);
+
+      // Bent frame: axis line becomes an arc of radius r, offsets ride the local frame.
+      const newA = minA + (r - uP) * sinT + extraStraight * cosT;
+      const newUp = r - (r - uP) * cosT + extraStraight * sinT;
+      const newVp = vP;
+
+      // Rotate back into world-perpendicular plane by +direction.
+      const newU = newUp * cosD - newVp * sinD;
+      const newV = newUp * sinD + newVp * cosD;
+
+      positions[i + axisIdx] = newA;
+      positions[i + uIdx] = newU;
+      positions[i + vIdx] = newV;
     }
 
     positionAttribute.needsUpdate = true;
