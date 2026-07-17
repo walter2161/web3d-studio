@@ -1474,6 +1474,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return (
       <group
         ref={meshRef as any}
+        userData={{ objectId: object.id }}
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
@@ -1501,6 +1502,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return (
       <group
         ref={meshRef as any}
+        userData={{ objectId: object.id }}
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
@@ -1521,6 +1523,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return (
       <group
         ref={meshRef as any}
+        userData={{ objectId: object.id }}
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
@@ -1539,6 +1542,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     return (
       <group
         ref={meshRef as any}
+        userData={{ objectId: object.id }}
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
@@ -1572,6 +1576,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   return (
     <mesh
       ref={meshRef}
+      userData={{ objectId: object.id }}
       position={object.position}
       rotation={object.rotation}
       scale={object.scale}
