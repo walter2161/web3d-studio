@@ -1205,22 +1205,24 @@ export const Studio3D = () => {
 
   const removeModifier = useCallback((objectId: string, modifierId: string) => {
     saveState();
-    setObjects(prev => prev.map(obj => 
-      obj.id === objectId 
-        ? { 
-            ...obj, 
+    const targets = resolveModifierTargets(objectId);
+    setObjects(prev => prev.map(obj =>
+      targets.has(obj.id)
+        ? {
+            ...obj,
             modifiers: obj.modifiers?.filter(mod => mod.id !== modifierId) || []
           }
         : obj
     ));
-    
+
     toast.success('Modifier removed');
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
   const toggleModifier = useCallback((objectId: string, modifierId: string) => {
     saveState();
+    const targets = resolveModifierTargets(objectId);
     setObjects(prev => prev.map(obj =>
-      obj.id === objectId
+      targets.has(obj.id)
         ? {
             ...obj,
             modifiers: obj.modifiers?.map(m =>
@@ -1229,12 +1231,13 @@ export const Studio3D = () => {
           }
         : obj
     ));
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
   const reorderModifier = useCallback((objectId: string, modifierId: string, direction: -1 | 1) => {
     saveState();
+    const targets = resolveModifierTargets(objectId);
     setObjects(prev => prev.map(obj => {
-      if (obj.id !== objectId || !obj.modifiers) return obj;
+      if (!targets.has(obj.id) || !obj.modifiers) return obj;
       const mods = [...obj.modifiers];
       const idx = mods.findIndex(m => m.id === modifierId);
       if (idx < 0) return obj;
@@ -1243,7 +1246,7 @@ export const Studio3D = () => {
       [mods[idx], mods[swap]] = [mods[swap], mods[idx]];
       return { ...obj, modifiers: mods };
     }));
-  }, [saveState]);
+  }, [saveState, resolveModifierTargets]);
 
 
 
