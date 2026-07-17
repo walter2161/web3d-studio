@@ -401,6 +401,108 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       g.computeVertexNormals();
       return g;
     }
+    case 'foliage': {
+      // Procedural parametric tree — trunk (cylinder) + branches (cylinders) +
+      // leaf clumps (icosahedra). All merged into one BufferGeometry driven by
+      // a seeded PRNG so the same seed always produces the same tree.
+      const h = Math.max(0.1, p.height);
+      const crown = Math.max(0.1, p.crownRadius);
+      const density = Math.max(0.1, p.density);
+      const seed = Math.max(1, p.seed | 0);
+      const species = p.species | 0;
+      const leafSize = Math.max(0.02, p.leafSize);
+      const branchDensity = Math.max(0.1, p.branchDensity);
+      const age = Math.max(0.1, p.age);
+
+      if (p.displayAsBox) {
+        const g = new THREE.BoxGeometry(crown * 2, h, crown * 2);
+        g.translate(0, h / 2, 0);
+        return g;
+      }
+
+      // Mulberry32 PRNG — deterministic from seed.
+      let s = seed >>> 0;
+      const rand = () => {
+        s |= 0; s = (s + 0x6D2B79F5) | 0;
+        let t = Math.imul(s ^ (s >>> 15), 1 | s);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+      const rr = (a: number, b: number) => a + (b - a) * rand();
+
+      // Species-specific traits
+      const isPalm    = species === 2;
+      const isPine    = species === 3;
+      const isShrub   = species === 7;
+      const trunkR   = h * (isShrub ? 0.02 : isPalm ? 0.03 : 0.05) * age;
+      const trunkH   = isShrub ? h * 0.3 : isPalm ? h * 0.9 : h * 0.55;
+      const trunkTopR = trunkR * (isPalm ? 0.7 : 0.55);
+      const branchCount = Math.round((isShrub ? 12 : isPalm ? 8 : isPine ? 14 : 10) * branchDensity * density);
+      const clumpCount  = Math.round((isShrub ? 8 : isPalm ? 6 : isPine ? 10 : 12) * density);
+
+      const parts: THREE.BufferGeometry[] = [];
+
+      // Trunk
+      const trunk = new THREE.CylinderGeometry(trunkTopR, trunkR, trunkH, 10);
+      trunk.translate(0, trunkH / 2, 0);
+      parts.push(trunk);
+
+      // Branches
+      for (let i = 0; i < branchCount; i++) {
+        const yStart = isPalm ? trunkH * rr(0.9, 1.0) : trunkH * rr(0.35, 0.95);
+        const ang = rr(0, Math.PI * 2);
+        const tilt = isPalm ? rr(0.15, 0.55) : isPine ? rr(0.25, 0.7) : rr(0.35, 0.9);
+        const len = crown * (isShrub ? rr(0.5, 1.0) : rr(0.6, 1.1));
+        const br = trunkR * rr(0.25, 0.5);
+        const b = new THREE.CylinderGeometry(br * 0.4, br, len, 6);
+        b.translate(0, len / 2, 0);
+        // Rotate branch: first tilt around X, then spin around Y.
+        const m = new THREE.Matrix4();
+        m.makeRotationX(tilt);
+        b.applyMatrix4(m);
+        m.makeRotationY(ang);
+        b.applyMatrix4(m);
+        b.translate(0, yStart, 0);
+        parts.push(b);
+      }
+
+      // Leaf clumps — icosahedra scattered inside the crown volume.
+      if (!isPine || clumpCount > 0) {
+        for (let i = 0; i < clumpCount; i++) {
+          const ang = rr(0, Math.PI * 2);
+          const rad = crown * rr(0.3, 1.0);
+          const yBase = isPalm
+            ? trunkH + rr(0, crown * 0.4)
+            : isShrub
+              ? rr(trunkH * 0.5, h * 0.9)
+              : rr(trunkH * 0.6, h * 0.98);
+          const cx = Math.cos(ang) * rad * (isPalm ? 0.9 : 1);
+          const cz = Math.sin(ang) * rad * (isPalm ? 0.9 : 1);
+          const cy = isPine
+            ? yBase + (h - yBase) * rr(0, 0.3)
+            : yBase;
+          const size = leafSize * (isPine ? rr(0.6, 1.2) : rr(0.8, 1.4));
+          const clump = new THREE.IcosahedronGeometry(size, 0);
+          if (isPine) clump.scale(1, 1.6, 1);
+          clump.translate(cx, cy, cz);
+          parts.push(clump);
+        }
+      }
+
+      // Pine top cone
+      if (isPine) {
+        const cone = new THREE.ConeGeometry(crown * 0.5, h * 0.4, 10);
+        cone.translate(0, h * 0.85, 0);
+        parts.push(cone);
+      }
+
+      const merged = mergeGeometries(parts, false);
+      if (merged) {
+        merged.computeVertexNormals();
+        return merged;
+      }
+      return trunk;
+    }
   }
 }
 
