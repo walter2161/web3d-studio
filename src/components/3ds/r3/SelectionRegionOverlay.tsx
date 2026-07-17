@@ -292,7 +292,7 @@ const RegionShape = ({ drag, paintRadius }: { drag: NonNullable<Props extends an
 };
 
 // ---- Picking helpers ---------------------------------------------------------
-function projectObject(vkey: string, objId: string, worldPos: THREE.Vector3): Pt | null {
+function projectPoint(vkey: string, worldPos: THREE.Vector3): Pt | null {
   const handle = getViewportHandle(vkey);
   if (!handle) return null;
   const el = handle.gl.domElement as HTMLCanvasElement;
@@ -306,23 +306,58 @@ function projectObject(vkey: string, objId: string, worldPos: THREE.Vector3): Pt
   };
 }
 
-function objectWorldPositions(objects: Props['objects']) {
-  return objects
-    .filter((o) => o.visible !== false)
-    .map((o) => ({ id: o.id, pos: new THREE.Vector3(...(o.position || [0, 0, 0])) }));
+function findSceneObject(vkey: string, id: string): THREE.Object3D | null {
+  const handle = getViewportHandle(vkey);
+  if (!handle) return null;
+  let found: THREE.Object3D | null = null;
+  handle.scene.traverse((n) => {
+    if (!found && (n as any).userData?.objectId === id) found = n;
+  });
+  return found;
+}
+
+function objectScreenSamples(obj: Props['objects'][number], vkey: string): Pt[] {
+  if (obj.visible === false) return [];
+  const root = findSceneObject(vkey, obj.id);
+  if (root) {
+    const box = new THREE.Box3().setFromObject(root);
+    if (!box.isEmpty() && isFinite(box.min.x) && isFinite(box.max.x)) {
+      const { min, max } = box;
+      const corners = [
+        new THREE.Vector3(min.x, min.y, min.z), new THREE.Vector3(max.x, min.y, min.z),
+        new THREE.Vector3(min.x, max.y, min.z), new THREE.Vector3(max.x, max.y, min.z),
+        new THREE.Vector3(min.x, min.y, max.z), new THREE.Vector3(max.x, min.y, max.z),
+        new THREE.Vector3(min.x, max.y, max.z), new THREE.Vector3(max.x, max.y, max.z),
+        box.getCenter(new THREE.Vector3()),
+      ];
+      return corners.map((p) => projectPoint(vkey, p)).filter(Boolean) as Pt[];
+    }
+  }
+  const p = projectPoint(vkey, new THREE.Vector3(...(obj.position || [0, 0, 0])));
+  return p ? [p] : [];
+}
+
+function objectScreenBounds(obj: Props['objects'][number], vkey: string): { points: Pt[]; minX: number; minY: number; maxX: number; maxY: number } | null {
+  const points = objectScreenSamples(obj, vkey);
+  if (points.length === 0) return null;
+  return {
+    points,
+    minX: Math.min(...points.map((p) => p.x)),
+    minY: Math.min(...points.map((p) => p.y)),
+    maxX: Math.max(...points.map((p) => p.x)),
+    maxY: Math.max(...points.map((p) => p.y)),
+  };
 }
 
 function pickByRect(a: Pt, b: Pt, objects: Props['objects'], vkey: string, mode: 'window' | 'crossing'): string[] {
-  // With a single test point per object, Window and Crossing collapse to the
-  // same predicate. Passed here for API symmetry (multi-point extents in the
-  // future).
-  void mode;
   const x1 = Math.min(a.x, b.x), y1 = Math.min(a.y, b.y);
   const x2 = Math.max(a.x, b.x), y2 = Math.max(a.y, b.y);
   const out: string[] = [];
-  for (const { id, pos } of objectWorldPositions(objects)) {
-    const p = projectObject(vkey, id, pos); if (!p) continue;
-    if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2) out.push(id);
+  for (const obj of objects) {
+    const bnd = objectScreenBounds(obj, vkey); if (!bnd) continue;
+    const inside = bnd.minX >= x1 && bnd.maxX <= x2 && bnd.minY >= y1 && bnd.maxY <= y2;
+    const crossing = bnd.maxX >= x1 && bnd.minX <= x2 && bnd.maxY >= y1 && bnd.minY <= y2;
+    if (mode === 'window' ? inside : crossing) out.push(obj.id);
   }
   return out;
 }
@@ -331,10 +366,12 @@ function pickByCircle(center: Pt, edge: Pt, objects: Props['objects'], vkey: str
   const r = Math.hypot(edge.x - center.x, edge.y - center.y);
   const r2 = r * r;
   const out: string[] = [];
-  for (const { id, pos } of objectWorldPositions(objects)) {
-    const p = projectObject(vkey, id, pos); if (!p) continue;
-    const dx = p.x - center.x, dy = p.y - center.y;
-    if (dx * dx + dy * dy <= r2) out.push(id);
+  for (const obj of objects) {
+    const pts = objectScreenSamples(obj, vkey);
+    if (pts.some((p) => {
+      const dx = p.x - center.x, dy = p.y - center.y;
+      return dx * dx + dy * dy <= r2;
+    })) out.push(obj.id);
   }
   return out;
 }
@@ -359,12 +396,17 @@ function pickByFence(points: Pt[], objects: Props['objects'], vkey: string): str
   // projection, "crosses" reduces to a small radius around the polyline.
   const R = 8;
   const out: string[] = [];
-  for (const { id, pos } of objectWorldPositions(objects)) {
-    const p = projectObject(vkey, id, pos); if (!p) continue;
-    for (let i = 0; i < points.length - 1; i++) {
-      const a = points[i], b = points[i + 1];
-      if (distancePointToSegment(p, a, b) <= R) { out.push(id); break; }
+  for (const obj of objects) {
+    const pts = objectScreenSamples(obj, vkey);
+    let hit = false;
+    for (const p of pts) {
+      for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i], b = points[i + 1];
+        if (distancePointToSegment(p, a, b) <= R) { hit = true; break; }
+      }
+      if (hit) break;
     }
+    if (hit) out.push(obj.id);
   }
   return out;
 }
@@ -380,11 +422,11 @@ function distancePointToSegment(p: Pt, a: Pt, b: Pt): number {
 }
 
 function pickByLasso(points: Pt[], objects: Props['objects'], vkey: string, mode: 'window' | 'crossing'): string[] {
-  void mode;
   const out: string[] = [];
-  for (const { id, pos } of objectWorldPositions(objects)) {
-    const p = projectObject(vkey, id, pos); if (!p) continue;
-    if (pointInPolygon(p, points)) out.push(id);
+  for (const obj of objects) {
+    const pts = objectScreenSamples(obj, vkey);
+    const insideCount = pts.filter((p) => pointInPolygon(p, points)).length;
+    if (mode === 'window' ? insideCount === pts.length && pts.length > 0 : insideCount > 0) out.push(obj.id);
   }
   return out;
 }
@@ -392,12 +434,17 @@ function pickByLasso(points: Pt[], objects: Props['objects'], vkey: string, mode
 function pickByPaint(brushPts: Pt[], radius: number, objects: Props['objects'], vkey: string): string[] {
   const r2 = radius * radius;
   const out: string[] = [];
-  for (const { id, pos } of objectWorldPositions(objects)) {
-    const p = projectObject(vkey, id, pos); if (!p) continue;
-    for (const bp of brushPts) {
-      const dx = p.x - bp.x, dy = p.y - bp.y;
-      if (dx * dx + dy * dy <= r2) { out.push(id); break; }
+  for (const obj of objects) {
+    const pts = objectScreenSamples(obj, vkey);
+    let hit = false;
+    for (const p of pts) {
+      for (const bp of brushPts) {
+        const dx = p.x - bp.x, dy = p.y - bp.y;
+        if (dx * dx + dy * dy <= r2) { hit = true; break; }
+      }
+      if (hit) break;
     }
+    if (hit) out.push(obj.id);
   }
   return out;
 }

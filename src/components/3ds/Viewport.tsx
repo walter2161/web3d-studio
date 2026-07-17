@@ -79,6 +79,7 @@ interface ViewportProps {
   onActivate: () => void;
   objects: any[];
   selectedObject: string | null;
+  selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
   onSelectObject: (id: string | null) => void;
   onTransformObject: (id: string, transform: any) => void;
@@ -102,7 +103,7 @@ interface ViewportProps {
 }
 
 export const Viewport = ({
-  type, isActive, onActivate, objects, selectedObject, selectedSubUuid,
+  type, isActive, onActivate, objects, selectedObject, selectedObjectIds = [], selectedSubUuid,
   onSelectObject, onTransformObject, transformMode,
   animationTracks, selectedKeyframe, onUpdateKeyframe, onSelectKeyframe,
   currentFrame, totalFrames, isPlaying,
@@ -343,6 +344,7 @@ export const Viewport = ({
         <Scene3D
           objects={objects}
           selectedObject={selectedObject}
+          selectedObjectIds={selectedObjectIds}
           selectedSubUuid={selectedSubUuid}
           onSelectObject={onSelectObject}
           onTransformObject={onTransformObject}

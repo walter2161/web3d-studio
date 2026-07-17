@@ -17,6 +17,7 @@ interface ViewportGridProps {
   // Passthrough props
   objects: any[];
   selectedObject: string | null;
+  selectedObjectIds?: string[];
   selectedSubUuid?: string | null;
   onSelectObject: (id: string | null) => void;
   onTransformObject: (id: string, transform: any) => void;
