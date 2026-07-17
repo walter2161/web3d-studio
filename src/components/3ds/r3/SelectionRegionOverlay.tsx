@@ -88,6 +88,51 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
 
+    // Pending drag candidate — we watch window pointermove until it either
+    // exceeds DRAG_THRESHOLD (→ start marquee) or pointerup fires first
+    // (→ it was a click, let R3F handle normal selection, we do nothing).
+    let pending: null | {
+      startClientX: number; startClientY: number;
+      startLocal: Pt;
+      rect: DOMRect;
+      additive: boolean; remove: boolean;
+      kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint';
+    } = null;
+
+    const onWinMove = (ev: PointerEvent) => {
+      if (!pending) return;
+      const dx = ev.clientX - pending.startClientX;
+      const dy = ev.clientY - pending.startClientY;
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      // Threshold crossed → promote to real marquee drag. Suppress OrbitControls
+      // panning for the duration by grabbing it and disabling.
+      const oc: any = (window as any).__activeOrbitControls;
+      if (oc) oc.enabled = false;
+      const curLocal = {
+        x: ev.clientX - pending.rect.left,
+        y: ev.clientY - pending.rect.top,
+      };
+      setDrag({
+        kind: pending.kind,
+        start: pending.startLocal,
+        current: curLocal,
+        points: [pending.startLocal, curLocal],
+        additive: pending.additive,
+        remove: pending.remove,
+        painted: new Set(),
+      });
+      pending = null;
+      window.removeEventListener('pointermove', onWinMove, true);
+      window.removeEventListener('pointerup', onWinUp, true);
+    };
+    const onWinUp = () => {
+      pending = null;
+      window.removeEventListener('pointermove', onWinMove, true);
+      window.removeEventListener('pointerup', onWinUp, true);
+      const oc: any = (window as any).__activeOrbitControls;
+      if (oc) oc.enabled = true;
+    };
+
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       // Don't hijack pointer events when a creation tool is armed — the
@@ -100,13 +145,11 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       const localX = e.clientX - rect.left;
       const localY = e.clientY - rect.top;
 
-      if (rayHitsObject(localX, localY, rect)) return;
-
-      e.stopPropagation();
-
-      const additive = e.ctrlKey || e.metaKey;
-      const remove = e.altKey;
-
+      // IMPORTANT: don't stopPropagation and don't setDrag yet. Let R3F handle
+      // the click normally — if it lands on an object it selects, if it lands
+      // on empty space onPointerMissed fires. We only take over if the user
+      // actually drags past DRAG_THRESHOLD, at which point it becomes a
+      // marquee selection.
       const kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint' =
         region.regionMode === 'rectangle' ? 'rect'
         : region.regionMode === 'circle' ? 'circle'
@@ -114,14 +157,17 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
         : region.regionMode === 'paint' ? 'paint'
         : 'lasso';
 
-      setDrag({
+      pending = {
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startLocal: { x: localX, y: localY },
+        rect,
+        additive: e.ctrlKey || e.metaKey,
+        remove: e.altKey,
         kind,
-        start: { x: localX, y: localY },
-        current: { x: localX, y: localY },
-        points: [{ x: localX, y: localY }],
-        additive, remove,
-        painted: new Set(),
-      });
+      };
+      window.addEventListener('pointermove', onWinMove, true);
+      window.addEventListener('pointerup', onWinUp, true);
     };
 
     const tryAttach = () => {
@@ -138,6 +184,8 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       disposed = true;
       if (iv) window.clearInterval(iv);
       if (canvas && attached) canvas.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
+      window.removeEventListener('pointermove', onWinMove, true);
+      window.removeEventListener('pointerup', onWinUp, true);
     };
   }, [region.regionMode, vkey]);
 
