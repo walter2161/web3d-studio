@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as ThreeObject3D } from 'three';
 import * as THREE from 'three';
+import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { buildWall, buildDoor, buildWindow } from './utils/aecGeometry';
@@ -147,6 +148,156 @@ function MaterialWithMaps({
   );
 }
 
+function cloneMaterialInstance(material: any): any {
+  if (!material) return material;
+  return typeof material.clone === 'function' ? material.clone() : material;
+}
+
+function cloneImportedViewportRoot(root: THREE.Object3D): THREE.Object3D {
+  const cloned = cloneSkeleton(root) as THREE.Object3D;
+  cloned.traverse((child: any) => {
+    if (!child.isMesh && !child.isSkinnedMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    // Animated/skinned imports often have stale bounds after pose changes; do
+    // not let orthographic wireframe viewports cull them away.
+    child.frustumCulled = false;
+    if (child.material) {
+      child.material = Array.isArray(child.material)
+        ? child.material.map(cloneMaterialInstance)
+        : cloneMaterialInstance(child.material);
+    }
+  });
+  return cloned;
+}
+
+function applyImportedViewportMode(root: THREE.Object3D, renderMode: string) {
+  const wire = renderMode === 'wireframe';
+  root.traverse((child: any) => {
+    if (!child.isMesh && !child.isSkinnedMesh) return;
+    child.frustumCulled = false;
+    if (!child.material) {
+      child.material = new THREE.MeshBasicMaterial({ color: 0x9ca3af });
+    }
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    for (const mat of mats) {
+      if (!mat) continue;
+      if ('wireframe' in mat) mat.wireframe = wire;
+      if (wire && 'side' in mat) mat.side = THREE.DoubleSide;
+      mat.needsUpdate = true;
+    }
+  });
+}
+
+function collectBoneSegments(root: THREE.Object3D): Array<[THREE.Object3D, THREE.Object3D]> {
+  const bones = new Set<THREE.Object3D>();
+  root.traverse((node: any) => {
+    if (node.isBone) bones.add(node);
+    if (node.isSkinnedMesh && node.skeleton?.bones) {
+      for (const b of node.skeleton.bones) bones.add(b);
+    }
+  });
+  const segments: Array<[THREE.Object3D, THREE.Object3D]> = [];
+  bones.forEach((bone) => {
+    const parent = bone.parent as any;
+    if (parent?.isBone && bones.has(parent)) segments.push([parent, bone]);
+  });
+  return segments;
+}
+
+function syncImportedClonePose(source: THREE.Object3D, cloned: THREE.Object3D) {
+  const src: THREE.Object3D[] = [];
+  const dst: THREE.Object3D[] = [];
+  source.traverse((n) => src.push(n));
+  cloned.traverse((n) => dst.push(n));
+  const n = Math.min(src.length, dst.length);
+  for (let i = 0; i < n; i++) {
+    dst[i].position.copy(src[i].position);
+    dst[i].quaternion.copy(src[i].quaternion);
+    dst[i].scale.copy(src[i].scale);
+    dst[i].visible = src[i].visible;
+    const sm = src[i] as any;
+    const dm = dst[i] as any;
+    if (sm.isMesh && dm.isMesh && sm.morphTargetInfluences && dm.morphTargetInfluences) {
+      for (let j = 0; j < sm.morphTargetInfluences.length; j++) {
+        dm.morphTargetInfluences[j] = sm.morphTargetInfluences[j];
+      }
+    }
+  }
+  cloned.updateMatrixWorld(true);
+  cloned.traverse((child: any) => {
+    if (child.isSkinnedMesh && child.skeleton) child.skeleton.update();
+  });
+}
+
+function ImportedBoneWireOverlay({ root }: { root: THREE.Object3D }) {
+  const segments = useMemo(() => collectBoneSegments(root), [root]);
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(Math.max(1, segments.length * 2) * 3), 3));
+    return g;
+  }, [segments.length]);
+  const tmpA = useMemo(() => new THREE.Vector3(), []);
+  const tmpB = useMemo(() => new THREE.Vector3(), []);
+  const invParent = useMemo(() => new THREE.Matrix4(), []);
+
+  useFrame(() => {
+    if (segments.length === 0) return;
+    root.updateMatrixWorld(true);
+    const parent = root.parent;
+    if (parent) parent.updateMatrixWorld(true);
+    invParent.copy(parent?.matrixWorld ?? new THREE.Matrix4()).invert();
+    const pos = geometry.getAttribute('position') as THREE.BufferAttribute;
+    let i = 0;
+    for (const [a, b] of segments) {
+      tmpA.setFromMatrixPosition(a.matrixWorld).applyMatrix4(invParent);
+      tmpB.setFromMatrixPosition(b.matrixWorld).applyMatrix4(invParent);
+      pos.setXYZ(i++, tmpA.x, tmpA.y, tmpA.z);
+      pos.setXYZ(i++, tmpB.x, tmpB.y, tmpB.z);
+    }
+    pos.needsUpdate = true;
+    geometry.computeBoundingSphere();
+  });
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  if (segments.length === 0) return null;
+  return (
+    <lineSegments geometry={geometry} userData={{ __helper: true, __rigWireHelper: true }} raycast={() => null}>
+      <lineBasicMaterial color={0xfbbf24} depthTest={false} depthWrite={false} transparent opacity={0.95} />
+    </lineSegments>
+  );
+}
+
+function ImportedModelViewportRoot({
+  imported,
+  renderMode,
+  useSourceRoot,
+}: {
+  imported: { root: THREE.Object3D; animations: THREE.AnimationClip[] };
+  renderMode: string;
+  useSourceRoot: boolean;
+}) {
+  const root = useMemo(
+    () => (useSourceRoot ? imported.root : cloneImportedViewportRoot(imported.root)),
+    [imported, useSourceRoot],
+  );
+
+  useEffect(() => {
+    applyImportedViewportMode(root, renderMode);
+  }, [root, renderMode]);
+
+  useFrame(() => {
+    if (!useSourceRoot) syncImportedClonePose(imported.root, root);
+  });
+
+  return (
+    <>
+      <primitive object={root} />
+      {renderMode === 'wireframe' && <ImportedBoneWireOverlay root={root} />}
+    </>
+  );
+}
+
 /**
  * Reconstruct the 2D outline of a shape-type object as world-plane 3D points,
  * plus the axis that would be used as the extrude direction (smallest range).
@@ -260,11 +411,12 @@ interface Object3DProps {
   isPlaying?: boolean;
   targetLookup?: (id: string) => [number, number, number] | null;
   isActiveViewCamera?: boolean;
+  isActiveViewport?: boolean;
 }
 
 
 
-export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false }: Object3DProps) => {
+export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false, isActiveViewport = false }: Object3DProps) => {
 
   const meshRef = useRef<Mesh>(null);
 
@@ -287,10 +439,11 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   // ref would break TransformControls attach for those entities.
   useEffect(() => {
     if (isEntityType(object.type)) return;
+    if (!isActiveViewport) return;
     if (object.ref) {
       object.ref.current = meshRef.current;
     }
-  }, [object.ref, object.type]);
+  }, [object.ref, object.type, isActiveViewport]);
 
 
   // Imported model: cached scene graph + animations
@@ -302,25 +455,6 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   const activeActionRef = useRef<THREE.AnimationAction | null>(null);
   const clipDurationsRef = useRef<number[]>([]);
   const syncImportedClipRef = useRef<((frame: number, total: number) => void) | null>(null);
-
-  // Imported models: mirror the viewport render mode onto every material inside
-  // the scene graph so Wireframe/Solid modes visually apply to imports too.
-  useEffect(() => {
-    if (!imported) return;
-    const wire = renderMode === 'wireframe';
-    imported.root.traverse((child: any) => {
-      const mat = child.material;
-      if (!mat) return;
-      const mats = Array.isArray(mat) ? mat : [mat];
-      for (const m of mats) {
-        if (typeof m.wireframe === 'boolean' && m.wireframe !== wire) {
-          m.wireframe = wire;
-          m.needsUpdate = true;
-        }
-      }
-    });
-  }, [imported, renderMode]);
-
 
   useEffect(() => {
     if (!imported || imported.animations.length === 0) return;
@@ -1213,7 +1347,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         }}
       >
         {imported ? (
-          <primitive object={imported.root} />
+          <ImportedModelViewportRoot imported={imported} renderMode={renderMode} useSourceRoot={isActiveViewport} />
         ) : (
           <mesh>
             <boxGeometry args={[1, 1, 1]} />

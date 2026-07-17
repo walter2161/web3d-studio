@@ -40,6 +40,7 @@ interface Scene3DProps {
   snapAngleDeg?: number;
   snapPercent?: number;
   activeCameraId?: string | null;
+  isActiveViewport?: boolean;
 }
 
 interface SubObjCentroid {
@@ -56,6 +57,7 @@ export const Scene3D = ({
   currentFrame, totalFrames, isPlaying,
   snapEnabled, snapGridSpacing = 1, snapAngleDeg = 5, snapPercent = 10,
   activeCameraId = null,
+  isActiveViewport = false,
 }: Scene3DProps) => {
 
   const transformControlsRef = useRef<any>(null);
@@ -177,6 +179,7 @@ export const Scene3D = ({
           isPlaying={isPlaying}
           targetLookup={targetLookup}
           isActiveViewCamera={!!activeCameraId && object.id === activeCameraId}
+          isActiveViewport={isActiveViewport}
         />
       ))}
 
