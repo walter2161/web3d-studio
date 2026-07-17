@@ -388,33 +388,101 @@ export const StatusBar = ({
         )}
       </div>
 
-      {/* Viewport navigation cluster (right) */}
+      {/* Viewport navigation cluster (right) — full 3ds Max nav gizmo:
+          Zoom / Zoom All / Zoom Extents / Zoom Extents All / Zoom Extents Selected /
+          Field of View / Zoom Region / Pan / Walkthrough / Arc Rotate / Arc Rotate Selected /
+          Select / Maximize. */}
       <div className="bevel-sunken bg-win-face flex items-center gap-0.5 px-1">
-        <Tool title="Zoom In (click) — Shift+click Zoom Out" onClick={(e: any) => dolly(e?.shiftKey ? 1.25 : 0.8)}>
-          <ZoomIn size={12} />
-        </Tool>
-        <Tool title="Zoom Out" onClick={() => dolly(1.25)}>
-          <ZoomOut size={12} />
-        </Tool>
-        <Tool title="Zoom Extents (fit all)" onClick={zoomExtents}>
-          <Focus size={12} />
-        </Tool>
-        <Tool title="Zoom Region (2× closer)" onClick={() => dolly(0.5)}>
-          <Search size={12} />
+        <Tool
+          title="Zoom (drag up = in, down = out) — click = 1 step in, Shift+click = out"
+          onClick={(e: any) => dolly(e?.shiftKey ? 1.25 : 0.8)}
+        >
+          <button
+            onMouseDown={startZoomDrag}
+            className="w-full h-full flex items-center justify-center"
+            title="Zoom (drag)"
+          >
+            <ZoomIn size={12} />
+          </button>
         </Tool>
         <Tool
-          title="Pan mode (left-drag pans)"
+          title="Zoom All Viewports  (click = in, Shift+click = out)"
+          onClick={(e: any) => dollyAll(e?.shiftKey ? 1.25 : 0.8)}
+        >
+          <div className="relative">
+            <ZoomIn size={12} />
+            <span className="absolute -bottom-1 -right-1 text-[7px] leading-none font-bold">A</span>
+          </div>
+        </Tool>
+        <Tool title="Zoom Extents — fit scene  (Ctrl+Alt+Z)" onClick={zoomExtents}>
+          <Focus size={12} />
+        </Tool>
+        <Tool title="Zoom Extents All Viewports  (Ctrl+Shift+Z)" onClick={zoomExtentsAll}>
+          <div className="relative">
+            <Focus size={12} />
+            <span className="absolute -bottom-1 -right-1 text-[7px] leading-none font-bold">A</span>
+          </div>
+        </Tool>
+        <Tool title="Zoom Extents Selected  (Z)" onClick={zoomExtentsSelected}>
+          <Target size={12} />
+        </Tool>
+
+        {/* Field of View — perspective only. Slider popover. */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              title="Field of View  (perspective only)"
+              className="w-[22px] h-[22px] flex items-center justify-center text-win-text bevel-raised hover:brightness-105"
+              onClick={() => setFovValue(getFOV())}
+            >
+              <CameraIcon size={12} />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="top" className="w-56 p-2 bg-win-face border border-black/30 text-win-text">
+            <div className="text-[11px] mb-1 flex items-center justify-between">
+              <span>Field Of View</span>
+              <span className="font-mono">{fovValue.toFixed(0)}°</span>
+            </div>
+            <input
+              type="range" min={5} max={150} step={1} value={fovValue}
+              onChange={(e) => { const v = Number(e.target.value); setFovValue(v); setFOV(v); }}
+              className="w-full"
+            />
+            <div className="flex justify-between text-[9px] mt-0.5 opacity-70">
+              <span>Tele (15°)</span><span>Normal (50°)</span><span>Fisheye (150°)</span>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Tool title="Zoom Region (2× closer to target)" onClick={() => dolly(0.5)}>
+          <Crop size={12} />
+        </Tool>
+        <Tool
+          title="Pan View (left-drag pans)"
           active={mouseMode === 'pan'}
           onClick={() => { setPrimaryMouse('pan'); setMouseMode('pan'); }}
         >
           <PanIcon size={12} />
         </Tool>
         <Tool
-          title="Arc Rotate (left-drag orbits)"
+          title="Walkthrough Mode  (WASD move, QE up/down, arrows look, ESC to exit)"
+          active={walkOn}
+          onClick={() => { walkOn ? stopWalkthrough() : startWalkthrough(setWalkOn); }}
+        >
+          <PersonStanding size={12} />
+        </Tool>
+        <Tool
+          title="Arc Rotate (left-drag orbits around viewport center)"
           active={mouseMode === 'rotate'}
           onClick={() => { setPrimaryMouse('rotate'); setMouseMode('rotate'); }}
         >
           <Orbit size={12} />
+        </Tool>
+        <Tool
+          title="Arc Rotate Selected (orbits around the selected object)"
+          onClick={arcRotateSelected}
+        >
+          <Frame size={12} />
         </Tool>
         <Tool
           title="Select (default left-click)"
@@ -424,7 +492,7 @@ export const StatusBar = ({
           <MousePointer2 size={12} />
         </Tool>
         <Tool
-          title={viewportLayout === 'quad' ? 'Min/Max Toggle → Single' : 'Min/Max Toggle → Quad'}
+          title={viewportLayout === 'quad' ? 'Maximize Viewport Toggle → Single  (Alt+W)' : 'Maximize Viewport Toggle → Quad  (Alt+W)'}
           onClick={onToggleViewportLayout}
           active={viewportLayout === 'quad'}
         >
