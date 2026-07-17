@@ -231,6 +231,16 @@ export const Scene3D = ({
         </group>
       )}
 
+      {/* Modifier Gizmo / Center overlay (Bend / Twist / Taper / Noise). */}
+      {modSub && activeGizmoModifier && selectedObjectData && (
+        <ModifierGizmoOverlay
+          object={selectedObjectData}
+          modifier={activeGizmoModifier}
+          part={modSub.part}
+          onProxyReady={setModGizmoProxy}
+        />
+      )}
+
       {selectedObject && transformTarget && (
         <TransformControls
           ref={transformControlsRef}
