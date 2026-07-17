@@ -165,14 +165,23 @@ export const Studio3D = () => {
     (initial?.objects || []).map((o: any) => ({ ...o, ref: { current: null } }))
   );
   const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>(() => initial?.selectedObject ? [initial.selectedObject] : []);
   const [selectedSubUuid, setSelectedSubUuid] = useState<string | null>(null);
 
   // Expose current selection to the StatusBar viewport nav (Zoom Extents Selected,
   // Arc Rotate Selected). Uses a window-global so non-r3f code can read it
   // without threading props through the entire viewport tree.
   useEffect(() => {
-    (window as any).__r3SelectedIds = selectedObject ? [selectedObject] : [];
-  }, [selectedObject]);
+    (window as any).__r3SelectedIds = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+  }, [selectedObjectIds, selectedObject]);
+
+  useEffect(() => {
+    if (!selectedObject) {
+      if (selectedObjectIds.length) setSelectedObjectIds([]);
+      return;
+    }
+    if (!selectedObjectIds.includes(selectedObject)) setSelectedObjectIds([selectedObject]);
+  }, [selectedObject, selectedObjectIds]);
 
 
 
@@ -1354,6 +1363,7 @@ export const Studio3D = () => {
       return;
     }
     setSelectedObject(id);
+    setSelectedObjectIds(id ? [id] : []);
   }, [compoundState.picking, compoundState.tool, selectedObject, performBoolean]);
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
@@ -1365,21 +1375,25 @@ export const Studio3D = () => {
       if (!detail) return;
       const { ids, additive, remove } = detail;
       if (remove) {
-        if (selectedObject && ids.includes(selectedObject)) setSelectedObject(null);
+        const next = selectedObjectIds.filter((id) => !ids.includes(id));
+        setSelectedObjectIds(next);
+        setSelectedObject(next[next.length - 1] ?? null);
         return;
       }
       if (ids.length === 0) {
-        if (!additive) setSelectedObject(null);
+        if (!additive) {
+          setSelectedObject(null);
+          setSelectedObjectIds([]);
+        }
         return;
       }
-      // Prefer keeping current selection when additive and it's already in
-      // the hit set; otherwise pick the last (top-most) hit.
-      if (additive && selectedObject && ids.includes(selectedObject)) return;
-      setSelectedObject(ids[ids.length - 1]);
+      const next = additive ? Array.from(new Set([...selectedObjectIds, ...ids])) : ids;
+      setSelectedObjectIds(next);
+      setSelectedObject(next[next.length - 1]);
     };
     window.addEventListener('r3-region-select', onRegion as EventListener);
     return () => window.removeEventListener('r3-region-select', onRegion as EventListener);
-  }, [selectedObject]);
+  }, [selectedObjectIds]);
 
 
   const handleTransformObject = useCallback((id: string, transform: any) => {
