@@ -883,7 +883,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
     // ghost intentionally excluded — read via closure through setGhost's functional form isn't
     // needed since we always rebuild from start/current world points.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [armed, isActive, viewportType, camera, gl, snapEnabled, snapGridSpacing]);
+  }, [armed, viewportType, camera, gl, snapEnabled, snapGridSpacing]);
 
   return null;
 };
