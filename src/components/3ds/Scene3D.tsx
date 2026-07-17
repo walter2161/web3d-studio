@@ -411,6 +411,24 @@ export const Scene3D = ({
               }
               return;
             }
+            if (modGizmoActive) {
+              if (!modGizmoProxy || !activeGizmoModifier || !modSub || !selectedObject) return;
+              const p = modGizmoProxy.position;
+              const r = modGizmoProxy.rotation;
+              const s = modGizmoProxy.scale;
+              window.dispatchEvent(new CustomEvent('r3-modifier-gizmo-op', {
+                detail: {
+                  objectId: selectedObject,
+                  modifierId: activeGizmoModifier.id,
+                  part: modSub.part,
+                  pos: [p.x, p.y, p.z],
+                  rot: [r.x, r.y, r.z],
+                  scale: [s.x, s.y, s.z],
+                  commit: false,
+                },
+              }));
+              return;
+            }
             if (e?.target?.object && !selectedSubUuid) {
               const obj = e.target.object;
               const { position, rotation, scale } = obj;
