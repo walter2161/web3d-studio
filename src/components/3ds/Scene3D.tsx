@@ -74,6 +74,22 @@ export const Scene3D = ({
   );
   const isMulti = selectedList.length > 1;
 
+  // Track Ctrl/Shift so the TransformControls gizmo can step aside while the
+  // user is adding/removing nodes from the selection — otherwise the gizmo's
+  // own raycaster swallows the click and the second Ctrl+click never reaches
+  // the mesh, leaving only one object selected.
+  const [modifierHeld, setModifierHeld] = useState(false);
+  useEffect(() => {
+    const check = (e: KeyboardEvent) => setModifierHeld(!!(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey));
+    window.addEventListener('keydown', check);
+    window.addEventListener('keyup', check);
+    return () => {
+      window.removeEventListener('keydown', check);
+      window.removeEventListener('keyup', check);
+    };
+  }, []);
+
+
   // ---- Multi-selection proxy (3ds Max "Selection Center") --------------------
   const [multiProxy, setMultiProxy] = useState<THREE.Object3D | null>(null);
   const multiStartRef = useRef<{
@@ -317,7 +333,8 @@ export const Scene3D = ({
           object={transformTarget}
           mode={effectiveTransformMode}
           size={0.8}
-          showX showY showZ
+          enabled={!modifierHeld}
+          showX={!modifierHeld} showY={!modifierHeld} showZ={!modifierHeld}
           translationSnap={snapEnabled && effectiveTransformMode === 'translate' ? snapGridSpacing : null}
           rotationSnap={snapEnabled && effectiveTransformMode === 'rotate' ? THREE.MathUtils.degToRad(snapAngleDeg) : null}
           scaleSnap={snapEnabled && effectiveTransformMode === 'scale' ? snapPercent / 100 : null}
