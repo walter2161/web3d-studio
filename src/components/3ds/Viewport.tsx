@@ -478,6 +478,9 @@ const OrthoZoomSync = ({ distance }: { distance: number }) => {
     }
   }, [camera, size.width, size.height, distance]);
   return null;
+};
+
+
 
 /**
  * Camera-view controller: drives the viewport's active camera from a scene
