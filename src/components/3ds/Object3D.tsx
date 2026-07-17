@@ -1601,13 +1601,14 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         isGhost={!!isGhost}
       />
 
-      {/* Wireframe view: show only feature edges (no triangulation diagonals
-          nor internal longitudinal/transversal segment lines), keeping the
-          silhouette clean. Threshold ~22° collapses coplanar/near-coplanar
-          neighbours (sphere/cylinder ring subdivisions) into their outlines. */}
+      {/* Wireframe view: keep longitudinal/transversal segment rings but
+          filter out the diagonal edges that split each quad into two
+          triangles. The two triangles inside a single quad are (nearly)
+          coplanar, so a small threshold (~1°) drops those diagonals while
+          preserving the ring/segment edges shared between adjacent quads. */}
       {renderMode === 'wireframe' && !isGhost && (
         <lineSegments renderOrder={997}>
-          <edgesGeometry args={[modifiedGeometry, 22]} />
+          <edgesGeometry args={[modifiedGeometry, 1]} />
           <lineBasicMaterial color={isSelected ? '#ffffff' : '#cbd5e1'} />
         </lineSegments>
       )}
