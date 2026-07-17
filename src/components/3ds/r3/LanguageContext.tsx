@@ -252,6 +252,26 @@ const LanguageCtx = createContext<Ctx>({ lang: 'en', setLang: () => {}, t: (s) =
 const originalText = new WeakMap<Text, string>();
 const originalAttr = new WeakMap<Element, Record<string, string>>();
 const TRANSLATABLE_ATTRS = ['title', 'placeholder', 'aria-label', 'alt'];
+// Guard: while we are writing translations, ignore mutations we cause ourselves,
+// otherwise the observer would overwrite the stored English source with a
+// translated string and prevent switching back.
+let selfWriting = 0;
+
+// Build a reverse map (translated string → English source) for every language,
+// so if we ever encounter a node whose "original" was captured while already
+// translated (e.g. before the provider mounted), we can still recover it.
+const reverseMaps: Record<Lang, Record<string, string>> = { en: {}, pt: {}, es: {} };
+for (const l of ['pt', 'es'] as Lang[]) {
+  for (const [src, tr] of Object.entries(dict[l])) reverseMaps[l][tr] = src;
+}
+const recoverSource = (s: string): string => {
+  const trimmed = s.trim();
+  if (!trimmed) return s;
+  for (const l of ['pt', 'es'] as Lang[]) {
+    if (reverseMaps[l][trimmed]) return reverseMaps[l][trimmed];
+  }
+  return s;
+};
 
 const shouldSkip = (node: Node): boolean => {
   let el: Node | null = node;
@@ -268,20 +288,24 @@ const shouldSkip = (node: Node): boolean => {
 };
 
 const translateTextNode = (node: Text, lookup: (s: string) => string) => {
-  const src = originalText.get(node) ?? node.nodeValue ?? '';
-  if (!originalText.has(node)) originalText.set(node, src);
+  let src = originalText.get(node);
+  if (src === undefined) {
+    // First time seeing this node — recover the English source in case it was
+    // already rendered translated by a previous language.
+    src = recoverSource(node.nodeValue ?? '');
+    originalText.set(node, src);
+  }
   const trimmed = src.trim();
   if (!trimmed) return;
   const translated = lookup(trimmed);
-  if (translated === trimmed) {
-    if (node.nodeValue !== src) node.nodeValue = src;
-    return;
-  }
-  // Preserve leading/trailing whitespace so layout doesn't shift.
   const leading = src.match(/^\s*/)?.[0] ?? '';
   const trailing = src.match(/\s*$/)?.[0] ?? '';
-  const next = leading + translated + trailing;
-  if (node.nodeValue !== next) node.nodeValue = next;
+  const next = translated === trimmed ? src : leading + translated + trailing;
+  if (node.nodeValue !== next) {
+    selfWriting++;
+    node.nodeValue = next;
+    selfWriting--;
+  }
 };
 
 const translateAttrs = (el: Element, lookup: (s: string) => string) => {
@@ -290,13 +314,18 @@ const translateAttrs = (el: Element, lookup: (s: string) => string) => {
     if (!el.hasAttribute(attr)) continue;
     const current = el.getAttribute(attr) ?? '';
     if (!bag) { bag = {}; originalAttr.set(el, bag); }
-    if (!(attr in bag)) bag[attr] = current;
+    if (!(attr in bag)) bag[attr] = recoverSource(current);
     const src = bag[attr];
     const translated = lookup(src.trim());
     const next = translated === src.trim() ? src : translated;
-    if (el.getAttribute(attr) !== next) el.setAttribute(attr, next);
+    if (el.getAttribute(attr) !== next) {
+      selfWriting++;
+      el.setAttribute(attr, next);
+      selfWriting--;
+    }
   }
 };
+
 
 const walkAndTranslate = (root: Node, lookup: (s: string) => string) => {
   if (shouldSkip(root)) return;
