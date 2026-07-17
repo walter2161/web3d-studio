@@ -68,6 +68,28 @@ export const Scene3D = ({
   const transformControlsRef = useRef<any>(null);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
   const selectedObjectIdSet = useMemo(() => new Set(selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : [])), [selectedObjectIds, selectedObject]);
+  const selectedList = useMemo(
+    () => objects.filter((o) => selectedObjectIdSet.has(o.id)),
+    [objects, selectedObjectIdSet],
+  );
+  const isMulti = selectedList.length > 1;
+
+  // ---- Multi-selection proxy (3ds Max "Selection Center") --------------------
+  const [multiProxy, setMultiProxy] = useState<THREE.Object3D | null>(null);
+  const multiStartRef = useRef<{
+    proxyPos: THREE.Vector3;
+    proxyQuat: THREE.Quaternion;
+    proxyScale: THREE.Vector3;
+    items: Array<{ id: string; pos: THREE.Vector3; quat: THREE.Quaternion; scale: THREE.Vector3 }>;
+  } | null>(null);
+  const multiCenter = useMemo<[number, number, number]>(() => {
+    if (!isMulti) return [0, 0, 0];
+    let x = 0, y = 0, z = 0;
+    for (const o of selectedList) { x += o.position[0]; y += o.position[1]; z += o.position[2]; }
+    const n = selectedList.length;
+    return [x / n, y / n, z / n];
+  }, [isMulti, selectedList]);
+
 
   // ---- Sub-object gizmo state -------------------------------------------------
   const [subCentroid, setSubCentroid] = useState<SubObjCentroid | null>(null);
@@ -184,6 +206,12 @@ export const Scene3D = ({
   if (modGizmoActive && modGizmoProxy) {
     transformTarget = modGizmoProxy;
   }
+  const multiActive =
+    isMulti && !subGizmoActive && !boneJointActive && !modGizmoActive && !importedSubActive;
+  if (multiActive && multiProxy) {
+    transformTarget = multiProxy;
+  }
+
 
 
   // Lookup a target object's world position for target-camera / target-spot / target-direct.
@@ -243,9 +271,20 @@ export const Scene3D = ({
         />
       )}
 
+      {/* Multi-selection proxy: sits at the average position of the selected
+          nodes so TransformControls attaches to a single virtual pivot that
+          then broadcasts a Move/Rotate/Scale delta to every selected node
+          (3ds Max "Selection Center" behavior — works for Boxes, Lights,
+          Cameras, Splines, Bones or any mix, because everything shares the
+          same Position/Rotation/Scale interface). */}
+      {multiActive && (
+        <object3D ref={setMultiProxy} position={multiCenter} />
+      )}
+
       {selectedObject && transformTarget && (
         <TransformControls
           ref={transformControlsRef}
+
           object={transformTarget}
           mode={effectiveTransformMode}
           size={0.8}
@@ -257,8 +296,23 @@ export const Scene3D = ({
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
             if (!boneJointActive && !subGizmoActive && !importedSubActive && !modGizmoActive && selectedObject) {
+              // Snapshot every selected node's TRS so undo restores the whole set.
               window.dispatchEvent(new CustomEvent('r3-transform-start', { detail: { objectId: selectedObject } }));
             }
+            if (multiActive && multiProxy) {
+              multiStartRef.current = {
+                proxyPos: multiProxy.position.clone(),
+                proxyQuat: multiProxy.quaternion.clone(),
+                proxyScale: multiProxy.scale.clone(),
+                items: selectedList.map((o) => ({
+                  id: o.id,
+                  pos: new THREE.Vector3(o.position[0], o.position[1], o.position[2]),
+                  quat: new THREE.Quaternion().setFromEuler(new THREE.Euler(o.rotation[0], o.rotation[1], o.rotation[2])),
+                  scale: new THREE.Vector3(o.scale[0], o.scale[1], o.scale[2]),
+                })),
+              };
+            }
+
             if (boneJointActive && boneJointTarget) {
               boneJointDragStartRef.current = boneJointTarget.rotation.clone();
             }
@@ -297,6 +351,16 @@ export const Scene3D = ({
             if (boneJointActive) {
               boneJointDragStartRef.current = null;
             }
+            if (multiActive && multiProxy) {
+              // Re-seat the proxy at the (new) selection centroid so subsequent
+              // drags start from identity rather than accumulating deltas.
+              multiStartRef.current = null;
+              multiProxy.position.set(multiCenter[0], multiCenter[1], multiCenter[2]);
+              multiProxy.rotation.set(0, 0, 0);
+              multiProxy.scale.set(1, 1, 1);
+              multiProxy.updateMatrixWorld(true);
+            }
+
             if (importedSubActive && transformTarget && importedSubDragStartRef.current && selectedObject && selectedSubUuid) {
               const p = transformTarget.position;
               const r = transformTarget.rotation;
@@ -434,7 +498,46 @@ export const Scene3D = ({
               }));
               return;
             }
+            if (multiActive && multiProxy && multiStartRef.current) {
+              // Compose the delta between the proxy's start pose and its current
+              // pose, then apply that same delta to every stored node relative to
+              // the selection center. Works uniformly for translate / rotate /
+              // scale regardless of node type (Box, Light, Camera, Spline, ...).
+              const start = multiStartRef.current;
+              const center = start.proxyPos;
+              const dPos = multiProxy.position.clone().sub(start.proxyPos);
+              const invStartQuat = start.proxyQuat.clone().invert();
+              const dQuat = multiProxy.quaternion.clone().multiply(invStartQuat);
+              const sFactor = new THREE.Vector3(
+                start.proxyScale.x !== 0 ? multiProxy.scale.x / start.proxyScale.x : 1,
+                start.proxyScale.y !== 0 ? multiProxy.scale.y / start.proxyScale.y : 1,
+                start.proxyScale.z !== 0 ? multiProxy.scale.z / start.proxyScale.z : 1,
+              );
+              const updates: Array<{ id: string; position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number] }> = [];
+              const tmp = new THREE.Vector3();
+              const tmpQ = new THREE.Quaternion();
+              const tmpE = new THREE.Euler();
+              for (const it of start.items) {
+                // Offset from center → scale → rotate → translate → add back center + delta.
+                tmp.copy(it.pos).sub(center);
+                tmp.multiply(sFactor);
+                tmp.applyQuaternion(dQuat);
+                tmp.add(center).add(dPos);
+                tmpQ.copy(dQuat).multiply(it.quat);
+                tmpE.setFromQuaternion(tmpQ);
+                const ns = it.scale.clone().multiply(sFactor);
+                updates.push({
+                  id: it.id,
+                  position: [tmp.x, tmp.y, tmp.z],
+                  rotation: [tmpE.x, tmpE.y, tmpE.z],
+                  scale: [ns.x, ns.y, ns.z],
+                });
+              }
+              window.dispatchEvent(new CustomEvent('r3-transform-many', { detail: { updates } }));
+              return;
+            }
             if (e?.target?.object && !selectedSubUuid) {
+
               const obj = e.target.object;
               const { position, rotation, scale } = obj;
               onTransformObject(selectedObject, {
