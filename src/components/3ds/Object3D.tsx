@@ -1609,7 +1609,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       {renderMode === 'wireframe' && !isGhost && (
         <lineSegments renderOrder={997}>
           <edgesGeometry args={[modifiedGeometry, 1]} />
-          <lineBasicMaterial color={isSelected ? '#ffffff' : '#cbd5e1'} />
+          <lineBasicMaterial color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')} />
         </lineSegments>
       )}
 
