@@ -431,9 +431,9 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       return g;
     }
     case 'foliage': {
-      // Procedural parametric tree with FRACTAL RECURSIVE BRANCHING and
-      // scattered random leaf planes. Silhouette (crown), branching pattern
-      // and leaf shape are driven by the species kind. Deterministic per seed.
+      // Stylized silhouette per species: trunk cylinder + crown built from
+      // primitive volumes (sphere / cone stacks / radial blades / clumped
+      // spheres). Deterministic per seed with light jitter for variation.
       const h = Math.max(0.1, p.height);
       const crown = Math.max(0.1, p.crownRadius);
       const density = Math.max(0.1, p.density);
@@ -465,180 +465,148 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       const isShrub   = kind === 'shrub';
       const isWeeping = kind === 'weeping';
 
-      const branchParts: THREE.BufferGeometry[] = [];
-      const leafParts: THREE.BufferGeometry[] = [];
+      const trunkParts: THREE.BufferGeometry[] = [];
+      const leafParts:  THREE.BufferGeometry[] = [];
 
-      const leafQuad = (size: number): THREE.BufferGeometry => {
-        if (isPine) return new THREE.PlaneGeometry(size * 0.15, size * 1.4);
-        if (isPalm) {
-          const g = new THREE.PlaneGeometry(size * 0.4, size * 3.5);
-          g.translate(0, size * 1.75, 0);
-          return g;
-        }
-        return new THREE.PlaneGeometry(size, size * 1.2);
-      };
+      const trunkR = h * (isShrub ? 0.02 : isPalm ? 0.03 : 0.06) * age;
 
-      const scatterLeaf = (px: number, py: number, pz: number, baseSize: number) => {
-        const q1 = leafQuad(baseSize * rr(0.7, 1.3));
-        const q2 = q1.clone();
-        q2.rotateY(Math.PI / 2);
-        const merged = mergeGeometries([q1, q2], false) || q1;
-        merged.rotateZ(rr(-0.8, 0.8));
-        merged.rotateY(rr(0, Math.PI * 2));
-        if (isWeeping) merged.rotateX(rr(0.6, 1.2));
-        merged.translate(px, py, pz);
-        leafParts.push(merged);
-      };
-
-      const trunkR = h * (isShrub ? 0.025 : isPalm ? 0.035 : 0.06) * age;
-      const maxDepth = isShrub ? 2 : isPalm ? 1 : isPine ? 3 : Math.min(5, 3 + Math.round(branchDensity));
-
-      const grow = (
-        origin: THREE.Vector3,
-        dir: THREE.Vector3,
-        length: number,
-        radius: number,
-        depth: number,
-      ) => {
-        const seg = new THREE.CylinderGeometry(radius * 0.65, radius, length, Math.max(4, 8 - depth));
-        seg.translate(0, length / 2, 0);
-        const up = new THREE.Vector3(0, 1, 0);
-        const quat = new THREE.Quaternion().setFromUnitVectors(up, dir.clone().normalize());
-        seg.applyQuaternion(quat);
-        seg.translate(origin.x, origin.y, origin.z);
-        branchParts.push(seg);
-
-        const tip = origin.clone().add(dir.clone().multiplyScalar(length));
-
-        if (depth >= maxDepth || length < 0.15) {
-          const nLeaves = Math.round((isPine ? 14 : isPalm ? 0 : 8) * density);
-          for (let i = 0; i < nLeaves; i++) {
-            const off = new THREE.Vector3(rr(-1, 1), rr(-0.4, 1), rr(-1, 1))
-              .multiplyScalar(leafSize * (isPine ? 1.2 : 1.8));
-            scatterLeaf(tip.x + off.x, tip.y + off.y, tip.z + off.z, leafSize);
-          }
-          return;
-        }
-
-        const children = isPine
-          ? Math.round(rr(4, 6))
-          : isWeeping
-            ? Math.round(rr(2, 3))
-            : Math.round(rr(2, 3) + branchDensity * 0.5);
-
-        for (let c = 0; c < children; c++) {
-          const spread = isPine ? rr(0.9, 1.2)
-                       : isWeeping ? rr(0.6, 1.1) + depth * 0.35
-                       : isShrub ? rr(0.6, 1.1)
-                       : rr(0.4, 0.9);
-          const azim = (c / children) * Math.PI * 2 + rr(-0.4, 0.4);
-
-          const parent = dir.clone().normalize();
-          const ref = Math.abs(parent.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-          const side = new THREE.Vector3().crossVectors(parent, ref).normalize();
-          const fwd  = new THREE.Vector3().crossVectors(side, parent).normalize();
-          const local = side.clone().multiplyScalar(Math.sin(spread) * Math.cos(azim))
-            .add(fwd.clone().multiplyScalar(Math.sin(spread) * Math.sin(azim)))
-            .add(parent.clone().multiplyScalar(Math.cos(spread)));
-
-          if (isWeeping) local.y -= depth * 0.35 + rr(0.1, 0.4);
-          local.normalize();
-
-          const childLen = length * rr(0.55, 0.78);
-          const childRad = radius * rr(0.55, 0.72);
-          grow(tip, local, childLen, childRad, depth + 1);
-        }
-
-        if (depth >= Math.max(1, maxDepth - 2) && !isPalm && !isPine) {
-          const along = Math.round(rr(3, 6) * density);
-          for (let k = 0; k < along; k++) {
-            const t = rr(0.4, 1.0);
-            const px = origin.x + dir.x * length * t + rr(-0.2, 0.2) * leafSize;
-            const py = origin.y + dir.y * length * t + rr(-0.2, 0.2) * leafSize;
-            const pz = origin.z + dir.z * length * t + rr(-0.2, 0.2) * leafSize;
-            scatterLeaf(px, py, pz, leafSize);
-          }
-        }
-      };
-
-      if (isPalm) {
-        const trunkH = h * 0.9;
-        const segs = 10;
-        for (let i = 0; i < segs; i++) {
-          const t0 = i / segs, t1 = (i + 1) / segs;
-          const bend = Math.sin(t0 * Math.PI) * h * 0.05 * rr(-1, 1);
-          const y0 = trunkH * t0, y1 = trunkH * t1;
-          const r0 = trunkR * (1 - t0 * 0.4);
-          const r1 = trunkR * (1 - t1 * 0.4);
-          const seg = new THREE.CylinderGeometry(r1, r0, y1 - y0, 8);
-          seg.translate(bend, (y0 + y1) / 2, 0);
-          branchParts.push(seg);
-        }
-        const fronds = Math.round(10 * branchDensity);
-        const top = new THREE.Vector3(0, trunkH, 0);
-        for (let i = 0; i < fronds; i++) {
-          const ang = (i / fronds) * Math.PI * 2 + rr(-0.1, 0.1);
-          const tilt = rr(0.7, 1.1);
-          const dir = new THREE.Vector3(Math.cos(ang) * Math.sin(tilt), Math.cos(tilt), Math.sin(ang) * Math.sin(tilt)).normalize();
-          const fLen = crown * rr(0.9, 1.3);
-          const spine = new THREE.CylinderGeometry(trunkR * 0.05, trunkR * 0.08, fLen, 4);
-          spine.translate(0, fLen / 2, 0);
-          const up = new THREE.Vector3(0, 1, 0);
-          const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
-          spine.applyQuaternion(q);
-          spine.translate(top.x, top.y, top.z);
-          branchParts.push(spine);
-          const leaflets = Math.round(rr(10, 16));
-          for (let k = 1; k <= leaflets; k++) {
-            const t = k / (leaflets + 1);
-            const px = top.x + dir.x * fLen * t;
-            const py = top.y + dir.y * fLen * t;
-            const pz = top.z + dir.z * fLen * t;
-            scatterLeaf(px, py, pz, leafSize);
-          }
+      if (isShrub) {
+        // Clumped spheres, no trunk (like the "bush" reference).
+        const clumps = Math.max(4, Math.round(6 * density * branchDensity));
+        for (let i = 0; i < clumps; i++) {
+          const r = crown * rr(0.5, 0.9);
+          const sph = new THREE.SphereGeometry(r, 12, 12);
+          sph.translate(
+            rr(-1, 1) * crown * 0.7,
+            r * 0.9 + rr(0, crown * 0.4),
+            rr(-1, 1) * crown * 0.7,
+          );
+          leafParts.push(sph);
         }
       } else if (isPine) {
+        // Trunk + stacked cones (like the "pine" reference).
         const trunkH = h;
-        const trunk = new THREE.CylinderGeometry(trunkR * 0.3, trunkR, trunkH, 8);
+        const trunk = new THREE.CylinderGeometry(trunkR * 0.6, trunkR, trunkH, 10);
         trunk.translate(0, trunkH / 2, 0);
-        branchParts.push(trunk);
-        const whorls = Math.max(4, Math.round(6 * branchDensity));
-        for (let w = 0; w < whorls; w++) {
-          const t = 0.15 + (w / whorls) * 0.85;
-          const y = trunkH * t;
-          const rad = crown * (1 - t) * rr(0.85, 1.05);
-          const n = Math.round(rr(5, 8));
-          for (let i = 0; i < n; i++) {
-            const ang = (i / n) * Math.PI * 2 + rr(-0.2, 0.2);
-            const dir = new THREE.Vector3(Math.cos(ang), rr(-0.15, 0.05), Math.sin(ang)).normalize();
-            grow(new THREE.Vector3(0, y, 0), dir, rad, trunkR * 0.4 * (1 - t) + trunkR * 0.1, maxDepth - 1);
-          }
+        trunkParts.push(trunk);
+
+        const layers = Math.max(3, Math.round(4 * branchDensity));
+        const baseR = crown;
+        const layerH = h * 0.35;
+        const startY = h * 0.35;
+        for (let i = 0; i < layers; i++) {
+          const r = baseR - i * (baseR / (layers + 0.5));
+          const cone = new THREE.ConeGeometry(Math.max(0.05, r), layerH * rr(0.9, 1.1), 14);
+          cone.translate(0, startY + i * layerH * 0.55 + layerH / 2, 0);
+          leafParts.push(cone);
         }
-      } else if (isShrub) {
-        const stems = Math.round(rr(4, 7) * branchDensity);
-        for (let i = 0; i < stems; i++) {
-          const ang = (i / stems) * Math.PI * 2 + rr(-0.3, 0.3);
-          const dir = new THREE.Vector3(Math.cos(ang) * 0.5, 1, Math.sin(ang) * 0.5).normalize();
-          grow(new THREE.Vector3(rr(-0.1, 0.1), 0, rr(-0.1, 0.1)), dir, h * rr(0.55, 0.9), trunkR * 0.8, 0);
+      } else if (isPalm) {
+        // Tilted trunk + radial leaf blades (like the "palm" reference).
+        const trunkH = h;
+        const tilt = rr(-0.18, 0.18);
+        const trunk = new THREE.CylinderGeometry(trunkR * 0.55, trunkR, trunkH, 10);
+        trunk.translate(0, trunkH / 2, 0);
+        trunk.rotateZ(tilt);
+        trunkParts.push(trunk);
+
+        // Top of tilted trunk
+        const topX = Math.sin(tilt) * trunkH * 0.5 * -1;   // approx
+        const topY = Math.cos(tilt) * trunkH;
+        const fronds = Math.max(6, Math.round(9 * branchDensity));
+        for (let i = 0; i < fronds; i++) {
+          const bladeLen = crown * rr(1.6, 2.2);
+          const blade = new THREE.BoxGeometry(bladeLen, leafSize * 0.5, leafSize * 1.6);
+          // pivot at base: shift so left edge is origin
+          blade.translate(bladeLen / 2, 0, 0);
+          const ang = (i / fronds) * Math.PI * 2 + rr(-0.1, 0.1);
+          const droop = rr(0.35, 0.65);
+          const m = new THREE.Matrix4();
+          m.makeRotationZ(-droop);
+          blade.applyMatrix4(m);
+          m.makeRotationY(ang);
+          blade.applyMatrix4(m);
+          blade.translate(topX, topY, 0);
+          leafParts.push(blade);
+        }
+      } else if (isWeeping) {
+        // Trunk + rounded crown + drooping strands.
+        const trunkH = h * 0.55;
+        const trunk = new THREE.CylinderGeometry(trunkR * 0.75, trunkR, trunkH, 10);
+        trunk.translate(0, trunkH / 2, 0);
+        trunkParts.push(trunk);
+
+        // Flattened crown
+        const cy = trunkH + crown * 0.55;
+        const dome = new THREE.SphereGeometry(crown, 20, 20);
+        dome.scale(1.1, 0.75, 1.1);
+        dome.translate(0, cy, 0);
+        leafParts.push(dome);
+
+        // Drooping strands: thin tapered cones pointing down around the crown edge.
+        const strands = Math.round(20 * density);
+        for (let i = 0; i < strands; i++) {
+          const ang = (i / strands) * Math.PI * 2 + rr(-0.1, 0.1);
+          const rad = crown * rr(0.75, 1.0);
+          const droopLen = crown * rr(0.9, 1.4);
+          const strand = new THREE.ConeGeometry(leafSize * 0.6, droopLen, 6);
+          // Tip should point down; default cone points +Y, so flip
+          strand.rotateX(Math.PI);
+          strand.translate(Math.cos(ang) * rad, cy - droopLen / 2, Math.sin(ang) * rad);
+          leafParts.push(strand);
         }
       } else {
-        const trunkH = h * (isWeeping ? 0.5 : 0.45);
-        const trunk = new THREE.CylinderGeometry(trunkR * 0.7, trunkR, trunkH, 10);
+        // Broadleaf (oak / birch / cherry / maple / elm / banyan / ficus / araucaria-ish).
+        // Trunk + spherical crown, with a couple satellite spheres for silhouette variety.
+        const trunkH = h * 0.55;
+        const trunk = new THREE.CylinderGeometry(trunkR * 0.75, trunkR, trunkH, 12);
         trunk.translate(0, trunkH / 2, 0);
-        branchParts.push(trunk);
-        const splits = Math.round(rr(3, 5));
-        for (let i = 0; i < splits; i++) {
-          const ang = (i / splits) * Math.PI * 2 + rr(-0.3, 0.3);
-          const tilt = isWeeping ? rr(0.5, 0.9) : rr(0.25, 0.7);
-          const dir = new THREE.Vector3(Math.cos(ang) * Math.sin(tilt), Math.cos(tilt), Math.sin(ang) * Math.sin(tilt)).normalize();
-          const len = crown * rr(0.7, 1.0);
-          grow(new THREE.Vector3(0, trunkH, 0), dir, len, trunkR * 0.7, 1);
+        trunkParts.push(trunk);
+
+        // For "Big Palm-like" or "Araucaria-like" wide flat crowns we could
+        // squash the sphere; keep round for broadleaves.
+        const cy = trunkH + crown * 0.7;
+        const main = new THREE.SphereGeometry(crown, 22, 22);
+        main.translate(0, cy, 0);
+        leafParts.push(main);
+
+        const extras = Math.round(3 * density);
+        for (let i = 0; i < extras; i++) {
+          const r = crown * rr(0.45, 0.7);
+          const ang = rr(0, Math.PI * 2);
+          const rad = crown * rr(0.4, 0.8);
+          const sph = new THREE.SphereGeometry(r, 14, 14);
+          sph.translate(
+            Math.cos(ang) * rad,
+            cy + rr(-crown * 0.3, crown * 0.4),
+            Math.sin(ang) * rad,
+          );
+          leafParts.push(sph);
+        }
+
+        // A few branch stubs poking into the crown for detail.
+        const stubs = Math.round(3 * branchDensity);
+        for (let i = 0; i < stubs; i++) {
+          const ang = (i / Math.max(1, stubs)) * Math.PI * 2 + rr(-0.4, 0.4);
+          const tilt = rr(0.3, 0.7);
+          const len = crown * rr(0.6, 0.9);
+          const br = new THREE.CylinderGeometry(trunkR * 0.25, trunkR * 0.45, len, 6);
+          br.translate(0, len / 2, 0);
+          const m = new THREE.Matrix4();
+          m.makeRotationZ(tilt);
+          br.applyMatrix4(m);
+          m.makeRotationY(ang);
+          br.applyMatrix4(m);
+          br.translate(0, trunkH, 0);
+          trunkParts.push(br);
         }
       }
 
+      // Merge trunk parts and leaf parts into two groups so a materials array
+      // (bark, leaves) could render them differently. With a single material
+      // it just renders as one solid mesh — fine for now.
       const all: THREE.BufferGeometry[] = [];
-      if (branchParts.length) {
-        const bg = mergeGeometries(branchParts, false);
+      if (trunkParts.length) {
+        const bg = mergeGeometries(trunkParts, false);
         if (bg) all.push(bg);
       }
       if (leafParts.length) {
