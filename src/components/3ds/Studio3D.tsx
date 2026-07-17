@@ -2109,6 +2109,15 @@ export const Studio3D = () => {
     toast.success(`Linked ${validIds.length} object(s) → ${parent.isGroup ? 'group' : parentId.slice(0, 8)}`);
   };
 
+  useEffect(() => {
+    (window as any).__r3DoLink = (parentId: string) => {
+      doLinkSelectionTo(parentId);
+      setLinkTool(null);
+    };
+    return () => { delete (window as any).__r3DoLink; };
+  }, [selectedObjectIds, selectedObject]);
+
+
   const doUnlinkSelection = () => {
     const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
     if (!ids.length) { toast.error('Select object(s) to unlink'); return; }
