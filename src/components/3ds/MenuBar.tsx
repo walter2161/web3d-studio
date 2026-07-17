@@ -6,6 +6,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useUITheme } from './r3/UIThemeContext';
+import { useLanguage } from './r3/LanguageContext';
 
 interface MenuBarProps {
   onOpenMaterialEditor: () => void;
@@ -32,7 +33,7 @@ const menuItems: { label: string; access: string; items: (string | 'sep')[] }[] 
   { label: 'Animation', access: 'A', items: ['Set Key', 'Auto Key', 'sep', 'Track View', 'Curve Editor', 'sep', 'Position Constraint', 'LookAt Constraint'] },
   { label: 'Graph Editors', access: 'D', items: ['Track View - Curve Editor', 'Track View - Dope Sheet', 'sep', 'Schematic View'] },
   { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
-  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Interface: Classic', 'Interface: Flat', 'Interface: Game', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
+  { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', 'Interface: Classic', 'Interface: Flat', 'Interface: Game', 'sep', 'Language: English', 'Language: Português', 'Language: Español', 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
   { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About 3De...'] },
 ];
@@ -51,6 +52,7 @@ const renderLabel = (label: string, access: string) => {
 
 export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChange, activeViewport, onQuickRender, onRenderSetup, onEnvironment, onMaterialBrowser, onViewImageFile, onMenuAction }: MenuBarProps) => {
   const { theme, setTheme } = useUITheme();
+  const { lang, setLang, t } = useLanguage();
   return (
     <div className="h-[22px] bg-win-face flex items-stretch px-1 border-b border-win-shadow">
       {menuItems.map((menu) => (
@@ -59,7 +61,7 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
             <button
               className="px-2 text-[11px] text-win-text hover:bg-menu-hover hover:text-menu-hover-fg data-[state=open]:bg-menu-hover data-[state=open]:text-menu-hover-fg outline-none flex items-center"
             >
-              {renderLabel(menu.label, menu.access)}
+              {renderLabel(t(menu.label), menu.access)}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -80,7 +82,10 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     (item === 'Left' && activeViewport === 'left') ||
                     (item === 'Interface: Classic' && theme === 'classic') ||
                     (item === 'Interface: Flat' && theme === 'flat') ||
-                    (item === 'Interface: Game' && theme === 'game')
+                    (item === 'Interface: Game' && theme === 'game') ||
+                    (item === 'Language: English' && lang === 'en') ||
+                    (item === 'Language: Português' && lang === 'pt') ||
+                    (item === 'Language: Español' && lang === 'es')
                       ? 'bg-menu-active text-menu-hover-fg'
                       : ''
                   }`}
@@ -102,11 +107,14 @@ export const MenuBar = ({ onOpenMaterialEditor, onFileOperation, onViewportChang
                     if (item === 'Interface: Classic') setTheme('classic');
                     if (item === 'Interface: Flat') setTheme('flat');
                     if (item === 'Interface: Game') setTheme('game');
+                    if (item === 'Language: English') setLang('en');
+                    if (item === 'Language: Português') setLang('pt');
+                    if (item === 'Language: Español') setLang('es');
                     // Broadcast raw label for any handler wired via onMenuAction
                     onMenuAction?.(item);
                   }}
                 >
-                  {item}
+                  {t(item)}
                 </DropdownMenuItem>
               )
             )}

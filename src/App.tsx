@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./contexts/AuthContext";
 import { UIThemeProvider } from "./components/3ds/r3/UIThemeContext";
+import { LanguageProvider } from "./components/3ds/r3/LanguageContext";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <LanguageProvider>
       <UIThemeProvider>
       <AuthProvider>
         <BrowserRouter>
@@ -26,6 +28,7 @@ const App = () => (
         </BrowserRouter>
       </AuthProvider>
       </UIThemeProvider>
+      </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
