@@ -78,9 +78,9 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
 
   // ---- Pointer handling ------------------------------------------------------
   // We attach the capture-phase pointerdown listener on the Canvas element
-  // itself (not on the overlay div, which has pointer-events:none unless a
-  // drag is active). Capture phase lets us decide BEFORE R3F whether to start
-  // a region drag or let the Canvas process the click normally.
+  // itself. The overlay DOM stays pointer-events:none until a region drag is
+  // already active, otherwise it would sit above the canvas and block creation
+  // tools (Box: click-drag base, release, then drag up for height).
   useEffect(() => {
     let canvas: HTMLCanvasElement | undefined;
     let disposed = false;
@@ -230,7 +230,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
           click-picks pass through to R3F the rest of the time. Even when not
           dragging we still catch pointerdown via a capture-phase listener
           registered above (bubbles up from the child canvas region). */}
-      <div className="absolute inset-0" style={{ pointerEvents: 'auto', cursor, opacity: drag ? 1 : 0 }} />
+      <div className="absolute inset-0" style={{ pointerEvents: drag ? 'auto' : 'none', cursor, opacity: drag ? 1 : 0 }} />
 
       {drag && (
         <RegionShape drag={drag} paintRadius={region.paintRadius} />

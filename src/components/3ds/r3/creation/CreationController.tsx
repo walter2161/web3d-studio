@@ -299,22 +299,36 @@ function buildGhost(
 }
 
 export const CreationController = ({ viewportType, isActive, snapEnabled, snapGridSpacing = 1 }: Props) => {
-  const { gl, camera } = useThree();
+  const r3 = useThree();
+  const { gl, camera } = r3;
   const { armed, ghost, setGhost, commit, disarm } = useCreation();
-  const stageRef = useRef<{ stage: number; start: THREE.Vector3; heightStartClientY?: number } | null>(null);
+  const stageRef = useRef<{ stage: number; start: THREE.Vector3; heightStartClientY?: number; confirming?: boolean } | null>(null);
   const ghostRef = useRef<GhostObject | null>(ghost);
   ghostRef.current = ghost;
 
 
   useEffect(() => {
-    if (!armed || !isActive) return;
+    if (!armed) return;
     const dom = gl.domElement;
     dom.style.cursor = 'crosshair';
 
-    // Disable orbit controls while a creation tool is armed.
-    const controls = (window as any).__orbitControls;
-    const prevEnabled = controls?.enabled;
-    if (controls) controls.enabled = false;
+    // Disable this viewport's navigation controls while a creation tool is
+    // armed. The previous implementation disabled only the globally active
+    // controls, so Top/Front/Left could still pan/zoom while drawing.
+    const localControls = (r3 as any).controls;
+    const globalControls = (window as any).__orbitControls;
+    const controlsToDisable = Array.from(new Set([localControls, globalControls].filter(Boolean)));
+    const prevEnabled = new Map<any, boolean>();
+    controlsToDisable.forEach((controls: any) => {
+      prevEnabled.set(controls, controls.enabled);
+      controls.enabled = false;
+    });
+
+    const consume = (e: PointerEvent | MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      (e as any).stopImmediatePropagation?.();
+    };
 
     const { normal, heightAxis } = planeForViewport(viewportType);
     const basePlane = new THREE.Plane(normal, 0);
@@ -577,13 +591,12 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      consume(e);
 
       if (printBedRef) {
         const p = raycastBase(e);
         if (!p) return;
         commit(buildPrintBedGhost(p));
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -595,8 +608,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         bipedRef.height = 0.1;
         setGhost(buildBipedGhost(p, 0.1));
         dom.setPointerCapture?.(e.pointerId);
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -611,8 +622,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           bonesRef.pts.push(p.clone()); // new preview
         }
         setGhost(buildBonesGhost(bonesRef.pts));
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -627,8 +636,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           commit(buildTapeGhost(tapeRef.start, p));
           tapeRef.start = null;
         }
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -647,8 +654,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           if (wallRef.pts.length >= 3 && p.distanceTo(first) < tol) {
             wallRef.pts[wallRef.pts.length - 1].copy(first);
             commitWall(true);
-            e.preventDefault();
-            e.stopPropagation();
             return;
           }
           // Commit preview corner, add new preview at the same spot.
@@ -656,8 +661,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           wallRef.pts.push(p.clone());
         }
         setGhost(buildWallGhost(wallRef.pts, false));
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -678,8 +681,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
             // Snap preview to first knot, commit closed.
             lineRef.knots[lineRef.knots.length - 1].pos.copy(first);
             commitLine(true);
-            e.preventDefault();
-            e.stopPropagation();
             return;
           }
           // Commit preview as anchor; drag will now shape its handles.
@@ -694,8 +695,6 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         }
         setGhost(buildLineGhost(lineRef.knots, false));
         dom.setPointerCapture?.(e.pointerId);
-        e.preventDefault();
-        e.stopPropagation();
         return;
       }
 
@@ -708,19 +707,16 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         setGhost(buildGhost(armed, 0, p, p, heightAxis));
         dom.setPointerCapture?.(e.pointerId);
       } else if (s.stage >= 1) {
-        // Click confirms a "hovering" stage.
-        if (s.stage >= totalStages - 1) {
-          if (ghostRef.current) commit(ghostRef.current);
-          stageRef.current = null;
-        } else {
-          stageRef.current = { ...s, stage: s.stage + 1, heightStartClientY: e.clientY };
-        }
+        // Height/secondary stages support BOTH classic 3ds Max behavior
+        // (move mouse, click to confirm) and click-drag behavior (press, drag
+        // upward, release to confirm). Commit is therefore delayed until up.
+        stageRef.current = { ...s, heightStartClientY: e.clientY, confirming: true };
+        dom.setPointerCapture?.(e.pointerId);
       }
-      e.preventDefault();
-      e.stopPropagation();
     };
 
     const onMove = (e: PointerEvent) => {
+      consume(e);
       if (printBedRef) {
         const p = raycastBase(e);
         if (!p) return;
@@ -787,6 +783,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
 
     const onUp = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      consume(e);
       if (bipedRef) {
         if (bipedRef.start && bipedRef.height > 0.1) {
           commitBiped(bipedRef.start, bipedRef.height);
@@ -819,9 +816,15 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         } else {
           stageRef.current = { ...s, stage: 1, heightStartClientY: e.clientY };
         }
+      } else if (s.confirming) {
+        if (s.stage >= totalStages - 1) {
+          if (ghostRef.current) commit(ghostRef.current);
+          stageRef.current = null;
+        } else {
+          stageRef.current = { ...s, stage: s.stage + 1, heightStartClientY: e.clientY, confirming: false };
+        }
       }
       dom.releasePointerCapture?.(e.pointerId);
-      e.preventDefault();
     };
 
     const onKey = (e: KeyboardEvent) => {
@@ -837,7 +840,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
     };
 
     const onContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
+      consume(e);
       if (bonesRef && bonesRef.pts.length > 0) {
         commitBones();
         return;
@@ -858,26 +861,29 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
 
 
 
-    dom.addEventListener('pointerdown', onDown);
-    dom.addEventListener('pointermove', onMove);
-    dom.addEventListener('pointerup', onUp);
-    dom.addEventListener('contextmenu', onContextMenu);
+    const capture = { capture: true } as AddEventListenerOptions;
+    dom.addEventListener('pointerdown', onDown, capture);
+    dom.addEventListener('pointermove', onMove, capture);
+    dom.addEventListener('pointerup', onUp, capture);
+    dom.addEventListener('contextmenu', onContextMenu, capture);
     window.addEventListener('keydown', onKey);
 
     return () => {
-      dom.removeEventListener('pointerdown', onDown);
-      dom.removeEventListener('pointermove', onMove);
-      dom.removeEventListener('pointerup', onUp);
-      dom.removeEventListener('contextmenu', onContextMenu);
+      dom.removeEventListener('pointerdown', onDown, capture);
+      dom.removeEventListener('pointermove', onMove, capture);
+      dom.removeEventListener('pointerup', onUp, capture);
+      dom.removeEventListener('contextmenu', onContextMenu, capture);
       window.removeEventListener('keydown', onKey);
       dom.style.cursor = '';
-      if (controls) controls.enabled = prevEnabled ?? true;
+      controlsToDisable.forEach((controls: any) => {
+        controls.enabled = prevEnabled.get(controls) ?? true;
+      });
       stageRef.current = null;
     };
     // ghost intentionally excluded — read via closure through setGhost's functional form isn't
     // needed since we always rebuild from start/current world points.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [armed, isActive, viewportType, camera, gl, snapEnabled, snapGridSpacing]);
+  }, [armed, viewportType, camera, gl, snapEnabled, snapGridSpacing]);
 
   return null;
 };
