@@ -20,6 +20,7 @@ import {
 } from './editable/splineSelStore';
 import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
 import { MultiSelectBoundsOverlay } from './r3/MultiSelectBoundsOverlay';
+import { LinkDragController } from './r3/LinkDragController';
 import {
   getModifierSub, subscribeModifierSub, type ModifierSubSelection,
 } from './r3/modifierSubStore';
@@ -275,6 +276,13 @@ export const Scene3D = ({
 
       {/* Multi-selection total bounding box (W/D/H) — 3ds Max style. */}
       {isMulti && <MultiSelectBoundsOverlay objects={selectedList as any} />}
+
+      {/* Select and Link drag&drop — child(ren) already selected, drag onto parent. */}
+      <LinkDragController
+        objects={objects as any}
+        selectedIds={selectedObjectIds}
+        onLink={(pid) => (window as any).__r3DoLink?.(pid)}
+      />
 
 
 
