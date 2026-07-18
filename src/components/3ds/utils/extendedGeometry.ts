@@ -788,7 +788,7 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
             // Low-poly leaves = flat species-shaped cards (2-6 tris each).
             // Full-poly leaves = 3-side cone (~6 tris) as before.
             const leaf = lowPoly
-              ? _leafCardFor(kind, cfg.leafSize * sc * 2)
+              ? _leafCardFor(kind, cfg.leafSize * sc * 2, species)
               : (() => {
                   const c = new THREE.ConeGeometry(cfg.leafSize * sc, cfg.leafSize * 2.5 * sc, 3);
                   c.rotateX(Math.PI / 2);
