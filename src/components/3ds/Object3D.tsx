@@ -4,7 +4,7 @@ import { Mesh, BufferGeometry, Vector3, Group, AnimationMixer, Object3D as Three
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { getImportedModel } from './utils/modelImport';
-import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
+import { buildExtendedPrimitive, buildShape, buildTextShapes, preloadFontForText, isFontLoadedForText, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { buildWall, buildDoor, buildWindow } from './utils/aecGeometry';
 import { mergeVertices, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SubObjectOverlay } from './editable/SubObjectOverlay';
@@ -537,6 +537,7 @@ interface Object3DProps {
 export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFrame = 0, totalFrames = 100, isPlaying = false, targetLookup, isActiveViewCamera = false, isActiveViewport = false }: Object3DProps) => {
 
   const meshRef = useRef<Mesh>(null);
+  const [fontRevision, setFontRevision] = useState(0);
   const selectFromEvent = (e: any) => {
     const native = e?.nativeEvent ?? e;
     onSelect(!!(e?.ctrlKey || e?.metaKey || native?.ctrlKey || native?.metaKey), !!(e?.altKey || native?.altKey));
@@ -552,6 +553,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     window.addEventListener('r3-modify-panel', on as any);
     return () => window.removeEventListener('r3-modify-panel', on as any);
   }, []);
+
+  useEffect(() => {
+    if (object.type !== 'text' || typeof window === 'undefined') return;
+    const geom = object.geometry || {};
+    const fontName = geom.font ?? 'helvetiker';
+    const bold = !!geom.bold;
+    const italic = !!geom.italic;
+    preloadFontForText(fontName, bold, italic);
+    if (isFontLoadedForText(fontName, bold, italic)) return;
+    const onFontReady = (ev: Event) => {
+      const readyName = (ev as CustomEvent).detail?.name;
+      if (!readyName || readyName === fontName) setFontRevision((v) => v + 1);
+    };
+    window.addEventListener('walt3d-font-ready', onFontReady as EventListener);
+    return () => window.removeEventListener('walt3d-font-ready', onFontReady as EventListener);
+  }, [object.type, object.geometry?.font, object.geometry?.bold, object.geometry?.italic]);
 
 
 
