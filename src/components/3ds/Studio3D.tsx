@@ -1619,6 +1619,8 @@ export const Studio3D = () => {
     return () => {
       window.removeEventListener('r3-transform-start', onTransformStart as EventListener);
       window.removeEventListener('r3-transform-many', onTransformMany as EventListener);
+      window.removeEventListener('mouseup', onTransformEnd, true);
+      window.removeEventListener('pointerup', onTransformEnd, true);
     };
   }, []);
 
