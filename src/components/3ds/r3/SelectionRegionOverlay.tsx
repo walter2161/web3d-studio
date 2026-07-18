@@ -238,8 +238,9 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       // Always clear the marquee first so the overlay disappears reliably,
       // even if the selection handler triggers a heavy re-render.
       setDrag(null);
-      // Re-enable OrbitControls (was disabled when the drag threshold was crossed).
-      const oc: any = (window as any).__activeOrbitControls;
+      // Re-enable the SAME OrbitControls instance we disabled, not whatever
+      // is currently active — the user may have clicked another viewport mid-drag.
+      const oc: any = prev?.disabledOC ?? (window as any).__activeOrbitControls;
       if (oc) oc.enabled = true;
       if (!prev || cancelled) return;
       const dragged = Math.hypot(p.x - prev.start.x, p.y - prev.start.y) >= DRAG_THRESHOLD || prev.points.length > 2;
