@@ -417,23 +417,17 @@ const ViewportNavCluster = ({
         ]}
       />
       <FlyoutTool
-        title="Maximize App (F11 / fullscreen)"
-        active={typeof document !== 'undefined' && !!document.fullscreenElement}
-        onClick={() => {
-          if (typeof document === 'undefined') return;
-          if (document.fullscreenElement) {
-            document.exitFullscreen?.().catch(() => {});
-          } else {
-            (document.documentElement.requestFullscreen?.() ?? Promise.resolve()).catch(() => {});
-          }
-        }}
+        title={viewportLayout === 'quad' ? 'Min Viewport → Single (Alt+W)' : 'Max Viewport → Quad (Alt+W)'}
+        active={viewportLayout !== 'quad'}
+        onClick={onToggleViewportLayout}
         icon={<Maximize2 size={12} />}
         flyout={[
-          { title: 'Toggle Fullscreen (F11)', icon: <Maximize2 size={12} />, onClick: () => {
+          { title: viewportLayout === 'quad' ? 'Min Viewport → Single (Alt+W)' : 'Max Viewport → Quad (Alt+W)', icon: <Maximize2 size={12} />, onClick: onToggleViewportLayout, active: viewportLayout !== 'quad' },
+          { title: 'Toggle App Fullscreen (F11)', icon: <Maximize2 size={12} />, onClick: () => {
+              if (typeof document === 'undefined') return;
               if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
               else document.documentElement.requestFullscreen?.().catch(() => {});
-            } },
-          { title: viewportLayout === 'quad' ? 'Min Viewport → Single (Alt+W)' : 'Max Viewport → Quad (Alt+W)', icon: <Maximize2 size={12} />, onClick: onToggleViewportLayout, active: viewportLayout === 'quad' },
+            }, active: typeof document !== 'undefined' && !!document.fullscreenElement },
         ]}
       />
 
