@@ -3416,6 +3416,16 @@ export const Studio3D = () => {
 // button clicks in the Create rollout hand off to the viewport click-drag flow.
 const ArmedSidePanel = (props: React.ComponentProps<typeof SidePanel>) => {
   const { arm, disarm, armed } = useCreation();
+  // Bridge: quad-menu "Create Box/Sphere/..." dispatches `walt3d:arm-tool` so
+  // Studio3D can trigger the creation flow without holding a hook reference.
+  useEffect(() => {
+    const onArm = (e: Event) => {
+      const tool = (e as CustomEvent).detail;
+      if (typeof tool === 'string' && tool) arm(tool as any);
+    };
+    window.addEventListener('walt3d:arm-tool', onArm as EventListener);
+    return () => window.removeEventListener('walt3d:arm-tool', onArm as EventListener);
+  }, [arm]);
   return (
     <SidePanel
       {...props}
