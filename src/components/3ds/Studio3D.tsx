@@ -3043,7 +3043,25 @@ export const Studio3D = () => {
             } catch { /* not our payload */ }
           }}
         >
-          <div className="flex-1 min-h-0 bg-win-dark">
+          <div
+            className="flex-1 min-h-0 bg-win-dark"
+            onContextMenu={(e) => {
+              // Skip if the creation controller already consumed the right-click
+              // (armed tool finalises/cancels the operation instead).
+              if (e.defaultPrevented) return;
+              // Skip if a transform drag is running — handled by the global
+              // capture-phase listener that maps right-click → undo.
+              if (dragActiveRef.current) return;
+              // Only open on right mouse over the viewport surface itself
+              // (canvas/overlays). Avoid intercepting inputs inside dialogs.
+              const t = e.target as HTMLElement | null;
+              if (t && t.closest('input,textarea,select,button,[role="dialog"]')) return;
+              e.preventDefault();
+              window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
+                detail: { x: e.clientX, y: e.clientY },
+              }));
+            }}
+          >
 
             <ViewportGrid
               layout={viewportLayout}
