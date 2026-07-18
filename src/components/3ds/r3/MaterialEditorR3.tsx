@@ -101,9 +101,49 @@ const defaultMapParams = (): R3MapParams => ({
   output: defaultOutput(),
 });
 
+export type R3MaterialType = 'Standard' | 'Blend' | 'Composite' | 'Double Sided' | 'Multi/Sub-Object' | 'Raytrace' | 'Matte/Shadow' | 'Top/Bottom' | 'Shellac' | 'Morpher';
+
+/**
+ * MiniMat — lightweight material used as a sub-material inside compound
+ * materials (Multi/Sub-Object, Blend, Double Sided, Top/Bottom, Composite,
+ * Shellac). Enough to drive a viewport meshStandardMaterial.
+ */
+export interface MiniMat {
+  id: number;                 // Material ID (1..65535) — used by Multi/Sub-Object
+  name: string;
+  type: 'Standard' | 'Raytrace';
+  diffuse: string;
+  specular: string;
+  glossiness: number;
+  specularLevel: number;
+  opacity: number;
+  selfIllumination: number;
+  metalness: number;
+  roughness: number;
+  emissiveIntensity: number;
+  diffuseMap?: R3MapSlot;
+  bumpMap?: R3MapSlot;
+}
+
+export interface R3CompoundData {
+  // Multi/Sub-Object
+  subMaterials?: MiniMat[];
+  // Blend
+  mat1?: MiniMat; mat2?: MiniMat; maskColor?: string; blendAmount?: number; useCurve?: boolean;
+  // Double Sided
+  front?: MiniMat; back?: MiniMat; translucency?: number;
+  // Top/Bottom
+  top?: MiniMat; bottom?: MiniMat; blend?: number; position?: number; coords?: 'World' | 'Local';
+  // Composite / Shellac — ordered layers, layer 0 = base
+  layers?: MiniMat[];
+  shellacColorBlend?: number;
+  // Matte/Shadow
+  receiveShadows?: boolean; opaqueAlpha?: boolean;
+}
+
 export interface R3Material {
   name: string;
-  type: 'Standard' | 'Blend' | 'Composite' | 'Double Sided' | 'Multi/Sub-Object' | 'Raytrace' | 'Matte/Shadow' | 'Top/Bottom' | 'Shellac' | 'Morpher';
+  type: R3MaterialType;
   shader: ShaderType;
   // Colors
   ambient: string;
@@ -144,7 +184,59 @@ export interface R3Material {
     refraction: R3MapSlot;
     displacement: R3MapSlot;
   };
+  /** Compound material data (Multi/Sub-Object, Blend, Double Sided, ...). */
+  compound?: R3CompoundData;
 }
+
+const DEFAULT_SUB_COLORS = ['#e53935', '#43a047', '#1e88e5', '#fdd835', '#8e24aa', '#00897b', '#f4511e', '#5e35b1', '#3949ab', '#00acc1'];
+export const defaultMini = (id: number, color?: string, name?: string): MiniMat => ({
+  id,
+  name: name || `${String(id).padStart(2, '0')} - Default`,
+  type: 'Standard',
+  diffuse: color || DEFAULT_SUB_COLORS[(id - 1) % DEFAULT_SUB_COLORS.length],
+  specular: '#ffffff',
+  glossiness: 10,
+  specularLevel: 0,
+  opacity: 100,
+  selfIllumination: 0,
+  metalness: 0,
+  roughness: 0.5,
+  emissiveIntensity: 0,
+});
+
+const initCompound = (type: R3MaterialType, existing?: R3CompoundData): R3CompoundData => {
+  const d: R3CompoundData = { ...(existing || {}) };
+  if (type === 'Multi/Sub-Object' && !d.subMaterials) {
+    d.subMaterials = Array.from({ length: 10 }, (_, i) => defaultMini(i + 1));
+  }
+  if (type === 'Blend') {
+    if (!d.mat1) d.mat1 = defaultMini(1, '#c8c8c8', 'Material 1');
+    if (!d.mat2) d.mat2 = defaultMini(2, '#3b6fd6', 'Material 2');
+    if (d.maskColor === undefined) d.maskColor = '#808080';
+    if (d.blendAmount === undefined) d.blendAmount = 0.5;
+  }
+  if (type === 'Double Sided') {
+    if (!d.front) d.front = defaultMini(1, '#c8c8c8', 'Front');
+    if (!d.back) d.back = defaultMini(2, '#5a5a5a', 'Back');
+    if (d.translucency === undefined) d.translucency = 0;
+  }
+  if (type === 'Top/Bottom') {
+    if (!d.top) d.top = defaultMini(1, '#3b8b3b', 'Top');
+    if (!d.bottom) d.bottom = defaultMini(2, '#6b4a24', 'Bottom');
+    if (d.blend === undefined) d.blend = 0.1;
+    if (d.position === undefined) d.position = 0.5;
+    if (!d.coords) d.coords = 'World';
+  }
+  if ((type === 'Composite' || type === 'Shellac') && !d.layers) {
+    d.layers = [defaultMini(1, '#c8c8c8', 'Base'), defaultMini(2, '#3b6fd6', 'Layer 1')];
+    if (type === 'Shellac' && d.shellacColorBlend === undefined) d.shellacColorBlend = 50;
+  }
+  if (type === 'Matte/Shadow') {
+    if (d.receiveShadows === undefined) d.receiveShadows = true;
+    if (d.opaqueAlpha === undefined) d.opaqueAlpha = true;
+  }
+  return d;
+};
 
 const emptyMap = (): R3MapSlot => ({ enabled: true, amount: 100, name: 'None' });
 const bumpMap = (): R3MapSlot => ({ enabled: true, amount: 30, name: 'None' });
