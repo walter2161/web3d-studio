@@ -40,6 +40,8 @@ import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
 import { PreferencesDialog } from './prefs/PreferencesDialog';
 import { MapToolsPanel } from './maptools/MapToolsPanel';
+import { WaltSculptPanel } from './waltsculpt/WaltSculptPanel';
+import { WaltSculptController } from './waltsculpt/WaltSculptController';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
 import { commandForEvent } from './prefs/hotkeysStore';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
@@ -220,6 +222,7 @@ export const Studio3D = () => {
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
   const [mapToolsOpen, setMapToolsOpen] = useState(false);
+  const [waltSculptOpen, setWaltSculptOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
@@ -2702,6 +2705,9 @@ export const Studio3D = () => {
       case 'MapTools...':
         setMapToolsOpen(true);
         break;
+      case 'WaltSculpt...':
+        setWaltSculptOpen(true);
+        break;
 
       // MAXScript.
       case 'New Script':
@@ -3152,6 +3158,8 @@ export const Studio3D = () => {
           and mirrors runtime bridges via `window.__prefs`. */}
       <PreferencesDialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
       <MapToolsPanel open={mapToolsOpen} onClose={() => setMapToolsOpen(false)} />
+      <WaltSculptPanel open={waltSculptOpen} onClose={() => setWaltSculptOpen(false)} />
+      <WaltSculptController />
 
       {/* Customize UI — keyboard shortcut editor, color scheme picker, and
           scheme import/export. Live bindings feed the global hotkey listener
