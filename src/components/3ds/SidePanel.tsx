@@ -913,7 +913,7 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCat === 'waltgame' && ([
+                {(createCat === 'waltgame' || (createCat === 'geometry' && createCategory === 'waltgame')) && ([
                   { kind: 'Player',        label: 'Player' },
                   { kind: 'Camera',        label: 'Camera' },
                   { kind: 'Collider',      label: 'Collider' },
