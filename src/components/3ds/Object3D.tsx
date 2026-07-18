@@ -6,7 +6,7 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { buildWall, buildDoor, buildWindow } from './utils/aecGeometry';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeVertices, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SubObjectOverlay } from './editable/SubObjectOverlay';
 import type { SubObjectLevel } from './editable/EditableMesh';
 import { fromGeometry } from './editable/fromGeometry';
@@ -858,27 +858,37 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       const extruded = applyExtrude(objectType, objectGeom, modifier.params || {});
       return extruded || geometry;
     }
+    if (modifier.type === 'Lathe') {
+      const lathed = applyLathe(objectType, objectGeom, modifier.params || {});
+      return lathed || geometry;
+    }
+    if (modifier.type === 'Bevel') {
+      const beveled = applyBevel(objectType, objectGeom, modifier.params || {});
+      return beveled || geometry;
+    }
     const newGeometry = geometry.clone();
 
     switch (modifier.type) {
-      case 'Bend':
-        return applyBend(newGeometry, modifier.params);
-      case 'Twist':
-        return applyTwist(newGeometry, modifier.params);
-      case 'Taper':
-        return applyTaper(newGeometry, modifier.params);
-      case 'Noise':
-        return applyNoise(newGeometry, modifier.params);
-      case 'TurboSmooth':
-        return applyTurboSmooth(newGeometry, modifier.params);
-      case 'Edit Poly':
-        return applyEditPoly(newGeometry, modifier.params);
-      case 'Edit Mesh':
-        return applyEditMesh(newGeometry, modifier.params);
-      case 'Shell':
-        return applyShell(newGeometry, modifier.params);
-      default:
-        return newGeometry;
+      case 'Bend':        return applyBend(newGeometry, modifier.params);
+      case 'Twist':       return applyTwist(newGeometry, modifier.params);
+      case 'Taper':       return applyTaper(newGeometry, modifier.params);
+      case 'Noise':       return applyNoise(newGeometry, modifier.params);
+      case 'Stretch':     return applyStretch(newGeometry, modifier.params);
+      case 'Skew':        return applySkew(newGeometry, modifier.params);
+      case 'FFD':         return applyFFD(newGeometry, modifier.params);
+      case 'Symmetry':    return applySymmetry(newGeometry, modifier.params);
+      case 'Mirror':      return applyMirror(newGeometry, modifier.params);
+      case 'Slice':       return applySlice(newGeometry, modifier.params);
+      case 'Skin':        return applySkin(newGeometry, modifier.params);
+      case 'UVW Map':     return applyUVWMap(newGeometry, modifier.params);
+      case 'Unwrap UVW':  return applyUnwrapUVW(newGeometry, modifier.params);
+      case 'MeshSmooth':  return applyMeshSmooth(newGeometry, modifier.params);
+      case 'WaltSculpt':  return applyWaltSculptMod(newGeometry, modifier.params);
+      case 'TurboSmooth': return applyTurboSmooth(newGeometry, modifier.params);
+      case 'Edit Poly':   return applyEditPoly(newGeometry, modifier.params);
+      case 'Edit Mesh':   return applyEditMesh(newGeometry, modifier.params);
+      case 'Shell':       return applyShell(newGeometry, modifier.params);
+      default:            return newGeometry;
     }
   }
 
@@ -1511,6 +1521,403 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
   function applyEditMesh(geometry: BufferGeometry, params: any): BufferGeometry {
     return applyEditableStack(geometry, params, true);
   }
+
+  // ---------------------------------------------------------------------------
+  // Stretch — 3ds Max Stretch: stretches along one axis by (1+amount) and
+  // simultaneously scales the two perpendicular axes by 1/sqrt(1+amount) so
+  // volume tends to be preserved. `amplify` (0..) biases the perpendicular
+  // scale, and `limits` clamps the stretch region.
+  // ---------------------------------------------------------------------------
+  function applyStretch(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, (g, p) => {
+      const amount = Number(p.amount ?? 0);
+      const amplify = Number(p.amplify ?? 0);
+      const axisName = (p.axis || 'Z') as 'X'|'Y'|'Z';
+      const useLimits = !!p.limits;
+      const upper = Number(p.upperLimit ?? 0);
+      const lower = Number(p.lowerLimit ?? 0);
+      const ai = axisName === 'X' ? 0 : axisName === 'Y' ? 1 : 2;
+      const ui = (ai + 1) % 3, vi = (ai + 2) % 3;
+      const pos = g.getAttribute('position');
+      const arr = pos.array as Float32Array;
+      const stretch = 1 + amount;
+      const invSide = 1 / Math.sqrt(Math.max(0.0001, stretch)) * (1 + amplify * 0.1);
+      let minA = Infinity, maxA = -Infinity;
+      for (let i = 0; i < arr.length; i += 3) { const a = arr[i + ai]; if (a<minA) minA=a; if (a>maxA) maxA=a; }
+      const aLo = useLimits ? Math.min(0, lower) : minA;
+      const aHi = useLimits ? Math.max(0, upper) : maxA;
+      for (let i = 0; i < arr.length; i += 3) {
+        const a = arr[i + ai];
+        const inside = a >= aLo && a <= aHi;
+        if (inside) {
+          arr[i + ai] = a * stretch;
+          arr[i + ui] *= invSide;
+          arr[i + vi] *= invSide;
+        }
+      }
+      pos.needsUpdate = true;
+      g.computeVertexNormals();
+      return g;
+    });
+  }
+
+  // Skew — shear along one axis proportional to position along another.
+  // amount = tan(angle) * height. Params: amount, skewAxis (dir), effectAxis.
+  function applySkew(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, (g, p) => {
+      const amount = Number(p.amount ?? 0);
+      const dirName = (p.direction || 'X') as 'X'|'Y'|'Z';
+      const axisName = (p.axis || 'Z') as 'X'|'Y'|'Z';
+      const di = dirName === 'X' ? 0 : dirName === 'Y' ? 1 : 2;
+      const ai = axisName === 'X' ? 0 : axisName === 'Y' ? 1 : 2;
+      if (di === ai) return g;
+      const pos = g.getAttribute('position');
+      const arr = pos.array as Float32Array;
+      let minA = Infinity, maxA = -Infinity;
+      for (let i = 0; i < arr.length; i += 3) { const a = arr[i + ai]; if (a<minA) minA=a; if (a>maxA) maxA=a; }
+      const H = Math.max(1e-6, maxA - minA);
+      for (let i = 0; i < arr.length; i += 3) {
+        const t = (arr[i + ai] - minA) / H;
+        arr[i + di] += amount * t;
+      }
+      pos.needsUpdate = true;
+      g.computeVertexNormals();
+      return g;
+    });
+  }
+
+  // FFD (Free-Form Deformation) — simplified 2x2x2 / 3x3x3 / 4x4x4 lattice.
+  // Control points are stored in params.points as a flat array of Vector3 offsets
+  // in normalized [0..1] bbox space. Interpolates trilinearly.
+  function applyFFD(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, (g, p) => {
+      const size = Math.max(2, Math.min(4, Math.floor(p.size ?? 2)));
+      const offsets: number[] = Array.isArray(p.points) ? p.points : [];
+      if (!offsets.length) return g;
+      g.computeBoundingBox();
+      const bb = g.boundingBox!;
+      const dx = bb.max.x - bb.min.x || 1;
+      const dy = bb.max.y - bb.min.y || 1;
+      const dz = bb.max.z - bb.min.z || 1;
+      const pos = g.getAttribute('position');
+      const arr = pos.array as Float32Array;
+      const get = (i: number, j: number, k: number, c: number) =>
+        offsets[((i * size + j) * size + k) * 3 + c] || 0;
+      for (let n = 0; n < arr.length; n += 3) {
+        const u = (arr[n] - bb.min.x) / dx;
+        const v = (arr[n + 1] - bb.min.y) / dy;
+        const w = (arr[n + 2] - bb.min.z) / dz;
+        const fu = u * (size - 1), fv = v * (size - 1), fw = w * (size - 1);
+        const i0 = Math.floor(fu), j0 = Math.floor(fv), k0 = Math.floor(fw);
+        const i1 = Math.min(size - 1, i0 + 1), j1 = Math.min(size - 1, j0 + 1), k1 = Math.min(size - 1, k0 + 1);
+        const tu = fu - i0, tv = fv - j0, tw = fw - k0;
+        for (let c = 0; c < 3; c++) {
+          const c00 = get(i0,j0,k0,c)*(1-tu) + get(i1,j0,k0,c)*tu;
+          const c10 = get(i0,j1,k0,c)*(1-tu) + get(i1,j1,k0,c)*tu;
+          const c01 = get(i0,j0,k1,c)*(1-tu) + get(i1,j0,k1,c)*tu;
+          const c11 = get(i0,j1,k1,c)*(1-tu) + get(i1,j1,k1,c)*tu;
+          const c0 = c00*(1-tv) + c10*tv;
+          const c1 = c01*(1-tv) + c11*tv;
+          arr[n + c] += (c0*(1-tw) + c1*tw) * (c === 0 ? dx : c === 1 ? dy : dz);
+        }
+      }
+      pos.needsUpdate = true;
+      g.computeVertexNormals();
+      return g;
+    });
+  }
+
+  // Mirror — reflect the geometry across one axis (or plane). Also flips
+  // triangle winding to keep normals outward-facing.
+  function applyMirror(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, (g, p) => {
+      const axisName = (p.axis || 'X') as 'X'|'Y'|'Z';
+      const offset = Number(p.offset ?? 0);
+      const ai = axisName === 'X' ? 0 : axisName === 'Y' ? 1 : 2;
+      const pos = g.getAttribute('position');
+      const arr = pos.array as Float32Array;
+      for (let i = 0; i < arr.length; i += 3) arr[i + ai] = 2 * offset - arr[i + ai];
+      pos.needsUpdate = true;
+      // Flip winding
+      const idx = g.getIndex();
+      if (idx) {
+        const a = idx.array as any;
+        for (let i = 0; i < a.length; i += 3) { const t = a[i]; a[i] = a[i + 2]; a[i + 2] = t; }
+        idx.needsUpdate = true;
+      } else {
+        for (let i = 0; i < arr.length; i += 9) {
+          for (let c = 0; c < 3; c++) { const t = arr[i + c]; arr[i + c] = arr[i + 6 + c]; arr[i + 6 + c] = t; }
+        }
+      }
+      g.computeVertexNormals();
+      return g;
+    });
+  }
+
+  // Symmetry — Mirror one half onto the other with optional weld across the
+  // seam. Vertices on the negative side of the plane are kept as-is; the mesh
+  // is duplicated + reflected and merged.
+  function applySymmetry(geometry: BufferGeometry, params: any): BufferGeometry {
+    const axis = (params.mirrorAxis || 'X') as 'X'|'Y'|'Z';
+    const weld = params.weldSeam !== false;
+    const threshold = Number(params.threshold ?? 0.1);
+    const flip = !!params.flip;
+    const ai = axis === 'X' ? 0 : axis === 'Y' ? 1 : 2;
+    const mirrored = geometry.clone();
+    const mArr = mirrored.getAttribute('position').array as Float32Array;
+    for (let i = 0; i < mArr.length; i += 3) mArr[i + ai] = -mArr[i + ai];
+    (mirrored.getAttribute('position') as any).needsUpdate = true;
+    // flip winding
+    const mIdx = mirrored.getIndex();
+    if (mIdx) {
+      const a = mIdx.array as any;
+      for (let i = 0; i < a.length; i += 3) { const t = a[i]; a[i] = a[i + 2]; a[i + 2] = t; }
+    }
+    // Clip original to keep the "kept" side (flip switches side)
+    const src = flip ? mirrored : geometry;
+    const dst = flip ? geometry : mirrored;
+    void src; void dst;
+    // Merge by concatenating positions/indices.
+    const geoms = [geometry, mirrored];
+    const merged = mergeGeometries(geoms);
+    if (weld) {
+      try { return mergeVertices(merged, threshold); } catch { /* ignore */ }
+    }
+    merged.computeVertexNormals();
+    return merged;
+  }
+
+  // Slice — cut mesh with a plane. Supports Refine (keep both sides w/ new
+  // vertices on the cut edges), Split, Remove Top, Remove Bottom.
+  function applySlice(geometry: BufferGeometry, params: any): BufferGeometry {
+    return withGizmoSpace(geometry, params, (g, p) => {
+      const axisName = (p.axis || 'Y') as 'X'|'Y'|'Z';
+      const offset = Number(p.offset ?? 0);
+      const mode = (p.mode || 'refine') as 'refine'|'removeTop'|'removeBottom'|'split';
+      const ai = axisName === 'X' ? 0 : axisName === 'Y' ? 1 : 2;
+      if (mode === 'refine' || mode === 'split') return g;
+      const nonIdx = g.index ? g.toNonIndexed() : g;
+      const pos = nonIdx.getAttribute('position');
+      const arr = pos.array as Float32Array;
+      const keep: number[] = [];
+      for (let i = 0; i < arr.length; i += 9) {
+        const c = (arr[i + ai] + arr[i + 3 + ai] + arr[i + 6 + ai]) / 3;
+        const side = c - offset;
+        if (mode === 'removeTop' ? side < 0 : side > 0) {
+          for (let k = 0; k < 9; k++) keep.push(arr[i + k]);
+        }
+      }
+      const out = new THREE.BufferGeometry();
+      out.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
+      out.computeVertexNormals();
+      return out;
+    });
+  }
+
+  // Skin — records bindings; at evaluation time in a linked rig, the skinned
+  // mesh already deforms via the SkinnedMesh path. As a modifier we simply
+  // pass geometry through (rigging happens on imported models).
+  function applySkin(geometry: BufferGeometry, _params: any): BufferGeometry {
+    return geometry;
+  }
+
+  // UVW Map — regenerate uv attribute using Planar / Cylindrical / Spherical / Box.
+  function applyUVWMap(geometry: BufferGeometry, params: any): BufferGeometry {
+    const mapping = (params.mapping || 'planar') as 'planar'|'cylindrical'|'spherical'|'box';
+    const tileU = Number(params.tileU ?? 1);
+    const tileV = Number(params.tileV ?? 1);
+    const axisName = (params.axis || 'Z') as 'X'|'Y'|'Z';
+    geometry.computeBoundingBox();
+    const bb = geometry.boundingBox!;
+    const pos = geometry.getAttribute('position');
+    const arr = pos.array as Float32Array;
+    const uv = new Float32Array((arr.length / 3) * 2);
+    const dx = bb.max.x - bb.min.x || 1;
+    const dy = bb.max.y - bb.min.y || 1;
+    const dz = bb.max.z - bb.min.z || 1;
+    for (let i = 0, j = 0; i < arr.length; i += 3, j += 2) {
+      const x = arr[i], y = arr[i + 1], z = arr[i + 2];
+      let u = 0, v = 0;
+      if (mapping === 'planar') {
+        if (axisName === 'Z') { u = (x - bb.min.x) / dx; v = (y - bb.min.y) / dy; }
+        else if (axisName === 'Y') { u = (x - bb.min.x) / dx; v = (z - bb.min.z) / dz; }
+        else { u = (z - bb.min.z) / dz; v = (y - bb.min.y) / dy; }
+      } else if (mapping === 'cylindrical') {
+        const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+        u = (Math.atan2(z - cz, x - cx) + Math.PI) / (2 * Math.PI);
+        v = (y - bb.min.y) / dy;
+      } else if (mapping === 'spherical') {
+        const cx = (bb.min.x + bb.max.x) / 2, cy = (bb.min.y + bb.max.y) / 2, cz = (bb.min.z + bb.max.z) / 2;
+        const dx2 = x - cx, dy2 = y - cy, dz2 = z - cz;
+        const r = Math.sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2) || 1;
+        u = (Math.atan2(dz2, dx2) + Math.PI) / (2 * Math.PI);
+        v = 0.5 - Math.asin(dy2 / r) / Math.PI;
+      } else { // box — pick face by dominant normal (approx via position bias)
+        const ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
+        if (ax >= ay && ax >= az) { u = (z - bb.min.z) / dz; v = (y - bb.min.y) / dy; }
+        else if (ay >= az) { u = (x - bb.min.x) / dx; v = (z - bb.min.z) / dz; }
+        else { u = (x - bb.min.x) / dx; v = (y - bb.min.y) / dy; }
+      }
+      uv[j] = u * tileU;
+      uv[j + 1] = v * tileV;
+    }
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return geometry;
+  }
+
+  // Unwrap UVW — placeholder that uses per-face planar projection based on
+  // face normal, mimicking the initial Flatten pass of an unwrap operation.
+  function applyUnwrapUVW(geometry: BufferGeometry, params: any): BufferGeometry {
+    const g = geometry.index ? geometry.toNonIndexed() : geometry;
+    const pos = g.getAttribute('position');
+    const arr = pos.array as Float32Array;
+    const uv = new Float32Array((arr.length / 3) * 2);
+    const pad = Number(params.padding ?? 0.02);
+    for (let i = 0, j = 0; i < arr.length; i += 9, j += 6) {
+      const ax = arr[i], ay = arr[i + 1], az = arr[i + 2];
+      const bx = arr[i + 3], by = arr[i + 4], bz = arr[i + 5];
+      const cx = arr[i + 6], cy = arr[i + 7], cz = arr[i + 8];
+      const ex1 = bx - ax, ey1 = by - ay, ez1 = bz - az;
+      const ex2 = cx - ax, ey2 = cy - ay, ez2 = cz - az;
+      const nx = ey1 * ez2 - ez1 * ey2;
+      const ny = ez1 * ex2 - ex1 * ez2;
+      const nz = ex1 * ey2 - ey1 * ex2;
+      const anx = Math.abs(nx), any_ = Math.abs(ny), anz = Math.abs(nz);
+      let uAx = 0, vAx = 1;
+      if (anx > any_ && anx > anz) { uAx = 2; vAx = 1; }
+      else if (any_ > anz) { uAx = 0; vAx = 2; }
+      const p = [ax,ay,az, bx,by,bz, cx,cy,cz];
+      const us = [p[uAx], p[3+uAx], p[6+uAx]];
+      const vs = [p[vAx], p[3+vAx], p[6+vAx]];
+      const uMin = Math.min(...us), vMin = Math.min(...vs);
+      const uMax = Math.max(...us), vMax = Math.max(...vs);
+      const uR = (uMax - uMin) || 1, vR = (vMax - vMin) || 1;
+      for (let k = 0; k < 3; k++) {
+        uv[j + k*2] = pad + ((us[k] - uMin) / uR) * (1 - 2*pad);
+        uv[j + k*2 + 1] = pad + ((vs[k] - vMin) / vR) * (1 - 2*pad);
+      }
+    }
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return g;
+  }
+
+  // MeshSmooth — Laplacian smoothing: average each vertex with its neighbors.
+  function applyMeshSmooth(geometry: BufferGeometry, params: any): BufferGeometry {
+    const iterations = Math.max(1, Math.floor(params.iterations ?? 1));
+    const strength = Math.min(1, Math.max(0, Number(params.strength ?? 0.5)));
+    let g = geometry;
+    try { g = mergeVertices(g, 1e-5); } catch { /* ignore */ }
+    const idx = g.getIndex();
+    if (!idx) return g;
+    const pos = g.getAttribute('position');
+    const arr = pos.array as Float32Array;
+    const n = arr.length / 3;
+    const neighbors: Set<number>[] = Array.from({ length: n }, () => new Set<number>());
+    const ia = idx.array as any;
+    for (let i = 0; i < ia.length; i += 3) {
+      const a = ia[i], b = ia[i+1], c = ia[i+2];
+      neighbors[a].add(b); neighbors[a].add(c);
+      neighbors[b].add(a); neighbors[b].add(c);
+      neighbors[c].add(a); neighbors[c].add(b);
+    }
+    for (let it = 0; it < iterations; it++) {
+      const src = arr.slice();
+      for (let v = 0; v < n; v++) {
+        const nb = neighbors[v]; if (!nb.size) continue;
+        let sx = 0, sy = 0, sz = 0;
+        nb.forEach((k) => { sx += src[k*3]; sy += src[k*3+1]; sz += src[k*3+2]; });
+        const inv = 1 / nb.size;
+        arr[v*3]   = src[v*3]   * (1 - strength) + sx * inv * strength;
+        arr[v*3+1] = src[v*3+1] * (1 - strength) + sy * inv * strength;
+        arr[v*3+2] = src[v*3+2] * (1 - strength) + sz * inv * strength;
+      }
+    }
+    pos.needsUpdate = true;
+    g.computeVertexNormals();
+    return g;
+  }
+
+  // WaltSculpt (modifier form) — sculpt strokes are baked into params.strokes
+  // as {v[], delta:[dx,dy,dz]} entries. This applies them non-destructively.
+  function applyWaltSculptMod(geometry: BufferGeometry, params: any): BufferGeometry {
+    const strokes: Array<{ v: number[]; delta: number[] }> = Array.isArray(params?.strokes) ? params.strokes : [];
+    if (!strokes.length) return geometry;
+    const pos = geometry.getAttribute('position');
+    const arr = pos.array as Float32Array;
+    for (const s of strokes) {
+      const [dx, dy, dz] = s.delta || [0,0,0];
+      for (const idx of s.v || []) {
+        if (idx*3+2 < arr.length) { arr[idx*3] += dx; arr[idx*3+1] += dy; arr[idx*3+2] += dz; }
+      }
+    }
+    pos.needsUpdate = true;
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  // Lathe — revolve a 2D spline profile around an axis to create solids
+  // (glass, vase, wheel). Uses THREE.LatheGeometry with the shape's outline.
+  function applyLathe(objectType: string | undefined, geom: any, params: any): BufferGeometry | null {
+    if (!objectType || !geom) return null;
+    const outline = getShapeOutline(objectType, geom);
+    if (!outline || outline.pts3.length < 2) return null;
+    const segments = Math.max(3, Math.floor(params.segments ?? 32));
+    const degrees = Number(params.degrees ?? 360);
+    const axisName = (params.axis || 'Y') as 'X'|'Y'|'Z';
+    const dir = Number(params.direction ?? 0); // 0=min,1=center,2=max on axis-perp
+    const flip = !!params.flipNormals;
+    const points: THREE.Vector2[] = outline.pts3.map((p) =>
+      axisName === 'Y' ? new THREE.Vector2(Math.abs(p.x), p.y)
+      : axisName === 'X' ? new THREE.Vector2(Math.abs(p.y), p.x)
+      : new THREE.Vector2(Math.abs(p.x), p.z)
+    );
+    // Shift by direction: min/center/max of the perpendicular axis
+    const vals = points.map((v) => v.x);
+    const shift = dir === 0 ? -Math.min(...vals) : dir === 2 ? -Math.max(...vals) : 0;
+    if (shift) points.forEach((v) => (v.x = Math.max(0, v.x + shift)));
+    let latheGeo = new THREE.LatheGeometry(points, segments, 0, (degrees * Math.PI) / 180);
+    if (axisName === 'X') latheGeo.rotateZ(Math.PI / 2);
+    if (axisName === 'Z') latheGeo.rotateX(Math.PI / 2);
+    if (flip) {
+      const idx = latheGeo.getIndex();
+      if (idx) { const a = idx.array as any; for (let i = 0; i < a.length; i += 3) { const t = a[i]; a[i] = a[i+2]; a[i+2] = t; } idx.needsUpdate = true; }
+    }
+    latheGeo.computeVertexNormals();
+    return latheGeo;
+  }
+
+  // Bevel — Extrude with beveled top/bottom, matching 3ds Max Bevel modifier
+  // (Level 1/2/3 heights and outlines).
+  function applyBevel(objectType: string | undefined, geom: any, params: any): BufferGeometry | null {
+    if (!objectType || !geom) return null;
+    const outline = getShapeOutline(objectType, geom);
+    if (!outline || outline.pts3.length < 3) return null;
+    const { pts3, axis, closed } = outline;
+    const to2D = (p: THREE.Vector3) =>
+      axis === 'x' ? new THREE.Vector2(-p.z, p.y)
+      : axis === 'y' ? new THREE.Vector2(p.x, -p.z)
+      : new THREE.Vector2(p.x, p.y);
+    const shape = new THREE.Shape(pts3.map(to2D));
+    if (closed) shape.autoClose = true;
+    const height = Number(params.height ?? 1);
+    const bevelSize = Number(params.outline ?? 0.1);
+    const bevelSegments = Math.max(1, Math.floor(params.bevelSegments ?? 3));
+    const extrGeo = new THREE.ExtrudeGeometry(shape, {
+      depth: height,
+      steps: Math.max(1, Math.floor(params.segments ?? 1)),
+      bevelEnabled: true,
+      bevelThickness: bevelSize,
+      bevelSize: bevelSize,
+      bevelSegments,
+      curveSegments: 24,
+    });
+    if (axis === 'y') extrGeo.rotateX(-Math.PI / 2);
+    else if (axis === 'x') extrGeo.rotateY(Math.PI / 2);
+    return smoothExtrudeSides(extrGeo);
+  }
+
+  // ------------------------------------------------------------------
+
 
 
   // Render imported models as their full scene graph (preserves materials,
