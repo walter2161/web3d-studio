@@ -2817,9 +2817,25 @@ export const Studio3D = () => {
           </span>
         </div>
         <div className="flex items-center gap-0.5">
-          <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">_</button>
-          <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">▢</button>
-          <button className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none">✕</button>
+          <button
+            className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none"
+            title="Minimize"
+            onClick={() => { try { (document.activeElement as HTMLElement | null)?.blur?.(); } catch {} }}
+          >_</button>
+          <button
+            className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none"
+            title="Maximize App (Fullscreen — F11)"
+            onClick={() => {
+              if (typeof document === 'undefined') return;
+              if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+              else (document.documentElement.requestFullscreen?.() ?? Promise.resolve()).catch(() => {});
+            }}
+          >▢</button>
+          <button
+            className="w-[16px] h-[14px] bevel-raised text-win-text text-[10px] leading-none"
+            title="Close"
+            onClick={() => { try { window.close(); } catch {} }}
+          >✕</button>
         </div>
       </div>
 
