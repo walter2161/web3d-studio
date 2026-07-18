@@ -3151,6 +3151,7 @@ export const Studio3D = () => {
           Rendering, Animation, IK, Gizmos, MAXScript). Persists to localStorage
           and mirrors runtime bridges via `window.__prefs`. */}
       <PreferencesDialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <MapToolsPanel open={mapToolsOpen} onClose={() => setMapToolsOpen(false)} />
 
       {/* Customize UI — keyboard shortcut editor, color scheme picker, and
           scheme import/export. Live bindings feed the global hotkey listener
