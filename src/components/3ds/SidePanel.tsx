@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
-import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS, FOLIAGE_SPECIES } from './utils/extendedGeometry';
+import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS, FOLIAGE_SPECIES, GOOGLE_FONT_LIBRARY, AVAILABLE_FONTS } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 import { EditableSplinePanel } from './r3/EditableSplinePanel';
@@ -2515,6 +2515,63 @@ const SubObjectStack = ({ objectId, onConvert }: { objectId: string; onConvert: 
   );
 };
 
+// ---- Google Fonts picker used by the Text shape ----
+// Injects a single <link> tag that requests every alias listed in
+// GOOGLE_FONT_LIBRARY, then renders each option in its own font-family so the
+// user gets a live preview right inside the dropdown.
+let __googleFontsInjected = false;
+function ensureGoogleFontsLoaded() {
+  if (__googleFontsInjected || typeof document === 'undefined') return;
+  __googleFontsInjected = true;
+  const families = Object.keys(GOOGLE_FONT_LIBRARY)
+    .filter((k) => !['helvetiker', 'gentilis', 'optimer'].includes(k))
+    .map((k) => `family=${encodeURIComponent(k).replace(/%20/g, '+')}:wght@400;700`)
+    .join('&');
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
+  document.head.appendChild(link);
+}
+
+interface TextFontPickerProps { value: string; onChange: (v: string) => void; }
+const TextFontPicker = ({ value, onChange }: TextFontPickerProps) => {
+  useEffect(() => { ensureGoogleFontsLoaded(); }, []);
+  const entries = Object.entries(GOOGLE_FONT_LIBRARY) as [string, { base: string; family: string; category: string }][];
+  const current = GOOGLE_FONT_LIBRARY[value as keyof typeof GOOGLE_FONT_LIBRARY];
+  return (
+    <div className="pt-[2px]">
+      <Label className="text-[10px]">Font</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-[22px] text-[11px] bevel-sunken bg-white px-1 text-black border border-win-shadow outline-none"
+        style={{ fontFamily: current?.family ?? 'inherit' }}
+      >
+        {['sans', 'condensed', 'serif', 'script', 'display'].map((cat) => {
+          const fonts = entries.filter(([, m]) => m.category === cat);
+          if (!fonts.length) return null;
+          return (
+            <optgroup key={cat} label={cat.toUpperCase()}>
+              {fonts.map(([name, meta]) => (
+                <option key={name} value={name} style={{ fontFamily: meta.family, fontSize: '13px' }}>
+                  {name}
+                </option>
+              ))}
+            </optgroup>
+          );
+        })}
+      </select>
+      <div
+        className="mt-[2px] text-[13px] leading-tight px-1 py-[2px] bevel-sunken bg-white text-black truncate"
+        style={{ fontFamily: current?.family ?? 'inherit' }}
+        title="Preview"
+      >
+        AaBbCc 123 — {value}
+      </div>
+    </div>
+  );
+};
+
 
 interface ShapeParamsProps {
   object: any;
@@ -2687,16 +2744,7 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
                 spellCheck={false}
               />
             </div>
-            <MaxSelect
-              label="Font"
-              value={g.font ?? 'helvetiker'}
-              options={[
-                { value: 'helvetiker', label: 'Helvetiker' },
-                { value: 'gentilis',   label: 'Gentilis' },
-                { value: 'optimer',    label: 'Optimer' },
-              ]}
-              onChange={(v) => onUpdate({ font: v })}
-            />
+            <TextFontPicker value={g.font ?? 'helvetiker'} onChange={(v) => onUpdate({ font: v })} />
             <div className="flex gap-3 pt-[2px]">
               <MaxCheck label="Bold"      checked={!!g.bold}      onChange={(v) => onUpdate({ bold: v })} />
               <MaxCheck label="Italic"    checked={!!g.italic}    onChange={(v) => onUpdate({ italic: v })} />
@@ -2725,9 +2773,30 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
               onChange={(v) => onUpdate({ curveSegments: v })} />
             <MaxCheck label="Reverse"     checked={!!g.reverse}    onChange={(v) => onUpdate({ reverse: v })} />
             <MaxCheck label="Auto Update" checked={g.autoUpdate !== false} onChange={(v) => onUpdate({ autoUpdate: v })} />
-            <div className="text-[10px] text-muted-foreground leading-tight pt-1">
-              Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
+
+            {/* --- Extrude rollout (built-in, so text has volume without a modifier) --- */}
+            <div className="mt-1 pt-1 border-t border-panel-border">
+              <div className="text-[10px] font-semibold text-win-text pb-[2px] uppercase tracking-wide">Extrude</div>
+              <MaxSpinner label="Amount"   value={g.extrudeAmount   ?? 0} step={0.05} min={0}
+                onChange={(v) => onUpdate({ extrudeAmount: v })} />
+              <MaxSpinner label="Segments" value={g.extrudeSegments ?? 1} step={1}    min={1} isInt
+                onChange={(v) => onUpdate({ extrudeSegments: v })} />
+              <MaxCheck label="Bevel" checked={!!g.bevelEnabled} onChange={(v) => onUpdate({ bevelEnabled: v })} />
+              {g.bevelEnabled && (
+                <>
+                  <MaxSpinner label="Bev Size"  value={g.bevelSize      ?? 0.02} step={0.005} min={0}
+                    onChange={(v) => onUpdate({ bevelSize: v })} />
+                  <MaxSpinner label="Bev Thick" value={g.bevelThickness ?? 0.02} step={0.005} min={0}
+                    onChange={(v) => onUpdate({ bevelThickness: v })} />
+                  <MaxSpinner label="Bev Segs"  value={g.bevelSegments  ?? 2} step={1} min={1} isInt
+                    onChange={(v) => onUpdate({ bevelSegments: v })} />
+                </>
+              )}
+              <div className="text-[10px] text-muted-foreground leading-tight pt-[2px]">
+                Set Amount &gt; 0 to give text real 3D depth. Segments control length subdivisions.
+              </div>
             </div>
+
           </>
         );
       default:
