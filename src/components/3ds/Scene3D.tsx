@@ -666,10 +666,10 @@ function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
         return { x: (v.x + 1) * 0.5 * rect.width, y: (1 - (v.y + 1) * 0.5) * rect.height };
       };
       const level = sel.level;
-      if (level === 'knot') {
+      if (level === 'sknot') {
         const hits = new Set<number>();
         es.knots.forEach((k) => {
-          const s = project(k.position); if (!s) return;
+          const s = project(k.pos); if (!s) return;
           if (shape.contains(s.x, s.y)) hits.add(k.id);
         });
         if (hits.size === 0 && shape.mode !== 'replace') return false;
@@ -681,10 +681,10 @@ function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
         setSplineSel(objId, { knots: next });
         return true;
       }
-      if (level === 'segment') {
+      if (level === 'ssegment') {
         const hits = new Set<number>();
         es.segments.forEach((seg) => {
-          const a = es.knots.get(seg.a)?.position; const b = es.knots.get(seg.b)?.position;
+          const a = es.knots.get(seg.a)?.pos; const b = es.knots.get(seg.b)?.pos;
           if (!a || !b) return;
           const sa = project(a), sb = project(b); if (!sa || !sb) return;
           for (let i = 0; i <= 8; i++) {
@@ -701,12 +701,12 @@ function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
         setSplineSel(objId, { segments: next });
         return true;
       }
-      if (level === 'spline') {
+      if (level === 'sspline') {
         const hits = new Set<number>();
         es.splines.forEach((sp) => {
           for (const kid of sp.knots) {
             const k = es.knots.get(kid); if (!k) continue;
-            const s = project(k.position); if (!s) continue;
+            const s = project(k.pos); if (!s) continue;
             if (shape.contains(s.x, s.y)) { hits.add(sp.id); break; }
           }
         });
