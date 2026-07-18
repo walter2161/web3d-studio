@@ -110,6 +110,16 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
 
     const onWinMove = (ev: PointerEvent) => {
       if (!pending) return;
+      // If a TransformControls drag started after our pointerdown, abort the
+      // pending marquee so moving/rotating an object doesn't open a region.
+      const tcRef: any = (window as any).__r3TransformCtrl;
+      const tc: any = tcRef?.current;
+      if ((window as any).__r3TransformDragging || (tc && tc.dragging)) {
+        pending = null;
+        window.removeEventListener('pointermove', onWinMove, true);
+        window.removeEventListener('pointerup', onWinUp, true);
+        return;
+      }
       const dx = ev.clientX - pending.startClientX;
       const dy = ev.clientY - pending.startClientY;
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
