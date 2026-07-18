@@ -291,6 +291,10 @@ export const Studio3D = () => {
   const redoOrderRef = useRef<Array<'objects' | 'rig'>>([]);
   const rigUndoRef = useRef<RigPoseEntry[]>([]);
   const rigRedoRef = useRef<RigPoseEntry[]>([]);
+  // True while an interactive TransformControls drag is in progress. Used to
+  // avoid double-pushing undo snapshots — the drag already pushed one on
+  // mousedown via r3-transform-start; per-frame transform-many events must not.
+  const dragActiveRef = useRef(false);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   // Per-imported-object baked clip data (3ds Max style per-bone channel tracks).
   // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
@@ -353,7 +357,7 @@ export const Studio3D = () => {
   // Live ref used by the animation renderer to read up-to-date object poses
   // (positions/rotations after each frame's keyframe interpolation).
   const objectsRef = useRef<Object3DData[]>(objects);
-  useEffect(() => { objectsRef.current = objects; }, [objects]);
+  useEffect(() => { objectsRef.current = objects; (window as any).__objects = objects; }, [objects]);
   const animationTracksRef = useRef<AnimationTrack[]>(animationTracks);
   useEffect(() => { animationTracksRef.current = animationTracks; }, [animationTracks]);
 
@@ -1525,12 +1529,20 @@ export const Studio3D = () => {
     const onTransformStart = (e: Event) => {
       const id = (e as CustomEvent).detail?.objectId as string | undefined;
       if (!id || !objectsRef.current.some((obj) => obj.id === id)) return;
-      setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+      // Capture the pre-transform snapshot immediately so subsequent
+      // onObjectChange -> setObjects updates during the drag cannot race
+      // with the functional updater and clobber the baseline.
+      const snapshot = objectsRef.current;
+      setUndoStack((stack) => [...stack.slice(-9), snapshot]);
       undoOrderRef.current.push('objects');
       setRedoStack([]);
       redoOrderRef.current = [];
       rigRedoRef.current = [];
+      dragActiveRef.current = true;
     };
+    const onTransformEnd = () => { dragActiveRef.current = false; };
+    window.addEventListener('mouseup', onTransformEnd, true);
+    window.addEventListener('pointerup', onTransformEnd, true);
     const onTransformMany = (e: Event) => {
       const updates = (e as CustomEvent).detail?.updates as Array<{
         id: string; position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number];
@@ -1607,6 +1619,8 @@ export const Studio3D = () => {
     return () => {
       window.removeEventListener('r3-transform-start', onTransformStart as EventListener);
       window.removeEventListener('r3-transform-many', onTransformMany as EventListener);
+      window.removeEventListener('mouseup', onTransformEnd, true);
+      window.removeEventListener('pointerup', onTransformEnd, true);
     };
   }, []);
 
@@ -1646,6 +1660,17 @@ export const Studio3D = () => {
     // applies uniformly — the listener handles descendant propagation.
     const cur = objectsRef.current.find((o) => o.id === id);
     if (cur && (transform.position || transform.rotation || transform.scale)) {
+      // If this call is NOT coming from an active TransformControls drag
+      // (which already captured a snapshot on mousedown via r3-transform-start),
+      // capture one now so Ctrl+Z can revert type-in / spinner edits too.
+      if (!dragActiveRef.current) {
+        const snapshot = objectsRef.current;
+        setUndoStack((stack) => [...stack.slice(-9), snapshot]);
+        undoOrderRef.current.push('objects');
+        setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
+      }
       window.dispatchEvent(new CustomEvent('r3-transform-many', { detail: { updates: [{
         id,
         position: transform.position ?? cur.position,
