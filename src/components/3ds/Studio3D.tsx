@@ -38,6 +38,7 @@ import { LoginDialog } from './r3/LoginDialog';
 import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
+import { HelpDialog, HelpTopic } from './r3/HelpDialog';
 import { PreferencesDialog } from './prefs/PreferencesDialog';
 import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { WaltSculptPanel } from './waltsculpt/WaltSculptPanel';
