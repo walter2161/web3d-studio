@@ -2367,16 +2367,54 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   const directLightRef = useRef<THREE.DirectionalLight>(null);
   const directTargetRef = useRef<THREE.Object3D>(null);
   const targetId: string | undefined = object.lightData?.targetObjectId || object.cameraData?.targetObjectId;
-  const isOn = object.lightData?.on !== false;
+  const ld = object.lightData || {};
+  const isOn = ld.on !== false;
   // 3ds Max R3 multipliers are artist-facing values, not physically tiny
   // three.js candela/lumen values. Scale them so Multiplier 1 visibly lights
   // scene objects in both the viewport and Quick Render.
-  const maxMultiplier = object.lightData?.intensity ?? 1;
-  const omniIntensity = isOn ? maxMultiplier * 55 : 0;
-  const spotIntensity = isOn ? maxMultiplier * 70 : 0;
-  const directIntensity = isOn ? maxMultiplier * 2.2 : 0;
+  const maxMultiplier = ld.intensity ?? 1;
+  const contrast = 1 + ((ld.contrast ?? 0) / 100); // subtle boost
+  // Affect Diffuse / Specular / Ambient Only — approximated by scaling the
+  // light's total intensity; a light that affects neither is silent.
+  const affDiff = ld.affectDiffuse !== false;
+  const affSpec = ld.affectSpecular !== false;
+  const ambientOnly = !!ld.ambientOnly;
+  const affectMul = ambientOnly ? 0.35 : ((affDiff || affSpec) ? 1 : 0);
+  const baseMul = maxMultiplier * contrast * affectMul;
+  const omniIntensity = isOn ? baseMul * 55 : 0;
+  const spotIntensity = isOn ? baseMul * 70 : 0;
+  const directIntensity = isOn ? baseMul * 2.2 : 0;
   const ambientIntensity = isOn ? maxMultiplier : 0;
   const hemiIntensity = isOn ? maxMultiplier * 1.4 : 0;
+
+  // Decay + attenuation → three.js distance/decay
+  const decayType: string = ld.decayType ?? 'invsq';
+  const decay = decayType === 'none' ? 0 : decayType === 'inverse' ? 1 : 2;
+  const useFarAtten = !!ld.farAttUse;
+  const farEnd = Number(ld.farAttEnd ?? 0);
+  const attenDistance = useFarAtten && farEnd > 0 ? farEnd : (ld.distance ?? 0);
+
+  // Hotspot / Falloff (degrees). Back-compat: read old ld.angle (radians) as
+  // falloff if new keys are missing.
+  const hotspotDeg = ld.hotspot != null
+    ? (ld.hotspot > Math.PI * 2 ? ld.hotspot : ld.hotspot * 180 / Math.PI)  // migrate old radians
+    : 30;
+  const falloffDeg = ld.falloff != null
+    ? (ld.falloff > Math.PI * 2 ? ld.falloff : ld.falloff * 180 / Math.PI)
+    : (ld.angle != null ? (ld.angle * 180 / Math.PI) : Math.max(hotspotDeg + 10, 45));
+  const spotAngleRad = Math.min(Math.PI / 2 - 0.001, (falloffDeg * Math.PI) / 180);
+  const spotPenumbra = Math.max(0, Math.min(1, 1 - hotspotDeg / Math.max(0.001, falloffDeg)));
+
+  // Projector map (spot). Loaded once per URL.
+  const projectorMap = useMemo(() => {
+    const url = ld.projectorMap;
+    if (!url || typeof url !== 'string') return null;
+    try {
+      const tex = new THREE.TextureLoader().load(url);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    } catch { return null; }
+  }, [ld.projectorMap]);
 
   // Track target — rotate the group to look at it every frame. Uses camera
   // convention (local -Z faces target) instead of Object3D.lookAt, which would
@@ -2398,21 +2436,26 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   });
 
   useEffect(() => {
+    const size = Math.max(64, Math.min(4096, ld.shadowMapSize ?? 1024));
+    const bias = ld.shadowBias ?? -0.0005;
+    const radius = Math.max(0, ld.shadowSampleRange ?? 1);
     const configureShadow = (light: THREE.PointLight | THREE.SpotLight | THREE.DirectionalLight | null) => {
       if (!light?.shadow) return;
-      light.shadow.mapSize.set(1024, 1024);
-      light.shadow.bias = -0.0005;
+      light.shadow.mapSize.set(size, size);
+      light.shadow.bias = bias;
+      (light.shadow as any).radius = radius;
+      if (light.shadow.map) { light.shadow.map.dispose(); (light.shadow as any).map = null; }
       if ((light.shadow.camera as any).isPerspectiveCamera) {
         const cam = light.shadow.camera as THREE.PerspectiveCamera;
         cam.near = 0.1;
-        cam.far = Math.max(10, object.lightData?.distance || 50);
+        cam.far = Math.max(10, attenDistance || 50);
         cam.updateProjectionMatrix();
       }
     };
     configureShadow(pointLightRef.current);
     configureShadow(spotLightRef.current);
     configureShadow(directLightRef.current);
-  }, [object.lightData?.distance]);
+  }, [ld.shadowMapSize, ld.shadowBias, ld.shadowSampleRange, attenDistance]);
 
   useEffect(() => {
     if (object.ref) object.ref.current = groupRef.current;
