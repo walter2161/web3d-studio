@@ -1908,8 +1908,10 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
   const hasCone = isSpot;
   const hasAtten = isOmni || isSpot || isDirect;
   const hasShadow = isOmni || isSpot || isDirect;
+  const hasProjector = isSpot;
+  const hasAdvanced = isOmni || isSpot || isDirect;
 
-  const numRow = (label: string, key: string, def: number, min = 0, step = 0.1) => (
+  const num = (label: string, key: string, def: number, min = 0, step = 0.1, width = 20) => (
     <div className="flex items-center justify-between gap-2">
       <Label className="text-[10px] flex-1">{label}</Label>
       <Input
@@ -1917,7 +1919,7 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
         value={ld[key] ?? def}
         step={step}
         min={min}
-        className="h-6 w-20 text-xs"
+        className={`h-6 text-xs w-${width}`}
         onChange={(e) => {
           const v = parseFloat(e.target.value);
           onUpdateLightData({ [key]: Number.isFinite(v) ? Math.max(min, v) : def });
@@ -1926,33 +1928,33 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
     </div>
   );
 
+  const chk = (label: string, key: string, def = false) => (
+    <label className="flex items-center gap-2 text-[11px]">
+      <input
+        type="checkbox"
+        checked={ld[key] ?? def}
+        onChange={(e) => onUpdateLightData({ [key]: e.target.checked })}
+      />
+      {label}
+    </label>
+  );
+
   return (
     <>
+      {/* General Parameters */}
       <Card className="bg-card border-panel-border">
         <CardHeader className="pb-2"><CardTitle className="text-sm">General Parameters</CardTitle></CardHeader>
         <CardContent className="space-y-2">
           <label className="flex items-center gap-2 text-[11px]">
-            <input
-              type="checkbox"
-              checked={ld.on !== false}
-              onChange={(e) => onUpdateLightData({ on: e.target.checked })}
-            />
+            <input type="checkbox" checked={ld.on !== false} onChange={(e) => onUpdateLightData({ on: e.target.checked })} />
             On
           </label>
-          {hasShadow && (
-            <label className="flex items-center gap-2 text-[11px]">
-              <input
-                type="checkbox"
-                checked={!!ld.castShadow}
-                onChange={(e) => onUpdateLightData({ castShadow: e.target.checked })}
-              />
-              Cast Shadows
-            </label>
-          )}
+          {hasShadow && chk('Cast Shadows', 'castShadow')}
           <div className="text-[10px] text-muted-foreground font-mono uppercase">Type: {t.replace('light_', '')}</div>
         </CardContent>
       </Card>
 
+      {/* Intensity / Color / Attenuation */}
       <Card className="bg-card border-panel-border mt-2">
         <CardHeader className="pb-2"><CardTitle className="text-sm">Intensity / Color / Attenuation</CardTitle></CardHeader>
         <CardContent className="space-y-2">
@@ -1978,75 +1980,213 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
               className="h-6 w-12 border border-win-shadow"
             />
           </div>
+          {num('Contrast', 'contrast', 0, 0, 1)}
+          {num('Soften Diff. Edge', 'softenEdge', 0, 0, 1)}
           {isSky && (
-            <>
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-[10px] flex-1">Ground Color</Label>
-                <input
-                  type="color"
-                  value={ld.groundColor || '#4a3a2a'}
-                  onChange={(e) => onUpdateLightData({ groundColor: e.target.value })}
-                  className="h-6 w-12 border border-win-shadow"
-                />
-              </div>
-            </>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-[10px] flex-1">Ground Color</Label>
+              <input
+                type="color"
+                value={ld.groundColor || '#4a3a2a'}
+                onChange={(e) => onUpdateLightData({ groundColor: e.target.value })}
+                className="h-6 w-12 border border-win-shadow"
+              />
+            </div>
           )}
+
           {hasAtten && (
             <>
+              <div className="text-[10px] uppercase text-muted-foreground pt-1">Decay</div>
+              <div className="flex items-center gap-2">
+                <Label className="text-[10px] flex-1">Type</Label>
+                <select
+                  value={ld.decayType ?? 'invsq'}
+                  onChange={(e) => onUpdateLightData({ decayType: e.target.value })}
+                  className="h-6 text-xs bg-background border border-panel-border rounded-[2px]"
+                >
+                  <option value="none">None</option>
+                  <option value="inverse">Inverse</option>
+                  <option value="invsq">Inverse Square</option>
+                </select>
+              </div>
+
+              <div className="text-[10px] uppercase text-muted-foreground pt-1">Near Attenuation</div>
+              {chk('Use', 'nearAttUse')}
+              {num('Start', 'nearAttStart', 0, 0, 0.5)}
+              {num('End', 'nearAttEnd', 1, 0, 0.5)}
+
               <div className="text-[10px] uppercase text-muted-foreground pt-1">Far Attenuation</div>
-              {numRow('Distance', 'distance', 0, 0, 0.5)}
-              {numRow('Decay', 'decay', 2, 0, 0.1)}
+              {chk('Use', 'farAttUse')}
+              {num('Start', 'farAttStart', 5, 0, 0.5)}
+              {num('End', 'farAttEnd', 20, 0, 0.5)}
             </>
           )}
         </CardContent>
       </Card>
 
+      {/* Spot Parameters */}
       {hasCone && (
         <Card className="bg-card border-panel-border mt-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Spot Parameters</CardTitle></CardHeader>
           <CardContent className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label className="text-[10px] flex-1">Hotspot (rad)</Label>
-              <Input
-                type="number"
-                value={ld.hotspot ?? (ld.angle ?? Math.PI / 6) * 0.8}
-                step={0.01}
-                min={0}
-                className="h-6 w-20 text-xs"
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  onUpdateLightData({ hotspot: Number.isFinite(v) ? Math.max(0, v) : 0.4 });
-                }}
+            {num('Hotspot (°)', 'hotspot', 30, 0.1, 0.5)}
+            {num('Falloff (°)', 'falloff', 45, 0.5, 0.5)}
+            <div className="text-[10px] text-muted-foreground">Falloff must be ≥ Hotspot. Penumbra is derived from the gap.</div>
+            <div className="flex items-center gap-2">
+              <Label className="text-[10px] flex-1">Cone Shape</Label>
+              <select
+                value={ld.coneShape ?? 'circle'}
+                onChange={(e) => onUpdateLightData({ coneShape: e.target.value })}
+                className="h-6 text-xs bg-background border border-panel-border rounded-[2px]"
+              >
+                <option value="circle">Circle</option>
+                <option value="rectangle">Rectangle</option>
+              </select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Advanced Effects */}
+      {hasAdvanced && (
+        <Card className="bg-card border-panel-border mt-2">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Advanced Effects</CardTitle></CardHeader>
+          <CardContent className="space-y-1">
+            {chk('Affect Diffuse', 'affectDiffuse', true)}
+            {chk('Affect Specular', 'affectSpecular', true)}
+            {chk('Ambient Only', 'ambientOnly')}
+            {hasProjector && (
+              <div className="pt-1">
+                <div className="text-[10px] uppercase text-muted-foreground">Projector Map</div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    placeholder="URL da imagem (gobo / vitral)"
+                    value={ld.projectorMap ?? ''}
+                    className="h-6 text-xs flex-1"
+                    onChange={(e) => onUpdateLightData({ projectorMap: e.target.value })}
+                  />
+                  <button
+                    className="h-6 px-2 text-[10px] border border-panel-border rounded-[2px] bg-background hover:bg-muted"
+                    onClick={() => {
+                      const inp = document.createElement('input');
+                      inp.type = 'file';
+                      inp.accept = 'image/*';
+                      inp.onchange = () => {
+                        const f = inp.files?.[0]; if (!f) return;
+                        const r = new FileReader();
+                        r.onload = () => onUpdateLightData({ projectorMap: r.result as string });
+                        r.readAsDataURL(f);
+                      };
+                      inp.click();
+                    }}
+                  >…</button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Shadow Parameters */}
+      {hasShadow && (
+        <Card className="bg-card border-panel-border mt-2">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Shadow Parameters</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-[10px] flex-1">Type</Label>
+              <select
+                value={ld.shadowType ?? 'shadowMap'}
+                onChange={(e) => onUpdateLightData({ shadowType: e.target.value })}
+                className="h-6 text-xs bg-background border border-panel-border rounded-[2px]"
+              >
+                <option value="shadowMap">Shadow Map</option>
+                <option value="raytrace">Ray Traced</option>
+                <option value="area">Area Shadows</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-[10px] flex-1">Shadow Color</Label>
+              <input
+                type="color"
+                value={ld.shadowColor ?? '#000000'}
+                onChange={(e) => onUpdateLightData({ shadowColor: e.target.value })}
+                className="h-6 w-12 border border-win-shadow"
               />
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <Label className="text-[10px] flex-1">Falloff (angle)</Label>
-              <Input
-                type="number"
-                value={ld.angle ?? Math.PI / 6}
-                step={0.01}
-                min={0}
-                className="h-6 w-20 text-xs"
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  onUpdateLightData({ angle: Number.isFinite(v) ? Math.max(0.01, v) : Math.PI / 6 });
-                }}
-              />
+            {num('Bias', 'shadowBias', -0.0005, -1, 0.0001)}
+            <div className="flex items-center gap-2">
+              <Label className="text-[10px] flex-1">Map Size</Label>
+              <select
+                value={ld.shadowMapSize ?? 1024}
+                onChange={(e) => onUpdateLightData({ shadowMapSize: Number(e.target.value) })}
+                className="h-6 text-xs bg-background border border-panel-border rounded-[2px]"
+              >
+                {[256, 512, 1024, 2048, 4096].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <Label className="text-[10px] flex-1">Penumbra</Label>
-              <Input
-                type="number"
-                value={ld.penumbra ?? 0.2}
-                step={0.05}
-                min={0}
-                className="h-6 w-20 text-xs"
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  onUpdateLightData({ penumbra: Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.2 });
-                }}
-              />
+            {num('Sample Range', 'shadowSampleRange', 1, 0, 0.5)}
+            {ld.shadowType === 'area' && (
+              <>
+                {num('Area Length', 'areaLength', 1, 0, 0.1)}
+                {num('Area Width', 'areaWidth', 1, 0, 0.1)}
+                {num('Samples', 'areaSamples', 8, 1, 1)}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Atmospheres & Effects */}
+      {hasAdvanced && (
+        <Card className="bg-card border-panel-border mt-2">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Atmospheres & Effects</CardTitle></CardHeader>
+          <CardContent className="space-y-1">
+            {chk('Volume Light', 'volumeLight')}
+            {ld.volumeLight && (
+              <>
+                {num('Density', 'volDensity', 5, 0, 0.5)}
+                {num('Noise', 'volNoise', 0, 0, 0.1)}
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] flex-1">Fog Color</Label>
+                  <input
+                    type="color"
+                    value={ld.volColor ?? '#ffffff'}
+                    onChange={(e) => onUpdateLightData({ volColor: e.target.value })}
+                    className="h-6 w-12 border border-win-shadow"
+                  />
+                </div>
+              </>
+            )}
+            {chk('Lens Effects (Glow)', 'lensGlow')}
+            {chk('Lens Effects (Flare)', 'lensFlare')}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Exclude / Include */}
+      {hasAdvanced && (
+        <Card className="bg-card border-panel-border mt-2">
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Exclude / Include</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-[10px] flex-1">Mode</Label>
+              <select
+                value={ld.includeMode ?? 'include'}
+                onChange={(e) => onUpdateLightData({ includeMode: e.target.value })}
+                className="h-6 text-xs bg-background border border-panel-border rounded-[2px]"
+              >
+                <option value="include">Include</option>
+                <option value="exclude">Exclude</option>
+              </select>
             </div>
+            <textarea
+              className="w-full h-16 text-[11px] bg-background border border-panel-border rounded-[2px] px-1 py-1 font-mono"
+              placeholder="Nomes de objetos, um por linha"
+              value={(ld.includeNames ?? []).join('\n')}
+              onChange={(e) => onUpdateLightData({ includeNames: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+            />
+            <div className="text-[10px] text-muted-foreground">Modo {ld.includeMode ?? 'include'} — filtragem por objeto será aplicada no render.</div>
           </CardContent>
         </Card>
       )}
