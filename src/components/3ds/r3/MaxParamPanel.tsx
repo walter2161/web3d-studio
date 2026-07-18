@@ -28,7 +28,7 @@ export function MaxRollout({ title, children, defaultOpen = true, className }: R
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-1 px-2 py-[3px] bg-gradient-to-b from-muted/60 to-muted/30 hover:from-muted/80 hover:to-muted/50 border-b border-panel-border text-[10px] font-semibold uppercase tracking-wider text-foreground/90"
+        className="w-full flex items-center gap-1 px-1 py-[1px] bg-gradient-to-b from-muted/60 to-muted/30 hover:from-muted/80 hover:to-muted/50 border-b border-panel-border text-[10px] font-semibold uppercase tracking-wider text-foreground/90"
       >
         <span className="inline-flex items-center justify-center w-3 h-3 border border-panel-border bg-background/80 text-[10px] leading-none font-mono">
           {open ? '−' : '+'}
@@ -36,7 +36,7 @@ export function MaxRollout({ title, children, defaultOpen = true, className }: R
         <span className="flex-1 text-center">{title}</span>
         <span className="w-3" />
       </button>
-      {open && <div className="p-2 space-y-[3px]">{children}</div>}
+      {open && <div className="px-1 py-[2px] space-y-[2px]">{children}</div>}
     </div>
   );
 }
