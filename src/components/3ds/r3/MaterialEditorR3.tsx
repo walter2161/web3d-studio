@@ -1296,3 +1296,200 @@ function MapParametersDialog({
     </div>
   );
 }
+
+/* ============================================================================
+ * MiniMatRow — one row of a compound material sub-slot. Shows ID, name,
+ * a small color swatch (opens color picker), and a "Load bitmap" button that
+ * stores a diffuseMap slot on the mini-material.
+ * ==========================================================================*/
+function MiniMatRow({ mm, onChange, showId = true }: { mm: MiniMat; onChange: (patch: Partial<MiniMat>) => void; showId?: boolean }) {
+  const loadBmp = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = () => {
+      const f = input.files?.[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        const url = String(r.result || ''); if (!url) return;
+        const next = { ...(window as any).__r3BitmapUrls, [f.name]: url };
+        (window as any).__r3BitmapUrls = next;
+        try { localStorage.setItem('3dsled-mateditor-bitmaps-v1', JSON.stringify(next)); } catch {}
+        onChange({ diffuseMap: { enabled: true, amount: 100, name: 'Bitmap', params: { ...defaultMapParams(), filename: f.name } } });
+      };
+      r.readAsDataURL(f);
+    };
+    input.click();
+  };
+  const bmp = mm.diffuseMap?.name === 'Bitmap' ? mm.diffuseMap.params?.filename : undefined;
+  return (
+    <div className="flex items-center gap-1 py-[1px]">
+      {showId && (
+        <Spinner value={mm.id} onChange={(v) => onChange({ id: Math.max(1, Math.round(v)) })} step={1} min={1} max={65535} width={44} />
+      )}
+      <input
+        value={mm.name}
+        onChange={(e) => onChange({ name: e.target.value })}
+        className="bevel-inset bg-white px-1 h-[18px] text-[11px] flex-1"
+      />
+      <input type="color" value={mm.diffuse} onChange={(e) => onChange({ diffuse: e.target.value })} className="w-[28px] h-[16px]" title="Diffuse color" />
+      <button
+        onClick={loadBmp}
+        className={`${bmp ? 'bevel-inset bg-white' : 'bevel-raised bg-win-face'} text-[10px] px-1 h-[16px]`}
+        title={bmp ? `Bitmap: ${bmp}` : 'Load bitmap'}
+      >M</button>
+      <Spinner value={mm.opacity} onChange={(v) => onChange({ opacity: v })} step={1} min={0} max={100} width={44} />
+      <Spinner value={mm.glossiness} onChange={(v) => onChange({ glossiness: v, roughness: 1 - v / 100 })} step={1} min={0} max={100} width={44} />
+    </div>
+  );
+}
+
+/* ============================================================================
+ * CompoundEditor — panel shown when mat.type ≠ 'Standard'. Renders the correct
+ * rollout for Multi/Sub-Object, Blend, Double Sided, Top/Bottom, Composite,
+ * Shellac, Matte/Shadow, Raytrace, Morpher.
+ * ==========================================================================*/
+function CompoundEditor({ mat, onChange }: { mat: R3Material; onChange: (patch: Partial<R3CompoundData>) => void }) {
+  const c = mat.compound || {};
+  const patchSub = (i: number, patch: Partial<MiniMat>) => {
+    const list = (c.subMaterials || []).slice();
+    list[i] = { ...list[i], ...patch };
+    onChange({ subMaterials: list });
+  };
+  const setCount = (n: number) => {
+    const list = (c.subMaterials || []).slice();
+    if (n > list.length) for (let i = list.length; i < n; i++) list.push(defaultMini(i + 1));
+    else list.length = n;
+    onChange({ subMaterials: list });
+  };
+
+  if (mat.type === 'Multi/Sub-Object') {
+    const list = c.subMaterials || [];
+    return (
+      <GroupBox title="Multi/Sub-Object Basic Parameters">
+        <Row label="Number of Materials:" labelWidth={140}>
+          <Spinner value={list.length} onChange={(v) => setCount(Math.max(1, Math.min(255, Math.round(v))))} step={1} min={1} max={255} />
+          <R3Button width={60} onClick={() => setCount(list.length + 1)}>Add</R3Button>
+          <R3Button width={90} onClick={() => setCount(Math.max(1, list.length - 1))}>Delete Last</R3Button>
+        </Row>
+        <div className="grid grid-cols-[44px_1fr_28px_20px_44px_44px] gap-x-1 text-[10px] font-bold mt-1 px-1">
+          <div>ID</div><div>Name</div><div>Col</div><div>M</div><div>Op</div><div>Gloss</div>
+        </div>
+        <div className="bevel-inset bg-white p-1 mt-[2px]" style={{ maxHeight: 220, overflowY: 'auto' }}>
+          {list.map((mm, i) => (
+            <MiniMatRow key={i} mm={mm} onChange={(patch) => patchSub(i, patch)} />
+          ))}
+        </div>
+        <div className="text-[10px] text-win-text-disabled mt-1">
+          Each polygon uses the sub-material whose ID matches its Material ID (set on Edit Poly / Edit Mesh → Polygon → Material ID).
+          Faces without an explicit ID fall back to sub-material #1.
+        </div>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Blend') {
+    return (
+      <GroupBox title="Blend Basic Parameters">
+        <Row label="Material 1:" labelWidth={90}>
+          <MiniMatRow mm={c.mat1!} onChange={(p) => onChange({ mat1: { ...c.mat1!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Material 2:" labelWidth={90}>
+          <MiniMatRow mm={c.mat2!} onChange={(p) => onChange({ mat2: { ...c.mat2!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Mix Amount:" labelWidth={90}>
+          <Spinner value={c.blendAmount ?? 0.5} onChange={(v) => onChange({ blendAmount: v })} step={0.01} min={0} max={1} />
+          <span className="ml-2 text-[11px]">Mask:</span>
+          <input type="color" value={c.maskColor || '#808080'} onChange={(e) => onChange({ maskColor: e.target.value })} className="w-[36px] h-[16px]" />
+        </Row>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Double Sided') {
+    return (
+      <GroupBox title="Double Sided Basic Parameters">
+        <Row label="Translucency:" labelWidth={100}>
+          <Spinner value={c.translucency ?? 0} onChange={(v) => onChange({ translucency: v })} step={1} min={0} max={100} />
+        </Row>
+        <Row label="Facing:" labelWidth={100}>
+          <MiniMatRow mm={c.front!} onChange={(p) => onChange({ front: { ...c.front!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Back:" labelWidth={100}>
+          <MiniMatRow mm={c.back!} onChange={(p) => onChange({ back: { ...c.back!, ...p } })} showId={false} />
+        </Row>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Top/Bottom') {
+    return (
+      <GroupBox title="Top/Bottom Basic Parameters">
+        <Row label="Top:" labelWidth={90}>
+          <MiniMatRow mm={c.top!} onChange={(p) => onChange({ top: { ...c.top!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Bottom:" labelWidth={90}>
+          <MiniMatRow mm={c.bottom!} onChange={(p) => onChange({ bottom: { ...c.bottom!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Blend:" labelWidth={90}>
+          <Spinner value={c.blend ?? 0.1} onChange={(v) => onChange({ blend: v })} step={0.01} min={0} max={1} />
+          <span className="ml-2 text-[11px]">Position:</span>
+          <Spinner value={c.position ?? 0.5} onChange={(v) => onChange({ position: v })} step={0.01} min={0} max={1} />
+        </Row>
+        <Row label="Coordinates:" labelWidth={90}>
+          <label className="text-[11px] flex items-center gap-1"><input type="radio" name="tb-cs" checked={c.coords === 'World'} onChange={() => onChange({ coords: 'World' })} /> World</label>
+          <label className="text-[11px] flex items-center gap-1"><input type="radio" name="tb-cs" checked={c.coords === 'Local'} onChange={() => onChange({ coords: 'Local' })} /> Local</label>
+        </Row>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Composite' || mat.type === 'Shellac') {
+    const layers = c.layers || [];
+    return (
+      <GroupBox title={`${mat.type} Basic Parameters`}>
+        <Row label="Layers:" labelWidth={80}>
+          <R3Button width={70} onClick={() => onChange({ layers: [...layers, defaultMini(layers.length + 1)] })}>Add</R3Button>
+          <R3Button width={90} onClick={() => onChange({ layers: layers.slice(0, Math.max(1, layers.length - 1)) })}>Delete Last</R3Button>
+        </Row>
+        {mat.type === 'Shellac' && (
+          <Row label="Color Blend:" labelWidth={110}>
+            <Spinner value={c.shellacColorBlend ?? 50} onChange={(v) => onChange({ shellacColorBlend: v })} step={1} min={0} max={200} />
+          </Row>
+        )}
+        <div className="bevel-inset bg-white p-1 mt-1" style={{ maxHeight: 200, overflowY: 'auto' }}>
+          {layers.map((mm, i) => (
+            <MiniMatRow key={i} mm={mm} onChange={(p) => {
+              const nl = layers.slice(); nl[i] = { ...nl[i], ...p }; onChange({ layers: nl });
+            }} />
+          ))}
+        </div>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Matte/Shadow') {
+    return (
+      <GroupBox title="Matte/Shadow Basic Parameters">
+        <Row label="" labelWidth={10}>
+          <label className="text-[11px] flex items-center gap-1"><input type="checkbox" checked={!!c.opaqueAlpha} onChange={(e) => onChange({ opaqueAlpha: e.target.checked })} /> Opaque Alpha</label>
+        </Row>
+        <Row label="" labelWidth={10}>
+          <label className="text-[11px] flex items-center gap-1"><input type="checkbox" checked={!!c.receiveShadows} onChange={(e) => onChange({ receiveShadows: e.target.checked })} /> Receive Shadows</label>
+        </Row>
+        <div className="text-[10px] text-win-text-disabled mt-1">
+          The Matte/Shadow material makes the object invisible to the camera while still receiving shadows and reflections — used for VFX compositing.
+        </div>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Raytrace') {
+    return (
+      <GroupBox title="Raytrace Basic Parameters">
+        <div className="text-[11px]">Raytrace uses the Standard parameters above; enable Reflection/Refraction maps in the Maps tab. Fully raytraced output requires the offline renderer.</div>
+      </GroupBox>
+    );
+  }
+
+  return null;
+}
