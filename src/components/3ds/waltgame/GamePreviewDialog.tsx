@@ -63,8 +63,9 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     renderer.shadowMap.enabled = true;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#7fb0dd');
-    scene.fog = new THREE.Fog('#7fb0dd', 40, 200);
+    const mgr = useWaltGame.getState().manager;
+    scene.background = new THREE.Color(mgr.bgColor || '#7fb0dd');
+    scene.fog = new THREE.Fog(mgr.bgColor || '#7fb0dd', mgr.fogNear, mgr.fogFar);
 
     // Ambient + sun.
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -77,6 +78,10 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     const state = useWaltGame.getState();
     const objects: any[] = (window as any).__objects || [];
     const colliders: THREE.Object3D[] = [];
+    // Runtime maps for feature systems.
+    const meshById = new Map<string, THREE.Object3D>();
+    const idByMesh = new WeakMap<THREE.Object3D, string>();
+    const audioSources: { id: string; el: HTMLAudioElement; obj: THREE.Object3D; spatial: boolean; min: number; max: number; vol: number; trigger: string }[] = [];
     let playerRoot: THREE.Object3D | null = null;
     let playerBaseHeight = 1.7;
 
@@ -102,6 +107,8 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       mesh.scale.set(obj.scale[0], obj.scale[1], obj.scale[2]);
       mesh.traverse((n: any) => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
       scene.add(mesh);
+      meshById.set(obj.id, mesh);
+      idByMesh.set(mesh, obj.id);
 
       const props = state.props[obj.id];
       const isPlayer = state.mainPlayerId === obj.id
@@ -111,10 +118,23 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
         playerRoot = mesh;
         const bbox = new THREE.Box3().setFromObject(mesh);
         playerBaseHeight = Math.max(0.5, bbox.max.y - bbox.min.y);
-      } else if (!props || props.tag !== 'trigger') {
+      } else if (!props || (props.tag !== 'trigger' && !props.isTrigger)) {
         colliders.push(mesh);
       }
+
+      // Attach an audio source if enabled and URL provided.
+      if (props?.components.audioSource && props.audio.url) {
+        try {
+          const el = new Audio(props.audio.url);
+          el.loop = props.audio.loop;
+          el.volume = props.audio.spatial ? 0 : props.audio.volume; // spatial volume computed per frame
+          el.playbackRate = props.audio.pitch;
+          if (props.audio.autoplay || props.audio.triggerOn === 'start') el.play().catch(() => {});
+          audioSources.push({ id: obj.id, el, obj: mesh, spatial: props.audio.spatial, min: props.audio.minDistance, max: props.audio.maxDistance, vol: props.audio.volume, trigger: props.audio.triggerOn });
+        } catch { /* ignore */ }
+      }
     }
+
 
     // If no player set, spawn a capsule proxy.
     let playerIsProxy = false;
