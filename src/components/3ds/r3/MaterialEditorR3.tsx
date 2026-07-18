@@ -461,19 +461,56 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     };
   };
 
-  const matToThree = (m: R3Material) => ({
-    color: m.diffuse,
-    metalness: m.metalness,
-    roughness: m.roughness,
-    opacity: m.opacity / 100,
-    emissive: m.diffuse,
-    emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
-    map: mapPayload(m.maps.diffuse),
-    bumpMap: mapPayload(m.maps.bump),
-    bumpScale: (m.maps.bump?.amount ?? 30) / 100,
-    opacityMap: mapPayload(m.maps.opacity),
-    emissiveMap: mapPayload(m.maps.selfIllum),
-  });
+  const miniToThree = (mm?: MiniMat) => mm ? ({
+    color: mm.diffuse,
+    metalness: mm.metalness,
+    roughness: mm.roughness,
+    opacity: mm.opacity / 100,
+    emissive: mm.diffuse,
+    emissiveIntensity: mm.selfIllumination > 0 ? (mm.selfIllumination / 100) * (mm.emissiveIntensity || 1) : 0,
+    map: mapPayload(mm.diffuseMap),
+    bumpMap: mapPayload(mm.bumpMap),
+    materialId: mm.id,
+    name: mm.name,
+  }) : null;
+
+  const matToThree = (m: R3Material): any => {
+    const base = {
+      color: m.diffuse,
+      metalness: m.metalness,
+      roughness: m.roughness,
+      opacity: m.opacity / 100,
+      emissive: m.diffuse,
+      emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
+      map: mapPayload(m.maps.diffuse),
+      bumpMap: mapPayload(m.maps.bump),
+      bumpScale: (m.maps.bump?.amount ?? 30) / 100,
+      opacityMap: mapPayload(m.maps.opacity),
+      emissiveMap: mapPayload(m.maps.selfIllum),
+      type: m.type,
+      twoSided: m.twoSided,
+    };
+    const c = m.compound || {};
+    if (m.type === 'Multi/Sub-Object') {
+      return { ...base, subMaterials: (c.subMaterials || []).map(miniToThree) };
+    }
+    if (m.type === 'Blend') {
+      return { ...base, blend: { mat1: miniToThree(c.mat1), mat2: miniToThree(c.mat2), amount: c.blendAmount ?? 0.5, maskColor: c.maskColor || '#808080' } };
+    }
+    if (m.type === 'Double Sided') {
+      return { ...base, doubleSided: { front: miniToThree(c.front), back: miniToThree(c.back), translucency: c.translucency ?? 0 } };
+    }
+    if (m.type === 'Top/Bottom') {
+      return { ...base, topBottom: { top: miniToThree(c.top), bottom: miniToThree(c.bottom), blend: c.blend ?? 0.1, position: c.position ?? 0.5, coords: c.coords || 'World' } };
+    }
+    if (m.type === 'Composite' || m.type === 'Shellac') {
+      return { ...base, composite: { layers: (c.layers || []).map(miniToThree), shellacBlend: (c.shellacColorBlend ?? 50) / 100 } };
+    }
+    if (m.type === 'Matte/Shadow') {
+      return { ...base, matteShadow: { receiveShadows: !!c.receiveShadows, opaqueAlpha: !!c.opaqueAlpha } };
+    }
+    return base;
+  };
 
   const assignToSelection = () => {
     if (!selectedObject) {
