@@ -189,6 +189,38 @@ export const ParticleObject = ({ data, currentFrame, selected, onSelect }: Parti
 
   const baseColor = useMemo(() => new THREE.Color(geom.color || '#ffffff'), [geom.color]);
 
+  // Per-shape sprite texture so 'dot' (circle), 'tri' (triangle), and
+  // 'facing' (square) actually look different in the viewport. Without this,
+  // three.js `pointsMaterial` always renders square pixels regardless of
+  // `particleShape`, which is why switching shapes appeared to do nothing.
+  const shapeTexture = useMemo(() => {
+    const size = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d')!;
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 4;
+    const cx = size / 2, cy = size / 2, r = size / 2 - 2;
+    if (geom.particleShape === 'dot') {
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    } else if (geom.particleShape === 'tri') {
+      ctx.beginPath();
+      ctx.moveTo(cx, 2);
+      ctx.lineTo(size - 2, size - 2);
+      ctx.lineTo(2, size - 2);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // 'facing' → filled square sprite (still distinct from dot/tri).
+      ctx.fillRect(2, 2, size - 4, size - 4);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    return tex;
+  }, [geom.particleShape]);
+
   // On every frame, evaluate every particle at the current timeline frame.
   // This runs even when isPlaying=false so scrubbing works instantly.
   useFrame(() => {
