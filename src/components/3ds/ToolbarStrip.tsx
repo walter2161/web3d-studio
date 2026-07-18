@@ -78,9 +78,9 @@ export const MainToolbar = ({
       <Sep />
       <ToolButton title="Select Object (H)" onClick={onSelectByName}><MousePointer2 size={14} /></ToolButton>
       <SelectionRegionButtons />
-      <ToolButton title="Select and Move (W)" active={transformMode === 'translate'} onClick={() => onTransformMode('translate')}><Move size={14} /></ToolButton>
-      <ToolButton title="Select and Rotate (E)" active={transformMode === 'rotate'} onClick={() => onTransformMode('rotate')}><RotateCw size={14} /></ToolButton>
-      <ToolButton title="Select and Scale (R)" active={transformMode === 'scale'} onClick={() => onTransformMode('scale')}><ScaleIcon size={14} /></ToolButton>
+      <ToolButton title="Select and Move (W) — Right-click: Transform Type-In" active={transformMode === 'translate'} onClick={() => onTransformMode('translate')} onContextMenu={(e) => { e.preventDefault(); onTransformMode('translate'); window.dispatchEvent(new CustomEvent('walt3d:menu-action', { detail: 'Transform Type-In' })); }}><Move size={14} /></ToolButton>
+      <ToolButton title="Select and Rotate (E) — Right-click: Transform Type-In" active={transformMode === 'rotate'} onClick={() => onTransformMode('rotate')} onContextMenu={(e) => { e.preventDefault(); onTransformMode('rotate'); window.dispatchEvent(new CustomEvent('walt3d:menu-action', { detail: 'Transform Type-In' })); }}><RotateCw size={14} /></ToolButton>
+      <ToolButton title="Select and Scale (R) — Right-click: Transform Type-In" active={transformMode === 'scale'} onClick={() => onTransformMode('scale')} onContextMenu={(e) => { e.preventDefault(); onTransformMode('scale'); window.dispatchEvent(new CustomEvent('walt3d:menu-action', { detail: 'Transform Type-In' })); }}><ScaleIcon size={14} /></ToolButton>
       <Sep />
       <ToolButton
         title={linkToolActive ? 'Select and Link — click parent to link to (Esc to cancel)' : 'Select and Link'}
