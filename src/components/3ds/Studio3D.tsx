@@ -3500,6 +3500,7 @@ export const Studio3D = () => {
         onClose={() => setWaltGameOpen(false)}
         selectedObjectId={selectedObject}
         selectedObjectName={objects.find((o) => o.id === selectedObject)?.name}
+        objects={objects.map((o) => ({ id: o.id, name: o.name, type: o.type }))}
         onRun={() => setGamePreviewOpen(true)}
       />
       <GamePreviewDialog open={gamePreviewOpen} onClose={() => setGamePreviewOpen(false)} />

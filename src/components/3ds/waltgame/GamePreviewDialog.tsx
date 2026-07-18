@@ -63,8 +63,9 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     renderer.shadowMap.enabled = true;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#7fb0dd');
-    scene.fog = new THREE.Fog('#7fb0dd', 40, 200);
+    const mgr = useWaltGame.getState().manager;
+    scene.background = new THREE.Color(mgr.bgColor || '#7fb0dd');
+    scene.fog = new THREE.Fog(mgr.bgColor || '#7fb0dd', mgr.fogNear, mgr.fogFar);
 
     // Ambient + sun.
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
@@ -77,6 +78,10 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     const state = useWaltGame.getState();
     const objects: any[] = (window as any).__objects || [];
     const colliders: THREE.Object3D[] = [];
+    // Runtime maps for feature systems.
+    const meshById = new Map<string, THREE.Object3D>();
+    const idByMesh = new WeakMap<THREE.Object3D, string>();
+    const audioSources: { id: string; el: HTMLAudioElement; obj: THREE.Object3D; spatial: boolean; min: number; max: number; vol: number; trigger: string }[] = [];
     let playerRoot: THREE.Object3D | null = null;
     let playerBaseHeight = 1.7;
 
@@ -102,6 +107,8 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       mesh.scale.set(obj.scale[0], obj.scale[1], obj.scale[2]);
       mesh.traverse((n: any) => { if (n.isMesh) { n.castShadow = true; n.receiveShadow = true; } });
       scene.add(mesh);
+      meshById.set(obj.id, mesh);
+      idByMesh.set(mesh, obj.id);
 
       const props = state.props[obj.id];
       const isPlayer = state.mainPlayerId === obj.id
@@ -111,10 +118,23 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
         playerRoot = mesh;
         const bbox = new THREE.Box3().setFromObject(mesh);
         playerBaseHeight = Math.max(0.5, bbox.max.y - bbox.min.y);
-      } else if (!props || props.tag !== 'trigger') {
+      } else if (!props || (props.tag !== 'trigger' && !props.isTrigger)) {
         colliders.push(mesh);
       }
+
+      // Attach an audio source if enabled and URL provided.
+      if (props?.components.audioSource && props.audio.url) {
+        try {
+          const el = new Audio(props.audio.url);
+          el.loop = props.audio.loop;
+          el.volume = props.audio.spatial ? 0 : props.audio.volume; // spatial volume computed per frame
+          el.playbackRate = props.audio.pitch;
+          if (props.audio.autoplay || props.audio.triggerOn === 'start') el.play().catch(() => {});
+          audioSources.push({ id: obj.id, el, obj: mesh, spatial: props.audio.spatial, min: props.audio.minDistance, max: props.audio.maxDistance, vol: props.audio.volume, trigger: props.audio.triggerOn });
+        } catch { /* ignore */ }
+      }
     }
+
 
     // If no player set, spawn a capsule proxy.
     let playerIsProxy = false;
@@ -166,6 +186,38 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     const raycaster = new THREE.Raycaster();
     let onGround = false;
 
+    // Trigger overlap tracking (id → currently inside).
+    const insideTriggers = new Set<string>();
+    // HUD runtime state.
+    const hud = { health: 100, maxHealth: 100, score: state.manager.startScore, time: state.manager.startTimer };
+    // Find any HUD/manager objects for display config.
+    const hudObj = objects.find((o) => state.props[o.id]?.tag === 'hud');
+    if (hudObj) {
+      const h = state.props[hudObj.id].hud;
+      hud.health = h.health; hud.maxHealth = h.maxHealth;
+    }
+    // Simple DSL executor for trigger events.
+    const runAction = (cmd?: string) => {
+      if (!cmd) return;
+      cmd.split(';').forEach((raw) => {
+        const [op, ...rest] = raw.trim().split(':');
+        const val = rest.join(':');
+        switch (op) {
+          case 'log': console.log('[WaltGame trigger]', val); break;
+          case 'damage': hud.health = Math.max(0, hud.health - Number(val || 0)); break;
+          case 'heal': hud.health = Math.min(hud.maxHealth, hud.health + Number(val || 0)); break;
+          case 'score': hud.score += val.startsWith('+') || val.startsWith('-') ? Number(val) : Number(val); break;
+          case 'audio': {
+            const src = audioSources.find((a) => a.trigger === 'enter');
+            if (src) { try { src.el.currentTime = 0; src.el.play(); } catch {} }
+            break;
+          }
+          case 'load': console.log('[WaltGame] load scene:', val); break;
+          default: if (op) console.log('[WaltGame action]', raw);
+        }
+      });
+    };
+
     const actionActive = (name: string): boolean => {
       for (const [k, a] of keyMap.entries()) {
         if (a === name && keys.has(k)) return true;
@@ -177,6 +229,7 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     let raf = 0;
     const tick = () => {
       const dt = Math.min(0.05, clock.getDelta());
+
 
       // Character movement in the horizontal plane relative to yaw.
       const forward = new THREE.Vector3(-Math.sin(yaw.v), 0, -Math.cos(yaw.v));
@@ -258,6 +311,48 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
         }
       }
 
+      // Trigger overlap: check each trigger-tagged object against player.
+      const pPos = playerRoot!.position;
+      const playerId = state.mainPlayerId ?? '__player__';
+      for (const [id, mesh] of meshById.entries()) {
+        const p = state.props[id];
+        if (!p || (!p.isTrigger && p.tag !== 'trigger')) continue;
+        // Respect collisionTargets: if list non-empty, only fire when player id is included.
+        if (p.collisionTargets.length && !p.collisionTargets.includes(playerId)) continue;
+        const box = new THREE.Box3().setFromObject(mesh);
+        const overlaps = box.containsPoint(pPos);
+        const was = insideTriggers.has(id);
+        if (overlaps && !was) { insideTriggers.add(id); runAction(p.onEnter); }
+        else if (!overlaps && was) { insideTriggers.delete(id); runAction(p.onExit); }
+      }
+
+      // Spatial audio: attenuate by distance from player.
+      for (const src of audioSources) {
+        if (!src.spatial) continue;
+        const d = src.obj.position.distanceTo(pPos);
+        let atten = 1;
+        if (d >= src.max) atten = 0;
+        else if (d > src.min) atten = 1 - (d - src.min) / (src.max - src.min);
+        src.el.volume = Math.max(0, Math.min(1, src.vol * atten));
+      }
+
+      // Timer countdown (Game Manager).
+      if (state.manager.startTimer > 0) {
+        hud.time = Math.max(0, hud.time - dt);
+        if (hud.time <= 0 && state.manager.loseOnTimeout) { hud.time = 0; }
+      }
+
+      // Push HUD state to DOM overlay.
+      const hudEl = (renderer.domElement.parentElement?.querySelector('[data-hud]') as HTMLElement | null);
+      if (hudEl) {
+        hudEl.innerHTML = [
+          `<div style="opacity:.9">${state.manager.title}</div>`,
+          `<div>HP: ${Math.round(hud.health)}/${hud.maxHealth}</div>`,
+          `<div>Score: ${hud.score}</div>`,
+          state.manager.startTimer > 0 ? `<div>Time: ${hud.time.toFixed(1)}s</div>` : '',
+        ].join('');
+      }
+
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
     };
@@ -278,6 +373,7 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       canvas.removeEventListener('click', lockClick);
       window.removeEventListener('resize', onResize);
       if (document.pointerLockElement === canvas) document.exitPointerLock();
+      audioSources.forEach((a) => { try { a.el.pause(); } catch {} });
       renderer.dispose();
       scene.traverse((n: any) => {
         if (n.geometry?.dispose) n.geometry.dispose();
@@ -294,6 +390,7 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       <div className="absolute top-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">
         WaltGame Preview — WASD move · Space jump · Shift run · Mouse look (click to lock) · Esc to exit
       </div>
+      <div data-hud className="absolute bottom-3 left-3 text-white text-xs bg-black/50 px-2 py-1 rounded font-mono leading-tight pointer-events-none" />
       <button
         onClick={onClose}
         className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded flex items-center gap-1 text-xs hover:bg-black/80"
