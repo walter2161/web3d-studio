@@ -45,6 +45,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
     additive: boolean;
     remove: boolean;
     painted: Set<string>; // for paint mode we accumulate hits as we move
+    disabledOC?: any; // exact OrbitControls instance to re-enable on finish
   }>(null);
 
   // ---- Cursor +/- feedback --------------------------------------------------
