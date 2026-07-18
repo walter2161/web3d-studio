@@ -121,11 +121,21 @@ export function MaxSpinner({
     return Number.isFinite(n) ? n : null;
   };
 
-  const commitBuffer = () => {
+  const commitBuffer = (deferred = false) => {
     const parsed = parseBuffer(buffer);
-    commit(parsed ?? value ?? 0);
+    const next = parsed ?? value ?? 0;
     setEditing(false);
+    // When commit is triggered by a blur caused by clicking somewhere else
+    // (e.g. the viewport canvas to deselect), defer the onChange to after the
+    // current click cycle. Otherwise the state update rerenders the R3F tree
+    // between mousedown and click, and the deselect (onPointerMissed) is lost.
+    if (deferred) {
+      setTimeout(() => commit(next), 0);
+    } else {
+      commit(next);
+    }
   };
+
 
   return (
     <div className={cn('flex items-center gap-1 text-[11px] leading-none', className)}>
