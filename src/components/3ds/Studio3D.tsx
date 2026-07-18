@@ -2598,9 +2598,12 @@ export const Studio3D = () => {
         window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'compound' } }));
         break;
       case 'Particle Systems':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'particles' } }));
+        break;
       case 'Helpers':
         setSidePanelTab('create');
-        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: action === 'Helpers' ? 'helpers' : 'systems' } }));
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'helpers' } }));
         break;
       case 'Lights':
         setSidePanelTab('create');
