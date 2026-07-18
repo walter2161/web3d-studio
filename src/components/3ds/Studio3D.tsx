@@ -2721,6 +2721,33 @@ export const Studio3D = () => {
     }
   };
 
+  // Global hotkey dispatcher. Reads the (persistent) hotkey map on every
+  // keydown and routes matches back through `handleMenuAction` so a chord
+  // press and a menu click take the exact same code path. Skipped when the
+  // user is typing inside a text input / textarea / contentEditable field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t) {
+        const tag = t.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable) {
+          return;
+        }
+      }
+      const cmd = commandForEvent(e);
+      if (!cmd) return;
+      e.preventDefault();
+      e.stopPropagation();
+      handleMenuAction(cmd);
+    };
+    window.addEventListener('keydown', onKey, { capture: true });
+    return () => window.removeEventListener('keydown', onKey, { capture: true } as any);
+    // handleMenuAction is redefined every render but only reads state via
+    // closures that are already stable within the component instance; we
+    // intentionally re-bind so the listener always sees the latest handler.
+  });
+
+
   return (
     <EnvironmentProvider>
     <RenderEngineProvider>
