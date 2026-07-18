@@ -2495,6 +2495,41 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
       </group>
     );
   }
+  // Attenuation gizmo rings (yellow spheres for omni, cone bases for spot/direct)
+  const AttenRings = ({ mode }: { mode: 'omni' | 'spot' | 'direct' }) => {
+    if (!isSelected) return null;
+    const rings: Array<{ r: number; color: string; z?: number }> = [];
+    if (ld.nearAttUse) {
+      rings.push({ r: Number(ld.nearAttStart ?? 0), color: '#b8ff5c' });
+      rings.push({ r: Number(ld.nearAttEnd ?? 0), color: '#7cff2b' });
+    }
+    if (ld.farAttUse) {
+      rings.push({ r: Number(ld.farAttStart ?? 0), color: '#ffcc00' });
+      rings.push({ r: Number(ld.farAttEnd ?? 0), color: '#ff8800' });
+    }
+    if (!rings.length) return null;
+    return (
+      <>
+        {rings.filter(r => r.r > 0.01).map((r, i) => (
+          mode === 'omni' ? (
+            <lineSegments key={i} userData={{ __helper: true }}>
+              <edgesGeometry args={[new THREE.SphereGeometry(r.r, 24, 12), 1]} />
+              <lineBasicMaterial color={r.color} transparent opacity={0.7} />
+            </lineSegments>
+          ) : (
+            // For spot/direct show as ring perpendicular to -Z at distance r
+            <group key={i} userData={{ __helper: true }} position={[0, 0, -r.r]} rotation={[Math.PI / 2, 0, 0]}>
+              <lineSegments>
+                <edgesGeometry args={[new THREE.RingGeometry(r.r * (mode === 'spot' ? Math.tan(spotAngleRad) : 0.5) * 0.98, r.r * (mode === 'spot' ? Math.tan(spotAngleRad) : 0.5), 24, 1), 1]} />
+                <lineBasicMaterial color={r.color} transparent opacity={0.85} />
+              </lineSegments>
+            </group>
+          )
+        ))}
+      </>
+    );
+  };
+
   if (t === 'light_omni') {
     return (
       <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
@@ -2502,9 +2537,9 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           ref={pointLightRef}
           color={object.color}
           intensity={omniIntensity}
-          distance={object.lightData?.distance ?? 0}
-          decay={object.lightData?.decay ?? 2}
-          castShadow={!!object.lightData?.castShadow}
+          distance={attenDistance}
+          decay={decay}
+          castShadow={!!ld.castShadow}
         />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <sphereGeometry args={[0.2, 10, 6]} />
@@ -2516,50 +2551,60 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
             <lineBasicMaterial color="#ffcc00" />
           </lineSegments>
         )}
+        <AttenRings mode="omni" />
       </group>
     );
   }
   if (t === 'light_spot') {
-    const angle = object.lightData?.angle ?? Math.PI / 6;
-    const dist = object.lightData?.distance ?? 10;
+    const dist = attenDistance || 10;
+    // Draw both hotspot cone and falloff cone
+    const hotRad = Math.min(spotAngleRad, (hotspotDeg * Math.PI) / 180);
     return (
       <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
-        {/* SpotLight in three.js emits down -Z; child target at (0,0,-1) does that automatically */}
         <spotLight
           ref={spotLightRef}
           color={object.color}
           intensity={spotIntensity}
           distance={dist}
-          angle={angle}
-          penumbra={object.lightData?.penumbra ?? 0.2}
-          decay={object.lightData?.decay ?? 2}
-          castShadow={!!object.lightData?.castShadow}
+          angle={spotAngleRad}
+          penumbra={spotPenumbra}
+          decay={decay}
+          castShadow={!!ld.castShadow}
           position={[0, 0, 0]}
+          map={projectorMap ?? undefined}
         />
         <object3D ref={spotTargetRef} position={[0, 0, -1]} />
-        {/* Cone helper points along -Z */}
+        {/* Falloff cone (outer, soft) */}
         <group userData={{ __helper: true }} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
           <mesh userData={{ __helper: true }}>
-            <coneGeometry args={[Math.tan(angle) * dist, dist, 12, 1, true]} />
-            <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.6} />
+            <coneGeometry args={[Math.tan(spotAngleRad) * dist, dist, 16, 1, true]} />
+            <meshBasicMaterial color={iconColor} wireframe transparent opacity={0.35} />
+          </mesh>
+        </group>
+        {/* Hotspot cone (inner, bright) */}
+        <group userData={{ __helper: true }} rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -dist / 2]}>
+          <mesh userData={{ __helper: true }}>
+            <coneGeometry args={[Math.tan(hotRad) * dist, dist, 16, 1, true]} />
+            <meshBasicMaterial color="#ffe066" wireframe transparent opacity={0.7} />
           </mesh>
         </group>
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <boxGeometry args={[0.3, 0.3, 0.5]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
+        <AttenRings mode="spot" />
       </group>
     );
   }
   if (t === 'light_direct') {
-    const dist = object.lightData?.distance ?? 20;
+    const dist = attenDistance || 20;
     return (
       <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
         <directionalLight
           ref={directLightRef}
           color={object.color}
           intensity={directIntensity}
-          castShadow={!!object.lightData?.castShadow}
+          castShadow={!!ld.castShadow}
           position={[0, 0, 0]}
         />
         <object3D ref={directTargetRef} position={[0, 0, -1]} />
@@ -2574,6 +2619,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           <boxGeometry args={[0.4, 0.4, 0.4]} />
           <meshBasicMaterial color={iconColor} />
         </mesh>
+        <AttenRings mode="direct" />
       </group>
     );
   }
