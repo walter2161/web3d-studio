@@ -858,27 +858,37 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       const extruded = applyExtrude(objectType, objectGeom, modifier.params || {});
       return extruded || geometry;
     }
+    if (modifier.type === 'Lathe') {
+      const lathed = applyLathe(objectType, objectGeom, modifier.params || {});
+      return lathed || geometry;
+    }
+    if (modifier.type === 'Bevel') {
+      const beveled = applyBevel(objectType, objectGeom, modifier.params || {});
+      return beveled || geometry;
+    }
     const newGeometry = geometry.clone();
 
     switch (modifier.type) {
-      case 'Bend':
-        return applyBend(newGeometry, modifier.params);
-      case 'Twist':
-        return applyTwist(newGeometry, modifier.params);
-      case 'Taper':
-        return applyTaper(newGeometry, modifier.params);
-      case 'Noise':
-        return applyNoise(newGeometry, modifier.params);
-      case 'TurboSmooth':
-        return applyTurboSmooth(newGeometry, modifier.params);
-      case 'Edit Poly':
-        return applyEditPoly(newGeometry, modifier.params);
-      case 'Edit Mesh':
-        return applyEditMesh(newGeometry, modifier.params);
-      case 'Shell':
-        return applyShell(newGeometry, modifier.params);
-      default:
-        return newGeometry;
+      case 'Bend':        return applyBend(newGeometry, modifier.params);
+      case 'Twist':       return applyTwist(newGeometry, modifier.params);
+      case 'Taper':       return applyTaper(newGeometry, modifier.params);
+      case 'Noise':       return applyNoise(newGeometry, modifier.params);
+      case 'Stretch':     return applyStretch(newGeometry, modifier.params);
+      case 'Skew':        return applySkew(newGeometry, modifier.params);
+      case 'FFD':         return applyFFD(newGeometry, modifier.params);
+      case 'Symmetry':    return applySymmetry(newGeometry, modifier.params);
+      case 'Mirror':      return applyMirror(newGeometry, modifier.params);
+      case 'Slice':       return applySlice(newGeometry, modifier.params);
+      case 'Skin':        return applySkin(newGeometry, modifier.params);
+      case 'UVW Map':     return applyUVWMap(newGeometry, modifier.params);
+      case 'Unwrap UVW':  return applyUnwrapUVW(newGeometry, modifier.params);
+      case 'MeshSmooth':  return applyMeshSmooth(newGeometry, modifier.params);
+      case 'WaltSculpt':  return applyWaltSculptMod(newGeometry, modifier.params);
+      case 'TurboSmooth': return applyTurboSmooth(newGeometry, modifier.params);
+      case 'Edit Poly':   return applyEditPoly(newGeometry, modifier.params);
+      case 'Edit Mesh':   return applyEditMesh(newGeometry, modifier.params);
+      case 'Shell':       return applyShell(newGeometry, modifier.params);
+      default:            return newGeometry;
     }
   }
 
