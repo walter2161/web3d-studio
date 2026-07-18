@@ -721,7 +721,10 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
         const endPos = startPos.clone().add(adjustedDir.clone().multiplyScalar(length));
 
         // Branch cylinder oriented along adjustedDir, pivot at base.
-        const branchGeo = new THREE.CylinderGeometry(radius * cfg.branchLoss, radius, length, 7, 1);
+        // Low-poly path: 5-sided open cylinder (no caps) — ~40% fewer tris than the round 7-side capped version.
+        const lowPoly = !!p.lowPoly;
+        const branchSides = lowPoly ? 5 : 7;
+        const branchGeo = new THREE.CylinderGeometry(radius * cfg.branchLoss, radius, length, branchSides, 1, lowPoly);
         branchGeo.translate(0, length / 2, 0);
         const q = new THREE.Quaternion().setFromUnitVectors(up, adjustedDir);
         branchGeo.applyQuaternion(q);
@@ -741,8 +744,15 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
             pos.y += (rand() - 0.5) * (length * 0.4);
             pos.z += (rand() - 0.5) * (length * 0.4);
             const sc = 0.7 + rand() * 0.6;
-            const leaf = new THREE.ConeGeometry(cfg.leafSize * sc, cfg.leafSize * 2.5 * sc, 3);
-            leaf.rotateX(Math.PI / 2);
+            // Low-poly leaves = flat species-shaped cards (2-6 tris each).
+            // Full-poly leaves = 3-side cone (~6 tris) as before.
+            const leaf = lowPoly
+              ? _leafCardFor(kind, cfg.leafSize * sc * 2)
+              : (() => {
+                  const c = new THREE.ConeGeometry(cfg.leafSize * sc, cfg.leafSize * 2.5 * sc, 3);
+                  c.rotateX(Math.PI / 2);
+                  return c;
+                })();
             const qe = new THREE.Quaternion().setFromEuler(new THREE.Euler(
               rand() * Math.PI, rand() * Math.PI, rand() * Math.PI,
             ));
@@ -751,6 +761,7 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
             parts.push({ g: leaf, c: cfg.leafColor });
           }
         }
+
 
         // Recurse.
         const nextDepth = depth + 1;
