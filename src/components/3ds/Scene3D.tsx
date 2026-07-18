@@ -281,6 +281,9 @@ export const Scene3D = ({
       {/* Print3D — red bounding box around objects outside the active build volume. */}
       <PrintBoundsOverlay objects={objects as any} />
 
+      {/* WaltGame — 2D billboarded icon at the center of each game entity. */}
+      <WaltGameIconOverlay objects={objects as any} />
+
       {/* Editable Spline sub-object overlay for the selected editable_spline. */}
       <EditableSplineOverlay selectedObject={selectedObjectData} />
 
