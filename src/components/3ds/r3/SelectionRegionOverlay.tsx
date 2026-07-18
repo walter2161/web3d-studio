@@ -250,6 +250,29 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
         onSelectObjects([], prev.additive, prev.remove);
         return;
       }
+
+      // Build a region-shape test function once so both sub-object and scene
+      // object pickers can share it.
+      const mode: 'replace' | 'add' | 'remove' = prev.remove ? 'remove' : prev.additive ? 'add' : 'replace';
+      const shape = buildShape(prev.kind, prev.start, p, prev.points, region.paintRadius);
+
+      // If a sub-object overlay (Editable Mesh, Editable Spline) is active,
+      // let it handle the marquee — we do NOT want to also pop the scene
+      // selection, otherwise the user's sub-object work would disappear.
+      if (hasActiveSubObjRegionPickers()) {
+        const handle = getViewportHandle(vkey);
+        if (handle) {
+          const rect = (handle.gl.domElement as HTMLCanvasElement).getBoundingClientRect();
+          const handled = runSubObjRegionPickers({
+            camera: handle.camera as any,
+            canvasRect: rect,
+            vkey,
+            shape: { contains: shape.contains, bounds: shape.bounds, mode },
+          });
+          if (handled) return;
+        }
+      }
+
       let ids: string[] = [];
       if (prev.kind === 'rect') {
         ids = pickByRect(prev.start, p, objects, vkey, region.windowCrossing);
@@ -264,6 +287,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       }
       onSelectObjects(ids, prev.additive, prev.remove);
     };
+
 
     const onUp = (e: PointerEvent) => finish(e, false);
     const onCancel = (e: PointerEvent) => finish(e, true);
