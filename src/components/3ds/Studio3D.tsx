@@ -405,7 +405,13 @@ export const Studio3D = () => {
         try {
           const stored = await loadModelBlob(obj.id);
           if (!stored) continue;
-          const model = await importFromBytes(stored.filename, stored.bytes);
+          let model;
+          if (stored.filename.toLowerCase().endsWith('.zip')) {
+            const { importZipBytes } = await import('./utils/zipImport');
+            model = (await importZipBytes(stored.filename, stored.bytes)).model;
+          } else {
+            model = await importFromBytes(stored.filename, stored.bytes);
+          }
           if (cancelled) return;
           setImportedModel(obj.id, model);
           rehydratedAny = true;
