@@ -147,16 +147,27 @@ export async function importZipBytes(zipName: string, zipBytes: ArrayBuffer): Pr
     if (url.startsWith('blob:') || url.startsWith('data:') || url.startsWith('http:') || url.startsWith('https:')) {
       return null;
     }
-    // Strip any leading "./" or "/".
-    let clean = url.replace(/^\.\//, '').replace(/^\/+/, '').toLowerCase();
-    // Some exporters percent-encode filenames.
+    // Normalize: backslashes → forward slashes, strip drive letters, "./", leading "/".
+    let clean = url.replace(/\\/g, '/').replace(/^[a-zA-Z]:\//, '').replace(/^\.\//, '').replace(/^\/+/, '').toLowerCase();
     try { clean = decodeURIComponent(clean); } catch { /* noop */ }
     if (urlMap.has(clean)) return urlMap.get(clean)!;
     const leaf = clean.split('/').pop()!;
     if (urlMap.has(leaf)) return urlMap.get(leaf)!;
+    // Try progressively deeper suffix matches (e.g. "textures/foo.png" inside "sub/textures/foo.png").
+    const parts = clean.split('/');
+    for (let i = 1; i < parts.length; i++) {
+      const suf = parts.slice(i).join('/');
+      if (urlMap.has(suf)) return urlMap.get(suf)!;
+    }
     return null;
   };
   manager.setURLModifier((requested) => {
+    // If a loader already prefixed a blob: URL with a path, strip and re-resolve by leaf.
+    if (requested.startsWith('blob:')) {
+      // Format: blob:http://origin/uuid/relative/path — three.js won't produce this,
+      // but some parsers concat resourcePath + relative. Leave as-is.
+      return requested;
+    }
     const resolved = resolveInArchive(requested);
     return resolved || requested;
   });
@@ -169,10 +180,13 @@ export async function importZipBytes(zipName: string, zipBytes: ArrayBuffer): Pr
   switch (mainExt) {
     case 'gltf': {
       const loader = new GLTFLoader(manager);
-      // Parse from text so LoadingManager handles the .bin/textures via setURLModifier.
+      // Parse with EMPTY path so relative URIs stay relative and route through
+      // the LoadingManager.setURLModifier resolver. If we pass mainBlobUrl as
+      // path, GLTFLoader prefixes it to every texture/bin URL and produces
+      // "blob:...texture.png" strings the resolver cannot match.
       const text = new TextDecoder().decode(mainBytes);
       const gltf = await new Promise<any>((res, rej) =>
-        loader.parse(text, mainBlobUrl.replace(/[^/]+$/, ''), res, rej),
+        loader.parse(text, '', res, rej),
       );
       loaded = { scene: gltf.scene, animations: gltf.animations || [] };
       break;
