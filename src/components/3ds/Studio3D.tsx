@@ -807,7 +807,6 @@ export const Studio3D = () => {
     // We normalise the tool key ("part_spray") → object type "particle_emitter",
     // stamping the emitter kind + defaults into `geometry`.
     if (typeof g.type === 'string' && g.type.startsWith('part_')) {
-      const { DEFAULT_PARTICLE_GEOM } = require('./particles/ParticleObject') as typeof import('./particles/ParticleObject');
       const kind = (g.geometry?.emitterKind ?? g.type.replace('part_', '')) as keyof typeof DEFAULT_PARTICLE_GEOM;
       const defaults = DEFAULT_PARTICLE_GEOM[kind];
       const geometry = {
