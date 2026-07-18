@@ -2982,6 +2982,11 @@ export const Studio3D = () => {
           return;
         }
       }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        setGamePreviewOpen((v) => !v);
+        return;
+      }
       const cmd = commandForEvent(e);
       if (!cmd) return;
       e.preventDefault();
