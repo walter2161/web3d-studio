@@ -342,7 +342,7 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems' | 'waltgame'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'waltgame' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -588,7 +588,6 @@ export const SidePanel = ({
     { id: 'helpers',  label: 'Helpers',     icon: Triangle },
     { id: 'warps',    label: 'Space Warps', icon: Waves },
     { id: 'systems',  label: 'Systems',     icon: Settings },
-    { id: 'waltgame', label: 'WaltGame',     icon: Gamepad2 },
   ] as const;
 
 
@@ -662,6 +661,7 @@ export const SidePanel = ({
                       : createCategory === 'foliage' ? 'foliage'
                       : createCategory === 'compound' ? 'compound'
                       : createCategory === 'particles' ? 'particles'
+                      : createCategory === 'waltgame' ? 'waltgame'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
@@ -675,6 +675,7 @@ export const SidePanel = ({
                 <option value="foliage">AEC Foliage</option>
                 <option value="compound">Compound Objects</option>
                 <option value="particles">Particle Systems</option>
+                <option value="waltgame">WaltGame</option>
               </select>
             )}
 
@@ -911,7 +912,7 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
-                {createCat === 'waltgame' && ([
+                {(createCat === 'waltgame' || (createCat === 'geometry' && createCategory === 'waltgame')) && ([
                   { kind: 'Player',        label: 'Player' },
                   { kind: 'Camera',        label: 'Camera' },
                   { kind: 'Collider',      label: 'Collider' },
