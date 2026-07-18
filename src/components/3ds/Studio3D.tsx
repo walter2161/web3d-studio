@@ -1747,6 +1747,18 @@ export const Studio3D = () => {
     return () => window.removeEventListener('waltgame:create', onWaltCreate as EventListener);
   }, [createObject]);
 
+  // WaltCad — mount CAD operations event handler. Listens for `waltcad:op`
+  // events (offset, mirror, array, explode, fillet, chamfer, etc.) and
+  // performs the geometry edits on the current selection.
+  useWaltCadOps({
+    objectsRef,
+    setObjects,
+    saveState,
+    selectedObjectId: selectedObject,
+    selectedObjectIds,
+    setSelectedObject,
+  });
+
 
 
 
