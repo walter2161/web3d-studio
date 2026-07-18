@@ -17,6 +17,7 @@ import { isHelperType } from './utils/helpers';
 import { BoneChainGizmo } from './r3/BoneChainGizmo';
 import { isBoneType } from './rig/bones';
 import { PrintBedObject } from './print3d/PrintBedObject';
+import { ParticleObject } from './particles/ParticleObject';
 import { EditableSpline } from './editable/EditableSpline';
 import { applyBakedSet, type BakedClipSet } from './timeline/channelTracks';
 
