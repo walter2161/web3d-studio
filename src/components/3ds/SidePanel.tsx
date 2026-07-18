@@ -588,6 +588,7 @@ export const SidePanel = ({
     { id: 'helpers',  label: 'Helpers',     icon: Triangle },
     { id: 'warps',    label: 'Space Warps', icon: Waves },
     { id: 'systems',  label: 'Systems',     icon: Settings },
+    { id: 'waltgame', label: 'WaltGame',     icon: Gamepad2 },
   ] as const;
 
 
