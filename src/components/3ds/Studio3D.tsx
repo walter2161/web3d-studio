@@ -1525,7 +1525,11 @@ export const Studio3D = () => {
     const onTransformStart = (e: Event) => {
       const id = (e as CustomEvent).detail?.objectId as string | undefined;
       if (!id || !objectsRef.current.some((obj) => obj.id === id)) return;
-      setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
+      // Capture the pre-transform snapshot immediately so subsequent
+      // onObjectChange -> setObjects updates during the drag cannot race
+      // with the functional updater and clobber the baseline.
+      const snapshot = objectsRef.current;
+      setUndoStack((stack) => [...stack.slice(-9), snapshot]);
       undoOrderRef.current.push('objects');
       setRedoStack([]);
       redoOrderRef.current = [];
