@@ -43,6 +43,8 @@ import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { WaltSculptPanel } from './waltsculpt/WaltSculptPanel';
 import { WaltSculptController } from './waltsculpt/WaltSculptController';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
+import { ContextMenuRoot, openContextMenu } from './ContextMenu';
+import { QuadMenu } from './QuadMenu';
 import { commandForEvent } from './prefs/hotkeysStore';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
 import { DEFAULT_PARTICLE_GEOM } from './particles/ParticleObject';
