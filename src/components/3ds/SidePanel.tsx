@@ -790,6 +790,29 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCat === 'geometry' && createCategory === 'particles' && [
+                  { type: 'part_spray',       label: 'Spray' },
+                  { type: 'part_snow',        label: 'Snow' },
+                  { type: 'part_super_spray', label: 'Super Spray' },
+                  { type: 'part_parray',      label: 'PArray' },
+                  { type: 'part_pcloud',      label: 'PCloud' },
+                  { type: 'part_blizzard',    label: 'Blizzard' },
+                ].map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      onClick={() => (onArmTool ? onArmTool(p.type as any) : onCreateObject(p.type as any))}
+                      title={pressed ? 'Armed — click & drag on the base plane (ESC)' : `Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
                 {createCat === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (
