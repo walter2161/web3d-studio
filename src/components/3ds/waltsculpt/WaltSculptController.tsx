@@ -3,10 +3,10 @@
  * pointer events on all registered viewport canvases, raycasts against the
  * target mesh, and applies the current brush every mousemove frame.
  *
- * Disables OrbitControls during drag so panning/orbiting doesn't fight the
- * brush stroke. Right-click / ALT still allows rotate to preserve navigation.
+ * Also renders a screen-space brush cursor (radius circle) so the user sees
+ * the brush footprint over the mesh.
  */
-import { useEffect, useSyncExternalStore, useRef } from 'react';
+import { useEffect, useSyncExternalStore, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { sculptStore } from './sculptStore';
 import { applyBrushSymmetric } from './brushes';
@@ -16,6 +16,7 @@ export const WaltSculptController = () => {
   const state = useSyncExternalStore(sculptStore.subscribe, sculptStore.getState);
   const strokingRef = useRef(false);
   const lastLocalRef = useRef<THREE.Vector3 | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number; r: number; visible: boolean } | null>(null);
 
   useEffect(() => {
     if (!state.active || !state.targetId) return;
@@ -106,10 +107,43 @@ export const WaltSculptController = () => {
         ev.preventDefault();
       };
       const onMove = (ev: PointerEvent) => {
+        // Update cursor overlay: project brush radius to screen pixels.
+        const rect = canvas.getBoundingClientRect();
+        // Raycast to find hover point and screen radius
+        const mouse = new THREE.Vector2(
+          ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+          -((ev.clientY - rect.top) / rect.height) * 2 + 1,
+        );
+        const rc = new THREE.Raycaster();
+        rc.setFromCamera(mouse, h.camera);
+        const mesh = findMesh(h.scene);
+        let screenR = state.radius * 40;
+        let visible = false;
+        if (mesh) {
+          const hits = rc.intersectObject(mesh, false);
+          if (hits.length) {
+            visible = true;
+            // Project a point at hit + radius offset in camera-right direction
+            const cam = h.camera as THREE.Camera;
+            const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize();
+            const p1 = hits[0].point.clone();
+            const p2 = p1.clone().add(right.multiplyScalar(state.radius));
+            const s1 = p1.clone().project(cam);
+            const s2 = p2.clone().project(cam);
+            screenR = Math.abs((s2.x - s1.x)) * rect.width * 0.5;
+          }
+        }
+        setCursor({
+          x: ev.clientX,
+          y: ev.clientY,
+          r: screenR,
+          visible,
+        });
         if (!strokingRef.current) return;
         doStroke(canvas, h.camera, h.scene, ev);
         ev.stopPropagation();
       };
+      const onLeave = () => setCursor(null);
       const onUp = (ev: PointerEvent) => {
         if (!strokingRef.current) return;
         strokingRef.current = false;
@@ -121,12 +155,14 @@ export const WaltSculptController = () => {
       canvas.addEventListener('pointermove', onMove, true);
       canvas.addEventListener('pointerup', onUp, true);
       canvas.addEventListener('pointercancel', onUp, true);
+      canvas.addEventListener('pointerleave', onLeave, true);
       canvas.style.cursor = 'crosshair';
       cleanups.push(() => {
         canvas.removeEventListener('pointerdown', onDown, true);
         canvas.removeEventListener('pointermove', onMove, true);
         canvas.removeEventListener('pointerup', onUp, true);
         canvas.removeEventListener('pointercancel', onUp, true);
+        canvas.removeEventListener('pointerleave', onLeave, true);
         canvas.style.cursor = '';
         if (h.controls) h.controls.enabled = true;
       });
@@ -135,5 +171,22 @@ export const WaltSculptController = () => {
   }, [state.active, state.targetId, state.brush, state.radius, state.strength,
       state.falloff, state.invert, state.symmetry, state.masks]);
 
-  return null;
+  if (!state.active || !cursor) return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: cursor.x - cursor.r,
+        top: cursor.y - cursor.r,
+        width: cursor.r * 2,
+        height: cursor.r * 2,
+        borderRadius: '50%',
+        border: `2px solid ${state.brush === 'mask' ? '#ff4444' : (state.invert ? '#44aaff' : '#ffdd00')}`,
+        boxShadow: '0 0 0 1px rgba(0,0,0,0.7) inset',
+        pointerEvents: 'none',
+        zIndex: 9999,
+        opacity: cursor.visible ? 1 : 0.4,
+      }}
+    />
+  );
 };
