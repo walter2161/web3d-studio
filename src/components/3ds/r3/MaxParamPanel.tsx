@@ -162,7 +162,7 @@ export function MaxSpinner({
               : raw.replace(/[^\d.,\-]/g, '').replace(/(?!^)-/g, '');
             setBuffer(filtered);
           }}
-          onBlur={commitBuffer}
+          onBlur={() => commitBuffer(true)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
