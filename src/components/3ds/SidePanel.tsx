@@ -14,6 +14,7 @@ import { RigHierarchyPanel } from './r3/RigHierarchyPanel';
 import { setSplineSel, getSplineSel, subscribeSplineSel } from './editable/splineSelStore';
 import type { SplineSubLevel } from './editable/EditableSpline';
 import { setModifierSub, GIZMO_MODIFIER_TYPES } from './r3/modifierSubStore';
+import { WaltCadPanel } from './waltcad/WaltCadPanel';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
