@@ -14,6 +14,7 @@ import { RigHierarchyPanel } from './r3/RigHierarchyPanel';
 import { setSplineSel, getSplineSel, subscribeSplineSel } from './editable/splineSelStore';
 import type { SplineSubLevel } from './editable/EditableSpline';
 import { setModifierSub, GIZMO_MODIFIER_TYPES } from './r3/modifierSubStore';
+import { WaltCadPanel } from './waltcad/WaltCadPanel';
 
 // -------- Geometry parameter schema (drives the Base object panel) --------
 type ParamKind = 'float' | 'int';
@@ -342,7 +343,7 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems' | 'waltgame'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'waltgame' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'waltgame' | 'waltcad' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -662,6 +663,7 @@ export const SidePanel = ({
                       : createCategory === 'compound' ? 'compound'
                       : createCategory === 'particles' ? 'particles'
                       : createCategory === 'waltgame' ? 'waltgame'
+                      : createCategory === 'waltcad' ? 'waltcad'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
@@ -676,6 +678,7 @@ export const SidePanel = ({
                 <option value="compound">Compound Objects</option>
                 <option value="particles">Particle Systems</option>
                 <option value="waltgame">WaltGame</option>
+                <option value="waltcad">WaltCad</option>
               </select>
             )}
 
@@ -935,6 +938,96 @@ export const SidePanel = ({
                     {p.label}
                   </button>
                 ))}
+
+                {/* -------- WaltCad — CAD tools (creation + editing) -------- */}
+                {(createCat === 'geometry' && createCategory === 'waltcad') && (() => {
+                  // Tools that reuse existing armable spline creation.
+                  const armed: Array<{ label: string; type: string }> = [
+                    { label: 'Line',      type: 'line' },
+                    { label: 'Polyline',  type: 'line' },
+                    { label: 'Rectangle', type: 'rectangle' },
+                    { label: 'Circle',    type: 'circle' },
+                    { label: 'Arc',       type: 'arc' },
+                    { label: 'Ellipse',   type: 'ellipse' },
+                    { label: 'NGon',      type: 'ngon' },
+                    { label: 'Star',      type: 'star' },
+                  ];
+                  // Editing / generator ops routed via `waltcad:op` events.
+                  const ops: Array<{ label: string; op: string; title?: string }> = [
+                    { label: 'Offset',   op: 'offset' },
+                    { label: 'Trim',     op: 'trim' },
+                    { label: 'Extend',   op: 'extend' },
+                    { label: 'Fillet',   op: 'fillet' },
+                    { label: 'Chamfer',  op: 'chamfer' },
+                    { label: 'Mirror',   op: 'mirror' },
+                    { label: 'Array',    op: 'array' },
+                    { label: 'Explode',  op: 'explode' },
+                    { label: 'Join',     op: 'join' },
+                    { label: 'Break',    op: 'break' },
+                    { label: 'Divide',   op: 'divide' },
+                    { label: 'Measure',  op: 'measure' },
+                    { label: 'Stretch',  op: 'stretch' },
+                    { label: 'Scale Ref',op: 'scale_ref' },
+                    { label: 'Align',    op: 'align' },
+                    { label: 'Hatch',    op: 'hatch' },
+                    { label: 'Dimension',op: 'dimension' },
+                    { label: 'Match Props', op: 'match_props' },
+                  ];
+                  // AEC generators reuse existing types.
+                  const aec: Array<{ label: string; type: string }> = [
+                    { label: 'Wall',   type: 'wall' },
+                    { label: 'Door',   type: 'door' },
+                    { label: 'Window', type: 'window' },
+                  ];
+                  return (
+                    <>
+                      {armed.map((p) => {
+                        const pressed = armedTool === p.type;
+                        return (
+                          <button
+                            key={`cad-${p.label}`}
+                            onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                            title={pressed ? 'Armed — click & drag in the viewport (ESC)' : `WaltCad — ${p.label}`}
+                            className={cn(
+                              'h-[22px] text-[11px] text-win-text px-1 truncate',
+                              pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                            )}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                      {ops.map((p) => (
+                        <button
+                          key={`cad-op-${p.op}-${p.label}`}
+                          onClick={() => window.dispatchEvent(new CustomEvent('waltcad:op', { detail: { op: p.op } }))}
+                          title={p.title || `WaltCad — ${p.label}`}
+                          className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                      {aec.map((p) => (
+                        <button
+                          key={`cad-aec-${p.type}`}
+                          onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                          title={`WaltCad — ${p.label}`}
+                          className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                      <button
+                        key="cad-generate-3d"
+                        onClick={() => window.dispatchEvent(new CustomEvent('waltcad:op', { detail: { op: 'generate_wall' } }))}
+                        title="WaltCad — Generate walls from selected spline"
+                        className="col-span-2 h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105 font-semibold"
+                      >
+                        Generate 3D (Walls)
+                      </button>
+                    </>
+                  );
+                })()}
                 {createCat === 'warps' && (
                   <div className="col-span-2 text-[10px] text-win-text-disabled px-1 pt-1 text-center italic">
                     Space Warps — Fase 2 (em breve)
@@ -944,6 +1037,9 @@ export const SidePanel = ({
 
               </div>
             </div>
+
+            {/* WaltCad — parameter rollouts (visible when WaltCad is the current geometry sub-category) */}
+            {createCat === 'geometry' && createCategory === 'waltcad' && <WaltCadPanel />}
 
             {/* Boolean / ProBoolean rollout — visible only when a compound tool is armed. */}
             {createCat === 'geometry' && createCategory === 'compound' && compoundState?.tool && (compoundState.tool === 'boolean' || compoundState.tool === 'proboolean') && (

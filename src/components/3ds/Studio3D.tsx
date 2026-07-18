@@ -58,6 +58,7 @@ import { getImportedModel } from './utils/modelImport';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { paramsToEditableSpline } from './editable/EditableSpline';
+import { useWaltCadOps } from './waltcad/useWaltCadOps';
 
 // 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
 const randomMaxColor = (): string => {
@@ -1745,6 +1746,18 @@ export const Studio3D = () => {
     window.addEventListener('waltgame:create', onWaltCreate as EventListener);
     return () => window.removeEventListener('waltgame:create', onWaltCreate as EventListener);
   }, [createObject]);
+
+  // WaltCad — mount CAD operations event handler. Listens for `waltcad:op`
+  // events (offset, mirror, array, explode, fillet, chamfer, etc.) and
+  // performs the geometry edits on the current selection.
+  useWaltCadOps({
+    objectsRef,
+    setObjects,
+    saveState,
+    selectedObjectId: selectedObject,
+    selectedObjectIds,
+    setSelectedObject,
+  });
 
 
 
