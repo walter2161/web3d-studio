@@ -802,6 +802,40 @@ export const Studio3D = () => {
       return;
     }
 
+    // Particle emitters — Spray / Snow / Super Spray / PArray / PCloud / Blizzard.
+    // We normalise the tool key ("part_spray") → object type "particle_emitter",
+    // stamping the emitter kind + defaults into `geometry`.
+    if (typeof g.type === 'string' && g.type.startsWith('part_')) {
+      const { DEFAULT_PARTICLE_GEOM } = require('./particles/ParticleObject') as typeof import('./particles/ParticleObject');
+      const kind = (g.geometry?.emitterKind ?? g.type.replace('part_', '')) as keyof typeof DEFAULT_PARTICLE_GEOM;
+      const defaults = DEFAULT_PARTICLE_GEOM[kind];
+      const geometry = {
+        ...defaults,
+        width: Math.max(0.2, g.geometry?.width ?? defaults.width),
+        length: Math.max(0.2, g.geometry?.length ?? defaults.length),
+      };
+      const newEmitter: Object3DData = {
+        id,
+        name: `${kind}_${objects.filter((o) => o.type === 'particle_emitter').length + 1}`,
+        type: 'particle_emitter' as any,
+        position: g.position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: defaults.color,
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry,
+        ref: { current: null } as any,
+      };
+      setObjects((prev) => [...prev, newEmitter]);
+      setSelectedObject(id);
+      setSidePanelTab('modify');
+      toast.success(`${kind} emitter created`);
+      return;
+    }
+
+
 
     // ---- Magnetic wall snap for doors & windows ----
     // If a wall is within reach, align the object to its segment (position on
