@@ -405,7 +405,13 @@ export const Studio3D = () => {
         try {
           const stored = await loadModelBlob(obj.id);
           if (!stored) continue;
-          const model = await importFromBytes(stored.filename, stored.bytes);
+          let model;
+          if (stored.filename.toLowerCase().endsWith('.zip')) {
+            const { importZipBytes } = await import('./utils/zipImport');
+            model = (await importZipBytes(stored.filename, stored.bytes)).model;
+          } else {
+            model = await importFromBytes(stored.filename, stored.bytes);
+          }
           if (cancelled) return;
           setImportedModel(obj.id, model);
           rehydratedAny = true;
@@ -1991,6 +1997,49 @@ export const Studio3D = () => {
 
   const importModel = useCallback(async (file: File) => {
     const nameLc = file.name.toLowerCase();
+
+    // ZIP archive (Sketchfab-style bundle: model + textures + companion files).
+    if (nameLc.endsWith('.zip')) {
+      const loadingId = toast.loading(`Extraindo ${file.name}...`);
+      try {
+        const { importZipArchive } = await import('./utils/zipImport');
+        const { setImportedModel } = await import('./utils/modelImport');
+        const { saveModelBlob } = await import('./utils/modelStorage');
+        const { model, bytes, filename } = await importZipArchive(file);
+        const id = `imported_${Date.now()}`;
+        setImportedModel(id, model);
+        try { await saveModelBlob(id, file.name, bytes); } catch (e) { console.warn(e); }
+        saveState();
+        const baseName = file.name.replace(/\.[^.]+$/, '');
+        setObjects((prev) => [...prev, {
+          id,
+          name: baseName,
+          type: 'imported',
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          color: '#9ca3af',
+          visible: true,
+          locked: false,
+          modifiers: [],
+          ref: { current: null } as any,
+          // Persist BOTH the archive name and the main model inside so
+          // rehydration can pick the right loader after refresh.
+          geometry: { __importedFilename: file.name, __zipMainFile: filename },
+        }]);
+        setSelectedObject(id);
+        toast.dismiss(loadingId);
+        const animMsg = model.animations.length > 0
+          ? ` (${model.animations.length} animação${model.animations.length > 1 ? 'ões' : ''})`
+          : '';
+        toast.success(`Importado do ZIP: ${filename}${animMsg}`);
+      } catch (err: any) {
+        toast.dismiss(loadingId);
+        console.error('ZIP import failed:', err);
+        toast.error(`ZIP falhou: ${err?.message || 'erro desconhecido'}`);
+      }
+      return;
+    }
 
     // DXF (native text) and DWG (binary, converted via LibreDWG WASM) both
     // produce parametric Wall objects from LINE / POLYLINE entities.
