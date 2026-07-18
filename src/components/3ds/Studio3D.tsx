@@ -243,6 +243,8 @@ export const Studio3D = () => {
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
   const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [waltSculptOpen, setWaltSculptOpen] = useState(false);
+  const [waltGameOpen, setWaltGameOpen] = useState(false);
+  const [gamePreviewOpen, setGamePreviewOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
