@@ -2698,6 +2698,9 @@ export const Studio3D = () => {
       case 'Preferences...':
         setPreferencesOpen(true);
         break;
+      case 'MapTools...':
+        setMapToolsOpen(true);
+        break;
 
       // MAXScript.
       case 'New Script':
