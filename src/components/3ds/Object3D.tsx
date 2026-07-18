@@ -804,7 +804,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
     }
     return geometry;
-  }, [object.id, object.type, object.geometry, object.modifiers]);
+  }, [object.id, object.type, object.geometry, object.modifiers, fontRevision]);
 
   /**
    * Visible segment rings for an active Extrude modifier. Produces `segments+1`
@@ -1182,6 +1182,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         geom.size ?? 1,
         geom.kerning ?? 0,
         geom.curveSegments ?? 6,
+        !!geom.italic,
       );
       if (!shapes.length) return null;
       const amount = params.amount ?? 0.2;
