@@ -191,6 +191,22 @@
   .panel-scroll::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--win-face-2));
   }
+
+  /* Command Panel section spacing: exact compact 3ds Max-style 10px inset.
+     This fixes shadcn CardHeader/CardContent defaults (p-6 = 24px) inside the sidebar. */
+  .r3-command-panel .bg-card.border-panel-border > div:first-child {
+    padding: 10px 10px 6px 10px !important;
+  }
+
+  .r3-command-panel .bg-card.border-panel-border > div:first-child h3 {
+    font-size: 11px !important;
+    line-height: 14px !important;
+    letter-spacing: 0 !important;
+  }
+
+  .r3-command-panel .bg-card.border-panel-border > div:nth-child(2) {
+    padding: 0 10px 10px 10px !important;
+  }
 }
 
 /* =====================================================
