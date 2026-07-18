@@ -22,6 +22,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import * as THREE from 'three';
 import { getRegionState, subscribeRegion } from './selectionRegionStore';
 import { getViewportHandle } from './viewportRegistry';
+import { hasActiveSubObjRegionPickers, runSubObjRegionPickers } from './subObjRegionRegistry';
+
 
 type Pt = { x: number; y: number };
 
