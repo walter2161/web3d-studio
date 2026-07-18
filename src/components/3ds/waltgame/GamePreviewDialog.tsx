@@ -373,6 +373,7 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       canvas.removeEventListener('click', lockClick);
       window.removeEventListener('resize', onResize);
       if (document.pointerLockElement === canvas) document.exitPointerLock();
+      audioSources.forEach((a) => { try { a.el.pause(); } catch {} });
       renderer.dispose();
       scene.traverse((n: any) => {
         if (n.geometry?.dispose) n.geometry.dispose();
