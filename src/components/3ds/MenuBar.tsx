@@ -34,7 +34,7 @@ const menuItems: { label: string; access: string; items: MenuEntry[] }[] = [
   { label: 'Group', access: 'G', items: ['Group', 'Ungroup', 'Open', 'Close', 'Attach', 'Detach', 'Explode'] },
   { label: 'Views', access: 'V', items: ['Perspective', 'Top', 'Front', 'Left', 'sep', 'Layout: Single', 'Layout: Quad (3 Wire + Persp)', 'Layout: 2 Cols — Top (Wire) + Persp', 'Layout: 2 Cols — Front (Wire) + Persp', 'Layout: 2 Cols — Left (Wire) + Persp', 'Layout: 2 Rows — Top (Wire) + Persp', 'sep', 'Viewport Configuration...', 'Show Grid', 'Show Statistics', 'sep', 'Update During Spinner Drag'] },
   { label: 'Create', access: 'C', items: ['Standard Primitives', 'Extended Primitives', 'AEC Objects', 'Compound Objects', 'Particle Systems', 'sep', 'Lights', 'Cameras', 'Helpers'] },
-  { label: 'Modifiers', access: 'M', items: ['Selection Modifiers', 'Parametric Deformers', 'Free Form Deformers', 'sep', 'Edit Poly', 'Edit Mesh', 'Bend', 'Twist', 'Taper', 'Noise', 'TurboSmooth'] },
+  { label: 'Modifiers', access: 'M', items: ['Selection Modifiers', 'Parametric Deformers', 'Free Form Deformers', 'sep', 'Edit Poly', 'Edit Mesh', 'Bend', 'Twist', 'Taper', 'Noise', 'TurboSmooth', 'sep', 'WaltSculpt...'] },
   { label: 'Character', access: 'H', items: ['Create Character', 'Insert Character...', 'Save Character...', 'sep', 'Bone Tools...', 'IK Solvers'] },
   { label: 'Animation', access: 'A', items: ['Set Key', 'Auto Key', 'sep', 'Track View', 'Curve Editor', 'sep', 'Position Constraint', 'LookAt Constraint'] },
   { label: 'Graph Editors', access: 'D', items: ['Track View - Curve Editor', 'Track View - Dope Sheet', 'sep', 'Schematic View'] },
