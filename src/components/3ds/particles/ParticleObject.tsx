@@ -268,13 +268,15 @@ export const ParticleObject = ({ data, currentFrame, selected, onSelect }: Parti
       {/* Particle cloud. Points for dot/facing/tri (single draw call, very
           cheap); instanced spheres for the 'sphere' visual. */}
       {geom.particleShape !== 'sphere' && (
-        <points ref={pointsRef} geometry={bufferGeom} frustumCulled={false}>
+        <points key={geom.particleShape} ref={pointsRef} geometry={bufferGeom} frustumCulled={false}>
           <pointsMaterial
             size={Math.max(0.5, geom.size * 40)}
             sizeAttenuation
             vertexColors
             transparent
             depthWrite={false}
+            map={shapeTexture}
+            alphaTest={0.2}
           />
         </points>
       )}
