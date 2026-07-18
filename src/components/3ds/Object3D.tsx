@@ -17,6 +17,7 @@ import { isHelperType } from './utils/helpers';
 import { BoneChainGizmo } from './r3/BoneChainGizmo';
 import { isBoneType } from './rig/bones';
 import { PrintBedObject } from './print3d/PrintBedObject';
+import { ParticleObject } from './particles/ParticleObject';
 import { EditableSpline } from './editable/EditableSpline';
 import { applyBakedSet, type BakedClipSet } from './timeline/channelTracks';
 
@@ -1594,6 +1595,29 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         scale={object.scale}
       >
         <PrintBedObject data={object.geometry as any} selected={isSelected} onSelect={onSelect} />
+      </group>
+    );
+  }
+
+  // Particle emitter — Spray / Snow / Super Spray / PArray / PCloud / Blizzard.
+  // Ghosts during drag also route here so the user sees the emission surface
+  // being sized in real time.
+  if (object.type === 'particle_emitter' || (typeof object.type === 'string' && object.type.startsWith('part_'))) {
+    return (
+      <group
+        ref={meshRef as any}
+        userData={{ objectId: object.id }}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      >
+        <ParticleObject
+          data={object.geometry as any}
+          currentFrame={currentFrame}
+          selected={isSelected}
+          onSelect={onSelect}
+        />
       </group>
     );
   }

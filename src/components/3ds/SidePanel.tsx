@@ -341,7 +341,7 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -656,6 +656,7 @@ export const SidePanel = ({
                       : createCategory === 'aec' ? 'aec'
                       : createCategory === 'foliage' ? 'foliage'
                       : createCategory === 'compound' ? 'compound'
+                      : createCategory === 'particles' ? 'particles'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
@@ -668,6 +669,7 @@ export const SidePanel = ({
                 <option value="aec">AEC Extended</option>
                 <option value="foliage">AEC Foliage</option>
                 <option value="compound">Compound Objects</option>
+                <option value="particles">Particle Systems</option>
               </select>
             )}
 
@@ -785,6 +787,29 @@ export const SidePanel = ({
                       )}
                     >
                       {t.label}
+                    </button>
+                  );
+                })}
+                {createCat === 'geometry' && createCategory === 'particles' && [
+                  { type: 'part_spray',       label: 'Spray' },
+                  { type: 'part_snow',        label: 'Snow' },
+                  { type: 'part_super_spray', label: 'Super Spray' },
+                  { type: 'part_parray',      label: 'PArray' },
+                  { type: 'part_pcloud',      label: 'PCloud' },
+                  { type: 'part_blizzard',    label: 'Blizzard' },
+                ].map((p) => {
+                  const pressed = armedTool === p.type;
+                  return (
+                    <button
+                      key={p.type}
+                      onClick={() => (onArmTool ? onArmTool(p.type as any) : onCreateObject(p.type as any))}
+                      title={pressed ? 'Armed — click & drag on the base plane (ESC)' : `Create ${p.label}`}
+                      className={cn(
+                        'h-[22px] text-[11px] text-win-text px-1 truncate',
+                        pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                      )}
+                    >
+                      {p.label}
                     </button>
                   );
                 })}
@@ -1404,6 +1429,19 @@ export const SidePanel = ({
                     onUpdateCameraData={(patch) => onUpdateObjectCameraData?.(selectedObject.id, patch)}
                   />
                 )}
+
+                {/* Particle Emitter Parameters — Spray/Snow/Super Spray/PArray/PCloud/Blizzard */}
+                {selectedObject.type === 'particle_emitter' && (
+                  <ParticleParameters
+                    object={selectedObject}
+                    onUpdateGeom={(patch) => onUpdateObjectGeometry(selectedObject.id, patch)}
+                  />
+                )}
+
+
+
+
+
 
 
 
@@ -2629,3 +2667,72 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
     </>
   );
 };
+
+// -----------------------------------------------------------------------------
+// Particle Emitter Parameters — 3ds Max-style rollouts for particle systems.
+// Shows Basic / Emission / Motion / Particle rollouts and mirrors the values
+// stored in `object.geometry`. Every field routes through `onUpdateGeom`,
+// which shallow-merges into the emitter's geometry blob in Studio3D.
+// -----------------------------------------------------------------------------
+const ParticleParameters = ({ object, onUpdateGeom }: {
+  object: any;
+  onUpdateGeom: (patch: any) => void;
+}) => {
+  const g = (object.geometry || {}) as any;
+  return (
+    <>
+      <MaxRollout title="Basic Parameters" className="mt-2">
+        <div className="space-y-[3px]">
+          <MaxSpinner label="Width"  value={g.width  ?? 2} step={0.1} min={0.1} onChange={(v) => onUpdateGeom({ width: v })} />
+          <MaxSpinner label="Length" value={g.length ?? 2} step={0.1} min={0.1} onChange={(v) => onUpdateGeom({ length: v })} />
+          <MaxSpinner label="Seed"   value={g.seed ?? 12345} step={1} min={0} isInt onChange={(v) => onUpdateGeom({ seed: v })} />
+        </div>
+      </MaxRollout>
+      <MaxRollout title="Emission" className="mt-2">
+        <div className="space-y-[3px]">
+          <MaxSpinner label="Count"        value={g.count ?? 200}    step={10}  min={0} isInt onChange={(v) => onUpdateGeom({ count: v })} />
+          <MaxSpinner label="Emit Rate"    value={g.emitRate ?? 5}   step={1}   min={0} onChange={(v) => onUpdateGeom({ emitRate: v })} />
+          <MaxSpinner label="Start Frame"  value={g.startFrame ?? 0} step={1}   isInt onChange={(v) => onUpdateGeom({ startFrame: v })} />
+          <MaxSpinner label="Stop Frame"   value={g.stopFrame ?? 100} step={1}  isInt onChange={(v) => onUpdateGeom({ stopFrame: v })} />
+          <MaxSpinner label="Life"         value={g.life ?? 60}      step={1}   min={1} isInt onChange={(v) => onUpdateGeom({ life: v })} />
+        </div>
+      </MaxRollout>
+      <MaxRollout title="Motion" className="mt-2">
+        <div className="space-y-[3px]">
+          <MaxSpinner label="Speed"     value={g.speed ?? 0.15}         step={0.01} min={0} onChange={(v) => onUpdateGeom({ speed: v })} />
+          <MaxSpinner label="Variation" value={g.speedVariation ?? 0.2} step={0.05} min={0} max={1} onChange={(v) => onUpdateGeom({ speedVariation: v })} />
+          <MaxSpinner label="Spread°"   value={g.spread ?? 15}          step={1}    min={0} max={180} onChange={(v) => onUpdateGeom({ spread: v })} />
+          <MaxSpinner label="Gravity"   value={g.gravity ?? 0.005}      step={0.001} onChange={(v) => onUpdateGeom({ gravity: v })} />
+          <MaxSpinner label="Wind X"    value={(g.wind || [0,0,0])[0]} step={0.001} onChange={(v) => onUpdateGeom({ wind: [v, (g.wind || [0,0,0])[1], (g.wind || [0,0,0])[2]] })} />
+          <MaxSpinner label="Wind Z"    value={(g.wind || [0,0,0])[2]} step={0.001} onChange={(v) => onUpdateGeom({ wind: [(g.wind || [0,0,0])[0], (g.wind || [0,0,0])[1], v] })} />
+        </div>
+      </MaxRollout>
+      <MaxRollout title="Particle" className="mt-2">
+        <div className="space-y-[3px]">
+          <MaxSpinner label="Size" value={g.size ?? 0.08} step={0.01} min={0.001} onChange={(v) => onUpdateGeom({ size: v })} />
+          <MaxSelect
+            label="Shape"
+            value={g.particleShape ?? 'dot'}
+            options={[
+              { value: 'dot',    label: 'Dot' },
+              { value: 'tri',    label: 'Triangle' },
+              { value: 'facing', label: 'Facing' },
+              { value: 'sphere', label: 'Sphere' },
+            ]}
+            onChange={(v) => onUpdateGeom({ particleShape: v })}
+          />
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] text-win-text">Color</label>
+            <input
+              type="color"
+              value={g.color ?? '#ffffff'}
+              onChange={(e) => onUpdateGeom({ color: e.target.value })}
+              className="h-[16px] w-[40px] bevel-sunken"
+            />
+          </div>
+        </div>
+      </MaxRollout>
+    </>
+  );
+};
+

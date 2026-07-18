@@ -39,6 +39,7 @@ import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
+import { DEFAULT_PARTICLE_GEOM } from './particles/ParticleObject';
 import { HELPER_DEFAULTS } from './utils/helpers';
 import { getImportedModel } from './utils/modelImport';
 import { useAuth } from '@/contexts/AuthContext';
@@ -69,6 +70,7 @@ interface Object3DData {
     | 'helper'
     | 'bone_chain'
     | 'print_bed'
+    | 'particle_emitter'
     | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
     | 'camera_target' | 'camera_free' | 'target_helper';
 
@@ -800,6 +802,39 @@ export const Studio3D = () => {
       toast.success('Print Bed created');
       return;
     }
+
+    // Particle emitters — Spray / Snow / Super Spray / PArray / PCloud / Blizzard.
+    // We normalise the tool key ("part_spray") → object type "particle_emitter",
+    // stamping the emitter kind + defaults into `geometry`.
+    if (typeof g.type === 'string' && g.type.startsWith('part_')) {
+      const kind = (g.geometry?.emitterKind ?? g.type.replace('part_', '')) as keyof typeof DEFAULT_PARTICLE_GEOM;
+      const defaults = DEFAULT_PARTICLE_GEOM[kind];
+      const geometry = {
+        ...defaults,
+        width: Math.max(0.2, g.geometry?.width ?? defaults.width),
+        length: Math.max(0.2, g.geometry?.length ?? defaults.length),
+      };
+      const newEmitter: Object3DData = {
+        id,
+        name: `${kind}_${objects.filter((o) => o.type === 'particle_emitter').length + 1}`,
+        type: 'particle_emitter' as any,
+        position: g.position,
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        color: defaults.color,
+        visible: true,
+        locked: false,
+        modifiers: [],
+        geometry,
+        ref: { current: null } as any,
+      };
+      setObjects((prev) => [...prev, newEmitter]);
+      setSelectedObject(id);
+      setSidePanelTab('modify');
+      toast.success(`${kind} emitter created`);
+      return;
+    }
+
 
 
     // ---- Magnetic wall snap for doors & windows ----
@@ -2563,9 +2598,12 @@ export const Studio3D = () => {
         window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'compound' } }));
         break;
       case 'Particle Systems':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'particles' } }));
+        break;
       case 'Helpers':
         setSidePanelTab('create');
-        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: action === 'Helpers' ? 'helpers' : 'systems' } }));
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'helpers' } }));
         break;
       case 'Lights':
         setSidePanelTab('create');
