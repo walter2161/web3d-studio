@@ -542,6 +542,23 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const native = e?.nativeEvent ?? e;
     onSelect(!!(e?.ctrlKey || e?.metaKey || native?.ctrlKey || native?.metaKey), !!(e?.altKey || native?.altKey));
   };
+  const openObjectQuadMenu = (e: any) => {
+    const native = e?.nativeEvent ?? e;
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    native?.preventDefault?.();
+    native?.stopPropagation?.();
+    native?.stopImmediatePropagation?.();
+    (window as any).__r3LastObjectContextMenuAt = performance.now();
+    if (!isSelected) selectFromEvent(e);
+    window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
+      detail: {
+        x: native?.clientX ?? e?.clientX ?? 0,
+        y: native?.clientY ?? e?.clientY ?? 0,
+        objectId: object.id,
+      },
+    }));
+  };
 
   // Modify-panel gate: Edit Mesh / Edit Poly sub-object overlay only appears
   // when the user is on the Modify panel (matches 3ds Max behavior).
@@ -2061,6 +2078,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
+        onContextMenu={openObjectQuadMenu}
         onClick={(e) => {
           e.stopPropagation();
           selectFromEvent(e);
@@ -2089,6 +2107,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
+        onContextMenu={ghostH ? undefined : openObjectQuadMenu}
         onClick={ghostH ? undefined : (e) => { e.stopPropagation(); selectFromEvent(e); }}
       >
         <HelperGizmo data={object.geometry} selected={isSelected} ghost={ghostH} />
@@ -2110,6 +2129,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
+        onContextMenu={ghostB ? undefined : openObjectQuadMenu}
       >
         {/* No invisible pick-proxy here: it would compete with joint spheres
             for pointer events and cause the whole chain to select whenever
@@ -2129,6 +2149,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
+        onContextMenu={openObjectQuadMenu}
       >
         <PrintBedObject data={object.geometry as any} selected={isSelected} onSelect={onSelect} />
       </group>
@@ -2146,7 +2167,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         position={object.position}
         rotation={object.rotation}
         scale={object.scale}
-        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        onContextMenu={openObjectQuadMenu}
+        onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}
       >
         <ParticleObject
           data={object.geometry as any}
@@ -2201,6 +2223,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         e.stopPropagation();
         selectFromEvent(e);
       }}
+      onContextMenu={isGhost ? undefined : openObjectQuadMenu}
       onPointerUp={isGhost ? undefined : (e) => {
         const payload = (window as any).__matDragPayload;
         if (payload) {
@@ -2379,6 +2402,23 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     const native = e?.nativeEvent ?? e;
     onSelect(!!(e?.ctrlKey || e?.metaKey || native?.ctrlKey || native?.metaKey), !!(e?.altKey || native?.altKey));
   };
+  const openObjectQuadMenu = (e: any) => {
+    const native = e?.nativeEvent ?? e;
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+    native?.preventDefault?.();
+    native?.stopPropagation?.();
+    native?.stopImmediatePropagation?.();
+    (window as any).__r3LastObjectContextMenuAt = performance.now();
+    if (!isSelected) selectFromEvent(e);
+    window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
+      detail: {
+        x: native?.clientX ?? e?.clientX ?? 0,
+        y: native?.clientY ?? e?.clientY ?? 0,
+        objectId: object.id,
+      },
+    }));
+  };
   const pointLightRef = useRef<THREE.PointLight>(null);
   const spotLightRef = useRef<THREE.SpotLight>(null);
   const spotTargetRef = useRef<THREE.Object3D>(null);
@@ -2489,7 +2529,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   // Ambient / Skylight are non-directional and don't need helpers beyond an icon.
   if (t === 'light_ambient') {
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} onContextMenu={openObjectQuadMenu}>
         <ambientLight color={object.color} intensity={ambientIntensity} />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <sphereGeometry args={[0.25, 8, 6]} />
@@ -2500,7 +2540,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   }
   if (t === 'light_skylight') {
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} onContextMenu={openObjectQuadMenu}>
         <hemisphereLight
           color={object.lightData?.skyColor || object.color}
           groundColor={object.lightData?.groundColor || '#404040'}
@@ -2550,7 +2590,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
 
   if (t === 'light_omni') {
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} onContextMenu={openObjectQuadMenu}>
         <pointLight
           ref={pointLightRef}
           color={object.color}
@@ -2578,7 +2618,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     // Draw both hotspot cone and falloff cone
     const hotRad = Math.min(spotAngleRad, (hotspotDeg * Math.PI) / 180);
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation} onContextMenu={openObjectQuadMenu}>
         <spotLight
           ref={spotLightRef}
           color={object.color}
@@ -2617,7 +2657,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
   if (t === 'light_direct') {
     const dist = attenDistance || 20;
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation} onContextMenu={openObjectQuadMenu}>
         <directionalLight
           ref={directLightRef}
           color={object.color}
@@ -2659,7 +2699,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     const showCone = object.cameraData?.showCone !== false;
     // Build a small camera-shaped helper (body only), fully wireframe.
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} rotation={targetId ? undefined : object.rotation} onContextMenu={openObjectQuadMenu}>
         <perspectiveCamera args={[fov, 1, near, far]} name={`__cam_${object.id}`} />
         {/* Body (wireframe) — pickable box */}
         <mesh userData={{ __helper: true }} position={[0, 0, 0.4]} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
@@ -2700,7 +2740,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
 
   if (t === 'target_helper') {
     return (
-      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position}>
+      <group ref={groupRef} userData={{ objectId: object.id }} position={object.position} onContextMenu={openObjectQuadMenu}>
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <boxGeometry args={[0.25, 0.25, 0.25]} />
           <meshBasicMaterial color={iconColor} wireframe />
