@@ -69,6 +69,7 @@ interface Object3DData {
     | 'helper'
     | 'bone_chain'
     | 'print_bed'
+    | 'particle_emitter'
     | 'light_omni' | 'light_spot' | 'light_direct' | 'light_skylight' | 'light_ambient'
     | 'camera_target' | 'camera_free' | 'target_helper';
 
