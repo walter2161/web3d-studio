@@ -2502,6 +2502,178 @@ export const Studio3D = () => {
       case 'Layout: 2 Cols — Front (Wire) + Persp': setViewportLayout('2col-front-persp'); break;
       case 'Layout: 2 Cols — Left (Wire) + Persp': setViewportLayout('2col-left-persp'); break;
       case 'Layout: 2 Rows — Top (Wire) + Persp': setViewportLayout('2row-top-persp'); break;
+
+      // Edit — menu-click versions of shortcuts already covered by keyboard.
+      case 'Undo': undo(); break;
+      case 'Redo': redo(); break;
+      case 'Delete': handleDeleteSelected(); break;
+      case 'Clone': {
+        const sel = objects.find((o) => o.id === selectedObject);
+        if (!sel) { toast.error('Select an object first'); break; }
+        saveState();
+        const c: Object3DData = {
+          ...sel,
+          id: `${sel.type}_${Date.now()}`,
+          name: `${sel.name || sel.type}_copy`,
+          position: [sel.position[0] + 1, sel.position[1], sel.position[2] + 1],
+          ref: { current: null } as any,
+        };
+        setObjects((prev) => [...prev, c]);
+        setSelectedObject(c.id);
+        toast.success('Cloned');
+        break;
+      }
+
+      // Views — toggles + configuration.
+      case 'Show Grid':
+        setViewOpts((v) => ({ ...v, showGrid: !v.showGrid }));
+        toast.info(`Grid ${!viewOpts.showGrid ? 'on' : 'off'}`);
+        break;
+      case 'Show Statistics':
+        setViewOpts((v) => {
+          (window as any).__showStatistics = !v.showStatistics;
+          return { ...v, showStatistics: !v.showStatistics };
+        });
+        break;
+      case 'Update During Spinner Drag':
+        setViewOpts((v) => {
+          (window as any).__updateDuringSpinnerDrag = !v.updateDuringSpinnerDrag;
+          return { ...v, updateDuringSpinnerDrag: !v.updateDuringSpinnerDrag };
+        });
+        break;
+      case 'Viewport Configuration...': setSnapSettingsOpen(true); break;
+
+      // Create — switch Create tab + category (SidePanel listens on the
+      // r3-sidepanel-set-category event bus we added).
+      case 'Standard Primitives':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'standard' } }));
+        break;
+      case 'Extended Primitives':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'extended' } }));
+        break;
+      case 'AEC Objects':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'aec' } }));
+        break;
+      case 'Compound Objects':
+      case 'Compound':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'geometry', createCategory: 'compound' } }));
+        break;
+      case 'Particle Systems':
+      case 'Helpers':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: action === 'Helpers' ? 'helpers' : 'systems' } }));
+        break;
+      case 'Lights':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'lights' } }));
+        break;
+      case 'Cameras':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'cameras' } }));
+        break;
+
+      // Modifiers — add named modifier to current selection. The submenu labels
+      // "Selection Modifiers / Parametric Deformers / Free Form Deformers /
+      // Edit Poly / Edit Mesh / …" open the Modify tab and, for concrete named
+      // modifiers, add them via the existing addModifier pipeline.
+      case 'Selection Modifiers':
+      case 'Parametric Deformers':
+      case 'Free Form Deformers':
+        setSidePanelTab('modify');
+        toast.info(`${action} — pick a modifier in the stack`);
+        break;
+      case 'Edit Poly':
+      case 'Edit Mesh':
+      case 'Bend':
+      case 'Twist':
+      case 'Taper':
+      case 'Noise':
+      case 'TurboSmooth': {
+        if (!selectedObject) { toast.error('Select an object first'); break; }
+        setSidePanelTab('modify');
+        addModifier(selectedObject, action);
+        break;
+      }
+
+      // Character.
+      case 'Create Character':
+        // Spawn a default biped at world origin via existing pipeline.
+        window.dispatchEvent(new CustomEvent('r3-spawn-biped', { detail: { origin: [0, 0, 0], height: 1.8 } }));
+        break;
+      case 'Insert Character...': openFileDialog('import'); break;
+      case 'Save Character...':   openFileDialog('export'); break;
+      case 'Bone Tools...':
+        setSidePanelTab('create');
+        window.dispatchEvent(new CustomEvent('r3-sidepanel-set-category', { detail: { tab: 'create', createCat: 'systems' } }));
+        toast.info('Bone Tools — pick Bones in Systems');
+        break;
+      case 'IK Solvers':
+        toast.info('IK Solvers — apply on a selected bone chain (Modify tab)');
+        setSidePanelTab('modify');
+        break;
+
+      // Animation.
+      case 'Set Key': {
+        if (!selectedObject) { toast.error('Select an object first'); break; }
+        addKeyframe(selectedObject, currentFrame);
+        toast.success(`Key set at frame ${currentFrame}`);
+        setTimelineVisible(true);
+        break;
+      }
+      case 'Auto Key':
+        setAutoKey((v) => !v);
+        toast.info(`Auto Key ${!autoKey ? 'ON' : 'OFF'}`);
+        break;
+      case 'Track View':
+      case 'Track View - Dope Sheet':
+      case 'Track View - Curve Editor':
+      case 'Curve Editor':
+        setTimelineVisible(true);
+        setTimeout(() => window.dispatchEvent(new CustomEvent('r3-timeline-set-view', { detail: { view: 'trackview' } })), 0);
+        break;
+      case 'Position Constraint':
+      case 'LookAt Constraint':
+        toast.info(`${action} — assign target via the Motion panel (coming next sprint)`);
+        break;
+      case 'Schematic View':
+        setHierarchyWindowOpen(true);
+        break;
+
+      // Customize.
+      case 'Customize User Interface...':
+        toast.info('Customize UI — use the Interface submenu (Classic / Flat / Game) for now');
+        break;
+      case 'Load Custom UI Scheme...':
+      case 'Save Custom UI Scheme...':
+        toast.info(`${action} — UI schemes are stored via Customize → Interface`);
+        break;
+      case 'Preferences...':
+        setPreferencesOpen(true);
+        break;
+
+      // MAXScript.
+      case 'New Script':
+      case 'Open Script...':
+      case 'Run Script...':
+      case 'MAXScript Listener':
+        setMaxScriptOpen(true);
+        break;
+
+      // Help — external references.
+      case 'User Reference':
+        window.open('https://help.autodesk.com/view/3DSMAX/2024/ENU/', '_blank', 'noopener');
+        break;
+      case 'MAXScript Reference':
+        window.open('https://help.autodesk.com/view/3DSMAX/2024/ENU/?guid=GUID-F039181A-C072-4469-A329-AE60FF7535E7', '_blank', 'noopener');
+        break;
+      case 'Tutorials':
+        window.open('https://www.autodesk.com/certification/learn/catalog/product/3ds-max', '_blank', 'noopener');
+        break;
+
       default: break;
     }
   };
