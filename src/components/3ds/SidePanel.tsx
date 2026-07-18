@@ -510,6 +510,7 @@ export const SidePanel = ({
     { name: 'Edit Poly', description: 'Permite editar vértices, arestas, polígonos', category: 'mesh' },
     { name: 'Edit Mesh', description: 'Edição direta de malhas triangulares', category: 'mesh' },
     { name: 'TurboSmooth', description: 'Suaviza e aumenta o número de polígonos', category: 'mesh' },
+    { name: 'WaltSculpt', description: 'Escultura híbrida (Surface/Dynamic/Voxel): brushes, mask, layers, remesh', category: 'mesh' },
     { name: 'MeshSmooth', description: 'Subdivide suavizando a malha', category: 'mesh' },
     { name: 'Symmetry', description: 'Espelha o objeto em um eixo', category: 'mesh' },
     { name: 'Mirror', description: 'Reflete a geometria', category: 'universal' },
@@ -1011,7 +1012,11 @@ export const SidePanel = ({
                     value=""
                     onChange={(e) => {
                       const name = e.target.value;
-                      if (name) onAddModifier(selectedObject.id, name);
+                      if (name === 'WaltSculpt') {
+                        window.dispatchEvent(new CustomEvent('r3-open-waltsculpt', { detail: { objectId: selectedObject.id } }));
+                      } else if (name) {
+                        onAddModifier(selectedObject.id, name);
+                      }
                       e.target.value = '';
                     }}
                     className="w-full h-[22px] text-[11px] bevel-sunken bg-white px-1 text-win-text border border-win-shadow"
