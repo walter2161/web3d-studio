@@ -341,7 +341,7 @@ export const SidePanel = ({
   const [internalTab, setInternalTab] = useState('create');
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
-  const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems'>('geometry');
+  const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems' | 'waltgame'>('geometry');
   const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
