@@ -27,7 +27,6 @@ const state: RegionState = {
 const subs = new Set<() => void>();
 
 const publishWindow = () => {
-  if (typeof window === 'undefined') return;
   (window as any).__r3Region = { ...state };
 };
 publishWindow();
