@@ -260,7 +260,7 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
   }, [mesh, level, sel]);
 
   return (
-    <group renderOrder={1000}>
+    <group ref={groupRef} renderOrder={1000}>
       {vertexData && (
         <points
           geometry={vertexData.geometry}
