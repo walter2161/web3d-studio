@@ -1727,14 +1727,57 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     const tileU = Number(params.tileU ?? 1);
     const tileV = Number(params.tileV ?? 1);
     const axisName = (params.axis || 'Z') as 'X'|'Y'|'Z';
-    geometry.computeBoundingBox();
-    const bb = geometry.boundingBox!;
-    const pos = geometry.getAttribute('position');
+
+    // Box mapping needs per-face normals — a shared cube-corner vertex would
+    // otherwise collapse to a single UV. Split into non-indexed triangles.
+    let g = geometry;
+    if (mapping === 'box' && geometry.index) g = geometry.toNonIndexed();
+
+    g.computeBoundingBox();
+    const bb = g.boundingBox!;
+    const pos = g.getAttribute('position');
     const arr = pos.array as Float32Array;
     const uv = new Float32Array((arr.length / 3) * 2);
     const dx = bb.max.x - bb.min.x || 1;
     const dy = bb.max.y - bb.min.y || 1;
     const dz = bb.max.z - bb.min.z || 1;
+
+    if (mapping === 'box') {
+      for (let i = 0, j = 0; i < arr.length; i += 9, j += 6) {
+        const ax = arr[i],   ay = arr[i+1], az = arr[i+2];
+        const bx = arr[i+3], by = arr[i+4], bz = arr[i+5];
+        const cx = arr[i+6], cy = arr[i+7], cz = arr[i+8];
+        const e1x = bx-ax, e1y = by-ay, e1z = bz-az;
+        const e2x = cx-ax, e2y = cy-ay, e2z = cz-az;
+        const nx = e1y*e2z - e1z*e2y;
+        const ny = e1z*e2x - e1x*e2z;
+        const nz = e1x*e2y - e1y*e2x;
+        const anx = Math.abs(nx), any_ = Math.abs(ny), anz = Math.abs(nz);
+        const p = [ax,ay,az, bx,by,bz, cx,cy,cz];
+        for (let k = 0; k < 3; k++) {
+          const px = p[k*3], py = p[k*3+1], pz = p[k*3+2];
+          let u = 0, v = 0;
+          if (anx >= any_ && anx >= anz) {
+            u = (pz - bb.min.z) / dz;
+            v = (py - bb.min.y) / dy;
+            if (nx < 0) u = 1 - u;
+          } else if (any_ >= anz) {
+            u = (px - bb.min.x) / dx;
+            v = (pz - bb.min.z) / dz;
+            if (ny < 0) v = 1 - v;
+          } else {
+            u = (px - bb.min.x) / dx;
+            v = (py - bb.min.y) / dy;
+            if (nz < 0) u = 1 - u;
+          }
+          uv[j + k*2]     = u * tileU;
+          uv[j + k*2 + 1] = v * tileV;
+        }
+      }
+      g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      return g;
+    }
+
     for (let i = 0, j = 0; i < arr.length; i += 3, j += 2) {
       const x = arr[i], y = arr[i + 1], z = arr[i + 2];
       let u = 0, v = 0;
@@ -1752,17 +1795,12 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         const r = Math.sqrt(dx2*dx2 + dy2*dy2 + dz2*dz2) || 1;
         u = (Math.atan2(dz2, dx2) + Math.PI) / (2 * Math.PI);
         v = 0.5 - Math.asin(dy2 / r) / Math.PI;
-      } else { // box — pick face by dominant normal (approx via position bias)
-        const ax = Math.abs(x), ay = Math.abs(y), az = Math.abs(z);
-        if (ax >= ay && ax >= az) { u = (z - bb.min.z) / dz; v = (y - bb.min.y) / dy; }
-        else if (ay >= az) { u = (x - bb.min.x) / dx; v = (z - bb.min.z) / dz; }
-        else { u = (x - bb.min.x) / dx; v = (y - bb.min.y) / dy; }
       }
       uv[j] = u * tileU;
       uv[j + 1] = v * tileV;
     }
-    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    return geometry;
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    return g;
   }
 
   // Unwrap UVW — placeholder that uses per-face planar projection based on
