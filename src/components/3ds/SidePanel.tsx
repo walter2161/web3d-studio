@@ -1434,7 +1434,7 @@ export const SidePanel = ({
                 {selectedObject.type === 'particle_emitter' && (
                   <ParticleParameters
                     object={selectedObject}
-                    onUpdateGeom={(patch) => onUpdateObjectData?.(selectedObject.id, { geometry: { ...(selectedObject.geometry || {}), ...patch } } as any)}
+                    onUpdateGeom={(patch) => onUpdateObjectGeometry(selectedObject.id, patch)}
                   />
                 )}
 
