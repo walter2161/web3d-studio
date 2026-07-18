@@ -37,9 +37,6 @@ const DRAG_THRESHOLD = 3; // px — below this counts as a plain click and passe
 export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObjects }: Props) => {
   const region = useSyncExternalStore(subscribeRegion, () => getRegionState(), () => getRegionState());
   const wrapperRef = useRef<HTMLDivElement>(null);
-  // Holds the OrbitControls instance we disabled at drag-threshold time so we
-  // can guarantee we re-enable that SAME one (see comment inside effect).
-  const disabledOCRef = useRef<any>(null);
   const [drag, setDrag] = useState<null | {
     kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint';
     start: Pt;
@@ -121,7 +118,6 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       // panning for the duration by grabbing it and disabling.
       disabledOC = grabOC();
       if (disabledOC) disabledOC.enabled = false;
-      disabledOCRef.current = disabledOC;
       const curLocal = {
         x: ev.clientX - pending.rect.left,
         y: ev.clientY - pending.rect.top,
@@ -143,7 +139,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       pending = null;
       window.removeEventListener('pointermove', onWinMove, true);
       window.removeEventListener('pointerup', onWinUp, true);
-      if (disabledOC) { disabledOC.enabled = true; disabledOC = null; disabledOCRef.current = null; }
+      if (disabledOC) { disabledOC.enabled = true; disabledOC = null; }
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -199,6 +195,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       if (canvas && attached) canvas.removeEventListener('pointerdown', onPointerDown, { capture: true } as any);
       window.removeEventListener('pointermove', onWinMove, true);
       window.removeEventListener('pointerup', onWinUp, true);
+      if (disabledOC) disabledOC.enabled = true;
     };
   }, [region.regionMode, vkey]);
 
@@ -244,13 +241,9 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       // Always clear the marquee first so the overlay disappears reliably,
       // even if the selection handler triggers a heavy re-render.
       setDrag(null);
-      // Re-enable the SAME OrbitControls instance we disabled at threshold-cross
-      // time. Using the global `__activeOrbitControls` here is unsafe because
-      // the user may have activated a different viewport meanwhile, leaving
-      // this viewport's controls stuck disabled (zoom/orbit stops working).
-      const oc: any = disabledOCRef.current ?? (window as any).__activeOrbitControls;
+      // Re-enable viewport navigation after selection-region drag.
+      const oc: any = (window as any).__activeOrbitControls;
       if (oc) oc.enabled = true;
-      disabledOCRef.current = null;
       if (!prev || cancelled) return;
       const dragged = Math.hypot(p.x - prev.start.x, p.y - prev.start.y) >= DRAG_THRESHOLD || prev.points.length > 2;
       if (!dragged) {
