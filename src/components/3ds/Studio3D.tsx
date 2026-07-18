@@ -39,6 +39,7 @@ import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
 import { PreferencesDialog } from './prefs/PreferencesDialog';
+import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
 import { commandForEvent } from './prefs/hotkeysStore';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
@@ -218,6 +219,7 @@ export const Studio3D = () => {
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
+  const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
@@ -2697,6 +2699,9 @@ export const Studio3D = () => {
       case 'Preferences...':
         setPreferencesOpen(true);
         break;
+      case 'MapTools...':
+        setMapToolsOpen(true);
+        break;
 
       // MAXScript.
       case 'New Script':
@@ -3146,6 +3151,7 @@ export const Studio3D = () => {
           Rendering, Animation, IK, Gizmos, MAXScript). Persists to localStorage
           and mirrors runtime bridges via `window.__prefs`. */}
       <PreferencesDialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+      <MapToolsPanel open={mapToolsOpen} onClose={() => setMapToolsOpen(false)} />
 
       {/* Customize UI — keyboard shortcut editor, color scheme picker, and
           scheme import/export. Live bindings feed the global hotkey listener

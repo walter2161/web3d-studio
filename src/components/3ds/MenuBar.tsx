@@ -38,7 +38,7 @@ const menuItems: { label: string; access: string; items: MenuEntry[] }[] = [
   { label: 'Character', access: 'H', items: ['Create Character', 'Insert Character...', 'Save Character...', 'sep', 'Bone Tools...', 'IK Solvers'] },
   { label: 'Animation', access: 'A', items: ['Set Key', 'Auto Key', 'sep', 'Track View', 'Curve Editor', 'sep', 'Position Constraint', 'LookAt Constraint'] },
   { label: 'Graph Editors', access: 'D', items: ['Track View - Curve Editor', 'Track View - Dope Sheet', 'sep', 'Schematic View'] },
-  { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'sep', 'View Image File...'] },
+  { label: 'Rendering', access: 'R', items: ['Render...', 'Render Setup...', 'Environment...', 'sep', 'Material Editor...', 'Material/Map Browser...', 'MapTools...', 'sep', 'View Image File...'] },
   { label: 'Customize', access: 'U', items: ['Customize User Interface...', 'Load Custom UI Scheme...', 'Save Custom UI Scheme...', 'sep', { label: 'Interface', sub: ['Interface: Classic', 'Interface: Flat', 'Interface: Game'] }, { label: 'Language', sub: ['Language: English', 'Language: Português', 'Language: Español'] }, 'sep', 'Preferences...', 'Units Setup...', 'Grid and Snap Settings...'] },
   { label: 'MAXScript', access: 'X', items: ['New Script', 'Open Script...', 'Run Script...', 'sep', 'MAXScript Listener'] },
   { label: 'Help', access: 'H', items: ['User Reference', 'MAXScript Reference', 'Tutorials', 'sep', 'Welcome...', 'About Walt3D...'] },
