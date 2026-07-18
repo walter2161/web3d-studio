@@ -119,9 +119,27 @@ const LEAF_OUTLINES: Record<string, number[][]> = {
   broad_glossy:   [[0,0],[0.45,0.35],[0.5,0.8],[0,1.3],[-0.5,0.8],[-0.45,0.35]],
   cherry_blossom: [[0,0.15],[0.35,0.05],[0.22,-0.3],[-0.22,-0.3],[-0.35,0.05]],
   pine_needle:    [[0,0],[0.045,0.08],[0,1.0],[-0.045,0.08]],
+  blue_needle:    [[0,0],[0.05,0.08],[0,1.0],[-0.05,0.08]],
   weeping:        [[0,0],[0.08,0.3],[0.04,0.85],[0,1.25],[-0.04,0.85],[-0.08,0.3]],
   palm:           [[0,0],[0.18,0.15],[0.22,0.5],[0.12,0.85],[0,1.15],[-0.12,0.85],[-0.22,0.5],[-0.18,0.15]],
   yucca_spike:    [[0,0],[0.07,0.05],[0,1.3],[-0.07,0.05]],
+  garlic_blade:   [[0,0],[0.05,0.03],[0,0.9],[-0.05,0.03]],
+};
+
+// species.id → outline key (matches the HTML reference exactly).
+const SPECIES_LEAF: Record<number, keyof typeof LEAF_OUTLINES> = {
+  0:  'broad',          // Generic Oak
+  1:  'elm_leaf',       // American Elm
+  2:  'garlic_blade',   // Society Garlic
+  3:  'yucca_spike',    // Yucca
+  4:  'broad_glossy',   // Banyan
+  5:  'weeping',        // Weeping Willow
+  6:  'palm',           // Big Palm
+  7:  'cherry_blossom', // Japanese Flowering Cherry
+  8:  'blue_needle',    // Blue Spruce
+  9:  'pine_needle',    // Scotch Pine
+  10: 'birch_leaf',     // Silver Birch
+  11: 'shrub_leaf',     // Generic Shrub
 };
 
 function _buildLeafCard(outline: number[][], scale: number): THREE.BufferGeometry {
@@ -132,20 +150,43 @@ function _buildLeafCard(outline: number[][], scale: number): THREE.BufferGeometr
   return new THREE.ShapeGeometry(shape);
 }
 
-function _leafCardFor(kind: FoliageKind, scale: number): THREE.BufferGeometry {
-  let key: keyof typeof LEAF_OUTLINES = 'broad';
-  if (kind === 'pine') key = 'pine_needle';
-  else if (kind === 'weeping') key = 'weeping';
-  else if (kind === 'palm') key = 'palm';
-  else if (kind === 'shrub') key = 'shrub_leaf';
+function _leafCardFor(kindOrSpecies: FoliageKind, scale: number, speciesId?: number): THREE.BufferGeometry {
+  // Resolve the exact outline key. Prefer species id (matches reference), fall
+  // back to broad category when a caller only knows the kind.
+  let key: keyof typeof LEAF_OUTLINES | undefined =
+    speciesId != null ? SPECIES_LEAF[speciesId] : undefined;
+  if (!key) {
+    if (kindOrSpecies === 'pine') key = 'pine_needle';
+    else if (kindOrSpecies === 'weeping') key = 'weeping';
+    else if (kindOrSpecies === 'palm') key = 'palm';
+    else if (kindOrSpecies === 'shrub') key = 'shrub_leaf';
+    else key = 'broad';
+  }
+
   const g = _buildLeafCard(LEAF_OUTLINES[key], scale);
-  if (kind === 'weeping') g.rotateX(Math.PI);
-  else if (kind === 'palm') g.rotateX(Math.PI / 2.8);
-  else if (kind === 'pine') {
-    // cross two cards for a needle bundle with volume
-    const b = g.clone();
-    b.rotateY(Math.PI / 2);
-    return mergeGeometries([g, b], false) || g;
+
+  // Per-species orientation tweaks (identical to the reference HTML).
+  switch (key) {
+    case 'weeping':
+      g.rotateX(Math.PI); // hangs downward from attachment point
+      break;
+    case 'palm':
+      g.rotateX(Math.PI / 2.8); // frond arches outward/down
+      break;
+    case 'yucca_spike':
+    case 'garlic_blade':
+      g.rotateX(Math.PI / 5); // rigid blade pre-tilt before rosette rotation
+      break;
+    case 'pine_needle':
+    case 'blue_needle':
+    case 'cherry_blossom': {
+      // Cross two cards (90° around Y) so needles/blossoms read from every angle.
+      const b = g.clone();
+      b.rotateY(Math.PI / 2);
+      return mergeGeometries([g, b], false) || g;
+    }
+    default:
+      break;
   }
   return g;
 }
