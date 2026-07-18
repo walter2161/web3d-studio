@@ -38,6 +38,9 @@ import { LoginDialog } from './r3/LoginDialog';
 import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
+import { PreferencesDialog } from './prefs/PreferencesDialog';
+import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
+import { commandForEvent } from './prefs/hotkeysStore';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
 import { DEFAULT_PARTICLE_GEOM } from './particles/ParticleObject';
 import { HELPER_DEFAULTS } from './utils/helpers';
@@ -226,6 +229,7 @@ export const Studio3D = () => {
     updateDuringSpinnerDrag: true,
   });
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [customizeUIOpen, setCustomizeUIOpen] = useState(false);
   const [maxScriptOpen, setMaxScriptOpen] = useState(false);
   const [maxScriptLog, setMaxScriptLog] = useState<string[]>(['-- Walt3D MAXScript Listener --']);
   const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onOk: () => void; title?: string }>({ open: false, message: '', onOk: () => {} });
@@ -2683,11 +2687,12 @@ export const Studio3D = () => {
 
       // Customize.
       case 'Customize User Interface...':
-        toast.info('Customize UI — use the Interface submenu (Classic / Flat / Game) for now');
+        setCustomizeUIOpen(true);
         break;
       case 'Load Custom UI Scheme...':
       case 'Save Custom UI Scheme...':
-        toast.info(`${action} — UI schemes are stored via Customize → Interface`);
+        // Both routes are handled inside the CustomizeUIDialog "Scheme" tab.
+        setCustomizeUIOpen(true);
         break;
       case 'Preferences...':
         setPreferencesOpen(true);
@@ -3110,41 +3115,15 @@ export const Studio3D = () => {
       <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 
-      {/* Preferences — minimal panel exposing the View-menu options
-          (showStatistics / updateDuringSpinnerDrag) plus placeholders for the
-          global preferences page. */}
-      <R3Dialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} title="Preferences" width={360}>
-        <div className="p-3 text-[11px] text-win-text space-y-2">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={viewOpts.showGrid}
-              onChange={() => setViewOpts((v) => ({ ...v, showGrid: !v.showGrid }))} />
-            Show Home Grid
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={viewOpts.showStatistics}
-              onChange={() => {
-                setViewOpts((v) => {
-                  (window as any).__showStatistics = !v.showStatistics;
-                  return { ...v, showStatistics: !v.showStatistics };
-                });
-              }} />
-            Show Viewport Statistics
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={viewOpts.updateDuringSpinnerDrag}
-              onChange={() => {
-                setViewOpts((v) => {
-                  (window as any).__updateDuringSpinnerDrag = !v.updateDuringSpinnerDrag;
-                  return { ...v, updateDuringSpinnerDrag: !v.updateDuringSpinnerDrag };
-                });
-              }} />
-            Update During Spinner Drag
-          </label>
-          <div className="border-t border-win-shadow pt-2 opacity-70">
-            Interface theme and language live under the Customize menu.
-          </div>
-        </div>
-      </R3Dialog>
+      {/* Full multi-tab Preferences panel (General, Files, Viewports, Gamma,
+          Rendering, Animation, IK, Gizmos, MAXScript). Persists to localStorage
+          and mirrors runtime bridges via `window.__prefs`. */}
+      <PreferencesDialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} />
+
+      {/* Customize UI — keyboard shortcut editor, color scheme picker, and
+          scheme import/export. Live bindings feed the global hotkey listener
+          registered below. */}
+      <CustomizeUIDialog open={customizeUIOpen} onClose={() => setCustomizeUIOpen(false)} />
 
       {/* MAXScript Listener — minimal REPL. Evaluates JS in the app scope so
           scripts can drive the exposed window.* bridges (dispatch events,
