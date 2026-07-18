@@ -143,7 +143,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       pending = null;
       window.removeEventListener('pointermove', onWinMove, true);
       window.removeEventListener('pointerup', onWinUp, true);
-      if (disabledOC) { disabledOC.enabled = true; disabledOC = null; }
+      if (disabledOC) { disabledOC.enabled = true; disabledOC = null; disabledOCRef.current = null; }
     };
 
     const onPointerDown = (e: PointerEvent) => {
