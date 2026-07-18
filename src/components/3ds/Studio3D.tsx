@@ -3410,6 +3410,9 @@ export const Studio3D = () => {
       <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
       <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      {helpTopic && (
+        <HelpDialog open={true} topic={helpTopic} onClose={() => setHelpTopic(null)} />
+      )}
 
       {/* Full multi-tab Preferences panel (General, Files, Viewports, Gamma,
           Rendering, Animation, IK, Gizmos, MAXScript). Persists to localStorage
