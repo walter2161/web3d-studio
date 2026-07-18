@@ -70,6 +70,13 @@ export const Scene3D = ({
 }: Scene3DProps) => {
 
   const transformControlsRef = useRef<any>(null);
+  // Expose the active TransformControls so the SelectionRegionOverlay can
+  // detect when a pointerdown is actually landing on the gizmo (axis hover)
+  // and skip starting a marquee drag.
+  useEffect(() => {
+    (window as any).__r3TransformCtrl = transformControlsRef;
+    return () => { if ((window as any).__r3TransformCtrl === transformControlsRef) (window as any).__r3TransformCtrl = null; };
+  }, []);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
   const selectedObjectIdSet = useMemo(() => new Set(selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : [])), [selectedObjectIds, selectedObject]);
   const selectedList = useMemo(
