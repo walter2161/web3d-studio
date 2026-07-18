@@ -2658,10 +2658,10 @@ export const Studio3D = () => {
       case 'Dope Sheet':
         window.dispatchEvent(new CustomEvent('walt3d:open-track-view', { detail: action }));
         break;
-      case 'Create Box':      arm('box' as any); break;
-      case 'Create Sphere':   arm('sphere' as any); break;
-      case 'Create Cylinder': arm('cylinder' as any); break;
-      case 'Create Plane':    arm('plane' as any); break;
+      case 'Create Box':      window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'box' })); break;
+      case 'Create Sphere':   window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'sphere' })); break;
+      case 'Create Cylinder': window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'cylinder' })); break;
+      case 'Create Plane':    window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'plane' })); break;
 
       case 'Clone': {
         const sel = objects.find((o) => o.id === selectedObject);
