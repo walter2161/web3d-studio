@@ -37,6 +37,9 @@ const DRAG_THRESHOLD = 3; // px — below this counts as a plain click and passe
 export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObjects }: Props) => {
   const region = useSyncExternalStore(subscribeRegion, () => getRegionState(), () => getRegionState());
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Holds the OrbitControls instance we disabled at drag-threshold time so we
+  // can guarantee we re-enable that SAME one (see comment inside effect).
+  const disabledOCRef = useRef<any>(null);
   const [drag, setDrag] = useState<null | {
     kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint';
     start: Pt;
