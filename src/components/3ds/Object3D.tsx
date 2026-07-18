@@ -1654,16 +1654,22 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       />
 
 
-      {/* Wireframe view: keep longitudinal/transversal segment rings but
-          filter out the diagonal edges that split each quad into two
-          triangles. The two triangles inside a single quad are (nearly)
-          coplanar, so a small threshold (~1°) drops those diagonals while
-          preserving the ring/segment edges shared between adjacent quads. */}
+      {/* Wireframe view: show silhouette + all mesh subdivisions so
+          Length/Width/Height Segments parameter changes are visible.
+          Silhouette (edgesGeometry, 15°) is drawn bright; internal segment
+          grid (wireframeGeometry) is drawn dim so it doesn't overwhelm the
+          viewport but still gives the user feedback on segment counts. */}
       {renderMode === 'wireframe' && !isGhost && (
-        <lineSegments renderOrder={997}>
-          <edgesGeometry args={[modifiedGeometry, 1]} />
-          <lineBasicMaterial color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')} />
-        </lineSegments>
+        <>
+          <lineSegments renderOrder={997}>
+            <wireframeGeometry args={[modifiedGeometry]} />
+            <lineBasicMaterial color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')} transparent opacity={0.35} />
+          </lineSegments>
+          <lineSegments renderOrder={998}>
+            <edgesGeometry args={[modifiedGeometry, 15]} />
+            <lineBasicMaterial color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')} />
+          </lineSegments>
+        </>
       )}
 
 
