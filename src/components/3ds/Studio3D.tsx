@@ -3343,6 +3343,10 @@ export const Studio3D = () => {
         } : null}
         onCommit={(id, t) => handleTransformObject(id, t)}
       />
+
+      {/* Right-click / Quad Menu system (portal + event router). */}
+      <ContextMenuRoot />
+      <QuadMenu />
     </div>
     </CreationProvider>
     </RenderEngineProvider>
