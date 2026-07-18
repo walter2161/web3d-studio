@@ -1660,10 +1660,24 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           coplanar, so a small threshold (~1°) drops those diagonals while
           preserving the ring/segment edges shared between adjacent quads. */}
       {renderMode === 'wireframe' && !isGhost && (
-        <lineSegments renderOrder={997}>
-          <edgesGeometry args={[modifiedGeometry, 1]} />
-          <lineBasicMaterial color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')} />
-        </lineSegments>
+        <>
+          {/* Full subdivision grid (Length/Width/Height Segments) — dim so it
+              doesn't overwhelm, but visible so segment parameter changes show
+              up immediately in wireframe viewports. */}
+          <lineSegments renderOrder={996}>
+            <wireframeGeometry args={[modifiedGeometry]} />
+            <lineBasicMaterial
+              color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')}
+              transparent
+              opacity={0.35}
+            />
+          </lineSegments>
+          {/* Silhouette / hard edges on top for a clean 3ds Max feel. */}
+          <lineSegments renderOrder={997}>
+            <edgesGeometry args={[modifiedGeometry, 15]} />
+            <lineBasicMaterial color={isSelected ? '#ffffff' : ((object as any).material?.color ?? object.color ?? '#cbd5e1')} />
+          </lineSegments>
+        </>
       )}
 
 
