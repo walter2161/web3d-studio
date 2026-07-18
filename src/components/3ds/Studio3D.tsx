@@ -1660,6 +1660,17 @@ export const Studio3D = () => {
     // applies uniformly — the listener handles descendant propagation.
     const cur = objectsRef.current.find((o) => o.id === id);
     if (cur && (transform.position || transform.rotation || transform.scale)) {
+      // If this call is NOT coming from an active TransformControls drag
+      // (which already captured a snapshot on mousedown via r3-transform-start),
+      // capture one now so Ctrl+Z can revert type-in / spinner edits too.
+      if (!dragActiveRef.current) {
+        const snapshot = objectsRef.current;
+        setUndoStack((stack) => [...stack.slice(-9), snapshot]);
+        undoOrderRef.current.push('objects');
+        setRedoStack([]);
+        redoOrderRef.current = [];
+        rigRedoRef.current = [];
+      }
       window.dispatchEvent(new CustomEvent('r3-transform-many', { detail: { updates: [{
         id,
         position: transform.position ?? cur.position,
