@@ -911,11 +911,35 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCat === 'waltgame' && ([
+                  { kind: 'Player',        label: 'Player' },
+                  { kind: 'Camera',        label: 'Camera' },
+                  { kind: 'Collider',      label: 'Collider' },
+                  { kind: 'Trigger',       label: 'Trigger' },
+                  { kind: 'Spawn Point',   label: 'Spawn' },
+                  { kind: 'NavMesh',       label: 'NavMesh' },
+                  { kind: 'AI Character',  label: 'AI Char' },
+                  { kind: 'Audio Source',  label: 'Audio' },
+                  { kind: 'Terrain',       label: 'Terrain' },
+                  { kind: 'HUD',           label: 'HUD' },
+                  { kind: 'Light Probe',   label: 'Probe' },
+                  { kind: 'Game Manager',  label: 'Manager' },
+                ] as const).map((p) => (
+                  <button
+                    key={p.kind}
+                    onClick={() => window.dispatchEvent(new CustomEvent('waltgame:create', { detail: { kind: p.kind } }))}
+                    title={`WaltGame — Create ${p.kind}`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                  >
+                    {p.label}
+                  </button>
+                ))}
                 {createCat === 'warps' && (
                   <div className="col-span-2 text-[10px] text-win-text-disabled px-1 pt-1 text-center italic">
                     Space Warps — Fase 2 (em breve)
                   </div>
                 )}
+
 
               </div>
             </div>
