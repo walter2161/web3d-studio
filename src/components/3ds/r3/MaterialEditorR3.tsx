@@ -685,7 +685,13 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
           </div>
 
           <div className="bevel-inset bg-win-face p-2" style={{ minHeight: 340, maxHeight: 440, overflowY: 'auto' }}>
-            {tab === 'Shader' && (
+            {mat.type !== 'Standard' && (
+              <CompoundEditor
+                mat={mat}
+                onChange={(patch) => update({ compound: { ...(mat.compound || {}), ...patch } })}
+              />
+            )}
+            {tab === 'Shader' && mat.type === 'Standard' && (
               <>
                 <GroupBox title="Shader Basic Parameters">
                   <Row label="Shader:" labelWidth={70}>
