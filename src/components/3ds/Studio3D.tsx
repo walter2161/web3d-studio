@@ -2930,6 +2930,15 @@ export const Studio3D = () => {
       case 'WaltSculpt...':
         setWaltSculptOpen(true);
         break;
+      case 'WaltGame...':
+        setWaltGameOpen(true);
+        break;
+      case 'Run Game (F12)':
+        setGamePreviewOpen(true);
+        break;
+      case 'Export HTML Game...':
+        exportGameHTML();
+        break;
 
       // MAXScript.
       case 'New Script':
