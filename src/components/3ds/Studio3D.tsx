@@ -3071,6 +3071,76 @@ export const Studio3D = () => {
       <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
       <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
+      {/* Preferences — minimal panel exposing the View-menu options
+          (showStatistics / updateDuringSpinnerDrag) plus placeholders for the
+          global preferences page. */}
+      <R3Dialog open={preferencesOpen} onClose={() => setPreferencesOpen(false)} title="Preferences" width={360}>
+        <div className="p-3 text-[11px] text-win-text space-y-2">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={viewOpts.showGrid}
+              onChange={() => setViewOpts((v) => ({ ...v, showGrid: !v.showGrid }))} />
+            Show Home Grid
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={viewOpts.showStatistics}
+              onChange={() => {
+                setViewOpts((v) => {
+                  (window as any).__showStatistics = !v.showStatistics;
+                  return { ...v, showStatistics: !v.showStatistics };
+                });
+              }} />
+            Show Viewport Statistics
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={viewOpts.updateDuringSpinnerDrag}
+              onChange={() => {
+                setViewOpts((v) => {
+                  (window as any).__updateDuringSpinnerDrag = !v.updateDuringSpinnerDrag;
+                  return { ...v, updateDuringSpinnerDrag: !v.updateDuringSpinnerDrag };
+                });
+              }} />
+            Update During Spinner Drag
+          </label>
+          <div className="border-t border-win-shadow pt-2 opacity-70">
+            Interface theme and language live under the Customize menu.
+          </div>
+        </div>
+      </R3Dialog>
+
+      {/* MAXScript Listener — minimal REPL. Evaluates JS in the app scope so
+          scripts can drive the exposed window.* bridges (dispatch events,
+          create objects). No sandboxing, mirrors 3ds Max Listener spirit. */}
+      <R3Dialog open={maxScriptOpen} onClose={() => setMaxScriptOpen(false)} title="MAXScript Listener" width={520}>
+        <div className="p-2 text-[11px] font-mono">
+          <div className="h-40 overflow-auto bg-black text-green-300 p-2 whitespace-pre-wrap">
+            {maxScriptLog.join('\n')}
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const input = (e.currentTarget.elements.namedItem('cmd') as HTMLInputElement);
+              const cmd = input.value.trim();
+              if (!cmd) return;
+              let out = '';
+              try {
+                // eslint-disable-next-line no-new-func
+                const r = new Function('return (' + cmd + ')')();
+                out = String(r === undefined ? 'ok' : r);
+              } catch (err: any) {
+                out = 'error: ' + (err?.message || String(err));
+              }
+              setMaxScriptLog((l) => [...l, '> ' + cmd, out]);
+              input.value = '';
+            }}
+            className="mt-1 flex gap-1"
+          >
+            <span className="text-win-text">&gt;</span>
+            <input name="cmd" autoFocus className="flex-1 bg-white text-black px-1 outline-none border border-win-shadow" placeholder="e.g. window.dispatchEvent(new CustomEvent('r3-spawn-biped',{detail:{origin:[0,0,0]}}))" />
+          </form>
+        </div>
+      </R3Dialog>
+
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}
