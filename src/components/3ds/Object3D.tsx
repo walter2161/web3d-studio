@@ -147,8 +147,8 @@ function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Text
 }
 
 function MaterialWithMaps({
-  material, color, renderMode, isGhost, useVertexColors = false,
-}: { material: any; color: string; renderMode: string; isGhost: boolean; useVertexColors?: boolean }) {
+  material, color, renderMode, isGhost, useVertexColors = false, attach,
+}: { material: any; color: string; renderMode: string; isGhost: boolean; useVertexColors?: boolean; attach?: any }) {
   const effectiveMat = useMemo(() => resolveEffectiveMaterial(material), [material]);
   // Show maps in any shaded/textured/edged/transparent view — hide only in
   // wireframe and bbox (Max behavior: bitmaps always visible once "Show Map
