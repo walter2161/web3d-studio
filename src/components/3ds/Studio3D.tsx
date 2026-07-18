@@ -39,6 +39,7 @@ import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
 import { PreferencesDialog } from './prefs/PreferencesDialog';
+import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
 import { commandForEvent } from './prefs/hotkeysStore';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
