@@ -53,10 +53,10 @@ const buildSections = (): MenuSection[] => {
   const display: MenuItem[] = [
     item('Hide Selection',   'Hide Selection',   { disabled: !anySel }),
     item('Hide Unselected',  'Hide Unselected',  { disabled: !anySel }),
-    item('Unhide All',       'Unhide All' }),
+    item('Unhide All',       'Unhide All'),
     'separator',
     item('Freeze Selection', 'Freeze Selection', { disabled: !anySel }),
-    item('Unfreeze All',     'Unfreeze All' }),
+    item('Unfreeze All',     'Unfreeze All'),
     'separator',
     item('Isolate Selection', 'Isolate Selection', { disabled: !anySel, hint: 'Alt+Q' }),
   ];
