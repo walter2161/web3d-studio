@@ -2159,6 +2159,14 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
   const isGhost = (object as any).__creating === true;
 
+  const matPayload = (object as any).material;
+  const subMats: any[] = Array.isArray(matPayload?.subMaterials) ? matPayload.subMaterials.filter(Boolean) : [];
+  const useMultiSub = matPayload?.type === 'Multi/Sub-Object' && subMats.length > 1;
+
+  const meshGeometry = useMemo(() => {
+    if (!useMultiSub) return modifiedGeometry;
+    return buildMultiSubGeometry(modifiedGeometry, subMats.length);
+  }, [modifiedGeometry, useMultiSub, subMats.length]);
 
   return (
     <mesh
@@ -2184,15 +2192,30 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           (window as any).__matDragPayload = null;
         }
       }}
-      geometry={modifiedGeometry}
+      geometry={meshGeometry}
     >
-      <MaterialWithMaps
-        material={(object as any).material}
-        color={(object as any).material?.color ?? object.color}
-        renderMode={renderMode}
-        isGhost={!!isGhost}
-        useVertexColors={(object as any).type === 'foliage'}
-      />
+      {useMultiSub ? (
+        subMats.map((sm, i) => (
+          <MaterialWithMaps
+            key={i}
+            attach={`material-${i}`}
+            material={{ ...matPayload, ...sm, type: 'Standard' }}
+            color={sm?.color ?? object.color}
+            renderMode={renderMode}
+            isGhost={!!isGhost}
+            useVertexColors={false}
+          />
+        ))
+      ) : (
+        <MaterialWithMaps
+          material={matPayload}
+          color={matPayload?.color ?? object.color}
+          renderMode={renderMode}
+          isGhost={!!isGhost}
+          useVertexColors={(object as any).type === 'foliage'}
+        />
+      )}
+
 
 
       {/* Wireframe view: keep longitudinal/transversal segment rings but
