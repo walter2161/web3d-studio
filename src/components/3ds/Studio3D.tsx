@@ -39,6 +39,7 @@ import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
+import { DEFAULT_PARTICLE_GEOM } from './particles/ParticleObject';
 import { HELPER_DEFAULTS } from './utils/helpers';
 import { getImportedModel } from './utils/modelImport';
 import { useAuth } from '@/contexts/AuthContext';
