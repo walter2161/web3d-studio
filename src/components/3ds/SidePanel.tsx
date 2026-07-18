@@ -1430,6 +1430,19 @@ export const SidePanel = ({
                   />
                 )}
 
+                {/* Particle Emitter Parameters — Spray/Snow/Super Spray/PArray/PCloud/Blizzard */}
+                {selectedObject.type === 'particle_emitter' && (
+                  <ParticleParameters
+                    object={selectedObject}
+                    onUpdateGeom={(patch) => onUpdateObjectData?.(selectedObject.id, { geometry: { ...(selectedObject.geometry || {}), ...patch } } as any)}
+                  />
+                )}
+
+
+
+
+
+
 
 
 
