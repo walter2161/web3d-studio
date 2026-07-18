@@ -46,6 +46,7 @@ import { WaltSculptController } from './waltsculpt/WaltSculptController';
 import { WaltGamePanel } from './waltgame/WaltGamePanel';
 import { GamePreviewDialog } from './waltgame/GamePreviewDialog';
 import { exportGameHTML } from './waltgame/gameExport';
+import { useWaltGame } from './waltgame/gameStore';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
 import { ContextMenuRoot, openContextMenu } from './ContextMenu';
 import { QuadMenu } from './QuadMenu';
@@ -1692,6 +1693,60 @@ export const Studio3D = () => {
     window.addEventListener('contextmenu', onViewportContext, true);
     return () => window.removeEventListener('contextmenu', onViewportContext, true);
   }, []);
+
+  // WaltGame — Create panel dispatches `waltgame:create` with { kind }.
+  // Map each kind to a base primitive + auto-configure game props so the user
+  // gets a ready-to-use entity in the scene (Player, Trigger, Spawn, etc.).
+  useEffect(() => {
+    const onWaltCreate = (e: Event) => {
+      const kind = (e as CustomEvent).detail?.kind as string | undefined;
+      if (!kind) return;
+      const g = useWaltGame.getState();
+      // Snapshot ids so we can find the freshly-created object.
+      const beforeIds = new Set(objectsRef.current.map((o) => o.id));
+      const finish = (patchTag?: any, patchComponents?: Partial<any>, extra?: (id: string) => void) => {
+        // Wait a tick for setObjects to flush.
+        setTimeout(() => {
+          const after = (window as any).__objects ?? objectsRef.current;
+          const newObj = after.find((o: any) => !beforeIds.has(o.id));
+          if (!newObj) return;
+          const props = g.ensureProps(newObj.id);
+          const patch: any = { ...props };
+          if (patchTag) patch.tag = patchTag;
+          if (patchComponents) patch.components = { ...props.components, ...patchComponents };
+          g.setProps(newObj.id, patch);
+          extra?.(newObj.id);
+          setSelectedObject(newObj.id);
+        }, 0);
+      };
+      switch (kind) {
+        case 'Player':
+        case 'AI Character': {
+          createObject('capsule');
+          finish('character', { characterController: true, input: kind === 'Player', animator: true, collider: true, rigidbody: true }, (id) => {
+            if (kind === 'Player') g.setMainPlayer(id);
+          });
+          break;
+        }
+        case 'Camera':      createObject('camera_free'); finish('cameraTarget'); break;
+        case 'Collider':    createObject('box');         finish('static',    { collider: true }); break;
+        case 'Trigger':     createObject('box');         finish('trigger',   { collider: true }, (id) => g.setProps(id, { isTrigger: true } as any)); break;
+        case 'Spawn Point': createObject('helper_dummy');finish('static'); break;
+        case 'NavMesh':     createObject('plane');       finish('static',    { navAgent: false }); break;
+        case 'Audio Source':createObject('helper_dummy');finish('static',    { audioSource: true }); break;
+        case 'Terrain':     createObject('plane');       finish('static',    { collider: true }); break;
+        case 'HUD':
+        case 'Light Probe':
+        case 'Game Manager':createObject('helper_dummy');finish('static'); break;
+        default:            createObject('helper_dummy');finish('static');
+      }
+      toast.success(`WaltGame — ${kind} created`);
+    };
+    window.addEventListener('waltgame:create', onWaltCreate as EventListener);
+    return () => window.removeEventListener('waltgame:create', onWaltCreate as EventListener);
+  }, [createObject]);
+
+
 
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
