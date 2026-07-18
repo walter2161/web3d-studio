@@ -1037,6 +1037,9 @@ export const SidePanel = ({
               </div>
             </div>
 
+            {/* WaltCad — parameter rollouts (visible when WaltCad is the current geometry sub-category) */}
+            {createCat === 'geometry' && createCategory === 'waltcad' && <WaltCadPanel />}
+
             {/* Boolean / ProBoolean rollout — visible only when a compound tool is armed. */}
             {createCat === 'geometry' && createCategory === 'compound' && compoundState?.tool && (compoundState.tool === 'boolean' || compoundState.tool === 'proboolean') && (
               <div className="bevel-raised">
