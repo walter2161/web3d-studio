@@ -295,7 +295,8 @@ export function getFont(name: FontName | string = 'helvetiker', bold = false, it
   const external = TTF_FONT_CACHE.get(externalKey);
   if (external) return external;
   preloadFontForText(fontName, bold, italic);
-  const base = alias?.base || (fontName as 'helvetiker' | 'gentilis' | 'optimer') || 'helvetiker';
+  const rawBase = alias?.base || fontName;
+  const base = rawBase === 'gentilis' || rawBase === 'optimer' || rawBase === 'helvetiker' ? rawBase : 'helvetiker';
   const key = `${base}_${bold ? 'bold' : 'regular'}`;
   const cached = FONT_CACHE.get(key);
   if (cached) return cached;
@@ -324,10 +325,11 @@ export function buildTextShapes(
   bold = false,
   size = 1,
   kerning = 0,
-  curveSegments = 6
+  curveSegments = 6,
+  italic = false,
 ): THREE.Shape[] {
   if (!text) return [];
-  const font = getFont(fontName, bold);
+  const font = getFont(fontName, bold, italic);
   const base = font.generateShapes(text, size);
   if (!kerning || base.length <= 1) return base;
   // Font.generateShapes already advances glyphs left→right; apply an extra
@@ -1007,7 +1009,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       // horizontally-align them together.
       const lineGeoms: { geom: THREE.BufferGeometry; width: number; ascent: number }[] = [];
       for (const line of lines) {
-        const shapes = buildTextShapes(line, p.font ?? 'helvetiker', !!p.bold, size, kerning, curveSeg);
+        const shapes = buildTextShapes(line, p.font ?? 'helvetiker', !!p.bold, size, kerning, curveSeg, !!p.italic);
         if (!shapes.length) { lineGeoms.push({ geom: new THREE.BufferGeometry(), width: 0, ascent: size }); continue; }
         const g = extrudeAmount > 0
           ? new THREE.ExtrudeGeometry(shapes, {
@@ -1030,7 +1032,7 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
 
 
       // Optional italic — skew geometry along X in proportion to Z (baseline).
-      if (p.italic) {
+      if (p.italic && !usesNativeItalicFont(p.font ?? 'helvetiker', true)) {
         for (const lg of lineGeoms) {
           const pos = lg.geom.attributes.position;
           if (pos) {
