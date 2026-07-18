@@ -3435,6 +3435,14 @@ export const Studio3D = () => {
       <MapToolsPanel open={mapToolsOpen} onClose={() => setMapToolsOpen(false)} />
       <WaltSculptPanel open={waltSculptOpen} onClose={() => setWaltSculptOpen(false)} />
       <WaltSculptController />
+      <WaltGamePanel
+        open={waltGameOpen}
+        onClose={() => setWaltGameOpen(false)}
+        selectedObjectId={selectedObject}
+        selectedObjectName={objects.find((o) => o.id === selectedObject)?.name}
+        onRun={() => setGamePreviewOpen(true)}
+      />
+      <GamePreviewDialog open={gamePreviewOpen} onClose={() => setGamePreviewOpen(false)} />
 
       {/* Customize UI — keyboard shortcut editor, color scheme picker, and
           scheme import/export. Live bindings feed the global hotkey listener
