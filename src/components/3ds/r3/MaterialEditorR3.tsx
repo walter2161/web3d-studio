@@ -101,9 +101,49 @@ const defaultMapParams = (): R3MapParams => ({
   output: defaultOutput(),
 });
 
+export type R3MaterialType = 'Standard' | 'Blend' | 'Composite' | 'Double Sided' | 'Multi/Sub-Object' | 'Raytrace' | 'Matte/Shadow' | 'Top/Bottom' | 'Shellac' | 'Morpher';
+
+/**
+ * MiniMat — lightweight material used as a sub-material inside compound
+ * materials (Multi/Sub-Object, Blend, Double Sided, Top/Bottom, Composite,
+ * Shellac). Enough to drive a viewport meshStandardMaterial.
+ */
+export interface MiniMat {
+  id: number;                 // Material ID (1..65535) — used by Multi/Sub-Object
+  name: string;
+  type: 'Standard' | 'Raytrace';
+  diffuse: string;
+  specular: string;
+  glossiness: number;
+  specularLevel: number;
+  opacity: number;
+  selfIllumination: number;
+  metalness: number;
+  roughness: number;
+  emissiveIntensity: number;
+  diffuseMap?: R3MapSlot;
+  bumpMap?: R3MapSlot;
+}
+
+export interface R3CompoundData {
+  // Multi/Sub-Object
+  subMaterials?: MiniMat[];
+  // Blend
+  mat1?: MiniMat; mat2?: MiniMat; maskColor?: string; blendAmount?: number; useCurve?: boolean;
+  // Double Sided
+  front?: MiniMat; back?: MiniMat; translucency?: number;
+  // Top/Bottom
+  top?: MiniMat; bottom?: MiniMat; blend?: number; position?: number; coords?: 'World' | 'Local';
+  // Composite / Shellac — ordered layers, layer 0 = base
+  layers?: MiniMat[];
+  shellacColorBlend?: number;
+  // Matte/Shadow
+  receiveShadows?: boolean; opaqueAlpha?: boolean;
+}
+
 export interface R3Material {
   name: string;
-  type: 'Standard' | 'Blend' | 'Composite' | 'Double Sided' | 'Multi/Sub-Object' | 'Raytrace' | 'Matte/Shadow' | 'Top/Bottom' | 'Shellac' | 'Morpher';
+  type: R3MaterialType;
   shader: ShaderType;
   // Colors
   ambient: string;
@@ -144,7 +184,59 @@ export interface R3Material {
     refraction: R3MapSlot;
     displacement: R3MapSlot;
   };
+  /** Compound material data (Multi/Sub-Object, Blend, Double Sided, ...). */
+  compound?: R3CompoundData;
 }
+
+const DEFAULT_SUB_COLORS = ['#e53935', '#43a047', '#1e88e5', '#fdd835', '#8e24aa', '#00897b', '#f4511e', '#5e35b1', '#3949ab', '#00acc1'];
+export const defaultMini = (id: number, color?: string, name?: string): MiniMat => ({
+  id,
+  name: name || `${String(id).padStart(2, '0')} - Default`,
+  type: 'Standard',
+  diffuse: color || DEFAULT_SUB_COLORS[(id - 1) % DEFAULT_SUB_COLORS.length],
+  specular: '#ffffff',
+  glossiness: 10,
+  specularLevel: 0,
+  opacity: 100,
+  selfIllumination: 0,
+  metalness: 0,
+  roughness: 0.5,
+  emissiveIntensity: 0,
+});
+
+const initCompound = (type: R3MaterialType, existing?: R3CompoundData): R3CompoundData => {
+  const d: R3CompoundData = { ...(existing || {}) };
+  if (type === 'Multi/Sub-Object' && !d.subMaterials) {
+    d.subMaterials = Array.from({ length: 10 }, (_, i) => defaultMini(i + 1));
+  }
+  if (type === 'Blend') {
+    if (!d.mat1) d.mat1 = defaultMini(1, '#c8c8c8', 'Material 1');
+    if (!d.mat2) d.mat2 = defaultMini(2, '#3b6fd6', 'Material 2');
+    if (d.maskColor === undefined) d.maskColor = '#808080';
+    if (d.blendAmount === undefined) d.blendAmount = 0.5;
+  }
+  if (type === 'Double Sided') {
+    if (!d.front) d.front = defaultMini(1, '#c8c8c8', 'Front');
+    if (!d.back) d.back = defaultMini(2, '#5a5a5a', 'Back');
+    if (d.translucency === undefined) d.translucency = 0;
+  }
+  if (type === 'Top/Bottom') {
+    if (!d.top) d.top = defaultMini(1, '#3b8b3b', 'Top');
+    if (!d.bottom) d.bottom = defaultMini(2, '#6b4a24', 'Bottom');
+    if (d.blend === undefined) d.blend = 0.1;
+    if (d.position === undefined) d.position = 0.5;
+    if (!d.coords) d.coords = 'World';
+  }
+  if ((type === 'Composite' || type === 'Shellac') && !d.layers) {
+    d.layers = [defaultMini(1, '#c8c8c8', 'Base'), defaultMini(2, '#3b6fd6', 'Layer 1')];
+    if (type === 'Shellac' && d.shellacColorBlend === undefined) d.shellacColorBlend = 50;
+  }
+  if (type === 'Matte/Shadow') {
+    if (d.receiveShadows === undefined) d.receiveShadows = true;
+    if (d.opaqueAlpha === undefined) d.opaqueAlpha = true;
+  }
+  return d;
+};
 
 const emptyMap = (): R3MapSlot => ({ enabled: true, amount: 100, name: 'None' });
 const bumpMap = (): R3MapSlot => ({ enabled: true, amount: 30, name: 'None' });
@@ -369,19 +461,56 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
     };
   };
 
-  const matToThree = (m: R3Material) => ({
-    color: m.diffuse,
-    metalness: m.metalness,
-    roughness: m.roughness,
-    opacity: m.opacity / 100,
-    emissive: m.diffuse,
-    emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
-    map: mapPayload(m.maps.diffuse),
-    bumpMap: mapPayload(m.maps.bump),
-    bumpScale: (m.maps.bump?.amount ?? 30) / 100,
-    opacityMap: mapPayload(m.maps.opacity),
-    emissiveMap: mapPayload(m.maps.selfIllum),
-  });
+  const miniToThree = (mm?: MiniMat) => mm ? ({
+    color: mm.diffuse,
+    metalness: mm.metalness,
+    roughness: mm.roughness,
+    opacity: mm.opacity / 100,
+    emissive: mm.diffuse,
+    emissiveIntensity: mm.selfIllumination > 0 ? (mm.selfIllumination / 100) * (mm.emissiveIntensity || 1) : 0,
+    map: mapPayload(mm.diffuseMap),
+    bumpMap: mapPayload(mm.bumpMap),
+    materialId: mm.id,
+    name: mm.name,
+  }) : null;
+
+  const matToThree = (m: R3Material): any => {
+    const base = {
+      color: m.diffuse,
+      metalness: m.metalness,
+      roughness: m.roughness,
+      opacity: m.opacity / 100,
+      emissive: m.diffuse,
+      emissiveIntensity: m.selfIllumination > 0 ? (m.selfIllumination / 100) * (m.emissiveIntensity || 1) : 0,
+      map: mapPayload(m.maps.diffuse),
+      bumpMap: mapPayload(m.maps.bump),
+      bumpScale: (m.maps.bump?.amount ?? 30) / 100,
+      opacityMap: mapPayload(m.maps.opacity),
+      emissiveMap: mapPayload(m.maps.selfIllum),
+      type: m.type,
+      twoSided: m.twoSided,
+    };
+    const c = m.compound || {};
+    if (m.type === 'Multi/Sub-Object') {
+      return { ...base, subMaterials: (c.subMaterials || []).map(miniToThree) };
+    }
+    if (m.type === 'Blend') {
+      return { ...base, blend: { mat1: miniToThree(c.mat1), mat2: miniToThree(c.mat2), amount: c.blendAmount ?? 0.5, maskColor: c.maskColor || '#808080' } };
+    }
+    if (m.type === 'Double Sided') {
+      return { ...base, doubleSided: { front: miniToThree(c.front), back: miniToThree(c.back), translucency: c.translucency ?? 0 } };
+    }
+    if (m.type === 'Top/Bottom') {
+      return { ...base, topBottom: { top: miniToThree(c.top), bottom: miniToThree(c.bottom), blend: c.blend ?? 0.1, position: c.position ?? 0.5, coords: c.coords || 'World' } };
+    }
+    if (m.type === 'Composite' || m.type === 'Shellac') {
+      return { ...base, composite: { layers: (c.layers || []).map(miniToThree), shellacBlend: (c.shellacColorBlend ?? 50) / 100 } };
+    }
+    if (m.type === 'Matte/Shadow') {
+      return { ...base, matteShadow: { receiveShadows: !!c.receiveShadows, opaqueAlpha: !!c.opaqueAlpha } };
+    }
+    return base;
+  };
 
   const assignToSelection = () => {
     if (!selectedObject) {
@@ -556,7 +685,13 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
           </div>
 
           <div className="bevel-inset bg-win-face p-2" style={{ minHeight: 340, maxHeight: 440, overflowY: 'auto' }}>
-            {tab === 'Shader' && (
+            {mat.type !== 'Standard' && (
+              <CompoundEditor
+                mat={mat}
+                onChange={(patch) => update({ compound: { ...(mat.compound || {}), ...patch } })}
+              />
+            )}
+            {tab === 'Shader' && mat.type === 'Standard' && (
               <>
                 <GroupBox title="Shader Basic Parameters">
                   <Row label="Shader:" labelWidth={70}>
@@ -804,7 +939,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                 {['Standard','Blend','Composite','Double Sided','Multi/Sub-Object','Raytrace','Matte/Shadow','Top/Bottom','Shellac','Morpher'].map((t) => (
                   <div
                     key={t}
-                    onClick={() => { update({ type: t as any }); setTypePopupOpen(false); }}
+                    onClick={() => { update({ type: t as R3MaterialType, compound: initCompound(t as R3MaterialType, mat.compound) }); setTypePopupOpen(false); }}
                     className={`px-2 py-[2px] text-[11px] cursor-pointer ${mat.type === t ? 'bg-win-highlight text-white' : 'hover:bg-win-highlight hover:text-white'}`}
                   >● {t}</div>
                 ))}
@@ -1160,4 +1295,201 @@ function MapParametersDialog({
       </div>
     </div>
   );
+}
+
+/* ============================================================================
+ * MiniMatRow — one row of a compound material sub-slot. Shows ID, name,
+ * a small color swatch (opens color picker), and a "Load bitmap" button that
+ * stores a diffuseMap slot on the mini-material.
+ * ==========================================================================*/
+function MiniMatRow({ mm, onChange, showId = true }: { mm: MiniMat; onChange: (patch: Partial<MiniMat>) => void; showId?: boolean }) {
+  const loadBmp = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = () => {
+      const f = input.files?.[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        const url = String(r.result || ''); if (!url) return;
+        const next = { ...(window as any).__r3BitmapUrls, [f.name]: url };
+        (window as any).__r3BitmapUrls = next;
+        try { localStorage.setItem('3dsled-mateditor-bitmaps-v1', JSON.stringify(next)); } catch {}
+        onChange({ diffuseMap: { enabled: true, amount: 100, name: 'Bitmap', params: { ...defaultMapParams(), filename: f.name } } });
+      };
+      r.readAsDataURL(f);
+    };
+    input.click();
+  };
+  const bmp = mm.diffuseMap?.name === 'Bitmap' ? mm.diffuseMap.params?.filename : undefined;
+  return (
+    <div className="flex items-center gap-1 py-[1px]">
+      {showId && (
+        <Spinner value={mm.id} onChange={(v) => onChange({ id: Math.max(1, Math.round(v)) })} step={1} min={1} max={65535} width={44} />
+      )}
+      <input
+        value={mm.name}
+        onChange={(e) => onChange({ name: e.target.value })}
+        className="bevel-inset bg-white px-1 h-[18px] text-[11px] flex-1"
+      />
+      <input type="color" value={mm.diffuse} onChange={(e) => onChange({ diffuse: e.target.value })} className="w-[28px] h-[16px]" title="Diffuse color" />
+      <button
+        onClick={loadBmp}
+        className={`${bmp ? 'bevel-inset bg-white' : 'bevel-raised bg-win-face'} text-[10px] px-1 h-[16px]`}
+        title={bmp ? `Bitmap: ${bmp}` : 'Load bitmap'}
+      >M</button>
+      <Spinner value={mm.opacity} onChange={(v) => onChange({ opacity: v })} step={1} min={0} max={100} width={44} />
+      <Spinner value={mm.glossiness} onChange={(v) => onChange({ glossiness: v, roughness: 1 - v / 100 })} step={1} min={0} max={100} width={44} />
+    </div>
+  );
+}
+
+/* ============================================================================
+ * CompoundEditor — panel shown when mat.type ≠ 'Standard'. Renders the correct
+ * rollout for Multi/Sub-Object, Blend, Double Sided, Top/Bottom, Composite,
+ * Shellac, Matte/Shadow, Raytrace, Morpher.
+ * ==========================================================================*/
+function CompoundEditor({ mat, onChange }: { mat: R3Material; onChange: (patch: Partial<R3CompoundData>) => void }) {
+  const c = mat.compound || {};
+  const patchSub = (i: number, patch: Partial<MiniMat>) => {
+    const list = (c.subMaterials || []).slice();
+    list[i] = { ...list[i], ...patch };
+    onChange({ subMaterials: list });
+  };
+  const setCount = (n: number) => {
+    const list = (c.subMaterials || []).slice();
+    if (n > list.length) for (let i = list.length; i < n; i++) list.push(defaultMini(i + 1));
+    else list.length = n;
+    onChange({ subMaterials: list });
+  };
+
+  if (mat.type === 'Multi/Sub-Object') {
+    const list = c.subMaterials || [];
+    return (
+      <GroupBox title="Multi/Sub-Object Basic Parameters">
+        <Row label="Number of Materials:" labelWidth={140}>
+          <Spinner value={list.length} onChange={(v) => setCount(Math.max(1, Math.min(255, Math.round(v))))} step={1} min={1} max={255} />
+          <R3Button width={60} onClick={() => setCount(list.length + 1)}>Add</R3Button>
+          <R3Button width={90} onClick={() => setCount(Math.max(1, list.length - 1))}>Delete Last</R3Button>
+        </Row>
+        <div className="grid grid-cols-[44px_1fr_28px_20px_44px_44px] gap-x-1 text-[10px] font-bold mt-1 px-1">
+          <div>ID</div><div>Name</div><div>Col</div><div>M</div><div>Op</div><div>Gloss</div>
+        </div>
+        <div className="bevel-inset bg-white p-1 mt-[2px]" style={{ maxHeight: 220, overflowY: 'auto' }}>
+          {list.map((mm, i) => (
+            <MiniMatRow key={i} mm={mm} onChange={(patch) => patchSub(i, patch)} />
+          ))}
+        </div>
+        <div className="text-[10px] text-win-text-disabled mt-1">
+          Each polygon uses the sub-material whose ID matches its Material ID (set on Edit Poly / Edit Mesh → Polygon → Material ID).
+          Faces without an explicit ID fall back to sub-material #1.
+        </div>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Blend') {
+    return (
+      <GroupBox title="Blend Basic Parameters">
+        <Row label="Material 1:" labelWidth={90}>
+          <MiniMatRow mm={c.mat1!} onChange={(p) => onChange({ mat1: { ...c.mat1!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Material 2:" labelWidth={90}>
+          <MiniMatRow mm={c.mat2!} onChange={(p) => onChange({ mat2: { ...c.mat2!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Mix Amount:" labelWidth={90}>
+          <Spinner value={c.blendAmount ?? 0.5} onChange={(v) => onChange({ blendAmount: v })} step={0.01} min={0} max={1} />
+          <span className="ml-2 text-[11px]">Mask:</span>
+          <input type="color" value={c.maskColor || '#808080'} onChange={(e) => onChange({ maskColor: e.target.value })} className="w-[36px] h-[16px]" />
+        </Row>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Double Sided') {
+    return (
+      <GroupBox title="Double Sided Basic Parameters">
+        <Row label="Translucency:" labelWidth={100}>
+          <Spinner value={c.translucency ?? 0} onChange={(v) => onChange({ translucency: v })} step={1} min={0} max={100} />
+        </Row>
+        <Row label="Facing:" labelWidth={100}>
+          <MiniMatRow mm={c.front!} onChange={(p) => onChange({ front: { ...c.front!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Back:" labelWidth={100}>
+          <MiniMatRow mm={c.back!} onChange={(p) => onChange({ back: { ...c.back!, ...p } })} showId={false} />
+        </Row>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Top/Bottom') {
+    return (
+      <GroupBox title="Top/Bottom Basic Parameters">
+        <Row label="Top:" labelWidth={90}>
+          <MiniMatRow mm={c.top!} onChange={(p) => onChange({ top: { ...c.top!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Bottom:" labelWidth={90}>
+          <MiniMatRow mm={c.bottom!} onChange={(p) => onChange({ bottom: { ...c.bottom!, ...p } })} showId={false} />
+        </Row>
+        <Row label="Blend:" labelWidth={90}>
+          <Spinner value={c.blend ?? 0.1} onChange={(v) => onChange({ blend: v })} step={0.01} min={0} max={1} />
+          <span className="ml-2 text-[11px]">Position:</span>
+          <Spinner value={c.position ?? 0.5} onChange={(v) => onChange({ position: v })} step={0.01} min={0} max={1} />
+        </Row>
+        <Row label="Coordinates:" labelWidth={90}>
+          <label className="text-[11px] flex items-center gap-1"><input type="radio" name="tb-cs" checked={c.coords === 'World'} onChange={() => onChange({ coords: 'World' })} /> World</label>
+          <label className="text-[11px] flex items-center gap-1"><input type="radio" name="tb-cs" checked={c.coords === 'Local'} onChange={() => onChange({ coords: 'Local' })} /> Local</label>
+        </Row>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Composite' || mat.type === 'Shellac') {
+    const layers = c.layers || [];
+    return (
+      <GroupBox title={`${mat.type} Basic Parameters`}>
+        <Row label="Layers:" labelWidth={80}>
+          <R3Button width={70} onClick={() => onChange({ layers: [...layers, defaultMini(layers.length + 1)] })}>Add</R3Button>
+          <R3Button width={90} onClick={() => onChange({ layers: layers.slice(0, Math.max(1, layers.length - 1)) })}>Delete Last</R3Button>
+        </Row>
+        {mat.type === 'Shellac' && (
+          <Row label="Color Blend:" labelWidth={110}>
+            <Spinner value={c.shellacColorBlend ?? 50} onChange={(v) => onChange({ shellacColorBlend: v })} step={1} min={0} max={200} />
+          </Row>
+        )}
+        <div className="bevel-inset bg-white p-1 mt-1" style={{ maxHeight: 200, overflowY: 'auto' }}>
+          {layers.map((mm, i) => (
+            <MiniMatRow key={i} mm={mm} onChange={(p) => {
+              const nl = layers.slice(); nl[i] = { ...nl[i], ...p }; onChange({ layers: nl });
+            }} />
+          ))}
+        </div>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Matte/Shadow') {
+    return (
+      <GroupBox title="Matte/Shadow Basic Parameters">
+        <Row label="" labelWidth={10}>
+          <label className="text-[11px] flex items-center gap-1"><input type="checkbox" checked={!!c.opaqueAlpha} onChange={(e) => onChange({ opaqueAlpha: e.target.checked })} /> Opaque Alpha</label>
+        </Row>
+        <Row label="" labelWidth={10}>
+          <label className="text-[11px] flex items-center gap-1"><input type="checkbox" checked={!!c.receiveShadows} onChange={(e) => onChange({ receiveShadows: e.target.checked })} /> Receive Shadows</label>
+        </Row>
+        <div className="text-[10px] text-win-text-disabled mt-1">
+          The Matte/Shadow material makes the object invisible to the camera while still receiving shadows and reflections — used for VFX compositing.
+        </div>
+      </GroupBox>
+    );
+  }
+
+  if (mat.type === 'Raytrace') {
+    return (
+      <GroupBox title="Raytrace Basic Parameters">
+        <div className="text-[11px]">Raytrace uses the Standard parameters above; enable Reflection/Refraction maps in the Maps tab. Fully raytraced output requires the offline renderer.</div>
+      </GroupBox>
+    );
+  }
+
+  return null;
 }
