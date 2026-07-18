@@ -106,7 +106,15 @@ export const WaltSculptPanel = ({ open, onClose }: Props) => {
                 key={b.id}
                 width={90}
                 active={st.brush === b.id}
-                onClick={() => sculptStore.set({ brush: b.id })}
+                onClick={() => {
+                  const { targetId } = getSelectedMesh();
+                  const patch: any = { brush: b.id };
+                  if (!st.active && targetId) { patch.active = true; patch.targetId = targetId; }
+                  sculptStore.set(patch);
+                  if (!targetId && !st.active) {
+                    toast({ title: 'WaltSculpt', description: 'Select a mesh to start sculpting.' });
+                  }
+                }}
               >
                 {b.label}
               </R3Button>
