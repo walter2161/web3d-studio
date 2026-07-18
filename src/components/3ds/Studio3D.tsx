@@ -353,7 +353,7 @@ export const Studio3D = () => {
   // Live ref used by the animation renderer to read up-to-date object poses
   // (positions/rotations after each frame's keyframe interpolation).
   const objectsRef = useRef<Object3DData[]>(objects);
-  useEffect(() => { objectsRef.current = objects; }, [objects]);
+  useEffect(() => { objectsRef.current = objects; (window as any).__objects = objects; }, [objects]);
   const animationTracksRef = useRef<AnimationTrack[]>(animationTracks);
   useEffect(() => { animationTracksRef.current = animationTracks; }, [animationTracks]);
 
