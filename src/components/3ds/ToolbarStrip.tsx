@@ -20,14 +20,16 @@ interface ToolButtonProps {
   title: string;
   active?: boolean;
   onClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   children: React.ReactNode;
   disabled?: boolean;
 }
 
-export const ToolButton = ({ title, active, onClick, children, disabled }: ToolButtonProps) => (
+export const ToolButton = ({ title, active, onClick, onContextMenu, children, disabled }: ToolButtonProps) => (
   <button
     title={title}
     onClick={onClick}
+    onContextMenu={onContextMenu}
     disabled={disabled}
     className={cn(
       'w-[24px] h-[24px] flex items-center justify-center text-win-text disabled:text-win-text-disabled',
