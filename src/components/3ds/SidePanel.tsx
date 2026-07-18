@@ -2687,16 +2687,7 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
                 spellCheck={false}
               />
             </div>
-            <MaxSelect
-              label="Font"
-              value={g.font ?? 'helvetiker'}
-              options={[
-                { value: 'helvetiker', label: 'Helvetiker' },
-                { value: 'gentilis',   label: 'Gentilis' },
-                { value: 'optimer',    label: 'Optimer' },
-              ]}
-              onChange={(v) => onUpdate({ font: v })}
-            />
+            <TextFontPicker value={g.font ?? 'helvetiker'} onChange={(v) => onUpdate({ font: v })} />
             <div className="flex gap-3 pt-[2px]">
               <MaxCheck label="Bold"      checked={!!g.bold}      onChange={(v) => onUpdate({ bold: v })} />
               <MaxCheck label="Italic"    checked={!!g.italic}    onChange={(v) => onUpdate({ italic: v })} />
@@ -2725,9 +2716,30 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
               onChange={(v) => onUpdate({ curveSegments: v })} />
             <MaxCheck label="Reverse"     checked={!!g.reverse}    onChange={(v) => onUpdate({ reverse: v })} />
             <MaxCheck label="Auto Update" checked={g.autoUpdate !== false} onChange={(v) => onUpdate({ autoUpdate: v })} />
-            <div className="text-[10px] text-muted-foreground leading-tight pt-1">
-              Add an <span className="font-mono">Extrude</span> modifier to give the text volume.
+
+            {/* --- Extrude rollout (built-in, so text has volume without a modifier) --- */}
+            <div className="mt-1 pt-1 border-t border-panel-border">
+              <div className="text-[10px] font-semibold text-win-text pb-[2px] uppercase tracking-wide">Extrude</div>
+              <MaxSpinner label="Amount"   value={g.extrudeAmount   ?? 0} step={0.05} min={0}
+                onChange={(v) => onUpdate({ extrudeAmount: v })} />
+              <MaxSpinner label="Segments" value={g.extrudeSegments ?? 1} step={1}    min={1} isInt
+                onChange={(v) => onUpdate({ extrudeSegments: v })} />
+              <MaxCheck label="Bevel" checked={!!g.bevelEnabled} onChange={(v) => onUpdate({ bevelEnabled: v })} />
+              {g.bevelEnabled && (
+                <>
+                  <MaxSpinner label="Bev Size"  value={g.bevelSize      ?? 0.02} step={0.005} min={0}
+                    onChange={(v) => onUpdate({ bevelSize: v })} />
+                  <MaxSpinner label="Bev Thick" value={g.bevelThickness ?? 0.02} step={0.005} min={0}
+                    onChange={(v) => onUpdate({ bevelThickness: v })} />
+                  <MaxSpinner label="Bev Segs"  value={g.bevelSegments  ?? 2} step={1} min={1} isInt
+                    onChange={(v) => onUpdate({ bevelSegments: v })} />
+                </>
+              )}
+              <div className="text-[10px] text-muted-foreground leading-tight pt-[2px]">
+                Set Amount &gt; 0 to give text real 3D depth. Segments control length subdivisions.
+              </div>
             </div>
+
           </>
         );
       default:
