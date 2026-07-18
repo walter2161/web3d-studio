@@ -767,6 +767,18 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
       case 'Shell': return renderShell();
       case 'Edit Poly': return renderEditPoly(false);
       case 'Edit Mesh': return renderEditPoly(true);
+      case 'Stretch': return renderStretch();
+      case 'Skew': return renderSkew();
+      case 'FFD': return renderFFD();
+      case 'Mirror': return renderMirror();
+      case 'Slice': return renderSlice();
+      case 'Skin': return renderSkin();
+      case 'UVW Map': return renderUVWMap();
+      case 'Unwrap UVW': return renderUnwrap();
+      case 'MeshSmooth': return renderMeshSmooth();
+      case 'WaltSculpt': return renderWaltSculptMod();
+      case 'Lathe': return renderLathe();
+      case 'Bevel': return renderBevel();
       default: return renderDefault();
     }
   })();
