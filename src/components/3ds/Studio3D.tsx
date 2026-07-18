@@ -43,6 +43,9 @@ import { PreferencesDialog } from './prefs/PreferencesDialog';
 import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { WaltSculptPanel } from './waltsculpt/WaltSculptPanel';
 import { WaltSculptController } from './waltsculpt/WaltSculptController';
+import { WaltGamePanel } from './waltgame/WaltGamePanel';
+import { GamePreviewDialog } from './waltgame/GamePreviewDialog';
+import { exportGameHTML } from './waltgame/gameExport';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
 import { ContextMenuRoot, openContextMenu } from './ContextMenu';
 import { QuadMenu } from './QuadMenu';
@@ -240,6 +243,8 @@ export const Studio3D = () => {
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
   const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [waltSculptOpen, setWaltSculptOpen] = useState(false);
+  const [waltGameOpen, setWaltGameOpen] = useState(false);
+  const [gamePreviewOpen, setGamePreviewOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
@@ -2925,6 +2930,15 @@ export const Studio3D = () => {
       case 'WaltSculpt...':
         setWaltSculptOpen(true);
         break;
+      case 'WaltGame...':
+        setWaltGameOpen(true);
+        break;
+      case 'Run Game (F12)':
+        setGamePreviewOpen(true);
+        break;
+      case 'Export HTML Game...':
+        exportGameHTML();
+        break;
 
       // MAXScript.
       case 'New Script':
@@ -2967,6 +2981,11 @@ export const Studio3D = () => {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable) {
           return;
         }
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        setGamePreviewOpen((v) => !v);
+        return;
       }
       const cmd = commandForEvent(e);
       if (!cmd) return;
@@ -3421,6 +3440,14 @@ export const Studio3D = () => {
       <MapToolsPanel open={mapToolsOpen} onClose={() => setMapToolsOpen(false)} />
       <WaltSculptPanel open={waltSculptOpen} onClose={() => setWaltSculptOpen(false)} />
       <WaltSculptController />
+      <WaltGamePanel
+        open={waltGameOpen}
+        onClose={() => setWaltGameOpen(false)}
+        selectedObjectId={selectedObject}
+        selectedObjectName={objects.find((o) => o.id === selectedObject)?.name}
+        onRun={() => setGamePreviewOpen(true)}
+      />
+      <GamePreviewDialog open={gamePreviewOpen} onClose={() => setGamePreviewOpen(false)} />
 
       {/* Customize UI — keyboard shortcut editor, color scheme picker, and
           scheme import/export. Live bindings feed the global hotkey listener
