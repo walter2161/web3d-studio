@@ -186,6 +186,38 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     const raycaster = new THREE.Raycaster();
     let onGround = false;
 
+    // Trigger overlap tracking (id → currently inside).
+    const insideTriggers = new Set<string>();
+    // HUD runtime state.
+    const hud = { health: 100, maxHealth: 100, score: state.manager.startScore, time: state.manager.startTimer };
+    // Find any HUD/manager objects for display config.
+    const hudObj = objects.find((o) => state.props[o.id]?.tag === 'hud');
+    if (hudObj) {
+      const h = state.props[hudObj.id].hud;
+      hud.health = h.health; hud.maxHealth = h.maxHealth;
+    }
+    // Simple DSL executor for trigger events.
+    const runAction = (cmd?: string) => {
+      if (!cmd) return;
+      cmd.split(';').forEach((raw) => {
+        const [op, ...rest] = raw.trim().split(':');
+        const val = rest.join(':');
+        switch (op) {
+          case 'log': console.log('[WaltGame trigger]', val); break;
+          case 'damage': hud.health = Math.max(0, hud.health - Number(val || 0)); break;
+          case 'heal': hud.health = Math.min(hud.maxHealth, hud.health + Number(val || 0)); break;
+          case 'score': hud.score += val.startsWith('+') || val.startsWith('-') ? Number(val) : Number(val); break;
+          case 'audio': {
+            const src = audioSources.find((a) => a.trigger === 'enter');
+            if (src) { try { src.el.currentTime = 0; src.el.play(); } catch {} }
+            break;
+          }
+          case 'load': console.log('[WaltGame] load scene:', val); break;
+          default: if (op) console.log('[WaltGame action]', raw);
+        }
+      });
+    };
+
     const actionActive = (name: string): boolean => {
       for (const [k, a] of keyMap.entries()) {
         if (a === name && keys.has(k)) return true;
@@ -197,6 +229,7 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     let raf = 0;
     const tick = () => {
       const dt = Math.min(0.05, clock.getDelta());
+
 
       // Character movement in the horizontal plane relative to yaw.
       const forward = new THREE.Vector3(-Math.sin(yaw.v), 0, -Math.cos(yaw.v));
