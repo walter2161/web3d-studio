@@ -217,6 +217,15 @@ export const Studio3D = () => {
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  // View-menu options (Show Grid / Statistics / Update During Spinner Drag).
+  const [viewOpts, setViewOpts] = useState({
+    showGrid: true,
+    showStatistics: false,
+    updateDuringSpinnerDrag: true,
+  });
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [maxScriptOpen, setMaxScriptOpen] = useState(false);
+  const [maxScriptLog, setMaxScriptLog] = useState<string[]>(['-- Walt3D MAXScript Listener --']);
   const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onOk: () => void; title?: string }>({ open: false, message: '', onOk: () => {} });
   const [heldSnapshot, setHeldSnapshot] = useState<Object3DData[] | null>(null);
   const [units, setUnits] = useState(() => loadUnits());
