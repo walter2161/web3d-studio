@@ -121,6 +121,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       // panning for the duration by grabbing it and disabling.
       disabledOC = grabOC();
       if (disabledOC) disabledOC.enabled = false;
+      disabledOCRef.current = disabledOC;
       const curLocal = {
         x: ev.clientX - pending.rect.left,
         y: ev.clientY - pending.rect.top,
