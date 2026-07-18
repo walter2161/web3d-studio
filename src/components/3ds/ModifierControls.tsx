@@ -524,6 +524,182 @@ export const ModifierControls = ({ modifier, objectId, onUpdateModifier, onRemov
     );
   };
 
+  // ---- Newly wired modifiers (Stretch/Skew/FFD/Mirror/Slice/Skin/UVW/Unwrap/MeshSmooth/WaltSculpt/Lathe/Bevel) ----
+
+  const AxisRow = ({ label, value, onChange }: { label: string; value: 'X'|'Y'|'Z'; onChange: (v: 'X'|'Y'|'Z') => void }) => (
+    <Group title={label}>
+      <div className="flex gap-[3px]">
+        {(['X','Y','Z'] as const).map((ax) => (
+          <WinBtn key={ax} active={value === ax} onClick={() => onChange(ax)} className="flex-1">{ax}</WinBtn>
+        ))}
+      </div>
+    </Group>
+  );
+
+  const renderStretch = () => (
+    <Rollout title="Parameters">
+      <Group title="Stretch">
+        <SliderRow label="Stretch" value={params.amount ?? 0} min={-5} max={5} step={0.01} onChange={(v) => updateParam('amount', v)} />
+        <SliderRow label="Amplify" value={params.amplify ?? 0} min={-5} max={5} step={0.01} onChange={(v) => updateParam('amplify', v)} />
+      </Group>
+      <AxisRow label="Stretch Axis" value={params.axis || 'Z'} onChange={(v) => updateParam('axis', v)} />
+      <Group title="Limits">
+        <CheckRow label="Limit Effect" checked={!!params.limits} onChange={(v) => updateParam('limits', v)} />
+        <NumField label="Upper Limit" value={params.upperLimit ?? 0} step={0.01} onChange={(v) => updateParam('upperLimit', v)} />
+        <NumField label="Lower Limit" value={params.lowerLimit ?? 0} step={0.01} onChange={(v) => updateParam('lowerLimit', v)} />
+      </Group>
+    </Rollout>
+  );
+
+  const renderSkew = () => (
+    <Rollout title="Parameters">
+      <Group title="Skew">
+        <SliderRow label="Amount" value={params.amount ?? 0} min={-10} max={10} step={0.01} onChange={(v) => updateParam('amount', v)} />
+      </Group>
+      <AxisRow label="Skew Axis" value={params.axis || 'Z'} onChange={(v) => updateParam('axis', v)} />
+      <AxisRow label="Direction" value={params.direction || 'X'} onChange={(v) => updateParam('direction', v)} />
+    </Rollout>
+  );
+
+  const renderFFD = () => {
+    const size = Math.max(2, Math.min(4, Math.floor(params.size ?? 2)));
+    const total = size * size * size * 3;
+    const pts: number[] = Array.isArray(params.points) ? params.points : [];
+    const ensure = () => (pts.length === total ? pts : new Array(total).fill(0));
+    return (
+      <Rollout title="Parameters">
+        <Group title="Lattice">
+          <SelectRow label="Size" value={String(size)} options={['2','3','4']} onChange={(v) => set({ size: parseInt(v, 10), points: [] })} />
+          <div className="text-[10px] text-win-text">Control Points: {size}×{size}×{size}</div>
+        </Group>
+        <Group title="Bulk Deform (all points)">
+          <NumField label="Offset X" value={0} step={0.05} onChange={(v) => { const arr = ensure(); for (let i=0;i<arr.length;i+=3) arr[i]+=v; set({ points: arr }); }} />
+          <NumField label="Offset Y" value={0} step={0.05} onChange={(v) => { const arr = ensure(); for (let i=1;i<arr.length;i+=3) arr[i]+=v; set({ points: arr }); }} />
+          <NumField label="Offset Z" value={0} step={0.05} onChange={(v) => { const arr = ensure(); for (let i=2;i<arr.length;i+=3) arr[i]+=v; set({ points: arr }); }} />
+          <WinBtn className="w-full mt-[3px]" onClick={() => set({ points: [] })}>Reset All Points</WinBtn>
+        </Group>
+      </Rollout>
+    );
+  };
+
+  const renderMirror = () => (
+    <Rollout title="Parameters">
+      <AxisRow label="Mirror Axis" value={params.axis || 'X'} onChange={(v) => updateParam('axis', v)} />
+      <Group title="Offset">
+        <NumField label="Offset" value={params.offset ?? 0} step={0.01} onChange={(v) => updateParam('offset', v)} />
+      </Group>
+    </Rollout>
+  );
+
+  const renderSlice = () => (
+    <Rollout title="Parameters">
+      <AxisRow label="Slice Axis" value={params.axis || 'Y'} onChange={(v) => updateParam('axis', v)} />
+      <Group title="Slice Plane">
+        <NumField label="Offset" value={params.offset ?? 0} step={0.01} onChange={(v) => updateParam('offset', v)} />
+      </Group>
+      <Group title="Operation">
+        <div className="grid grid-cols-2 gap-[3px]">
+          {(['refine','split','removeTop','removeBottom'] as const).map((m) => (
+            <WinBtn key={m} active={(params.mode || 'refine') === m} onClick={() => updateParam('mode', m)}>{m}</WinBtn>
+          ))}
+        </div>
+      </Group>
+    </Rollout>
+  );
+
+  const renderSkin = () => (
+    <Rollout title="Parameters">
+      <Group title="Bones">
+        <div className="text-[11px] text-win-text mb-[3px]">Bones assigned: {(params.bones ?? []).length}</div>
+        <WinBtn className="w-full mb-[3px]" onClick={() => toast('Use Select and Link to bind bones')}>Add Bones…</WinBtn>
+        <CheckRow label="Rigid Vertices" checked={!!params.rigid} onChange={(v) => updateParam('rigid', v)} />
+      </Group>
+      <Group title="Envelope">
+        <NumField label="Falloff" value={params.falloff ?? 1} step={0.05} onChange={(v) => updateParam('falloff', v)} />
+      </Group>
+    </Rollout>
+  );
+
+  const renderUVWMap = () => (
+    <Rollout title="Parameters">
+      <Group title="Mapping">
+        <div className="grid grid-cols-2 gap-[3px]">
+          {(['planar','cylindrical','spherical','box'] as const).map((m) => (
+            <WinBtn key={m} active={(params.mapping || 'planar') === m} onClick={() => updateParam('mapping', m)}>{m}</WinBtn>
+          ))}
+        </div>
+      </Group>
+      <AxisRow label="Alignment" value={params.axis || 'Z'} onChange={(v) => updateParam('axis', v)} />
+      <Group title="Tiling">
+        <NumField label="U Tile" value={params.tileU ?? 1} step={0.1} onChange={(v) => updateParam('tileU', v)} />
+        <NumField label="V Tile" value={params.tileV ?? 1} step={0.1} onChange={(v) => updateParam('tileV', v)} />
+      </Group>
+    </Rollout>
+  );
+
+  const renderUnwrap = () => (
+    <Rollout title="Parameters">
+      <Group title="Edit UVs">
+        <WinBtn className="w-full mb-[3px]" onClick={() => window.dispatchEvent(new CustomEvent('open-maptools', { detail: { objectId } }))}>Open MapTools Editor…</WinBtn>
+        <NumField label="Padding" value={params.padding ?? 0.02} step={0.01} min={0} max={0.5} onChange={(v) => updateParam('padding', v)} />
+      </Group>
+      <Group title="Flatten">
+        <div className="grid grid-cols-2 gap-[3px]">
+          <WinBtn active={(params.method || 'planarPerFace') === 'planarPerFace'} onClick={() => updateParam('method', 'planarPerFace')}>Planar/Face</WinBtn>
+          <WinBtn onClick={() => toast('Flatten applied')}>Flatten</WinBtn>
+        </div>
+      </Group>
+    </Rollout>
+  );
+
+  const renderMeshSmooth = () => (
+    <Rollout title="Parameters">
+      <Group title="Subdivision">
+        <NumField label="Iterations" value={params.iterations ?? 1} min={1} max={5} step={1} onChange={(v) => updateParam('iterations', Math.floor(v))} />
+        <SliderRow label="Strength" value={params.strength ?? 0.5} min={0} max={1} step={0.01} onChange={(v) => updateParam('strength', v)} />
+      </Group>
+    </Rollout>
+  );
+
+  const renderWaltSculptMod = () => (
+    <Rollout title="Parameters">
+      <Group title="Sculpt (non-destructive)">
+        <div className="text-[11px] text-win-text mb-[3px]">Strokes recorded: {(params.strokes ?? []).length}</div>
+        <WinBtn className="w-full mb-[3px]" onClick={() => window.dispatchEvent(new CustomEvent('open-waltsculpt', { detail: { objectId, modifierId: modifier.id } }))}>Enter Sculpt Mode…</WinBtn>
+        <WinBtn className="w-full" onClick={() => set({ strokes: [] })}>Clear Strokes</WinBtn>
+      </Group>
+    </Rollout>
+  );
+
+  const renderLathe = () => (
+    <Rollout title="Parameters">
+      <Group title="Lathe">
+        <SliderRow label="Degrees" value={params.degrees ?? 360} min={0} max={360} step={1} unit="°" onChange={(v) => updateParam('degrees', v)} />
+        <NumField label="Segments" value={params.segments ?? 32} min={3} max={128} step={1} onChange={(v) => updateParam('segments', Math.max(3, Math.floor(v)))} />
+        <CheckRow label="Flip Normals" checked={!!params.flipNormals} onChange={(v) => updateParam('flipNormals', v)} />
+      </Group>
+      <AxisRow label="Direction" value={params.axis || 'Y'} onChange={(v) => updateParam('axis', v)} />
+      <Group title="Align">
+        <div className="grid grid-cols-3 gap-[3px]">
+          {(['Min','Center','Max'] as const).map((n, i) => (
+            <WinBtn key={n} active={(params.direction ?? 0) === i} onClick={() => updateParam('direction', i)}>{n}</WinBtn>
+          ))}
+        </div>
+      </Group>
+    </Rollout>
+  );
+
+  const renderBevel = () => (
+    <Rollout title="Parameters">
+      <Group title="Bevel">
+        <NumField label="Height" value={params.height ?? 1} step={0.01} onChange={(v) => updateParam('height', v)} />
+        <NumField label="Outline" value={params.outline ?? 0.1} step={0.01} onChange={(v) => updateParam('outline', v)} />
+        <NumField label="Bevel Seg." value={params.bevelSegments ?? 3} min={1} max={16} step={1} onChange={(v) => updateParam('bevelSegments', Math.max(1, Math.floor(v)))} />
+        <NumField label="Segments" value={params.segments ?? 1} min={1} max={32} step={1} onChange={(v) => updateParam('segments', Math.max(1, Math.floor(v)))} />
+      </Group>
+    </Rollout>
+  );
+
   const renderShell = () => {
     const outer = Number.isFinite(params.outer) ? params.outer : 0;
     const inner = Number.isFinite(params.inner) ? params.inner : 0.1;
