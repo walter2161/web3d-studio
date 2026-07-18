@@ -91,14 +91,19 @@ export function WaltGameIconOverlay({ objects }: Props) {
   const propsMap = useWaltGame((s) => s.props);
 
   const entries = useMemo(() => {
+    // Only badge objects that are explicit WaltGame entities. 'static' and
+    // 'dynamic' are the defaults applied to plain scene meshes and must NOT
+    // get an icon — otherwise every object in the scene would show a badge.
+    const GAME_TAGS = new Set<GameTag>([
+      'character', 'cameraTarget', 'trigger', 'collectible', 'interactive',
+      'enemy', 'vehicle', 'spawn', 'audio', 'hud', 'terrain', 'manager',
+      'probe', 'navmesh',
+    ]);
     const list: Array<{ id: string; pos: [number, number, number]; tag: GameTag }> = [];
     for (const obj of objects) {
       const p = propsMap[obj.id];
       if (!p) continue;
-      // Skip plain 'static' unless it's explicitly a game entity — 'static' is the
-      // default tag applied to Colliders/Terrain/etc., which we DO want to badge,
-      // but we need a way to detect it. We include everything with props, since
-      // props only exist on objects the user routed through WaltGame.
+      if (!GAME_TAGS.has(p.tag)) continue;
       list.push({ id: obj.id, pos: obj.position, tag: p.tag });
     }
     return list;
