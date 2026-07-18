@@ -6,7 +6,7 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 import { getImportedModel } from './utils/modelImport';
 import { buildExtendedPrimitive, buildShape, buildTextShapes, ExtPrimType, ShapeType } from './utils/extendedGeometry';
 import { buildWall, buildDoor, buildWindow } from './utils/aecGeometry';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeVertices, mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { SubObjectOverlay } from './editable/SubObjectOverlay';
 import type { SubObjectLevel } from './editable/EditableMesh';
 import { fromGeometry } from './editable/fromGeometry';
