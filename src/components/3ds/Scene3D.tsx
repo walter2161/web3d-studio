@@ -362,6 +362,10 @@ export const Scene3D = ({
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
+            // Flag so the SelectionRegionOverlay's window-level pointermove
+            // (which uses capture-phase) knows a gizmo drag has started and
+            // must not be promoted into a marquee selection.
+            (window as any).__r3TransformDragging = true;
             if (!boneJointActive && !subGizmoActive && !importedSubActive && !modGizmoActive && selectedObject) {
               // Snapshot every selected node's TRS so undo restores the whole set.
               window.dispatchEvent(new CustomEvent('r3-transform-start', { detail: { objectId: selectedObject } }));
