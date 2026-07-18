@@ -97,12 +97,35 @@ export function MaxSpinner({
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
   };
 
-  const displayVal = (() => {
-    const n = Number.isFinite(value) ? value : 0;
-    if (isInt) return String(Math.round(n));
-    const p = precision ?? (step >= 1 ? 1 : step >= 0.1 ? 2 : 3);
-    return n.toFixed(p);
-  })();
+  // Format value for display (3ds Max style: fixed decimals, dot separator).
+  const formatVal = useCallback(
+    (n: number) => {
+      if (!Number.isFinite(n)) n = 0;
+      if (isInt) return String(Math.round(n));
+      const p = precision ?? (step >= 1 ? 1 : step >= 0.1 ? 2 : 3);
+      return n.toFixed(p);
+    },
+    [isInt, precision, step],
+  );
+
+  // Local edit buffer — while focused, let user type freely (incl. "-", "1.",
+  // "1,5") without reformatting on each keystroke. Commit on blur / Enter.
+  const [editing, setEditing] = useState(false);
+  const [buffer, setBuffer] = useState('');
+  const displayVal = editing ? buffer : formatVal(value);
+
+  const parseBuffer = (raw: string): number | null => {
+    const s = String(raw).trim().replace(',', '.');
+    if (s === '' || s === '-' || s === '.' || s === '-.') return null;
+    const n = isInt ? parseInt(s, 10) : parseFloat(s);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const commitBuffer = () => {
+    const parsed = parseBuffer(buffer);
+    commit(parsed ?? value ?? 0);
+    setEditing(false);
+  };
 
   return (
     <div className={cn('flex items-center gap-1 text-[11px] leading-none', className)}>
@@ -112,20 +135,48 @@ export function MaxSpinner({
       >
         {label}:
       </label>
-      <div className="flex items-stretch border border-panel-border bg-background rounded-[2px] h-[19px] flex-1 min-w-0">
+      <div className="flex items-stretch border border-panel-border bg-background rounded-[2px] h-[19px] flex-1 min-w-0 focus-within:border-primary/70">
         <input
           type="text"
           inputMode="decimal"
           value={displayVal}
+          onFocus={(e) => {
+            setEditing(true);
+            setBuffer(formatVal(value));
+            requestAnimationFrame(() => e.target.select());
+          }}
           onChange={(e) => {
-            const parsed = isInt ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
-            if (Number.isFinite(parsed)) commit(parsed);
+            const raw = e.target.value;
+            const filtered = isInt
+              ? raw.replace(/[^\d-]/g, '')
+              : raw.replace(/[^\d.,\-]/g, '').replace(/(?!^)-/g, '');
+            setBuffer(filtered);
           }}
-          onBlur={(e) => {
-            const parsed = isInt ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
-            commit(Number.isFinite(parsed) ? parsed : 0);
+          onBlur={commitBuffer}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitBuffer();
+              (e.currentTarget as HTMLInputElement).blur();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              setEditing(false);
+              setBuffer(formatVal(value));
+              (e.currentTarget as HTMLInputElement).blur();
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              bump(1);
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              bump(-1);
+            }
           }}
-          className="w-full min-w-0 px-1 bg-transparent text-[11px] outline-none text-right tabular-nums"
+          onWheel={(e) => {
+            if (document.activeElement !== e.currentTarget) return;
+            e.preventDefault();
+            bump(e.deltaY < 0 ? 1 : -1);
+          }}
+          className="w-full min-w-0 px-1 bg-transparent text-[11px] outline-none text-right tabular-nums font-mono"
         />
         <div
           className="flex flex-col border-l border-panel-border cursor-ns-resize touch-none shrink-0"
