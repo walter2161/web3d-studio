@@ -308,6 +308,24 @@ function buildGhost(
       break;
     }
 
+    // Particle emitters — drag defines the emitter footprint on the base
+    // plane. Height axis is used only for the emission direction (visual
+    // arrow); actual sim runs at commit time.
+    case 'part_spray':
+    case 'part_snow':
+    case 'part_super_spray':
+    case 'part_parray':
+    case 'part_pcloud':
+    case 'part_blizzard': {
+      const w = Math.max(0.2, Math.abs(dBaseA) * 2 || 1);
+      const l = Math.max(0.2, Math.abs(dBaseB) * 2 || 1);
+      setBase(baseAxes[0], start[baseAxes[0]]);
+      setBase(baseAxes[1], start[baseAxes[1]]);
+      setH(start[heightAxis]);
+      geometry = { ...(prev?.geometry || {}), emitterKind: tool.replace('part_', ''), width: w, length: l };
+      break;
+    }
+
   }
 
 
