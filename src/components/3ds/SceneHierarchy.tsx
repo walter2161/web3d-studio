@@ -175,6 +175,17 @@ export const SceneHierarchy = ({
             onSelectSubObject?.(obj.id, null);
           }}
           onDoubleClick={() => startRename(obj.id, getObjectName(obj))}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Ensure the right-clicked row is selected so quad-menu actions
+            // act on it (matches 3ds Max scene explorer behaviour).
+            if (selectedObject !== obj.id) onSelectObject(obj.id, false, false);
+            // Open the standard quad-menu at the pointer.
+            window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
+              detail: { x: e.clientX, y: e.clientY },
+            }));
+          }}
         >
           <div className="w-4 h-4 flex items-center justify-center">
             {hasChildren && (

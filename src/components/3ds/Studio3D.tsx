@@ -43,6 +43,8 @@ import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { WaltSculptPanel } from './waltsculpt/WaltSculptPanel';
 import { WaltSculptController } from './waltsculpt/WaltSculptController';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
+import { ContextMenuRoot, openContextMenu } from './ContextMenu';
+import { QuadMenu } from './QuadMenu';
 import { commandForEvent } from './prefs/hotkeysStore';
 import { DEFAULT_PRINTER_ID } from './print3d/printers';
 import { DEFAULT_PARTICLE_GEOM } from './particles/ParticleObject';
@@ -1624,6 +1626,36 @@ export const Studio3D = () => {
     };
   }, []);
 
+  // ---- Right-click cancels an active transform drag (3ds Max behaviour).
+  // While TransformControls is dragging (dragActiveRef=true), a contextmenu
+  // event should abort the operation and restore the pre-drag snapshot via
+  // undo(). We swallow the event so no browser menu appears.
+  useEffect(() => {
+    const onCtx = (e: MouseEvent) => {
+      if (!dragActiveRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      undo();
+      dragActiveRef.current = false;
+    };
+    window.addEventListener('contextmenu', onCtx, true);
+    return () => window.removeEventListener('contextmenu', onCtx, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Route quad-menu actions through handleMenuAction. Using an event
+  // bus keeps the QuadMenu/ContextMenu components decoupled from Studio3D.
+  useEffect(() => {
+    const onAction = (e: Event) => {
+      const action = (e as CustomEvent).detail;
+      if (typeof action === 'string') handleMenuAction(action);
+    };
+    window.addEventListener('walt3d:menu-action', onAction as EventListener);
+    return () => window.removeEventListener('walt3d:menu-action', onAction as EventListener);
+    // handleMenuAction closes over current state via refs / setState — a stable
+    // ref isn't needed because it's re-created each render and the listener
+    // is re-bound each render below via the deps array.
+  });
+
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
   // Until true multi-select lands, we pick the last matched id as the primary
@@ -2603,6 +2635,64 @@ export const Studio3D = () => {
       case 'Undo': undo(); break;
       case 'Redo': redo(); break;
       case 'Delete': handleDeleteSelected(); break;
+
+      // ---- Quad-menu actions (right-click) ----
+      case 'Move':   setTransformMode('translate'); break;
+      case 'Rotate': setTransformMode('rotate'); break;
+      case 'Scale':  setTransformMode('scale'); break;
+      case 'Transform Type-In': setTypeInOpen(true); break;
+      case 'Align': if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); break;
+      case 'Hide Selection': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        if (!ids.length) { toast.error('Select an object'); break; }
+        const set = new Set(ids);
+        setObjects((prev) => prev.map((o) => set.has(o.id) ? { ...o, visible: false } : o));
+        break;
+      }
+      case 'Hide Unselected': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        const set = new Set(ids);
+        setObjects((prev) => prev.map((o) => (set.has(o.id) || o.isGroup) ? o : { ...o, visible: false }));
+        break;
+      }
+      case 'Unhide All':
+        setObjects((prev) => prev.map((o) => ({ ...o, visible: true })));
+        break;
+      case 'Freeze Selection': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        if (!ids.length) { toast.error('Select an object'); break; }
+        const set = new Set(ids);
+        setObjects((prev) => prev.map((o) => set.has(o.id) ? { ...o, locked: true } : o));
+        break;
+      }
+      case 'Unfreeze All':
+        setObjects((prev) => prev.map((o) => ({ ...o, locked: false })));
+        break;
+      case 'Isolate Selection': {
+        const ids = new Set(selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []));
+        if (!ids.size) { toast.error('Select an object'); break; }
+        setObjects((prev) => prev.map((o) => (ids.has(o.id) || o.isGroup) ? { ...o, visible: true } : { ...o, visible: false }));
+        toast.success('Isolated — Unhide All to restore');
+        break;
+      }
+      case 'Convert To Editable Mesh':
+      case 'Convert To Editable Poly':
+      case 'Convert To Editable Spline': {
+        if (!selectedObject) { toast.error('Select an object'); break; }
+        // Route through the modifier bus so the existing conversion logic runs.
+        window.dispatchEvent(new CustomEvent('walt3d:convert-selected', { detail: action }));
+        toast.success(action);
+        break;
+      }
+      case 'Curve Editor':
+      case 'Dope Sheet':
+        window.dispatchEvent(new CustomEvent('walt3d:open-track-view', { detail: action }));
+        break;
+      case 'Create Box':      window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'box' })); break;
+      case 'Create Sphere':   window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'sphere' })); break;
+      case 'Create Cylinder': window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'cylinder' })); break;
+      case 'Create Plane':    window.dispatchEvent(new CustomEvent('walt3d:arm-tool', { detail: 'plane' })); break;
+
       case 'Clone': {
         const sel = objects.find((o) => o.id === selectedObject);
         if (!sel) { toast.error('Select an object first'); break; }
@@ -2953,7 +3043,25 @@ export const Studio3D = () => {
             } catch { /* not our payload */ }
           }}
         >
-          <div className="flex-1 min-h-0 bg-win-dark">
+          <div
+            className="flex-1 min-h-0 bg-win-dark"
+            onContextMenu={(e) => {
+              // Skip if the creation controller already consumed the right-click
+              // (armed tool finalises/cancels the operation instead).
+              if (e.defaultPrevented) return;
+              // Skip if a transform drag is running — handled by the global
+              // capture-phase listener that maps right-click → undo.
+              if (dragActiveRef.current) return;
+              // Only open on right mouse over the viewport surface itself
+              // (canvas/overlays). Avoid intercepting inputs inside dialogs.
+              const t = e.target as HTMLElement | null;
+              if (t && t.closest('input,textarea,select,button,[role="dialog"]')) return;
+              e.preventDefault();
+              window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
+                detail: { x: e.clientX, y: e.clientY },
+              }));
+            }}
+          >
 
             <ViewportGrid
               layout={viewportLayout}
@@ -3341,6 +3449,10 @@ export const Studio3D = () => {
         } : null}
         onCommit={(id, t) => handleTransformObject(id, t)}
       />
+
+      {/* Right-click / Quad Menu system (portal + event router). */}
+      <ContextMenuRoot />
+      <QuadMenu />
     </div>
     </CreationProvider>
     </RenderEngineProvider>
@@ -3352,6 +3464,16 @@ export const Studio3D = () => {
 // button clicks in the Create rollout hand off to the viewport click-drag flow.
 const ArmedSidePanel = (props: React.ComponentProps<typeof SidePanel>) => {
   const { arm, disarm, armed } = useCreation();
+  // Bridge: quad-menu "Create Box/Sphere/..." dispatches `walt3d:arm-tool` so
+  // Studio3D can trigger the creation flow without holding a hook reference.
+  useEffect(() => {
+    const onArm = (e: Event) => {
+      const tool = (e as CustomEvent).detail;
+      if (typeof tool === 'string' && tool) arm(tool as any);
+    };
+    window.addEventListener('walt3d:arm-tool', onArm as EventListener);
+    return () => window.removeEventListener('walt3d:arm-tool', onArm as EventListener);
+  }, [arm]);
   return (
     <SidePanel
       {...props}
