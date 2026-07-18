@@ -2515,6 +2515,63 @@ const SubObjectStack = ({ objectId, onConvert }: { objectId: string; onConvert: 
   );
 };
 
+// ---- Google Fonts picker used by the Text shape ----
+// Injects a single <link> tag that requests every alias listed in
+// GOOGLE_FONT_LIBRARY, then renders each option in its own font-family so the
+// user gets a live preview right inside the dropdown.
+let __googleFontsInjected = false;
+function ensureGoogleFontsLoaded() {
+  if (__googleFontsInjected || typeof document === 'undefined') return;
+  __googleFontsInjected = true;
+  const families = Object.keys(GOOGLE_FONT_LIBRARY)
+    .filter((k) => !['helvetiker', 'gentilis', 'optimer'].includes(k))
+    .map((k) => `family=${encodeURIComponent(k).replace(/%20/g, '+')}:wght@400;700`)
+    .join('&');
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
+  document.head.appendChild(link);
+}
+
+interface TextFontPickerProps { value: string; onChange: (v: string) => void; }
+const TextFontPicker = ({ value, onChange }: TextFontPickerProps) => {
+  useEffect(() => { ensureGoogleFontsLoaded(); }, []);
+  const entries = Object.entries(GOOGLE_FONT_LIBRARY) as [string, { base: string; family: string; category: string }][];
+  const current = GOOGLE_FONT_LIBRARY[value as keyof typeof GOOGLE_FONT_LIBRARY];
+  return (
+    <div className="pt-[2px]">
+      <Label className="text-[10px]">Font</Label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full h-[22px] text-[11px] bevel-sunken bg-white px-1 text-black border border-win-shadow outline-none"
+        style={{ fontFamily: current?.family ?? 'inherit' }}
+      >
+        {['sans', 'condensed', 'serif', 'script', 'display'].map((cat) => {
+          const fonts = entries.filter(([, m]) => m.category === cat);
+          if (!fonts.length) return null;
+          return (
+            <optgroup key={cat} label={cat.toUpperCase()}>
+              {fonts.map(([name, meta]) => (
+                <option key={name} value={name} style={{ fontFamily: meta.family, fontSize: '13px' }}>
+                  {name}
+                </option>
+              ))}
+            </optgroup>
+          );
+        })}
+      </select>
+      <div
+        className="mt-[2px] text-[13px] leading-tight px-1 py-[2px] bevel-sunken bg-white text-black truncate"
+        style={{ fontFamily: current?.family ?? 'inherit' }}
+        title="Preview"
+      >
+        AaBbCc 123 — {value}
+      </div>
+    </div>
+  );
+};
+
 
 interface ShapeParamsProps {
   object: any;
