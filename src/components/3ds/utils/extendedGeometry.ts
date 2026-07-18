@@ -135,21 +135,63 @@ export const SHAPE_DEFAULTS: Record<ShapeType, any> = {
   ngon:      { ...COMMON_SHAPE_DEFAULTS, radius: 0.5, sides: 6, circular: false, fillet: 0, inscribed: true },
   star:      { ...COMMON_SHAPE_DEFAULTS, radius1: 0.5, radius2: 0.22, points: 5, distortion: 0, filletRadius1: 0, filletRadius2: 0, twist: 0 },
   helix:     { ...COMMON_SHAPE_DEFAULTS, radius1: 0.4, radius2: 0.4, height: 1, turns: 3, bias: 0, clockwise: true },
-  text:      { ...COMMON_SHAPE_DEFAULTS, text: 'LEDMKT', font: 'helvetiker', bold: false, italic: false, underline: false, size: 1, kerning: 0, tracking: 0, leading: 1.2, alignment: 'left', reverse: false, autoUpdate: true, curveSegments: 6 },
+  text:      { ...COMMON_SHAPE_DEFAULTS, text: 'LEDMKT', font: 'helvetiker', bold: false, italic: false, underline: false, size: 1, kerning: 0, tracking: 0, leading: 1.2, alignment: 'left', reverse: false, autoUpdate: true, curveSegments: 6, extrudeAmount: 0, extrudeSegments: 1, bevelEnabled: false, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 2 },
 };
 
 // ---------------- Fonts ----------------
+//
+// The 3D geometry is generated from three of Three.js's bundled typeface fonts
+// (Helvetiker, Gentilis, Optimer). To offer users the look of the most popular
+// Google Fonts, we expose a curated list of well-known font *aliases* that map
+// to whichever bundled font best matches the visual family (sans/serif/
+// condensed/script). The UI shows a live WebFont preview of the alias, while
+// the actual mesh is built with the mapped bundled font.
 
-export const AVAILABLE_FONTS = ['helvetiker', 'gentilis', 'optimer'] as const;
-export type FontName = typeof AVAILABLE_FONTS[number];
+// alias -> { base, googleFamily, category }
+export const GOOGLE_FONT_LIBRARY: Record<string, { base: 'helvetiker' | 'gentilis' | 'optimer'; family: string; category: 'sans' | 'serif' | 'condensed' | 'script' | 'display' }> = {
+  helvetiker: { base: 'helvetiker', family: 'Helvetica, Arial, sans-serif', category: 'sans' },
+  gentilis:   { base: 'gentilis',   family: 'Georgia, serif',                category: 'serif' },
+  optimer:    { base: 'optimer',    family: 'Optima, Segoe UI, sans-serif',  category: 'sans' },
+  Roboto:            { base: 'helvetiker', family: 'Roboto, sans-serif',             category: 'sans' },
+  'Open Sans':       { base: 'helvetiker', family: '"Open Sans", sans-serif',        category: 'sans' },
+  Lato:              { base: 'helvetiker', family: 'Lato, sans-serif',               category: 'sans' },
+  Montserrat:        { base: 'helvetiker', family: 'Montserrat, sans-serif',         category: 'sans' },
+  Poppins:           { base: 'helvetiker', family: 'Poppins, sans-serif',            category: 'sans' },
+  Raleway:           { base: 'helvetiker', family: 'Raleway, sans-serif',            category: 'sans' },
+  Nunito:            { base: 'helvetiker', family: 'Nunito, sans-serif',             category: 'sans' },
+  Inter:             { base: 'helvetiker', family: 'Inter, sans-serif',              category: 'sans' },
+  'Work Sans':       { base: 'helvetiker', family: '"Work Sans", sans-serif',        category: 'sans' },
+  'Fira Sans':       { base: 'helvetiker', family: '"Fira Sans", sans-serif',        category: 'sans' },
+  Oswald:            { base: 'gentilis',   family: 'Oswald, sans-serif',             category: 'condensed' },
+  'Bebas Neue':      { base: 'gentilis',   family: '"Bebas Neue", sans-serif',       category: 'condensed' },
+  Anton:             { base: 'gentilis',   family: 'Anton, sans-serif',              category: 'condensed' },
+  'Playfair Display':{ base: 'optimer',    family: '"Playfair Display", serif',      category: 'serif' },
+  Merriweather:      { base: 'optimer',    family: 'Merriweather, serif',            category: 'serif' },
+  'PT Serif':        { base: 'optimer',    family: '"PT Serif", serif',              category: 'serif' },
+  Lora:              { base: 'optimer',    family: 'Lora, serif',                    category: 'serif' },
+  'Roboto Slab':     { base: 'optimer',    family: '"Roboto Slab", serif',           category: 'serif' },
+  Lobster:           { base: 'gentilis',   family: 'Lobster, cursive',               category: 'script' },
+  Pacifico:          { base: 'gentilis',   family: 'Pacifico, cursive',              category: 'script' },
+  'Dancing Script':  { base: 'gentilis',   family: '"Dancing Script", cursive',      category: 'script' },
+  Caveat:            { base: 'gentilis',   family: 'Caveat, cursive',                category: 'script' },
+  'Shadows Into Light': { base: 'gentilis', family: '"Shadows Into Light", cursive', category: 'script' },
+  'Press Start 2P':  { base: 'gentilis',   family: '"Press Start 2P", monospace',    category: 'display' },
+  'Russo One':       { base: 'gentilis',   family: '"Russo One", sans-serif',        category: 'display' },
+  'Fjalla One':      { base: 'gentilis',   family: '"Fjalla One", sans-serif',       category: 'condensed' },
+};
+
+export const AVAILABLE_FONTS = Object.keys(GOOGLE_FONT_LIBRARY) as (keyof typeof GOOGLE_FONT_LIBRARY)[];
+export type FontName = keyof typeof GOOGLE_FONT_LIBRARY;
 
 const FONT_CACHE = new Map<string, Font>();
 export function getFont(name: FontName | string = 'helvetiker', bold = false): Font {
-  const key = `${name}_${bold ? 'bold' : 'regular'}`;
+  const alias = GOOGLE_FONT_LIBRARY[name as FontName];
+  const base = alias ? alias.base : (name as 'helvetiker' | 'gentilis' | 'optimer');
+  const key = `${base}_${bold ? 'bold' : 'regular'}`;
   const cached = FONT_CACHE.get(key);
   if (cached) return cached;
   let data: any;
-  switch (name) {
+  switch (base) {
     case 'gentilis': data = bold ? gentilisBold : gentilisRegular; break;
     case 'optimer':  data = bold ? optimerBold  : optimerRegular;  break;
     default:         data = bold ? helvetikerBold : helvetikerRegular; break;
@@ -158,6 +200,7 @@ export function getFont(name: FontName | string = 'helvetiker', bold = false): F
   FONT_CACHE.set(key, font);
   return font;
 }
+
 
 /**
  * Vectorise the input text into an array of `THREE.Shape` — one per glyph,
