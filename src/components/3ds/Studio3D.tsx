@@ -46,6 +46,7 @@ import { WaltSculptController } from './waltsculpt/WaltSculptController';
 import { WaltGamePanel } from './waltgame/WaltGamePanel';
 import { GamePreviewDialog } from './waltgame/GamePreviewDialog';
 import { exportGameHTML } from './waltgame/gameExport';
+import { useWaltGame } from './waltgame/gameStore';
 import { CustomizeUIDialog } from './prefs/CustomizeUIDialog';
 import { ContextMenuRoot, openContextMenu } from './ContextMenu';
 import { QuadMenu } from './QuadMenu';
