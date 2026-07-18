@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ModifierControls } from './ModifierControls';
 import { cn } from '@/lib/utils';
-import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS, FOLIAGE_SPECIES, GOOGLE_FONT_LIBRARY, AVAILABLE_FONTS } from './utils/extendedGeometry';
+import { EXT_PRIM_DEFAULTS, SHAPE_DEFAULTS, FOLIAGE_SPECIES, GOOGLE_FONT_LIBRARY, AVAILABLE_FONTS, registerCustomFontFromArrayBuffer } from './utils/extendedGeometry';
 import { MaxRollout, MaxSpinner, MaxCheck, MaxSelect } from './r3/MaxParamPanel';
 import { PrintToolsPanel } from './print3d/PrintToolsPanel';
 import { EditableSplinePanel } from './r3/EditableSplinePanel';
@@ -2523,10 +2523,11 @@ let __googleFontsInjected = false;
 function ensureGoogleFontsLoaded() {
   if (__googleFontsInjected || typeof document === 'undefined') return;
   __googleFontsInjected = true;
-  const families = Object.keys(GOOGLE_FONT_LIBRARY)
-    .filter((k) => !['helvetiker', 'gentilis', 'optimer'].includes(k))
-    .map((k) => `family=${encodeURIComponent(k).replace(/%20/g, '+')}:wght@400;700`)
+  const families = Object.entries(GOOGLE_FONT_LIBRARY)
+    .filter(([, meta]) => !!meta.url)
+    .map(([k, meta]) => `family=${encodeURIComponent(meta.cssFamily || k).replace(/%20/g, '+')}`)
     .join('&');
+  if (!families) return;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = `https://fonts.googleapis.com/css2?${families}&display=swap`;
@@ -2536,8 +2537,18 @@ function ensureGoogleFontsLoaded() {
 interface TextFontPickerProps { value: string; onChange: (v: string) => void; }
 const TextFontPicker = ({ value, onChange }: TextFontPickerProps) => {
   useEffect(() => { ensureGoogleFontsLoaded(); }, []);
-  const entries = Object.entries(GOOGLE_FONT_LIBRARY) as [string, { base: string; family: string; category: string }][];
+  const [revision, setRevision] = useState(0);
+  const entries = Object.entries(GOOGLE_FONT_LIBRARY);
   const current = GOOGLE_FONT_LIBRARY[value as keyof typeof GOOGLE_FONT_LIBRARY];
+  const handleLocalFont = async (file?: File) => {
+    if (!file) return;
+    const font = registerCustomFontFromArrayBuffer(file.name, await file.arrayBuffer());
+    if (!font) return;
+    const name = file.name.replace(/\.(ttf|otf)$/i, '').trim() || 'Custom Font';
+    setRevision((v) => v + 1);
+    onChange(name);
+  };
+  void revision;
   return (
     <div className="pt-[2px]">
       <Label className="text-[10px]">Font</Label>
@@ -2547,7 +2558,7 @@ const TextFontPicker = ({ value, onChange }: TextFontPickerProps) => {
         className="w-full h-[22px] text-[11px] bevel-sunken bg-white px-1 text-black border border-win-shadow outline-none"
         style={{ fontFamily: current?.family ?? 'inherit' }}
       >
-        {['sans', 'condensed', 'serif', 'script', 'display'].map((cat) => {
+        {['sans', 'condensed', 'serif', 'script', 'display', 'symbols', 'custom'].map((cat) => {
           const fonts = entries.filter(([, m]) => m.category === cat);
           if (!fonts.length) return null;
           return (
@@ -2566,8 +2577,17 @@ const TextFontPicker = ({ value, onChange }: TextFontPickerProps) => {
         style={{ fontFamily: current?.family ?? 'inherit' }}
         title="Preview"
       >
-        AaBbCc 123 — {value}
+        AaBbCc 123 Ω ★ — {value}
       </div>
+      <label className="mt-[3px] h-[20px] w-full inline-flex items-center justify-center text-[10px] bevel-raised bg-win-face hover:bg-win-face-shadow/40 cursor-pointer">
+        Load TTF/OTF
+        <input
+          type="file"
+          accept=".ttf,.otf,font/ttf,font/otf"
+          className="hidden"
+          onChange={(e) => handleLocalFont(e.target.files?.[0])}
+        />
+      </label>
     </div>
   );
 };
