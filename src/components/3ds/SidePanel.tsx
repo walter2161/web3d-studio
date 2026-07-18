@@ -624,8 +624,8 @@ export const SidePanel = ({
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
 
-        <div className="p-2 space-y-2">
-          <TabsContent value="create" className="mt-0 space-y-2">
+        <div className="p-1 space-y-1">
+          <TabsContent value="create" className="mt-0 space-y-1">
             {/* Category icon row (Geometry / Shapes / Lights / Cameras / Helpers / Warps / Systems) */}
             <div className="bevel-raised p-[2px] flex gap-[2px]">
               {createCats.map((c) => {
@@ -981,7 +981,7 @@ export const SidePanel = ({
             )}
           </TabsContent>
 
-          <TabsContent value="modify" className="mt-0 space-y-2">
+          <TabsContent value="modify" className="mt-0 space-y-1">
             {!selectedObject && (
               <div className="bevel-inset bg-win-face-shadow/40 text-[11px] text-win-text-disabled px-2 py-3 text-center">
                 No object selected
@@ -1512,7 +1512,7 @@ export const SidePanel = ({
                     const pathLen = Array.isArray(geom.path) ? geom.path.length : 0;
                     const openings = Array.isArray(geom.openings) ? geom.openings.length : 0;
                     return (
-                      <MaxRollout title="Parameters" className="mt-4">
+                      <MaxRollout title="Parameters" className="mt-1">
                         <MaxSelect
                           label="Justify"
                           value={just}
@@ -1542,7 +1542,7 @@ export const SidePanel = ({
                     const subs = isDoor ? doorSubs : winSubs;
                     const openPct = Math.round((geom.openPercentage ?? 0) * 100);
                     return (
-                      <MaxRollout title="Parameters" className="mt-4">
+                      <MaxRollout title="Parameters" className="mt-1">
                         <MaxSelect
                           label="Type"
                           value={String(subtype)}
@@ -1577,7 +1577,7 @@ export const SidePanel = ({
                     const kind = geom.helperKind as string | undefined;
                     if (kind === 'point') {
                       return (
-                        <MaxRollout title="Parameters" className="mt-4">
+                        <MaxRollout title="Parameters" className="mt-1">
                           <MaxSpinner label="Size" value={geom.size ?? 0.2} step={0.05} min={0.001}
                             onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { size: v })} />
                           <div className="pt-1 mt-1 border-t border-panel-border/60 space-y-[3px]">
@@ -1595,7 +1595,7 @@ export const SidePanel = ({
                     }
                     if (kind === 'dummy') {
                       return (
-                        <MaxRollout title="Parameters" className="mt-4">
+                        <MaxRollout title="Parameters" className="mt-1">
                           <MaxSpinner label="Length" value={geom.length ?? 1} step={0.1} min={0.001}
                             onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { length: v })} />
                           <MaxSpinner label="Width" value={geom.width ?? 1} step={0.1} min={0.001}
@@ -1613,7 +1613,7 @@ export const SidePanel = ({
                       const b = geom.endpointB ?? [1, 0, 0];
                       const dist = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
                       return (
-                        <MaxRollout title="Parameters" className="mt-4">
+                        <MaxRollout title="Parameters" className="mt-1">
                           <div className="text-[11px] font-mono py-1">
                             Distance: <span className="text-foreground">{dist.toFixed(3)} m</span>
                           </div>
@@ -1639,7 +1639,7 @@ export const SidePanel = ({
                     }
                     if (kind === 'grid') {
                       return (
-                        <MaxRollout title="Parameters" className="mt-4">
+                        <MaxRollout title="Parameters" className="mt-1">
                           <MaxSpinner label="Length" value={geom.gridLength ?? 5} step={0.1} min={0.1}
                             onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { gridLength: v })} />
                           <MaxSpinner label="Width" value={geom.gridWidth ?? 5} step={0.1} min={0.1}
@@ -1654,7 +1654,7 @@ export const SidePanel = ({
                     }
                     if (kind === 'compass') {
                       return (
-                        <MaxRollout title="Parameters" className="mt-4">
+                        <MaxRollout title="Parameters" className="mt-1">
                           <MaxSpinner label="Radius" value={geom.radius ?? 1} step={0.1} min={0.05}
                             onChange={(v) => onUpdateObjectGeometry(selectedObject.id, { radius: v })} />
                           <MaxCheck label="Show N/E/S/W" checked={geom.showTicks ?? true}
@@ -1666,7 +1666,7 @@ export const SidePanel = ({
                       );
                     }
                     return (
-                      <MaxRollout title="Parameters" className="mt-4">
+                      <MaxRollout title="Parameters" className="mt-1">
                         <div className="text-[11px] text-muted-foreground">Unknown helper kind.</div>
                       </MaxRollout>
                     );
@@ -1676,7 +1676,7 @@ export const SidePanel = ({
 
                   if (!schema) {
                     return (
-                      <MaxRollout title="Parameters" className="mt-4">
+                      <MaxRollout title="Parameters" className="mt-1">
                         <div className="text-[11px] text-muted-foreground">
                           No editable parameters for type <span className="font-mono">{selectedObject.type}</span>.
                         </div>
@@ -1686,7 +1686,7 @@ export const SidePanel = ({
 
                   const genMap = geom.generateMappingCoords !== false;
                   return (
-                    <MaxRollout title="Parameters" className="mt-4">
+                    <MaxRollout title="Parameters" className="mt-1">
                       {mainParams.map(renderSpinner)}
                       {segParams.length > 0 && (
                         <div className="pt-1 mt-1 border-t border-panel-border/60 space-y-[3px]">
@@ -1706,7 +1706,7 @@ export const SidePanel = ({
 
                 {/* Rig / Bone hierarchy — for imported models with skeletons */}
                 {selectedObject.type === 'imported' && (
-                  <MaxRollout title="Hierarchy (Bones / Nodes)" className="mt-4">
+                  <MaxRollout title="Hierarchy (Bones / Nodes)" className="mt-1">
                     <RigHierarchyPanel
                       objectId={selectedObject.id}
                       selectedSubUuid={selectedSubUuid}
@@ -1720,7 +1720,7 @@ export const SidePanel = ({
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">Object Properties</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-1 p-1">
                     <div>
                       <label className="text-xs text-muted-foreground">Name</label>
                       <div className="text-sm font-mono">
@@ -1753,10 +1753,10 @@ export const SidePanel = ({
             )}
           </TabsContent>
 
-          <TabsContent value="hierarchy" className="mt-0 space-y-3">
+          <TabsContent value="hierarchy" className="mt-0 space-y-1">
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Pivot</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-1 p-1">
                 <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
                   onClick={() => onUpdateObjectGeometry(selectedObject?.id, { __pivotMode: 'affectPivot' })}>
                   Affect Pivot Only
@@ -1787,7 +1787,7 @@ export const SidePanel = ({
 
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Link Info</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-xs">
+              <CardContent className="space-y-1 p-1 text-xs">
                 <div>Parent: <span className="text-muted-foreground">{selectedObject?.groupId || '— none —'}</span></div>
                 <div>Locks: Move X ☐ Y ☐ Z ☐</div>
                 <div>Locks: Rotate X ☐ Y ☐ Z ☐</div>
@@ -1796,10 +1796,10 @@ export const SidePanel = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="motion" className="mt-0 space-y-3">
+          <TabsContent value="motion" className="mt-0 space-y-1">
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Parameters</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-1 p-1">
                 <div className="text-xs">Controllers per axis (R3):</div>
                 <div className="text-xs pl-2 space-y-1">
                   <div>Position: <span className="font-mono">Bezier</span></div>
@@ -1819,10 +1819,10 @@ export const SidePanel = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="display" className="mt-0 space-y-3">
+          <TabsContent value="display" className="mt-0 space-y-1">
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Hide</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-1 p-1">
                 <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
                   onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'hideSelection' })}>
                   Hide Selection
@@ -1839,7 +1839,7 @@ export const SidePanel = ({
             </Card>
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Freeze</CardTitle></CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-1 p-1">
                 <Button variant="outline" size="sm" className="w-full border-panel-border" disabled={!selectedObject}
                   onClick={() => selectedObject && onUpdateObjectGeometry(selectedObject.id, { __display: 'freezeSelection' })}>
                   Freeze Selection
@@ -1852,7 +1852,7 @@ export const SidePanel = ({
             </Card>
             <Card className="bg-card border-panel-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Display Properties</CardTitle></CardHeader>
-              <CardContent className="space-y-1 text-xs">
+              <CardContent className="space-y-1 p-1 text-xs">
                 <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Display as Box</label>
                 <label className="flex items-center gap-2"><input type="checkbox" /> Backface Cull</label>
                 <label className="flex items-center gap-2"><input type="checkbox" /> Edges Only</label>
@@ -1862,7 +1862,7 @@ export const SidePanel = ({
             </Card>
           </TabsContent>
 
-          <TabsContent value="utilities" className="mt-0 space-y-2">
+          <TabsContent value="utilities" className="mt-0 space-y-1">
             <div className="bevel-raised">
               <div className="bg-win-face-shadow/40 text-[11px] font-semibold px-2 py-[2px] text-win-text border-b border-win-shadow">
                 3D Print Toolkit
@@ -1944,7 +1944,7 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
       {/* General Parameters */}
       <Card className="bg-card border-panel-border">
         <CardHeader className="pb-2"><CardTitle className="text-sm">General Parameters</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1 p-1">
           <label className="flex items-center gap-2 text-[11px]">
             <input type="checkbox" checked={ld.on !== false} onChange={(e) => onUpdateLightData({ on: e.target.checked })} />
             On
@@ -1957,7 +1957,7 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
       {/* Intensity / Color / Attenuation */}
       <Card className="bg-card border-panel-border mt-2">
         <CardHeader className="pb-2"><CardTitle className="text-sm">Intensity / Color / Attenuation</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1 p-1">
           <div className="flex items-center justify-between gap-2">
             <Label className="text-[10px] flex-1">Multiplier</Label>
             <Input
@@ -2028,7 +2028,7 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
       {hasCone && (
         <Card className="bg-card border-panel-border mt-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Spot Parameters</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1 p-1">
             {num('Hotspot (°)', 'hotspot', 30, 0.1, 0.5)}
             {num('Falloff (°)', 'falloff', 45, 0.5, 0.5)}
             <div className="text-[10px] text-muted-foreground">Falloff must be ≥ Hotspot. Penumbra is derived from the gap.</div>
@@ -2092,7 +2092,7 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
       {hasShadow && (
         <Card className="bg-card border-panel-border mt-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Shadow Parameters</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1 p-1">
             <div className="flex items-center gap-2">
               <Label className="text-[10px] flex-1">Type</Label>
               <select
@@ -2168,7 +2168,7 @@ const LightParameters = ({ object, onUpdateColor, onUpdateLightData }: LightPara
       {hasAdvanced && (
         <Card className="bg-card border-panel-border mt-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Exclude / Include</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1 p-1">
             <div className="flex items-center gap-2">
               <Label className="text-[10px] flex-1">Mode</Label>
               <select
@@ -2735,7 +2735,7 @@ const ShapeParametersPanel = ({ object, onUpdate, onConvert }: ShapeParamsProps)
 
   return (
     <>
-      <MaxRollout title="Parameters" className="mt-4">
+      <MaxRollout title="Parameters" className="mt-1">
         <div className="space-y-[3px]">{specific}</div>
       </MaxRollout>
 
