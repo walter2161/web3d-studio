@@ -937,6 +937,96 @@ export const SidePanel = ({
                     {p.label}
                   </button>
                 ))}
+
+                {/* -------- WaltCad — CAD tools (creation + editing) -------- */}
+                {(createCat === 'geometry' && createCategory === 'waltcad') && (() => {
+                  // Tools that reuse existing armable spline creation.
+                  const armed: Array<{ label: string; type: string }> = [
+                    { label: 'Line',      type: 'line' },
+                    { label: 'Polyline',  type: 'line' },
+                    { label: 'Rectangle', type: 'rectangle' },
+                    { label: 'Circle',    type: 'circle' },
+                    { label: 'Arc',       type: 'arc' },
+                    { label: 'Ellipse',   type: 'ellipse' },
+                    { label: 'NGon',      type: 'ngon' },
+                    { label: 'Star',      type: 'star' },
+                  ];
+                  // Editing / generator ops routed via `waltcad:op` events.
+                  const ops: Array<{ label: string; op: string; title?: string }> = [
+                    { label: 'Offset',   op: 'offset' },
+                    { label: 'Trim',     op: 'trim' },
+                    { label: 'Extend',   op: 'extend' },
+                    { label: 'Fillet',   op: 'fillet' },
+                    { label: 'Chamfer',  op: 'chamfer' },
+                    { label: 'Mirror',   op: 'mirror' },
+                    { label: 'Array',    op: 'array' },
+                    { label: 'Explode',  op: 'explode' },
+                    { label: 'Join',     op: 'join' },
+                    { label: 'Break',    op: 'break' },
+                    { label: 'Divide',   op: 'divide' },
+                    { label: 'Measure',  op: 'measure' },
+                    { label: 'Stretch',  op: 'stretch' },
+                    { label: 'Scale Ref',op: 'scale_ref' },
+                    { label: 'Align',    op: 'align' },
+                    { label: 'Hatch',    op: 'hatch' },
+                    { label: 'Dimension',op: 'dimension' },
+                    { label: 'Match Props', op: 'match_props' },
+                  ];
+                  // AEC generators reuse existing types.
+                  const aec: Array<{ label: string; type: string }> = [
+                    { label: 'Wall',   type: 'wall' },
+                    { label: 'Door',   type: 'door' },
+                    { label: 'Window', type: 'window' },
+                  ];
+                  return (
+                    <>
+                      {armed.map((p) => {
+                        const pressed = armedTool === p.type;
+                        return (
+                          <button
+                            key={`cad-${p.label}`}
+                            onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                            title={pressed ? 'Armed — click & drag in the viewport (ESC)' : `WaltCad — ${p.label}`}
+                            className={cn(
+                              'h-[22px] text-[11px] text-win-text px-1 truncate',
+                              pressed ? 'bevel-sunken bg-yellow-200' : 'bevel-raised hover:brightness-105'
+                            )}
+                          >
+                            {p.label}
+                          </button>
+                        );
+                      })}
+                      {ops.map((p) => (
+                        <button
+                          key={`cad-op-${p.op}-${p.label}`}
+                          onClick={() => window.dispatchEvent(new CustomEvent('waltcad:op', { detail: { op: p.op } }))}
+                          title={p.title || `WaltCad — ${p.label}`}
+                          className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                      {aec.map((p) => (
+                        <button
+                          key={`cad-aec-${p.type}`}
+                          onClick={() => (onArmTool ? onArmTool(p.type) : onCreateObject(p.type))}
+                          title={`WaltCad — ${p.label}`}
+                          className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                      <button
+                        key="cad-generate-3d"
+                        onClick={() => window.dispatchEvent(new CustomEvent('waltcad:op', { detail: { op: 'generate_wall' } }))}
+                        title="WaltCad — Generate walls from selected spline"
+                        className="col-span-2 h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105 font-semibold"
+                      >
+                        Generate 3D (Walls)
+                      </button>
+                    </>
+                  );
+                })()}
                 {createCat === 'warps' && (
                   <div className="col-span-2 text-[10px] text-win-text-disabled px-1 pt-1 text-center italic">
                     Space Warps — Fase 2 (em breve)
