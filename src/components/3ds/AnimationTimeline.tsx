@@ -97,6 +97,18 @@ export const AnimationTimeline = ({
     if (bakedClipSet && bakedClipSet.tracks.length > 0) setView('trackview');
   }, [bakedClipSet?.clipName]);
 
+  // Menu → Timeline bridge: Animation / Graph Editors menu items force the
+  // requested view (basic / trackview) so items like "Track View" or "Curve
+  // Editor" always open the correct panel even if the user hasn't baked yet.
+  useEffect(() => {
+    const onSetView = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { view?: 'basic' | 'trackview' };
+      if (detail?.view) setView(detail.view);
+    };
+    window.addEventListener('r3-timeline-set-view', onSetView as any);
+    return () => window.removeEventListener('r3-timeline-set-view', onSetView as any);
+  }, []);
+
   const frameToPixel = useCallback((frame: number) => {
     if (!trackRef.current) return 0;
     return (frame / totalFrames) * trackRef.current.clientWidth;

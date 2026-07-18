@@ -371,6 +371,24 @@ export const SidePanel = ({
     prevModsRef.current = { objectId: objId, ids: currentIds };
   }, [selectedObject?.id, selectedObject?.modifiers]);
 
+  // Menu → SidePanel bridge: MenuBar dispatches r3-sidepanel-set-category to
+  // switch the Create-tab category (Standard / Extended / AEC / Compound / …)
+  // exactly like clicking the icons in the panel header.
+  useEffect(() => {
+    const onSetCat = (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        tab?: string;
+        createCat?: typeof createCat;
+        createCategory?: typeof createCategory;
+      };
+      if (detail?.tab) setActiveTab(detail.tab);
+      if (detail?.createCat) setCreateCat(detail.createCat);
+      if (detail?.createCategory) setCreateCategory(detail.createCategory);
+    };
+    window.addEventListener('r3-sidepanel-set-category', onSetCat as any);
+    return () => window.removeEventListener('r3-sidepanel-set-category', onSetCat as any);
+  }, []);
+
   const standardPrimitives = [
     { type: 'box', icon: Box, label: 'Box' },
     { type: 'sphere', icon: Circle, label: 'Sphere' },
