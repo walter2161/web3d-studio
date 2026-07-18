@@ -1626,6 +1626,36 @@ export const Studio3D = () => {
     };
   }, []);
 
+  // ---- Right-click cancels an active transform drag (3ds Max behaviour).
+  // While TransformControls is dragging (dragActiveRef=true), a contextmenu
+  // event should abort the operation and restore the pre-drag snapshot via
+  // undo(). We swallow the event so no browser menu appears.
+  useEffect(() => {
+    const onCtx = (e: MouseEvent) => {
+      if (!dragActiveRef.current) return;
+      e.preventDefault();
+      e.stopPropagation();
+      undo();
+      dragActiveRef.current = false;
+    };
+    window.addEventListener('contextmenu', onCtx, true);
+    return () => window.removeEventListener('contextmenu', onCtx, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Route quad-menu actions through handleMenuAction. Using an event
+  // bus keeps the QuadMenu/ContextMenu components decoupled from Studio3D.
+  useEffect(() => {
+    const onAction = (e: Event) => {
+      const action = (e as CustomEvent).detail;
+      if (typeof action === 'string') handleMenuAction(action);
+    };
+    window.addEventListener('walt3d:menu-action', onAction as EventListener);
+    return () => window.removeEventListener('walt3d:menu-action', onAction as EventListener);
+    // handleMenuAction closes over current state via refs / setState — a stable
+    // ref isn't needed because it's re-created each render and the listener
+    // is re-bound each render below via the deps array.
+  });
+
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
   // Until true multi-select lands, we pick the last matched id as the primary
