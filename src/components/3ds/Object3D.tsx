@@ -1599,6 +1599,29 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     );
   }
 
+  // Particle emitter — Spray / Snow / Super Spray / PArray / PCloud / Blizzard.
+  // Ghosts during drag also route here so the user sees the emission surface
+  // being sized in real time.
+  if (object.type === 'particle_emitter' || (typeof object.type === 'string' && object.type.startsWith('part_'))) {
+    return (
+      <group
+        ref={meshRef as any}
+        userData={{ objectId: object.id }}
+        position={object.position}
+        rotation={object.rotation}
+        scale={object.scale}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      >
+        <ParticleObject
+          data={object.geometry as any}
+          currentFrame={currentFrame}
+          selected={isSelected}
+          onSelect={onSelect}
+        />
+      </group>
+    );
+  }
+
 
   // Render lights and cameras as full-fledged scene entities with R3-style helpers.
 
