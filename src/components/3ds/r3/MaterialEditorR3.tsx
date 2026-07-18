@@ -933,7 +933,7 @@ export const MaterialEditorR3 = ({ open, onOpenChange, selectedObject, onMateria
                 {['Standard','Blend','Composite','Double Sided','Multi/Sub-Object','Raytrace','Matte/Shadow','Top/Bottom','Shellac','Morpher'].map((t) => (
                   <div
                     key={t}
-                    onClick={() => { update({ type: t as any }); setTypePopupOpen(false); }}
+                    onClick={() => { update({ type: t as R3MaterialType, compound: initCompound(t as R3MaterialType, mat.compound) }); setTypePopupOpen(false); }}
                     className={`px-2 py-[2px] text-[11px] cursor-pointer ${mat.type === t ? 'bg-win-highlight text-white' : 'hover:bg-win-highlight hover:text-white'}`}
                   >● {t}</div>
                 ))}
