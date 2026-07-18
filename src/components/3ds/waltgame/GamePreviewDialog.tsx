@@ -311,6 +311,48 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
         }
       }
 
+      // Trigger overlap: check each trigger-tagged object against player.
+      const pPos = playerRoot!.position;
+      const playerId = state.mainPlayerId ?? '__player__';
+      for (const [id, mesh] of meshById.entries()) {
+        const p = state.props[id];
+        if (!p || (!p.isTrigger && p.tag !== 'trigger')) continue;
+        // Respect collisionTargets: if list non-empty, only fire when player id is included.
+        if (p.collisionTargets.length && !p.collisionTargets.includes(playerId)) continue;
+        const box = new THREE.Box3().setFromObject(mesh);
+        const overlaps = box.containsPoint(pPos);
+        const was = insideTriggers.has(id);
+        if (overlaps && !was) { insideTriggers.add(id); runAction(p.onEnter); }
+        else if (!overlaps && was) { insideTriggers.delete(id); runAction(p.onExit); }
+      }
+
+      // Spatial audio: attenuate by distance from player.
+      for (const src of audioSources) {
+        if (!src.spatial) continue;
+        const d = src.obj.position.distanceTo(pPos);
+        let atten = 1;
+        if (d >= src.max) atten = 0;
+        else if (d > src.min) atten = 1 - (d - src.min) / (src.max - src.min);
+        src.el.volume = Math.max(0, Math.min(1, src.vol * atten));
+      }
+
+      // Timer countdown (Game Manager).
+      if (state.manager.startTimer > 0) {
+        hud.time = Math.max(0, hud.time - dt);
+        if (hud.time <= 0 && state.manager.loseOnTimeout) { hud.time = 0; }
+      }
+
+      // Push HUD state to DOM overlay.
+      const hudEl = (renderer.domElement.parentElement?.querySelector('[data-hud]') as HTMLElement | null);
+      if (hudEl) {
+        hudEl.innerHTML = [
+          `<div style="opacity:.9">${state.manager.title}</div>`,
+          `<div>HP: ${Math.round(hud.health)}/${hud.maxHealth}</div>`,
+          `<div>Score: ${hud.score}</div>`,
+          state.manager.startTimer > 0 ? `<div>Time: ${hud.time.toFixed(1)}s</div>` : '',
+        ].join('');
+      }
+
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
     };
