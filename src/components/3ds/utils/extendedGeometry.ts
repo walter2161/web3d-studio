@@ -295,8 +295,7 @@ export function getFont(name: FontName | string = 'helvetiker', bold = false, it
   const external = TTF_FONT_CACHE.get(externalKey);
   if (external) return external;
   preloadFontForText(fontName, bold, italic);
-  const alias = GOOGLE_FONT_LIBRARY[name as FontName];
-  const base = alias ? alias.base : (name as 'helvetiker' | 'gentilis' | 'optimer');
+  const base = alias?.base || (fontName as 'helvetiker' | 'gentilis' | 'optimer') || 'helvetiker';
   const key = `${base}_${bold ? 'bold' : 'regular'}`;
   const cached = FONT_CACHE.get(key);
   if (cached) return cached;
