@@ -1716,7 +1716,7 @@ export const SidePanel = ({
                 )}
 
                 {/* Object Properties */}
-                <Card className="bg-card border-panel-border mt-4">
+                <Card className="bg-card border-panel-border mt-1">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">Object Properties</CardTitle>
                   </CardHeader>
@@ -2250,7 +2250,7 @@ const CameraParameters = ({ object, onUpdateCameraData }: CameraParamsProps) => 
 
   return (
     <>
-      <Card className="bg-card border-panel-border mt-4">
+      <Card className="bg-card border-panel-border mt-1">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">
             Parameters
