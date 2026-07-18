@@ -22,6 +22,8 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import * as THREE from 'three';
 import { getRegionState, subscribeRegion } from './selectionRegionStore';
 import { getViewportHandle } from './viewportRegistry';
+import { hasActiveSubObjRegionPickers, runSubObjRegionPickers } from './subObjRegionRegistry';
+
 
 type Pt = { x: number; y: number };
 
@@ -248,6 +250,29 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
         onSelectObjects([], prev.additive, prev.remove);
         return;
       }
+
+      // Build a region-shape test function once so both sub-object and scene
+      // object pickers can share it.
+      const mode: 'replace' | 'add' | 'remove' = prev.remove ? 'remove' : prev.additive ? 'add' : 'replace';
+      const shape = buildShape(prev.kind, prev.start, p, prev.points, region.paintRadius);
+
+      // If a sub-object overlay (Editable Mesh, Editable Spline) is active,
+      // let it handle the marquee — we do NOT want to also pop the scene
+      // selection, otherwise the user's sub-object work would disappear.
+      if (hasActiveSubObjRegionPickers()) {
+        const handle = getViewportHandle(vkey);
+        if (handle) {
+          const rect = (handle.gl.domElement as HTMLCanvasElement).getBoundingClientRect();
+          const handled = runSubObjRegionPickers({
+            camera: handle.camera as any,
+            canvasRect: rect,
+            vkey,
+            shape: { contains: shape.contains, bounds: shape.bounds, mode },
+          });
+          if (handled) return;
+        }
+      }
+
       let ids: string[] = [];
       if (prev.kind === 'rect') {
         ids = pickByRect(prev.start, p, objects, vkey, region.windowCrossing);
@@ -262,6 +287,7 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       }
       onSelectObjects(ids, prev.additive, prev.remove);
     };
+
 
     const onUp = (e: PointerEvent) => finish(e, false);
     const onCancel = (e: PointerEvent) => finish(e, true);
@@ -350,7 +376,66 @@ const RegionShape = ({ drag, paintRadius }: { drag: NonNullable<Props extends an
   );
 };
 
+// ---- Region shape → contains(x,y) test --------------------------------------
+/** Builds a screen-space region test for whichever marquee kind is active.
+ *  Used both by sub-object pickers and (indirectly) by scene-object picking. */
+function buildShape(
+  kind: 'rect' | 'circle' | 'lasso' | 'fence' | 'paint',
+  start: Pt, current: Pt, points: Pt[], paintRadius: number,
+): { contains: (x: number, y: number) => boolean; bounds: { minX: number; minY: number; maxX: number; maxY: number } } {
+  if (kind === 'rect') {
+    const minX = Math.min(start.x, current.x), maxX = Math.max(start.x, current.x);
+    const minY = Math.min(start.y, current.y), maxY = Math.max(start.y, current.y);
+    return {
+      contains: (x, y) => x >= minX && x <= maxX && y >= minY && y <= maxY,
+      bounds: { minX, minY, maxX, maxY },
+    };
+  }
+  if (kind === 'circle') {
+    const r = Math.hypot(current.x - start.x, current.y - start.y);
+    const r2 = r * r;
+    return {
+      contains: (x, y) => (x - start.x) ** 2 + (y - start.y) ** 2 <= r2,
+      bounds: { minX: start.x - r, minY: start.y - r, maxX: start.x + r, maxY: start.y + r },
+    };
+  }
+  if (kind === 'lasso' || kind === 'fence') {
+    // Fence has no closed area, but we still test point-in-polyline by
+    // proximity to the polyline for consistency with the object picker.
+    if (kind === 'lasso') {
+      const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+      const bnd = { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+      return { contains: (x, y) => pointInPolygon({ x, y }, points), bounds: bnd };
+    }
+    const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+    const bnd = { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+    return {
+      contains: (x, y) => {
+        for (let i = 0; i < points.length - 1; i++) {
+          if (distancePointToSegment({ x, y }, points[i], points[i + 1]) <= 8) return true;
+        }
+        return false;
+      },
+      bounds: bnd,
+    };
+  }
+  // paint: any brush stamp within radius
+  const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+  const bnd = xs.length
+    ? { minX: Math.min(...xs) - paintRadius, minY: Math.min(...ys) - paintRadius, maxX: Math.max(...xs) + paintRadius, maxY: Math.max(...ys) + paintRadius }
+    : { minX: current.x - paintRadius, minY: current.y - paintRadius, maxX: current.x + paintRadius, maxY: current.y + paintRadius };
+  const r2 = paintRadius * paintRadius;
+  return {
+    contains: (x, y) => {
+      for (const bp of points) if ((x - bp.x) ** 2 + (y - bp.y) ** 2 <= r2) return true;
+      return false;
+    },
+    bounds: bnd,
+  };
+}
+
 // ---- Picking helpers ---------------------------------------------------------
+
 function projectPoint(vkey: string, worldPos: THREE.Vector3): Pt | null {
   const handle = getViewportHandle(vkey);
   if (!handle) return null;

@@ -19,6 +19,8 @@ import {
   getSplineSel, setSplineSel, subscribeSplineSel,
 } from './editable/splineSelStore';
 import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
+import { registerSubObjRegionPicker } from './r3/subObjRegionRegistry';
+
 import { MultiSelectBoundsOverlay } from './r3/MultiSelectBoundsOverlay';
 import { LinkDragController } from './r3/LinkDragController';
 import {
@@ -632,10 +634,104 @@ export const Scene3D = ({
 function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
   const [, tick] = useState(0);
   useEffect(() => { const un = subscribeSplineSel(() => tick((n) => n + 1)); return () => { un(); }; }, []);
+
+  // Register a region picker so marquee selection works on knots/segments/splines.
+  useEffect(() => {
+    if (!selectedObject || selectedObject.type !== 'editable_spline') return;
+    const sel = getSplineSel(selectedObject.id);
+    if (!sel.level) return;
+    const es = EditableSpline.deserialize((selectedObject.geometry || {}).editableSpline);
+    const objId = selectedObject.id;
+    // Precompute parent world matrix from position/rotation/scale.
+    const buildMatrix = () => {
+      const m = new THREE.Matrix4();
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(
+        selectedObject.rotation[0], selectedObject.rotation[1], selectedObject.rotation[2],
+      ));
+      m.compose(
+        new THREE.Vector3(...selectedObject.position),
+        q,
+        new THREE.Vector3(...selectedObject.scale),
+      );
+      return m;
+    };
+    // Use the region-picker registry.
+    const registerFn = registerSubObjRegionPicker;
+    const picker = (ctx: any) => {
+      const mw = buildMatrix();
+      const cam = ctx.camera as THREE.Camera;
+      const rect = ctx.canvasRect as DOMRect;
+      const shape = ctx.shape as { contains: (x: number, y: number) => boolean; mode: 'replace'|'add'|'remove' };
+      const project = (p: THREE.Vector3) => {
+        const v = p.clone().applyMatrix4(mw).project(cam);
+        if (v.z < -1 || v.z > 1) return null;
+        return { x: (v.x + 1) * 0.5 * rect.width, y: (1 - (v.y + 1) * 0.5) * rect.height };
+      };
+      const level = sel.level;
+      if (level === 'sknot') {
+        const hits = new Set<number>();
+        es.knots.forEach((k) => {
+          const s = project(k.pos); if (!s) return;
+          if (shape.contains(s.x, s.y)) hits.add(k.id);
+        });
+        if (hits.size === 0 && shape.mode !== 'replace') return false;
+        const cur = getSplineSel(objId).knots;
+        let next: Set<number>;
+        if (shape.mode === 'remove') { next = new Set(cur); hits.forEach((id) => next.delete(id)); }
+        else if (shape.mode === 'add') { next = new Set(cur); hits.forEach((id) => next.add(id)); }
+        else next = new Set(hits);
+        setSplineSel(objId, { knots: next });
+        return true;
+      }
+      if (level === 'ssegment') {
+        const hits = new Set<number>();
+        es.segments.forEach((seg) => {
+          const a = es.knots.get(seg.a)?.pos; const b = es.knots.get(seg.b)?.pos;
+          if (!a || !b) return;
+          const sa = project(a), sb = project(b); if (!sa || !sb) return;
+          for (let i = 0; i <= 8; i++) {
+            const t = i / 8;
+            if (shape.contains(sa.x + (sb.x - sa.x) * t, sa.y + (sb.y - sa.y) * t)) { hits.add(seg.id); break; }
+          }
+        });
+        if (hits.size === 0 && shape.mode !== 'replace') return false;
+        const cur = getSplineSel(objId).segments;
+        let next: Set<number>;
+        if (shape.mode === 'remove') { next = new Set(cur); hits.forEach((id) => next.delete(id)); }
+        else if (shape.mode === 'add') { next = new Set(cur); hits.forEach((id) => next.add(id)); }
+        else next = new Set(hits);
+        setSplineSel(objId, { segments: next });
+        return true;
+      }
+      if (level === 'sspline') {
+        const hits = new Set<number>();
+        es.splines.forEach((sp) => {
+          for (const kid of sp.knots) {
+            const k = es.knots.get(kid); if (!k) continue;
+            const s = project(k.pos); if (!s) continue;
+            if (shape.contains(s.x, s.y)) { hits.add(sp.id); break; }
+          }
+        });
+        if (hits.size === 0 && shape.mode !== 'replace') return false;
+        const cur = getSplineSel(objId).splines;
+        let next: Set<number>;
+        if (shape.mode === 'remove') { next = new Set(cur); hits.forEach((id) => next.delete(id)); }
+        else if (shape.mode === 'add') { next = new Set(cur); hits.forEach((id) => next.add(id)); }
+        else next = new Set(hits);
+        setSplineSel(objId, { splines: next });
+        return true;
+      }
+      return false;
+    };
+    const un = registerFn(picker);
+    return () => { un(); };
+  }, [selectedObject]);
+
   if (!selectedObject || selectedObject.type !== 'editable_spline') return null;
   const sel = getSplineSel(selectedObject.id);
   if (!sel.level) return null;
   const es = EditableSpline.deserialize((selectedObject.geometry || {}).editableSpline);
+
   return (
     <SplineSubObjectOverlay
       spline={es}

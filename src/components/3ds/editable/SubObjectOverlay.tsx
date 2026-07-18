@@ -11,13 +11,15 @@
  * `r3-subobj-centroid` event with the current selection's local-space
  * centroid so Scene3D can position a transform gizmo on the selection.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { fromGeometry } from './fromGeometry';
 import { EditableMesh, SubObjectLevel } from './EditableMesh';
 import { coplanarPolygonFaceIds, faceIdsForSelection, selectionToVertexIds } from './selection';
 import { ThreeEvent, useThree } from '@react-three/fiber';
 import { makeScreenSpacePointsRaycast } from '../utils/screenSpacePicking';
+import { registerSubObjRegionPicker, unregisterSubObjRegionPicker } from '../r3/subObjRegionRegistry';
+
 
 interface Props {
   geometry: THREE.BufferGeometry;
@@ -78,6 +80,91 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
       detail: { objectId, modifierId, level, local },
     }));
   }, [mesh, level, sel, objectId, modifierId]);
+
+  // ---- Region picker registration ------------------------------------------
+  // Lets the viewport-level marquee (rect/circle/lasso/fence/paint) select
+  // multiple sub-objects in one drag. We keep a ref to the overlay's group so
+  // we can transform every sub-object position into world space at pick time.
+  const groupRef = useRef<THREE.Group>(null);
+  useEffect(() => {
+    const picker = (ctx: any) => {
+      const g = groupRef.current;
+      if (!g) return false;
+      g.updateWorldMatrix(true, false);
+      const mw = g.matrixWorld;
+      const cam = ctx.camera as THREE.Camera;
+      const rect = ctx.canvasRect as DOMRect;
+      const shape = ctx.shape as { contains: (x: number, y: number) => boolean; mode: 'replace'|'add'|'remove' };
+      const project = (p: THREE.Vector3): { x: number; y: number } | null => {
+        const v = p.clone().applyMatrix4(mw).project(cam);
+        if (v.z < -1 || v.z > 1) return null;
+        return {
+          x: (v.x + 1) * 0.5 * rect.width,
+          y: (1 - (v.y + 1) * 0.5) * rect.height,
+        };
+      };
+      const hits = new Set<number>();
+      if (level === 'vertex') {
+        mesh.vertices.forEach((v) => {
+          const s = project(v.position); if (!s) return;
+          if (shape.contains(s.x, s.y)) hits.add(v.id);
+        });
+      } else if (level === 'edge' || level === 'border') {
+        mesh.edges.forEach((e) => {
+          if (level === 'border' && e.faces.length !== 1) return;
+          const va = mesh.vertices.get(e.a)!.position;
+          const vb = mesh.vertices.get(e.b)!.position;
+          const sa = project(va), sb = project(vb); if (!sa || !sb) return;
+          // Sample the segment; hit if any sample point is inside.
+          const SAMPLES = 8;
+          for (let i = 0; i <= SAMPLES; i++) {
+            const t = i / SAMPLES;
+            const x = sa.x + (sb.x - sa.x) * t;
+            const y = sa.y + (sb.y - sa.y) * t;
+            if (shape.contains(x, y)) { hits.add(e.id); break; }
+          }
+        });
+      } else if (level === 'face' || level === 'polygon' || level === 'element') {
+        mesh.faces.forEach((f) => {
+          if (f.hidden) return;
+          const verts = f.verts.map((vid) => mesh.vertices.get(vid)!.position);
+          const c = new THREE.Vector3();
+          verts.forEach((p) => c.add(p));
+          c.multiplyScalar(1 / verts.length);
+          const s = project(c); if (!s) return;
+          if (shape.contains(s.x, s.y)) {
+            if (level === 'polygon') {
+              const ids = coplanarPolygonFaceIds(mesh, f.id);
+              hits.add(Math.min(...Array.from(ids)));
+            } else {
+              hits.add(f.id);
+            }
+          }
+        });
+      }
+      if (hits.size === 0 && shape.mode === 'replace') {
+        // Empty replace clears — still counts as handled so the app doesn't
+        // fall back to scene-object selection.
+        window.dispatchEvent(new CustomEvent('r3-subobj-select', {
+          detail: { objectId, modifierId, level, ids: [], additive: false, remove: false },
+        }));
+        return true;
+      }
+      if (hits.size === 0) return false;
+      window.dispatchEvent(new CustomEvent('r3-subobj-select', {
+        detail: {
+          objectId, modifierId, level,
+          ids: Array.from(hits),
+          additive: shape.mode === 'add',
+          remove: shape.mode === 'remove',
+        },
+      }));
+      return true;
+    };
+    const un = registerSubObjRegionPicker(picker);
+    return () => { un(); };
+  }, [mesh, level, objectId, modifierId]);
+
 
   // ---- VERTEX ----
   const vertexData = useMemo(() => {
@@ -173,7 +260,7 @@ export const SubObjectOverlay = ({ geometry, level, selectedIds, objectId, modif
   }, [mesh, level, sel]);
 
   return (
-    <group renderOrder={1000}>
+    <group ref={groupRef} renderOrder={1000}>
       {vertexData && (
         <points
           geometry={vertexData.geometry}

@@ -1164,8 +1164,9 @@ export const Studio3D = () => {
     const onPick = (ev: Event) => {
       const d = (ev as CustomEvent).detail as {
         objectId: string; modifierId: string; level: string;
-        id: number; additive?: boolean; remove?: boolean;
+        id?: number; ids?: number[]; additive?: boolean; remove?: boolean;
       };
+      const batch = Array.isArray(d.ids);
       if (objectsRef.current.some((obj) => obj.id === d.objectId && (obj.modifiers ?? []).some((m: any) => m.id === d.modifierId))) {
         setUndoStack((stack) => [...stack.slice(-9), objectsRef.current]);
         undoOrderRef.current.push('objects');
@@ -1181,14 +1182,26 @@ export const Studio3D = () => {
             if (m.id !== d.modifierId) return m;
             const cur: number[] = Array.isArray(m.params?.selectedIds) ? m.params.selectedIds : [];
             let next: number[];
-            if (d.remove) next = cur.filter((x) => x !== d.id);
-            else if (d.additive) next = cur.includes(d.id) ? cur.filter((x) => x !== d.id) : [...cur, d.id];
-            else next = [d.id];
+            if (batch) {
+              // Region selection: apply the whole id set at once.
+              const inSet = new Set(d.ids!);
+              if (d.remove) next = cur.filter((x) => !inSet.has(x));
+              else if (d.additive) {
+                const merged = new Set(cur);
+                inSet.forEach((x) => merged.add(x));
+                next = Array.from(merged);
+              } else next = Array.from(inSet);
+            } else {
+              if (d.remove) next = cur.filter((x) => x !== d.id);
+              else if (d.additive) next = cur.includes(d.id!) ? cur.filter((x) => x !== d.id) : [...cur, d.id!];
+              else next = d.id == null ? [] : [d.id];
+            }
             return { ...m, params: { ...m.params, selectedIds: next, selectionLevel: d.level } };
           }),
         };
       }));
     };
+
     const onOp = (ev: Event) => {
       const d = (ev as CustomEvent).detail as {
         objectId: string; modifierId: string; op: { kind: string; params?: any };
