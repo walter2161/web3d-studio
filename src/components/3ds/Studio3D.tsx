@@ -291,6 +291,10 @@ export const Studio3D = () => {
   const redoOrderRef = useRef<Array<'objects' | 'rig'>>([]);
   const rigUndoRef = useRef<RigPoseEntry[]>([]);
   const rigRedoRef = useRef<RigPoseEntry[]>([]);
+  // True while an interactive TransformControls drag is in progress. Used to
+  // avoid double-pushing undo snapshots — the drag already pushed one on
+  // mousedown via r3-transform-start; per-frame transform-many events must not.
+  const dragActiveRef = useRef(false);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   // Per-imported-object baked clip data (3ds Max style per-bone channel tracks).
   // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
