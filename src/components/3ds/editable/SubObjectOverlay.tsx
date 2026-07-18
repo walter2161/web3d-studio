@@ -11,13 +11,15 @@
  * `r3-subobj-centroid` event with the current selection's local-space
  * centroid so Scene3D can position a transform gizmo on the selection.
  */
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { fromGeometry } from './fromGeometry';
 import { EditableMesh, SubObjectLevel } from './EditableMesh';
 import { coplanarPolygonFaceIds, faceIdsForSelection, selectionToVertexIds } from './selection';
 import { ThreeEvent, useThree } from '@react-three/fiber';
 import { makeScreenSpacePointsRaycast } from '../utils/screenSpacePicking';
+import { registerSubObjRegionPicker, unregisterSubObjRegionPicker } from '../r3/subObjRegionRegistry';
+
 
 interface Props {
   geometry: THREE.BufferGeometry;
