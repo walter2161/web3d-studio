@@ -419,6 +419,7 @@ export const Scene3D = ({
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
+            (window as any).__r3TransformDragging = false;
             if (boneJointActive) {
               boneJointDragStartRef.current = null;
             }
