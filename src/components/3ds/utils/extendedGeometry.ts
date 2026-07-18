@@ -75,7 +75,7 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   hose:       { radius: 0.15, height: 1, sides: 12, segments: 40, bumps: 4, bumpDepth: 0.05 },
   // ---- AEC Extended: Foliage (procedural tree) ----
   // See FOLIAGE_SPECIES catalog below for the full species list.
-  foliage:    { height: 6, crownRadius: 3, density: 1, seed: 1, species: 0, leafSize: 0.35, branchDensity: 1, age: 1, displayAsBox: false },
+  foliage:    { height: 6, crownRadius: 3, density: 1, seed: 1, species: 0, leafSize: 0.35, branchDensity: 1, age: 1, displayAsBox: false, lowPoly: true },
 };
 
 // 3ds Max AEC Extended > Foliage species catalog. Each preset seeds sensible
