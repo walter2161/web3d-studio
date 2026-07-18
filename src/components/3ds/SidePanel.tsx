@@ -604,7 +604,7 @@ export const SidePanel = ({
   );
 
   return (
-    <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto p-[7px] space-y-[7px]">
+    <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto p-[10px] space-y-[10px]">
       {/* R3-style command panel tab row */}
       <div className="bevel-raised p-[2px] flex gap-[2px]">
         {panelTabs.map((t) => {
