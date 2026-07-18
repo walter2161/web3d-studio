@@ -22,6 +22,7 @@ import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
 import { registerSubObjRegionPicker } from './r3/subObjRegionRegistry';
 
 import { MultiSelectBoundsOverlay } from './r3/MultiSelectBoundsOverlay';
+import { WaltGameIconOverlay } from './waltgame/WaltGameIconOverlay';
 import { LinkDragController } from './r3/LinkDragController';
 import {
   getModifierSub, subscribeModifierSub, type ModifierSubSelection,
