@@ -390,6 +390,7 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       <div className="absolute top-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">
         WaltGame Preview — WASD move · Space jump · Shift run · Mouse look (click to lock) · Esc to exit
       </div>
+      <div data-hud className="absolute bottom-3 left-3 text-white text-xs bg-black/50 px-2 py-1 rounded font-mono leading-tight pointer-events-none" />
       <button
         onClick={onClose}
         className="absolute top-2 right-2 bg-black/60 text-white px-2 py-1 rounded flex items-center gap-1 text-xs hover:bg-black/80"
