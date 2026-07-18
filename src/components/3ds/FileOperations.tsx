@@ -155,13 +155,14 @@ export const FileOperations = ({
                   <Label>Select model or CAD file</Label>
                   <Input
                     type="file"
-                    accept=".obj,.fbx,.gltf,.glb,.dae,.3ds,.max,.dxf,.dwg"
+                    accept=".obj,.fbx,.gltf,.glb,.dae,.3ds,.max,.dxf,.dwg,.stl,.ply,.zip"
                     onChange={(e) => handleFileUpload(e, 'model')}
                     className="bg-input border-panel-border"
                   />
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <div>3D: OBJ, FBX, GLTF, GLB, DAE, 3DS, MAX</div>
+                  <div>3D: OBJ, FBX, GLTF, GLB, DAE, 3DS, MAX, STL, PLY</div>
+                  <div>Bundle: <span className="font-mono">ZIP</span> — pacote estilo Sketchfab (modelo + texturas + .bin/.mtl).</div>
                   <div>CAD (2D): <span className="font-mono">DXF, DWG</span> — LINE / POLYLINE viram paredes paramétricas.</div>
                   <div className="opacity-70">DWG (binário Autodesk) é convertido automaticamente para DXF via LibreDWG (WASM) no próprio navegador.</div>
                 </div>
