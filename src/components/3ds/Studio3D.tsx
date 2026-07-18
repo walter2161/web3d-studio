@@ -58,6 +58,7 @@ import { getImportedModel } from './utils/modelImport';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { paramsToEditableSpline } from './editable/EditableSpline';
+import { useWaltCadOps } from './waltcad/useWaltCadOps';
 
 // 3ds Max-style random wire color for new objects: saturated, mid-bright HSL.
 const randomMaxColor = (): string => {
