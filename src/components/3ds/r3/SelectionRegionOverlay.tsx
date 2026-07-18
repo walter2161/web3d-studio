@@ -147,6 +147,13 @@ export const SelectionRegionOverlay = ({ vkey, isActive, objects, onSelectObject
       // Don't hijack pointer events when a creation tool is armed — the
       // CreationController needs the pointerdown to start ghost placement.
       if ((window as any).__r3ArmedTool) return;
+      // Don't start a marquee when the user is grabbing the TransformControls
+      // gizmo (move/rotate/scale). The gizmo axis is set while hovering it,
+      // and __r3TransformDragging flips true on its onMouseDown.
+      const tcRef: any = (window as any).__r3TransformCtrl;
+      const tc: any = tcRef?.current;
+      if (tc && (tc.axis || tc.dragging)) return;
+      if ((window as any).__r3TransformDragging) return;
       const target = e.target as HTMLElement;
       if (target.closest('[data-viewport-chrome]')) return;
 
