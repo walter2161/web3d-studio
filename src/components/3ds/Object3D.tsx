@@ -149,33 +149,36 @@ function useBitmapTexture(payload?: MapPayload | null, sRGB = false): THREE.Text
 function MaterialWithMaps({
   material, color, renderMode, isGhost, useVertexColors = false,
 }: { material: any; color: string; renderMode: string; isGhost: boolean; useVertexColors?: boolean }) {
+  const effectiveMat = useMemo(() => resolveEffectiveMaterial(material), [material]);
   // Show maps in any shaded/textured/edged/transparent view — hide only in
   // wireframe and bbox (Max behavior: bitmaps always visible once "Show Map
   // in Viewport" is on, regardless of viewport shading mode).
   const showMaps = renderMode !== 'wireframe' && renderMode !== 'bbox';
-  const rawMap = useBitmapTexture(material?.map, true);
-  const rawBump = useBitmapTexture(material?.bumpMap);
-  const rawOpacity = useBitmapTexture(material?.opacityMap);
-  const rawEmissive = useBitmapTexture(material?.emissiveMap, true);
+  const rawMap = useBitmapTexture(effectiveMat?.map, true);
+  const rawBump = useBitmapTexture(effectiveMat?.bumpMap);
+  const rawOpacity = useBitmapTexture(effectiveMat?.opacityMap);
+  const rawEmissive = useBitmapTexture(effectiveMat?.emissiveMap, true);
   const map = showMaps ? rawMap : null;
   const bumpMap = showMaps ? rawBump : null;
   const opacityMap = showMaps ? rawOpacity : null;
   const emissiveMap = showMaps ? rawEmissive : null;
-  const baseOpacity = material?.opacity ?? 1;
+  const baseOpacity = effectiveMat?.opacity ?? 1;
   const isWire = renderMode === 'wireframe';
   const transparent = renderMode === 'semi-transparent' || renderMode === 'bbox' || isGhost || baseOpacity < 1 || !!opacityMap || isWire;
   const opacity = isGhost ? 0.55 : (renderMode === 'bbox' ? 0 : (isWire ? 0 : (renderMode === 'semi-transparent' ? 0.5 : baseOpacity)));
+  const isTwoSided = !!material?.twoSided || material?.type === 'Double Sided';
+  const side = isTwoSided ? THREE.DoubleSide : THREE.FrontSide;
   // When vertex colors are baked into the geometry (foliage bark vs leaf),
   // use white as the base color so vertex colors aren't tinted, unless the
   // user explicitly overrode the material color.
-  const effectiveColor = useVertexColors && !material?.color ? '#ffffff' : color;
+  const effectiveColor = useVertexColors && !effectiveMat?.color ? '#ffffff' : (effectiveMat?.color ?? color);
   return (
     <meshStandardMaterial
       color={effectiveColor}
       vertexColors={useVertexColors}
       map={map || undefined}
       bumpMap={bumpMap || undefined}
-      bumpScale={material?.bumpScale ?? 0.3}
+      bumpScale={effectiveMat?.bumpScale ?? 0.3}
       alphaMap={opacityMap || undefined}
       emissiveMap={emissiveMap || undefined}
       transparent={transparent}
@@ -183,13 +186,82 @@ function MaterialWithMaps({
       depthWrite={renderMode !== 'bbox' && !isWire}
       colorWrite={!isWire}
       wireframe={false}
-      metalness={material?.metalness ?? 0.15}
-      roughness={material?.roughness ?? 0.55}
-      emissive={material?.emissive ?? '#000000'}
-      emissiveIntensity={material?.emissiveIntensity ?? 0}
+      metalness={effectiveMat?.metalness ?? 0.15}
+      roughness={effectiveMat?.roughness ?? 0.55}
+      emissive={effectiveMat?.emissive ?? '#000000'}
+      emissiveIntensity={effectiveMat?.emissiveIntensity ?? 0}
+      side={side}
       flatShading={false}
     />
   );
+}
+
+/** Mix two hex colors ("#rrggbb") by amount 0..1. */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = parseInt(a.replace('#', ''), 16), pb = parseInt(b.replace('#', ''), 16);
+  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
+  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
+  const r = Math.round(ar + (br - ar) * t), g = Math.round(ag + (bg - ag) * t), bl = Math.round(ab + (bb - ab) * t);
+  return '#' + [r, g, bl].map((n) => n.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Collapse a compound material payload into effective viewport props.
+ * Multi/Sub-Object uses sub-material #1 (a separate mesh path renders the
+ * full array). Blend/DoubleSided/Top-Bottom/Composite/Shellac produce a
+ * mixed-color approximation for the viewport.
+ */
+function resolveEffectiveMaterial(m: any): any {
+  if (!m || !m.type) return m;
+  if (m.type === 'Multi/Sub-Object') {
+    const first = m.subMaterials?.[0];
+    return first ? { ...m, ...first } : m;
+  }
+  if (m.type === 'Blend' && m.blend) {
+    const a = m.blend.mat1?.color || m.color;
+    const b = m.blend.mat2?.color || m.color;
+    return { ...m, color: mixHex(a, b, m.blend.amount ?? 0.5), map: m.blend.mat1?.map || m.map };
+  }
+  if (m.type === 'Double Sided' && m.doubleSided) {
+    return { ...m, color: m.doubleSided.front?.color || m.color, map: m.doubleSided.front?.map || m.map };
+  }
+  if (m.type === 'Top/Bottom' && m.topBottom) {
+    const a = m.topBottom.top?.color || m.color;
+    const b = m.topBottom.bottom?.color || m.color;
+    return { ...m, color: mixHex(b, a, m.topBottom.position ?? 0.5) };
+  }
+  if ((m.type === 'Composite' || m.type === 'Shellac') && m.composite?.layers?.length) {
+    const layers: any[] = m.composite.layers;
+    let col = layers[0]?.color || m.color;
+    for (let i = 1; i < layers.length; i++) col = mixHex(col, layers[i]?.color || col, 0.5);
+    return { ...m, color: col };
+  }
+  if (m.type === 'Matte/Shadow') {
+    return { ...m, color: '#000000', opacity: m.matteShadow?.opaqueAlpha ? 0.001 : 0.1 };
+  }
+  return m;
+}
+
+/**
+ * Build a cloned geometry with N evenly-distributed material groups so a
+ * Multi/Sub-Object material's sub-materials each shade a slice of the mesh
+ * when no per-face Material IDs have been assigned yet.
+ */
+function buildMultiSubGeometry(base: THREE.BufferGeometry, count: number): THREE.BufferGeometry {
+  const g = base.clone();
+  const posAttr = g.getAttribute('position') as THREE.BufferAttribute | undefined;
+  const indexed = g.getIndex();
+  const total = indexed ? indexed.count : (posAttr ? posAttr.count : 0);
+  if (!total || count <= 1) { g.clearGroups(); g.addGroup(0, total, 0); return g; }
+  g.clearGroups();
+  const step = Math.floor(total / count);
+  let start = 0;
+  for (let i = 0; i < count; i++) {
+    const cnt = i === count - 1 ? (total - start) : step;
+    g.addGroup(start, cnt, i);
+    start += cnt;
+  }
+  return g;
 }
 
 
