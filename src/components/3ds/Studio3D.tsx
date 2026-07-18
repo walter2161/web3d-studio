@@ -38,6 +38,7 @@ import { LoginDialog } from './r3/LoginDialog';
 import { AdminPanelDialog } from './r3/AdminPanelDialog';
 import { CloudSceneDialog } from './r3/CloudSceneDialog';
 import { WelcomeDialog } from './r3/WelcomeDialog';
+import { HelpDialog, HelpTopic } from './r3/HelpDialog';
 import { PreferencesDialog } from './prefs/PreferencesDialog';
 import { MapToolsPanel } from './maptools/MapToolsPanel';
 import { WaltSculptPanel } from './waltsculpt/WaltSculptPanel';
@@ -243,6 +244,7 @@ export const Studio3D = () => {
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null);
   // View-menu options (Show Grid / Statistics / Update During Spinner Drag).
   const [viewOpts, setViewOpts] = useState({
     showGrid: true,
@@ -2932,15 +2934,21 @@ export const Studio3D = () => {
         setMaxScriptOpen(true);
         break;
 
-      // Help — external references.
+      // Help — in-app documentation pages (auto-translated).
       case 'User Reference':
-        window.open('https://help.autodesk.com/view/3DSMAX/2024/ENU/', '_blank', 'noopener');
+        setHelpTopic('user-reference');
         break;
       case 'MAXScript Reference':
-        window.open('https://help.autodesk.com/view/3DSMAX/2024/ENU/?guid=GUID-F039181A-C072-4469-A329-AE60FF7535E7', '_blank', 'noopener');
+        setHelpTopic('maxscript-reference');
         break;
       case 'Tutorials':
-        window.open('https://www.autodesk.com/certification/learn/catalog/product/3ds-max', '_blank', 'noopener');
+        setHelpTopic('tutorials');
+        break;
+      case 'Keyboard Shortcuts':
+        setHelpTopic('shortcuts');
+        break;
+      case "What's New":
+        setHelpTopic('whats-new');
         break;
 
       default: break;
@@ -3402,6 +3410,9 @@ export const Studio3D = () => {
       <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
       <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      {helpTopic && (
+        <HelpDialog open={true} topic={helpTopic} onClose={() => setHelpTopic(null)} />
+      )}
 
       {/* Full multi-tab Preferences panel (General, Files, Viewports, Gamma,
           Rendering, Animation, IK, Gizmos, MAXScript). Persists to localStorage
