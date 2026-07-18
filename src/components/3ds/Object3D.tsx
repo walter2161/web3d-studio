@@ -174,6 +174,7 @@ function MaterialWithMaps({
   const effectiveColor = useVertexColors && !effectiveMat?.color ? '#ffffff' : (effectiveMat?.color ?? color);
   return (
     <meshStandardMaterial
+      attach={attach}
       color={effectiveColor}
       vertexColors={useVertexColors}
       map={map || undefined}
