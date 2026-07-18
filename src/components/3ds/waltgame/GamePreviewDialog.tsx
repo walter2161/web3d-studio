@@ -235,9 +235,10 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       const dt = Math.min(0.05, clock.getDelta());
 
 
-      // Character movement in the horizontal plane relative to yaw.
+      // Character movement in the horizontal plane relative to camera yaw.
+      // yaw=0 → look toward -Z. Right = cross(up, forward).
       const forward = new THREE.Vector3(-Math.sin(yaw.v), 0, -Math.cos(yaw.v));
-      const right = new THREE.Vector3(Math.cos(yaw.v), 0, -Math.sin(yaw.v));
+      const right = new THREE.Vector3(Math.cos(yaw.v), 0, -Math.sin(yaw.v)).negate();
       tmpDir.set(0, 0, 0);
       if (actionActive('MoveForward')) tmpDir.add(forward);
       if (actionActive('MoveBackward')) tmpDir.sub(forward);
