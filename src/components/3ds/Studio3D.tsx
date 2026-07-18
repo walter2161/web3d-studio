@@ -244,6 +244,7 @@ export const Studio3D = () => {
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<HelpTopic | null>(null);
   // View-menu options (Show Grid / Statistics / Update During Spinner Drag).
   const [viewOpts, setViewOpts] = useState({
     showGrid: true,
