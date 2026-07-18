@@ -2835,6 +2835,7 @@ export const Studio3D = () => {
               snapGridSpacing={snapCfg.gridSpacing}
               snapAngleDeg={angleSnapEnabled ? snapCfg.angleSnap : 0}
               snapPercent={snapCfg.percentSnap}
+              showGrid={viewOpts.showGrid}
             />
 
           </div>
