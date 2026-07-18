@@ -218,6 +218,7 @@ export const Studio3D = () => {
   const [environmentOpen, setEnvironmentOpen] = useState(false);
   const [viewImageOpen, setViewImageOpen] = useState(false);
   const [materialBrowserOpen, setMaterialBrowserOpen] = useState(false);
+  const [mapToolsOpen, setMapToolsOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
