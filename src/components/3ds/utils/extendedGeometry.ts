@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { TeapotGeometry } from 'three/examples/jsm/geometries/TeapotGeometry.js';
 import { Font } from 'three/examples/jsm/loaders/FontLoader.js';
+import { TTFLoader } from 'three/examples/jsm/loaders/TTFLoader.js';
 // Bundled Three.js fonts (vectorised TTF → typeface JSON) so text can be
 // rasterised into splines immediately, without an async fetch.
 import helvetikerRegular from 'three/examples/fonts/helvetiker_regular.typeface.json';
@@ -140,51 +141,160 @@ export const SHAPE_DEFAULTS: Record<ShapeType, any> = {
 
 // ---------------- Fonts ----------------
 //
-// The 3D geometry is generated from three of Three.js's bundled typeface fonts
-// (Helvetiker, Gentilis, Optimer). To offer users the look of the most popular
-// Google Fonts, we expose a curated list of well-known font *aliases* that map
-// to whichever bundled font best matches the visual family (sans/serif/
-// condensed/script). The UI shows a live WebFont preview of the alias, while
-// the actual mesh is built with the mapped bundled font.
+// Walt3D Text now follows the 3ds Max idea more closely: the preview still uses
+// CSS web fonts, but the actual 3D geometry is built from the real TTF/OTF
+// outlines through THREE.TTFLoader. Until an external font finishes loading we
+// return a bundled fallback, then emit `walt3d-font-ready` so the viewport
+// rebuilds the text mesh with the true Bezier curves, holes and Unicode glyphs.
 
-// alias -> { base, googleFamily, category }
-export const GOOGLE_FONT_LIBRARY: Record<string, { base: 'helvetiker' | 'gentilis' | 'optimer'; family: string; category: 'sans' | 'serif' | 'condensed' | 'script' | 'display' }> = {
+export type FontCategory = 'sans' | 'serif' | 'condensed' | 'script' | 'display' | 'symbols' | 'custom';
+export interface FontLibraryEntry {
+  base?: 'helvetiker' | 'gentilis' | 'optimer';
+  family: string;
+  category: FontCategory;
+  url?: string;
+  boldUrl?: string;
+  italicUrl?: string;
+  cssFamily?: string;
+}
+
+const GOOGLE_RAW = 'https://raw.githubusercontent.com/google/fonts/main';
+const ofl = (path: string) => `${GOOGLE_RAW}/ofl/${path}`;
+
+export const GOOGLE_FONT_LIBRARY: Record<string, FontLibraryEntry> = {
   helvetiker: { base: 'helvetiker', family: 'Helvetica, Arial, sans-serif', category: 'sans' },
   gentilis:   { base: 'gentilis',   family: 'Georgia, serif',                category: 'serif' },
   optimer:    { base: 'optimer',    family: 'Optima, Segoe UI, sans-serif',  category: 'sans' },
-  Roboto:            { base: 'helvetiker', family: 'Roboto, sans-serif',             category: 'sans' },
-  'Open Sans':       { base: 'helvetiker', family: '"Open Sans", sans-serif',        category: 'sans' },
-  Lato:              { base: 'helvetiker', family: 'Lato, sans-serif',               category: 'sans' },
-  Montserrat:        { base: 'helvetiker', family: 'Montserrat, sans-serif',         category: 'sans' },
-  Poppins:           { base: 'helvetiker', family: 'Poppins, sans-serif',            category: 'sans' },
-  Raleway:           { base: 'helvetiker', family: 'Raleway, sans-serif',            category: 'sans' },
-  Nunito:            { base: 'helvetiker', family: 'Nunito, sans-serif',             category: 'sans' },
-  Inter:             { base: 'helvetiker', family: 'Inter, sans-serif',              category: 'sans' },
-  'Work Sans':       { base: 'helvetiker', family: '"Work Sans", sans-serif',        category: 'sans' },
-  'Fira Sans':       { base: 'helvetiker', family: '"Fira Sans", sans-serif',        category: 'sans' },
-  Oswald:            { base: 'gentilis',   family: 'Oswald, sans-serif',             category: 'condensed' },
-  'Bebas Neue':      { base: 'gentilis',   family: '"Bebas Neue", sans-serif',       category: 'condensed' },
-  Anton:             { base: 'gentilis',   family: 'Anton, sans-serif',              category: 'condensed' },
-  'Playfair Display':{ base: 'optimer',    family: '"Playfair Display", serif',      category: 'serif' },
-  Merriweather:      { base: 'optimer',    family: 'Merriweather, serif',            category: 'serif' },
-  'PT Serif':        { base: 'optimer',    family: '"PT Serif", serif',              category: 'serif' },
-  Lora:              { base: 'optimer',    family: 'Lora, serif',                    category: 'serif' },
-  'Roboto Slab':     { base: 'optimer',    family: '"Roboto Slab", serif',           category: 'serif' },
-  Lobster:           { base: 'gentilis',   family: 'Lobster, cursive',               category: 'script' },
-  Pacifico:          { base: 'gentilis',   family: 'Pacifico, cursive',              category: 'script' },
-  'Dancing Script':  { base: 'gentilis',   family: '"Dancing Script", cursive',      category: 'script' },
-  Caveat:            { base: 'gentilis',   family: 'Caveat, cursive',                category: 'script' },
-  'Shadows Into Light': { base: 'gentilis', family: '"Shadows Into Light", cursive', category: 'script' },
-  'Press Start 2P':  { base: 'gentilis',   family: '"Press Start 2P", monospace',    category: 'display' },
-  'Russo One':       { base: 'gentilis',   family: '"Russo One", sans-serif',        category: 'display' },
-  'Fjalla One':      { base: 'gentilis',   family: '"Fjalla One", sans-serif',       category: 'condensed' },
+  Arial:             { base: 'helvetiker', family: 'Arial, Helvetica, sans-serif', category: 'sans', cssFamily: 'Arial' },
+  Verdana:           { base: 'helvetiker', family: 'Verdana, Geneva, sans-serif', category: 'sans', cssFamily: 'Verdana' },
+  Tahoma:            { base: 'helvetiker', family: 'Tahoma, Geneva, sans-serif', category: 'sans', cssFamily: 'Tahoma' },
+  Georgia:           { base: 'gentilis', family: 'Georgia, serif', category: 'serif', cssFamily: 'Georgia' },
+  'Times New Roman': { base: 'gentilis', family: '"Times New Roman", Times, serif', category: 'serif', cssFamily: 'Times New Roman' },
+  Roboto:            { base: 'helvetiker', family: 'Roboto, sans-serif',             category: 'sans', url: ofl('roboto/Roboto%5Bwdth,wght%5D.ttf'), italicUrl: ofl('roboto/Roboto-Italic%5Bwdth,wght%5D.ttf') },
+  'Open Sans':       { base: 'helvetiker', family: '"Open Sans", sans-serif',        category: 'sans', url: ofl('opensans/OpenSans%5Bwdth,wght%5D.ttf'), italicUrl: ofl('opensans/OpenSans-Italic%5Bwdth,wght%5D.ttf') },
+  Lato:              { base: 'helvetiker', family: 'Lato, sans-serif',               category: 'sans', url: ofl('lato/Lato-Regular.ttf'), boldUrl: ofl('lato/Lato-Bold.ttf'), italicUrl: ofl('lato/Lato-Italic.ttf') },
+  Montserrat:        { base: 'helvetiker', family: 'Montserrat, sans-serif',         category: 'sans', url: ofl('montserrat/Montserrat%5Bwght%5D.ttf'), italicUrl: ofl('montserrat/Montserrat-Italic%5Bwght%5D.ttf') },
+  Poppins:           { base: 'helvetiker', family: 'Poppins, sans-serif',            category: 'sans', url: ofl('poppins/Poppins-Regular.ttf'), boldUrl: ofl('poppins/Poppins-Bold.ttf'), italicUrl: ofl('poppins/Poppins-Italic.ttf') },
+  Raleway:           { base: 'helvetiker', family: 'Raleway, sans-serif',            category: 'sans', url: ofl('raleway/Raleway%5Bwght%5D.ttf'), italicUrl: ofl('raleway/Raleway-Italic%5Bwght%5D.ttf') },
+  Nunito:            { base: 'helvetiker', family: 'Nunito, sans-serif',             category: 'sans', url: ofl('nunito/Nunito%5Bwght%5D.ttf'), italicUrl: ofl('nunito/Nunito-Italic%5Bwght%5D.ttf') },
+  Inter:             { base: 'helvetiker', family: 'Inter, sans-serif',              category: 'sans', url: ofl('inter/Inter%5Bopsz,wght%5D.ttf'), italicUrl: ofl('inter/Inter-Italic%5Bopsz,wght%5D.ttf') },
+  'Work Sans':       { base: 'helvetiker', family: '"Work Sans", sans-serif',        category: 'sans', url: ofl('worksans/WorkSans%5Bwght%5D.ttf'), italicUrl: ofl('worksans/WorkSans-Italic%5Bwght%5D.ttf') },
+  'Fira Sans':       { base: 'helvetiker', family: '"Fira Sans", sans-serif',        category: 'sans', url: ofl('firasans/FiraSans-Regular.ttf'), boldUrl: ofl('firasans/FiraSans-Bold.ttf'), italicUrl: ofl('firasans/FiraSans-Italic.ttf') },
+  Oswald:            { base: 'helvetiker', family: 'Oswald, sans-serif',             category: 'condensed', url: ofl('oswald/Oswald%5Bwght%5D.ttf') },
+  'Bebas Neue':      { base: 'helvetiker', family: '"Bebas Neue", sans-serif',       category: 'condensed', url: ofl('bebasneue/BebasNeue-Regular.ttf') },
+  Anton:             { base: 'helvetiker', family: 'Anton, sans-serif',              category: 'condensed', url: ofl('anton/Anton-Regular.ttf') },
+  'Fjalla One':      { base: 'helvetiker', family: '"Fjalla One", sans-serif',       category: 'condensed', url: ofl('fjallaone/FjallaOne-Regular.ttf') },
+  'Playfair Display':{ base: 'optimer',    family: '"Playfair Display", serif',      category: 'serif', url: ofl('playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf'), italicUrl: ofl('playfairdisplay/PlayfairDisplay-Italic%5Bwght%5D.ttf') },
+  Merriweather:      { base: 'optimer',    family: 'Merriweather, serif',            category: 'serif', url: ofl('merriweather/Merriweather%5Bopsz,wdth,wght%5D.ttf'), italicUrl: ofl('merriweather/Merriweather-Italic%5Bopsz,wdth,wght%5D.ttf') },
+  Lora:              { base: 'optimer',    family: 'Lora, serif',                    category: 'serif', url: ofl('lora/Lora%5Bwght%5D.ttf'), italicUrl: ofl('lora/Lora-Italic%5Bwght%5D.ttf') },
+  'Roboto Slab':     { base: 'optimer',    family: '"Roboto Slab", serif',           category: 'serif', url: `${GOOGLE_RAW}/apache/robotoslab/RobotoSlab%5Bwght%5D.ttf` },
+  Lobster:           { base: 'gentilis',   family: 'Lobster, cursive',               category: 'script', url: ofl('lobster/Lobster-Regular.ttf') },
+  Pacifico:          { base: 'gentilis',   family: 'Pacifico, cursive',              category: 'script', url: ofl('pacifico/Pacifico-Regular.ttf') },
+  'Dancing Script':  { base: 'gentilis',   family: '"Dancing Script", cursive',      category: 'script', url: ofl('dancingscript/DancingScript%5Bwght%5D.ttf') },
+  Caveat:            { base: 'gentilis',   family: 'Caveat, cursive',                category: 'script', url: ofl('caveat/Caveat%5Bwght%5D.ttf') },
+  'Shadows Into Light': { base: 'gentilis', family: '"Shadows Into Light", cursive', category: 'script', url: ofl('shadowsintolighttwo/ShadowsIntoLightTwo-Regular.ttf') },
+  'Press Start 2P':  { base: 'helvetiker', family: '"Press Start 2P", monospace',    category: 'display', url: ofl('pressstart2p/PressStart2P-Regular.ttf') },
+  'Russo One':       { base: 'helvetiker', family: '"Russo One", sans-serif',        category: 'display', url: ofl('russoone/RussoOne-Regular.ttf') },
+  'Noto Symbols':    { base: 'helvetiker', family: '"Noto Sans Symbols 2", sans-serif', category: 'symbols', url: ofl('notosanssymbols2/NotoSansSymbols2-Regular.ttf'), cssFamily: 'Noto Sans Symbols 2' },
+  'Noto Math':       { base: 'helvetiker', family: '"Noto Sans Math", serif', category: 'symbols', url: ofl('notosansmath/NotoSansMath-Regular.ttf'), cssFamily: 'Noto Sans Math' },
 };
 
 export const AVAILABLE_FONTS = Object.keys(GOOGLE_FONT_LIBRARY) as (keyof typeof GOOGLE_FONT_LIBRARY)[];
 export type FontName = keyof typeof GOOGLE_FONT_LIBRARY;
 
 const FONT_CACHE = new Map<string, Font>();
-export function getFont(name: FontName | string = 'helvetiker', bold = false): Font {
+const TTF_FONT_CACHE = new Map<string, Font>();
+const TTF_FONT_LOADING = new Map<string, Promise<Font | null>>();
+const TTF_LOADER = new TTFLoader();
+
+const fontVariantKey = (name: string, bold = false, italic = false) => `${name}::${bold ? 'b' : 'r'}::${italic ? 'i' : 'n'}`;
+
+function notifyFontReady(name: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('walt3d-font-ready', { detail: { name } }));
+  }
+}
+
+function fontUrlFor(entry: FontLibraryEntry | undefined, bold: boolean, italic: boolean) {
+  if (!entry) return undefined;
+  if (italic && entry.italicUrl) return entry.italicUrl;
+  if (bold && entry.boldUrl) return entry.boldUrl;
+  return entry.url;
+}
+
+function parseTypeface(buffer: ArrayBuffer, cacheKey: string, familyName: string): Font | null {
+  try {
+    const data = TTF_LOADER.parse(buffer) as any;
+    if (!data?.glyphs) return null;
+    data.familyName = data.familyName || familyName;
+    const font = new Font(data);
+    TTF_FONT_CACHE.set(cacheKey, font);
+    return font;
+  } catch (err) {
+    console.warn('[Walt3D Text] Font outline parse failed:', familyName, err);
+    return null;
+  }
+}
+
+export function registerCustomFontFromArrayBuffer(name: string, buffer: ArrayBuffer): Font | null {
+  const safeName = name.replace(/\.(ttf|otf)$/i, '').trim() || 'Custom Font';
+  const key = fontVariantKey(safeName, false, false);
+  const font = parseTypeface(buffer, key, safeName);
+  if (font) {
+    GOOGLE_FONT_LIBRARY[safeName] = {
+      base: 'helvetiker',
+      family: `"${safeName}", sans-serif`,
+      category: 'custom',
+      cssFamily: safeName,
+    };
+    notifyFontReady(safeName);
+  }
+  return font;
+}
+
+export function preloadFontForText(name: FontName | string = 'helvetiker', bold = false, italic = false) {
+  const fontName = String(name || 'helvetiker');
+  const entry = GOOGLE_FONT_LIBRARY[fontName as FontName];
+  const url = fontUrlFor(entry, bold, italic);
+  const key = fontVariantKey(fontName, bold, italic && !!entry?.italicUrl);
+  if (!url || TTF_FONT_CACHE.has(key) || TTF_FONT_LOADING.has(key)) return;
+  const promise = fetch(url)
+    .then((res) => {
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+      return res.arrayBuffer();
+    })
+    .then((buffer) => parseTypeface(buffer, key, fontName))
+    .then((font) => {
+      if (font) notifyFontReady(fontName);
+      return font;
+    })
+    .catch((err) => {
+      console.warn('[Walt3D Text] Font download failed:', fontName, err);
+      return null;
+    });
+  TTF_FONT_LOADING.set(key, promise);
+}
+
+export function isFontLoadedForText(name: FontName | string = 'helvetiker', bold = false, italic = false): boolean {
+  const fontName = String(name || 'helvetiker');
+  const entry = GOOGLE_FONT_LIBRARY[fontName as FontName];
+  const key = fontVariantKey(fontName, bold, italic && !!entry?.italicUrl);
+  return !fontUrlFor(entry, bold, italic) || TTF_FONT_CACHE.has(key);
+}
+
+export function usesNativeItalicFont(name: FontName | string = 'helvetiker', italic = false): boolean {
+  const fontName = String(name || 'helvetiker');
+  const entry = GOOGLE_FONT_LIBRARY[fontName as FontName];
+  return !!italic && !!entry?.italicUrl && TTF_FONT_CACHE.has(fontVariantKey(fontName, false, true));
+}
+
+export function getFont(name: FontName | string = 'helvetiker', bold = false, italic = false): Font {
+  const fontName = String(name || 'helvetiker');
+  const alias = GOOGLE_FONT_LIBRARY[fontName as FontName];
+  const externalKey = fontVariantKey(fontName, bold, italic && !!alias?.italicUrl);
+  const external = TTF_FONT_CACHE.get(externalKey);
+  if (external) return external;
+  preloadFontForText(fontName, bold, italic);
   const alias = GOOGLE_FONT_LIBRARY[name as FontName];
   const base = alias ? alias.base : (name as 'helvetiker' | 'gentilis' | 'optimer');
   const key = `${base}_${bold ? 'bold' : 'regular'}`;
