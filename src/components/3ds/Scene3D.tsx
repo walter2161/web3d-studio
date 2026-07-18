@@ -656,7 +656,7 @@ function EditableSplineOverlay({ selectedObject }: { selectedObject: any }) {
       return m;
     };
     // Use the region-picker registry.
-    const registerFn = require('./r3/subObjRegionRegistry').registerSubObjRegionPicker;
+    const registerFn = registerSubObjRegionPicker;
     const picker = (ctx: any) => {
       const mw = buildMatrix();
       const cam = ctx.camera as THREE.Camera;
