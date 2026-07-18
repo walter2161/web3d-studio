@@ -264,6 +264,7 @@ import {
   Spline,
   Waves,
   Sparkles,
+  Gamepad2,
 } from 'lucide-react';
 
 interface SidePanelProps {
