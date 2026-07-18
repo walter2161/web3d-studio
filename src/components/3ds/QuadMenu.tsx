@@ -9,18 +9,25 @@ import { openContextMenu, MenuSection, MenuItem } from './ContextMenu';
 
 const emit = (action: string) => window.dispatchEvent(new CustomEvent('walt3d:menu-action', { detail: action }));
 
-const getSelection = (): { objects: any[]; selected: any[]; multi: boolean } => {
+const getSelection = (clickedObjectId?: string): { objects: any[]; selected: any[]; multi: boolean } => {
   const all: any[] = (window as any).__objects || [];
   const ids: string[] = (window as any).__r3SelectedIds || [];
-  const selected = all.filter((o) => ids.includes(o.id));
+  let selected = all.filter((o) => ids.includes(o.id));
+  // React selection state updates after the RMB event. When the user right-clicks
+  // an unselected viewport object, build the menu for that object immediately so
+  // object-specific items are enabled before the next render tick.
+  if (clickedObjectId && !ids.includes(clickedObjectId)) {
+    const clicked = all.find((o) => o.id === clickedObjectId);
+    if (clicked) selected = [clicked];
+  }
   return { objects: all, selected, multi: selected.length > 1 };
 };
 
 // Build the sections. The 3ds Max "Quad Menu" has four quadrants; we render
 // them as titled sections in a single column (functionally identical, works
 // with our menu primitive and is far more readable on small viewports).
-const buildSections = (): MenuSection[] => {
-  const { selected, multi } = getSelection();
+const buildSections = (clickedObjectId?: string): MenuSection[] => {
+  const { selected, multi } = getSelection(clickedObjectId);
   const sel = selected[0];
   const anySel = selected.length > 0;
   const isGroup = !!sel?.isGroup;
@@ -148,9 +155,9 @@ const buildSections = (): MenuSection[] => {
 export const QuadMenu = () => {
   useEffect(() => {
     const open = (e: Event) => {
-      const ce = e as CustomEvent<{ x: number; y: number }>;
+      const ce = e as CustomEvent<{ x: number; y: number; objectId?: string }>;
       const { x, y } = ce.detail || { x: 0, y: 0 };
-      openContextMenu({ x, y, sections: buildSections() });
+      openContextMenu({ x, y, sections: buildSections(ce.detail?.objectId) });
     };
     window.addEventListener('walt3d:open-quad-menu', open as EventListener);
     return () => window.removeEventListener('walt3d:open-quad-menu', open as EventListener);
