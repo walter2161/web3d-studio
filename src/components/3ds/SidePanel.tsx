@@ -662,6 +662,7 @@ export const SidePanel = ({
                       : createCategory === 'compound' ? 'compound'
                       : createCategory === 'particles' ? 'particles'
                       : createCategory === 'waltgame' ? 'waltgame'
+                      : createCategory === 'waltcad' ? 'waltcad'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
@@ -676,6 +677,7 @@ export const SidePanel = ({
                 <option value="compound">Compound Objects</option>
                 <option value="particles">Particle Systems</option>
                 <option value="waltgame">WaltGame</option>
+                <option value="waltcad">WaltCad</option>
               </select>
             )}
 
