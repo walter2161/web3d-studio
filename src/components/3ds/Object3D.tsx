@@ -549,6 +549,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     native?.preventDefault?.();
     native?.stopPropagation?.();
     native?.stopImmediatePropagation?.();
+    (window as any).__r3LastObjectContextMenuAt = performance.now();
     if (!isSelected) selectFromEvent(e);
     window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
       detail: {
@@ -2408,6 +2409,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
     native?.preventDefault?.();
     native?.stopPropagation?.();
     native?.stopImmediatePropagation?.();
+    (window as any).__r3LastObjectContextMenuAt = performance.now();
     if (!isSelected) selectFromEvent(e);
     window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', {
       detail: {

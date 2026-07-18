@@ -297,6 +297,7 @@ export const Studio3D = () => {
   // avoid double-pushing undo snapshots — the drag already pushed one on
   // mousedown via r3-transform-start; per-frame transform-many events must not.
   const dragActiveRef = useRef(false);
+  const viewportContextRootRef = useRef<HTMLDivElement | null>(null);
   const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
   // Per-imported-object baked clip data (3ds Max style per-bone channel tracks).
   // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
@@ -1655,6 +1656,29 @@ export const Studio3D = () => {
     // ref isn't needed because it's re-created each render and the listener
     // is re-bound each render below via the deps array.
   });
+
+  // Native fallback: the WebGL canvas/orbit tools can swallow React bubbling
+  // contextmenu events. Capture RMB over the viewport root and open the quad
+  // menu unless an R3F object handler opened the object menu first.
+  useEffect(() => {
+    const onViewportContext = (e: MouseEvent) => {
+      const root = viewportContextRootRef.current;
+      if (!root || !root.contains(e.target as Node)) return;
+      if ((window as any).__r3ArmedTool || dragActiveRef.current) return;
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest('input,textarea,select,button,[role="dialog"],[role="menu"]')) return;
+      e.preventDefault();
+      const x = e.clientX;
+      const y = e.clientY;
+      window.setTimeout(() => {
+        const lastObjectMenuAt = Number((window as any).__r3LastObjectContextMenuAt || 0);
+        if (performance.now() - lastObjectMenuAt < 250) return;
+        window.dispatchEvent(new CustomEvent('walt3d:open-quad-menu', { detail: { x, y } }));
+      }, 0);
+    };
+    window.addEventListener('contextmenu', onViewportContext, true);
+    return () => window.removeEventListener('contextmenu', onViewportContext, true);
+  }, []);
 
 
   // Selection Region marquee: aggregate hit ids come in via `r3-region-select`.
@@ -3044,6 +3068,7 @@ export const Studio3D = () => {
           }}
         >
           <div
+            ref={viewportContextRootRef}
             className="flex-1 min-h-0 bg-win-dark"
             onContextMenu={(e) => {
               // Skip if the creation controller already consumed the right-click
