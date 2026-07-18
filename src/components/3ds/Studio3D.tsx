@@ -1538,7 +1538,11 @@ export const Studio3D = () => {
       setRedoStack([]);
       redoOrderRef.current = [];
       rigRedoRef.current = [];
+      dragActiveRef.current = true;
     };
+    const onTransformEnd = () => { dragActiveRef.current = false; };
+    window.addEventListener('mouseup', onTransformEnd, true);
+    window.addEventListener('pointerup', onTransformEnd, true);
     const onTransformMany = (e: Event) => {
       const updates = (e as CustomEvent).detail?.updates as Array<{
         id: string; position: [number, number, number]; rotation: [number, number, number]; scale: [number, number, number];
