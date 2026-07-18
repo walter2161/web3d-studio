@@ -604,7 +604,7 @@ export const SidePanel = ({
   );
 
   return (
-    <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto">
+    <div className="w-full h-full bg-panel border-l border-panel-border overflow-y-auto p-[7px] space-y-[7px]">
       {/* R3-style command panel tab row */}
       <div className="bevel-raised p-[2px] flex gap-[2px]">
         {panelTabs.map((t) => {
@@ -624,7 +624,8 @@ export const SidePanel = ({
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
 
-        <div className="p-[7px] space-y-1">
+        <div className="space-y-1">
+
 
           <TabsContent value="create" className="mt-0 space-y-1">
             {/* Category icon row (Geometry / Shapes / Lights / Cameras / Helpers / Warps / Systems) */}
