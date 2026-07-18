@@ -188,6 +188,20 @@ export const Studio3D = () => {
     (window as any).__r3SelectedIds = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
   }, [selectedObjectIds, selectedObject]);
 
+  // Global bus: SidePanel modifier picker → open WaltSculpt panel.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { objectId?: string } | undefined;
+      setWaltSculptOpen(true);
+      // Lazy import to avoid circular init.
+      import('./waltsculpt/sculptStore').then(({ sculptStore }) => {
+        sculptStore.set({ active: true, targetId: detail?.objectId ?? sculptStore.getState().targetId });
+      });
+    };
+    window.addEventListener('r3-open-waltsculpt', onOpen);
+    return () => window.removeEventListener('r3-open-waltsculpt', onOpen);
+  }, []);
+
   useEffect(() => {
     if (!selectedObject) {
       if (selectedObjectIds.length) setSelectedObjectIds([]);
