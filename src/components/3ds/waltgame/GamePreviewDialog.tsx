@@ -157,26 +157,30 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
     const yaw = { v: 0 };
     const pitch = { v: -0.2 };
 
-    // Input.
+    // Input — GTA-style: normalize keys (Shift/Space/etc.) so bindings match.
     const keys = new Set<string>();
     const keyMap = new Map<string, string>();
-    state.inputMap.forEach((b) => keyMap.set(b.key.toLowerCase(), b.action));
+    const normKey = (k: string) => (k === ' ' ? 'space' : k.toLowerCase());
+    state.inputMap.forEach((b) => keyMap.set(normKey(b.key), b.action));
     const onKey = (down: boolean) => (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && down) onClose();
-      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+      if (e.key === 'Escape' && down) { onClose(); return; }
+      if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
+      const k = normKey(e.key);
       if (down) keys.add(k); else keys.delete(k);
     };
     const kd = onKey(true), ku = onKey(false);
-    window.addEventListener('keydown', kd);
+    window.addEventListener('keydown', kd as any);
     window.addEventListener('keyup', ku);
 
+    // Mouse-look GTA style: horizontal → yaw (turn view), vertical → pitch.
     const onMouse = (e: MouseEvent) => {
       if (document.pointerLockElement !== canvas) return;
-      yaw.v -= e.movementX * state.camSensitivity;
-      pitch.v -= e.movementY * state.camSensitivity;
-      pitch.v = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, pitch.v));
+      const sens = state.camSensitivity || 0.0025;
+      yaw.v -= e.movementX * sens;
+      pitch.v -= e.movementY * sens;
+      pitch.v = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch.v));
     };
-    const lockClick = () => canvas.requestPointerLock();
+    const lockClick = () => { if (document.pointerLockElement !== canvas) canvas.requestPointerLock(); };
     canvas.addEventListener('click', lockClick);
     document.addEventListener('mousemove', onMouse);
 
@@ -231,9 +235,10 @@ export const GamePreviewDialog = ({ open, onClose }: Props) => {
       const dt = Math.min(0.05, clock.getDelta());
 
 
-      // Character movement in the horizontal plane relative to yaw.
+      // Character movement in the horizontal plane relative to camera yaw.
+      // yaw=0 → look toward -Z. Right = cross(up, forward).
       const forward = new THREE.Vector3(-Math.sin(yaw.v), 0, -Math.cos(yaw.v));
-      const right = new THREE.Vector3(Math.cos(yaw.v), 0, -Math.sin(yaw.v));
+      const right = new THREE.Vector3(Math.cos(yaw.v), 0, -Math.sin(yaw.v)).negate();
       tmpDir.set(0, 0, 0);
       if (actionActive('MoveForward')) tmpDir.add(forward);
       if (actionActive('MoveBackward')) tmpDir.sub(forward);
