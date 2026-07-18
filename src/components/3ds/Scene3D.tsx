@@ -70,6 +70,13 @@ export const Scene3D = ({
 }: Scene3DProps) => {
 
   const transformControlsRef = useRef<any>(null);
+  // Expose the active TransformControls so the SelectionRegionOverlay can
+  // detect when a pointerdown is actually landing on the gizmo (axis hover)
+  // and skip starting a marquee drag.
+  useEffect(() => {
+    (window as any).__r3TransformCtrl = transformControlsRef;
+    return () => { if ((window as any).__r3TransformCtrl === transformControlsRef) (window as any).__r3TransformCtrl = null; };
+  }, []);
   const selectedObjectData = objects.find(obj => obj.id === selectedObject);
   const selectedObjectIdSet = useMemo(() => new Set(selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : [])), [selectedObjectIds, selectedObject]);
   const selectedList = useMemo(
@@ -355,6 +362,10 @@ export const Scene3D = ({
           onMouseDown={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = false;
+            // Flag so the SelectionRegionOverlay's window-level pointermove
+            // (which uses capture-phase) knows a gizmo drag has started and
+            // must not be promoted into a marquee selection.
+            (window as any).__r3TransformDragging = true;
             if (!boneJointActive && !subGizmoActive && !importedSubActive && !modGizmoActive && selectedObject) {
               // Snapshot every selected node's TRS so undo restores the whole set.
               window.dispatchEvent(new CustomEvent('r3-transform-start', { detail: { objectId: selectedObject } }));
@@ -408,6 +419,7 @@ export const Scene3D = ({
           onMouseUp={() => {
             const controls = (window as any).__orbitControls;
             if (controls) controls.enabled = true;
+            (window as any).__r3TransformDragging = false;
             if (boneJointActive) {
               boneJointDragStartRef.current = null;
             }
