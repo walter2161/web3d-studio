@@ -75,7 +75,7 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   hose:       { radius: 0.15, height: 1, sides: 12, segments: 40, bumps: 4, bumpDepth: 0.05 },
   // ---- AEC Extended: Foliage (procedural tree) ----
   // See FOLIAGE_SPECIES catalog below for the full species list.
-  foliage:    { height: 6, crownRadius: 3, density: 1, seed: 1, species: 0, leafSize: 0.35, branchDensity: 1, age: 1, displayAsBox: false },
+  foliage:    { height: 6, crownRadius: 3, density: 1, seed: 1, species: 0, leafSize: 0.35, branchDensity: 1, age: 1, displayAsBox: false, lowPoly: true },
 };
 
 // 3ds Max AEC Extended > Foliage species catalog. Each preset seeds sensible
@@ -106,6 +106,50 @@ export const FOLIAGE_SPECIES: FoliageSpecies[] = [
 ];
 export const foliageKind = (species: number): FoliageKind =>
   FOLIAGE_SPECIES.find((s) => s.id === (species | 0))?.kind ?? 'broadleaf';
+
+// ---- Low-poly leaf-card outlines (species-specific silhouettes) ----------
+// Each outline is a flat polygon in the XY plane, base at (0,0), tip toward
+// +Y, in normalized units (scaled by leafSize). Kept intentionally sparse
+// (3-8 vertices) so a full tree stays under a few thousand triangles.
+const LEAF_OUTLINES: Record<string, number[][]> = {
+  broad:          [[0,0],[0.5,0.3],[0.35,0.75],[0,1.05],[-0.35,0.75],[-0.5,0.3]],
+  elm_leaf:       [[0,0],[0.55,0.25],[0.42,0.6],[0.15,0.95],[0,1.15],[-0.25,0.9],[-0.45,0.55],[-0.3,0.2]],
+  birch_leaf:     [[0,0],[0.4,0.25],[0.3,0.65],[0,1.15],[-0.3,0.65],[-0.4,0.25]],
+  shrub_leaf:     [[0,0],[0.4,0.3],[0.3,0.7],[0,0.85],[-0.3,0.7],[-0.4,0.3]],
+  broad_glossy:   [[0,0],[0.45,0.35],[0.5,0.8],[0,1.3],[-0.5,0.8],[-0.45,0.35]],
+  cherry_blossom: [[0,0.15],[0.35,0.05],[0.22,-0.3],[-0.22,-0.3],[-0.35,0.05]],
+  pine_needle:    [[0,0],[0.045,0.08],[0,1.0],[-0.045,0.08]],
+  weeping:        [[0,0],[0.08,0.3],[0.04,0.85],[0,1.25],[-0.04,0.85],[-0.08,0.3]],
+  palm:           [[0,0],[0.18,0.15],[0.22,0.5],[0.12,0.85],[0,1.15],[-0.12,0.85],[-0.22,0.5],[-0.18,0.15]],
+  yucca_spike:    [[0,0],[0.07,0.05],[0,1.3],[-0.07,0.05]],
+};
+
+function _buildLeafCard(outline: number[][], scale: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  shape.moveTo(outline[0][0] * scale, outline[0][1] * scale);
+  for (let i = 1; i < outline.length; i++) shape.lineTo(outline[i][0] * scale, outline[i][1] * scale);
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
+
+function _leafCardFor(kind: FoliageKind, scale: number): THREE.BufferGeometry {
+  let key: keyof typeof LEAF_OUTLINES = 'broad';
+  if (kind === 'pine') key = 'pine_needle';
+  else if (kind === 'weeping') key = 'weeping';
+  else if (kind === 'palm') key = 'palm';
+  else if (kind === 'shrub') key = 'shrub_leaf';
+  const g = _buildLeafCard(LEAF_OUTLINES[key], scale);
+  if (kind === 'weeping') g.rotateX(Math.PI);
+  else if (kind === 'palm') g.rotateX(Math.PI / 2.8);
+  else if (kind === 'pine') {
+    // cross two cards for a needle bundle with volume
+    const b = g.clone();
+    b.rotateY(Math.PI / 2);
+    return mergeGeometries([g, b], false) || g;
+  }
+  return g;
+}
+
 
 // Shape defaults mirror 3ds Max R3 Shapes rollout. Every shape carries the
 // common "Rendering" (renderable / thickness / sides / angle / rectangular
@@ -677,7 +721,10 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
         const endPos = startPos.clone().add(adjustedDir.clone().multiplyScalar(length));
 
         // Branch cylinder oriented along adjustedDir, pivot at base.
-        const branchGeo = new THREE.CylinderGeometry(radius * cfg.branchLoss, radius, length, 7, 1);
+        // Low-poly path: 5-sided open cylinder (no caps) — ~40% fewer tris than the round 7-side capped version.
+        const lowPoly = !!p.lowPoly;
+        const branchSides = lowPoly ? 5 : 7;
+        const branchGeo = new THREE.CylinderGeometry(radius * cfg.branchLoss, radius, length, branchSides, 1, lowPoly);
         branchGeo.translate(0, length / 2, 0);
         const q = new THREE.Quaternion().setFromUnitVectors(up, adjustedDir);
         branchGeo.applyQuaternion(q);
@@ -697,8 +744,15 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
             pos.y += (rand() - 0.5) * (length * 0.4);
             pos.z += (rand() - 0.5) * (length * 0.4);
             const sc = 0.7 + rand() * 0.6;
-            const leaf = new THREE.ConeGeometry(cfg.leafSize * sc, cfg.leafSize * 2.5 * sc, 3);
-            leaf.rotateX(Math.PI / 2);
+            // Low-poly leaves = flat species-shaped cards (2-6 tris each).
+            // Full-poly leaves = 3-side cone (~6 tris) as before.
+            const leaf = lowPoly
+              ? _leafCardFor(kind, cfg.leafSize * sc * 2)
+              : (() => {
+                  const c = new THREE.ConeGeometry(cfg.leafSize * sc, cfg.leafSize * 2.5 * sc, 3);
+                  c.rotateX(Math.PI / 2);
+                  return c;
+                })();
             const qe = new THREE.Quaternion().setFromEuler(new THREE.Euler(
               rand() * Math.PI, rand() * Math.PI, rand() * Math.PI,
             ));
@@ -707,6 +761,7 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
             parts.push({ g: leaf, c: cfg.leafColor });
           }
         }
+
 
         // Recurse.
         const nextDepth = depth + 1;

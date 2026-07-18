@@ -179,6 +179,7 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'branchDensity',  label: 'Branch Dens.',  kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.branchDensity, min: 0.1,  step: 0.1 },
     { key: 'leafSize',       label: 'Leaf Size',     kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.leafSize,      min: 0.02, step: 0.05 },
     { key: 'age',            label: 'Age',           kind: 'float', default: EXT_PRIM_DEFAULTS.foliage.age,           min: 0.1,  step: 0.1 },
+    { key: 'lowPoly',        label: 'Low Poly (0/1)',kind: 'int',   default: EXT_PRIM_DEFAULTS.foliage.lowPoly ? 1 : 0, min: 0 },
   ],
   // Shapes
   rectangle: [
