@@ -2605,6 +2605,64 @@ export const Studio3D = () => {
       case 'Undo': undo(); break;
       case 'Redo': redo(); break;
       case 'Delete': handleDeleteSelected(); break;
+
+      // ---- Quad-menu actions (right-click) ----
+      case 'Move':   setTransformMode('translate'); break;
+      case 'Rotate': setTransformMode('rotate'); break;
+      case 'Scale':  setTransformMode('scale'); break;
+      case 'Transform Type-In': setTypeInOpen(true); break;
+      case 'Align': if (selectedObject) setAlignOpen(true); else toast.error('Select an object'); break;
+      case 'Hide Selection': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        if (!ids.length) { toast.error('Select an object'); break; }
+        const set = new Set(ids);
+        setObjects((prev) => prev.map((o) => set.has(o.id) ? { ...o, visible: false } : o));
+        break;
+      }
+      case 'Hide Unselected': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        const set = new Set(ids);
+        setObjects((prev) => prev.map((o) => (set.has(o.id) || o.isGroup) ? o : { ...o, visible: false }));
+        break;
+      }
+      case 'Unhide All':
+        setObjects((prev) => prev.map((o) => ({ ...o, visible: true })));
+        break;
+      case 'Freeze Selection': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        if (!ids.length) { toast.error('Select an object'); break; }
+        const set = new Set(ids);
+        setObjects((prev) => prev.map((o) => set.has(o.id) ? { ...o, locked: true } : o));
+        break;
+      }
+      case 'Unfreeze All':
+        setObjects((prev) => prev.map((o) => ({ ...o, locked: false })));
+        break;
+      case 'Isolate Selection': {
+        const ids = new Set(selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []));
+        if (!ids.size) { toast.error('Select an object'); break; }
+        setObjects((prev) => prev.map((o) => (ids.has(o.id) || o.isGroup) ? { ...o, visible: true } : { ...o, visible: false }));
+        toast.success('Isolated — Unhide All to restore');
+        break;
+      }
+      case 'Convert To Editable Mesh':
+      case 'Convert To Editable Poly':
+      case 'Convert To Editable Spline': {
+        if (!selectedObject) { toast.error('Select an object'); break; }
+        // Route through the modifier bus so the existing conversion logic runs.
+        window.dispatchEvent(new CustomEvent('walt3d:convert-selected', { detail: action }));
+        toast.success(action);
+        break;
+      }
+      case 'Curve Editor':
+      case 'Dope Sheet':
+        window.dispatchEvent(new CustomEvent('walt3d:open-track-view', { detail: action }));
+        break;
+      case 'Create Box':      arm('box' as any); break;
+      case 'Create Sphere':   arm('sphere' as any); break;
+      case 'Create Cylinder': arm('cylinder' as any); break;
+      case 'Create Plane':    arm('plane' as any); break;
+
       case 'Clone': {
         const sel = objects.find((o) => o.id === selectedObject);
         if (!sel) { toast.error('Select an object first'); break; }
