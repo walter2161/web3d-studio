@@ -884,18 +884,41 @@ export function buildShape(type: ShapeType, params: any = {}): THREE.BufferGeome
       const align = (p.alignment ?? 'left') as 'left' | 'center' | 'right' | 'justify';
       const curveSeg = p.curveSegments ?? 6;
 
-      // Build ShapeGeometry per line, then translate lines vertically and
+      // Optional built-in extrusion (thickness with segments + bevel). When
+      // extrudeAmount > 0, each line becomes an ExtrudeGeometry so the text has
+      // real volume without needing an Extrude modifier on top of the shape.
+      const extrudeAmount = Math.max(0, p.extrudeAmount ?? 0);
+      const extrudeSegments = Math.max(1, Math.floor(p.extrudeSegments ?? 1));
+      const bevelEnabled = !!p.bevelEnabled && extrudeAmount > 0;
+      const bevelSize = Math.max(0, p.bevelSize ?? 0);
+      const bevelThickness = Math.max(0, p.bevelThickness ?? 0);
+      const bevelSegments = Math.max(1, Math.floor(p.bevelSegments ?? 2));
+
+      // Build geometry per line, then translate lines vertically and
       // horizontally-align them together.
       const lineGeoms: { geom: THREE.BufferGeometry; width: number; ascent: number }[] = [];
       for (const line of lines) {
         const shapes = buildTextShapes(line, p.font ?? 'helvetiker', !!p.bold, size, kerning, curveSeg);
         if (!shapes.length) { lineGeoms.push({ geom: new THREE.BufferGeometry(), width: 0, ascent: size }); continue; }
-        const g = new THREE.ShapeGeometry(shapes, curveSeg);
+        const g = extrudeAmount > 0
+          ? new THREE.ExtrudeGeometry(shapes, {
+              depth: extrudeAmount,
+              steps: extrudeSegments,
+              curveSegments: curveSeg,
+              bevelEnabled,
+              bevelSize,
+              bevelThickness,
+              bevelSegments,
+              bevelOffset: 0,
+            })
+          : new THREE.ShapeGeometry(shapes, curveSeg);
+        // Text sits on XZ plane with the extrusion pointing up (+Y).
         g.rotateX(-Math.PI / 2);
         g.computeBoundingBox();
         const bb = g.boundingBox!;
         lineGeoms.push({ geom: g, width: bb.max.x - bb.min.x, ascent: bb.max.z - bb.min.z });
       }
+
 
       // Optional italic — skew geometry along X in proportion to Z (baseline).
       if (p.italic) {
