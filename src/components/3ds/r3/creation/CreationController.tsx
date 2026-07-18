@@ -60,6 +60,7 @@ const STAGES: Record<CreatableTool, number> = {
   sys_bones: 1,
   sys_biped: 1,
   sys_print_bed: 1,
+  part_spray: 1, part_snow: 1, part_super_spray: 1, part_parray: 1, part_pcloud: 1, part_blizzard: 1,
 };
 
 
