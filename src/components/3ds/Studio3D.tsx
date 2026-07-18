@@ -2934,15 +2934,21 @@ export const Studio3D = () => {
         setMaxScriptOpen(true);
         break;
 
-      // Help — external references.
+      // Help — in-app documentation pages (auto-translated).
       case 'User Reference':
-        window.open('https://help.autodesk.com/view/3DSMAX/2024/ENU/', '_blank', 'noopener');
+        setHelpTopic('user-reference');
         break;
       case 'MAXScript Reference':
-        window.open('https://help.autodesk.com/view/3DSMAX/2024/ENU/?guid=GUID-F039181A-C072-4469-A329-AE60FF7535E7', '_blank', 'noopener');
+        setHelpTopic('maxscript-reference');
         break;
       case 'Tutorials':
-        window.open('https://www.autodesk.com/certification/learn/catalog/product/3ds-max', '_blank', 'noopener');
+        setHelpTopic('tutorials');
+        break;
+      case 'Keyboard Shortcuts':
+        setHelpTopic('shortcuts');
+        break;
+      case "What's New":
+        setHelpTopic('whats-new');
         break;
 
       default: break;
