@@ -22,6 +22,7 @@ import { ModifierGizmoOverlay } from './r3/ModifierGizmoOverlay';
 import { registerSubObjRegionPicker } from './r3/subObjRegionRegistry';
 
 import { MultiSelectBoundsOverlay } from './r3/MultiSelectBoundsOverlay';
+import { WaltGameIconOverlay } from './waltgame/WaltGameIconOverlay';
 import { LinkDragController } from './r3/LinkDragController';
 import {
   getModifierSub, subscribeModifierSub, type ModifierSubSelection,
@@ -279,6 +280,9 @@ export const Scene3D = ({
 
       {/* Print3D — red bounding box around objects outside the active build volume. */}
       <PrintBoundsOverlay objects={objects as any} />
+
+      {/* WaltGame — 2D billboarded icon at the center of each game entity. */}
+      <WaltGameIconOverlay objects={objects as any} />
 
       {/* Editable Spline sub-object overlay for the selected editable_spline. */}
       <EditableSplineOverlay selectedObject={selectedObjectData} />
