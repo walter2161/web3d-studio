@@ -62,6 +62,11 @@ interface MainToolbarProps {
   onSelectAndLink?: () => void;
   onUnlinkSelection?: () => void;
   linkToolActive?: boolean;
+  snapEnabled?: boolean;
+  onToggleSnap?: () => void;
+  angleSnapEnabled?: boolean;
+  onToggleAngleSnap?: () => void;
+  onOpenGridSettings?: () => void;
 }
 
 export const MainToolbar = ({
@@ -69,7 +74,9 @@ export const MainToolbar = ({
   onMirror, onAlign, onArray, onLayerManager, onSelectByName, onRenderSetup,
   viewportLayout, onToggleViewportLayout, onOpenHierarchy, onOpenLibrary,
   onSelectAndLink, onUnlinkSelection, linkToolActive,
+  snapEnabled, onToggleSnap, angleSnapEnabled, onToggleAngleSnap, onOpenGridSettings,
 }: MainToolbarProps) => {
+
 
   return (
     <div className="bevel-raised px-1 py-0.5 flex items-center gap-0.5">
