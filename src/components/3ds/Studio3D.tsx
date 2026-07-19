@@ -12,7 +12,7 @@ import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
 import { R3Dialog } from './r3/R3Dialog';
 import { TransformTypeInDialog } from './r3/TransformTypeInDialog';
 import { FileOperations } from './FileOperations';
-import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
+import { MainToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
 import { RenderSetup } from './r3/RenderSetup';
 import { EnvironmentDialog } from './r3/EnvironmentDialog';
@@ -3170,21 +3170,17 @@ export const Studio3D = () => {
           onSelectAndLink={armLinkTool}
           onUnlinkSelection={doUnlinkSelection}
           linkToolActive={linkTool === 'link'}
-        />
-
-
-      </div>
-
-      {/* Snaps / secondary toolbar row */}
-      <div className="shrink-0">
-        <SnapsToolbar
           snapEnabled={snapEnabled}
           onToggleSnap={() => setSnapEnabled((v) => !v)}
           angleSnapEnabled={angleSnapEnabled}
           onToggleAngleSnap={() => setAngleSnapEnabled((v) => !v)}
           onOpenGridSettings={() => setSnapSettingsOpen(true)}
         />
+
+
       </div>
+
+
 
       <div className="flex flex-1 min-h-0 bg-win-face">
         {/* Left sidebar removed — Object Library is now a floating window opened from the toolbar */}
