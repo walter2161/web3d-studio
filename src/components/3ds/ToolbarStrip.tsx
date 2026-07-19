@@ -79,7 +79,7 @@ export const MainToolbar = ({
 
 
   return (
-    <div className="bevel-raised px-1 py-0.5 flex items-center gap-0.5 overflow-x-auto overflow-y-hidden max-w-full toolbar-scroll">
+    <div className="bevel-raised px-1 py-0.5 flex flex-wrap items-center gap-y-1 gap-x-0.5 max-w-full">
 
       <ToolButton title="Undo (Ctrl+Z)" onClick={onUndo}><Undo2 size={14} /></ToolButton>
       <ToolButton title="Redo (Ctrl+Y)" onClick={onRedo}><Redo2 size={14} /></ToolButton>
