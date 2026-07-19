@@ -920,24 +920,26 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
 
 
     const capture = { capture: true } as AddEventListenerOptions;
-    dom.addEventListener('pointerdown', onDown, capture);
-    dom.addEventListener('pointermove', onMove, capture);
-    dom.addEventListener('pointerup', onUp, capture);
-    dom.addEventListener('contextmenu', onContextMenu, capture);
+    listenTarget.addEventListener('pointerdown', onDown as any, capture);
+    listenTarget.addEventListener('pointermove', onMove as any, capture);
+    listenTarget.addEventListener('pointerup', onUp as any, capture);
+    listenTarget.addEventListener('contextmenu', onContextMenu as any, capture);
     window.addEventListener('keydown', onKey);
 
     return () => {
-      dom.removeEventListener('pointerdown', onDown, capture);
-      dom.removeEventListener('pointermove', onMove, capture);
-      dom.removeEventListener('pointerup', onUp, capture);
-      dom.removeEventListener('contextmenu', onContextMenu, capture);
+      listenTarget.removeEventListener('pointerdown', onDown as any, capture);
+      listenTarget.removeEventListener('pointermove', onMove as any, capture);
+      listenTarget.removeEventListener('pointerup', onUp as any, capture);
+      listenTarget.removeEventListener('contextmenu', onContextMenu as any, capture);
       window.removeEventListener('keydown', onKey);
       dom.style.cursor = '';
+      listenTarget.style.cursor = '';
       controlsToDisable.forEach((controls: any) => {
         controls.enabled = prevEnabled.get(controls) ?? true;
       });
       stageRef.current = null;
     };
+
     // ghost intentionally excluded — read via closure through setGhost's functional form isn't
     // needed since we always rebuild from start/current world points.
     // eslint-disable-next-line react-hooks/exhaustive-deps
