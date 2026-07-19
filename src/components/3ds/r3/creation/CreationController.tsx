@@ -355,7 +355,17 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
   useEffect(() => {
     if (!armed) return;
     const dom = gl.domElement;
+    // Attach pointer listeners to the viewport wrapper (canvas parent) rather
+    // than the <canvas> itself. This guarantees the FIRST pointerdown in a
+    // cold Top/Front/Left viewport is caught in the same capture pass that
+    // activates it — without racing R3F's own canvas handlers, overlay divs
+    // or any per-viewport state that only settles after activation. The
+    // wrapper is the same element that owns the yellow-border "active"
+    // outline, so it exactly matches the click target the user aims at.
+    const listenTarget: HTMLElement = (dom.parentElement as HTMLElement) || (dom as unknown as HTMLElement);
     dom.style.cursor = 'crosshair';
+    listenTarget.style.cursor = 'crosshair';
+
 
     // Disable this viewport's navigation controls while a creation tool is
     // armed. The previous implementation disabled only the globally active
