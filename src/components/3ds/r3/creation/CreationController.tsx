@@ -355,7 +355,17 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
   useEffect(() => {
     if (!armed) return;
     const dom = gl.domElement;
+    // Attach pointer listeners to the viewport wrapper (canvas parent) rather
+    // than the <canvas> itself. This guarantees the FIRST pointerdown in a
+    // cold Top/Front/Left viewport is caught in the same capture pass that
+    // activates it — without racing R3F's own canvas handlers, overlay divs
+    // or any per-viewport state that only settles after activation. The
+    // wrapper is the same element that owns the yellow-border "active"
+    // outline, so it exactly matches the click target the user aims at.
+    const listenTarget: HTMLElement = (dom.parentElement as HTMLElement) || (dom as unknown as HTMLElement);
     dom.style.cursor = 'crosshair';
+    listenTarget.style.cursor = 'crosshair';
+
 
     // Disable this viewport's navigation controls while a creation tool is
     // armed. The previous implementation disabled only the globally active
@@ -652,7 +662,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         bipedRef.start = p.clone();
         bipedRef.height = 0.1;
         setGhost(buildBipedGhost(p, 0.1));
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
         return;
       }
 
@@ -739,7 +749,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           lineRef.knots.push(mkKnot(p));
         }
         setGhost(buildLineGhost(lineRef.knots, false));
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
         return;
       }
 
@@ -750,13 +760,13 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         if (!p) return;
         stageRef.current = { stage: 0, start: p.clone(), heightStartClientY: e.clientY };
         setGhost(buildGhost(armed, 0, p, p, heightAxis));
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
       } else if (s.stage >= 1) {
         // Height/secondary stages support BOTH classic 3ds Max behavior
         // (move mouse, click to confirm) and click-drag behavior (press, drag
         // upward, release to confirm). Commit is therefore delayed until up.
         stageRef.current = { ...s, heightStartClientY: e.clientY, confirming: true };
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
       }
     };
 
@@ -910,24 +920,26 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
 
 
     const capture = { capture: true } as AddEventListenerOptions;
-    dom.addEventListener('pointerdown', onDown, capture);
-    dom.addEventListener('pointermove', onMove, capture);
-    dom.addEventListener('pointerup', onUp, capture);
-    dom.addEventListener('contextmenu', onContextMenu, capture);
+    listenTarget.addEventListener('pointerdown', onDown as any, capture);
+    listenTarget.addEventListener('pointermove', onMove as any, capture);
+    listenTarget.addEventListener('pointerup', onUp as any, capture);
+    listenTarget.addEventListener('contextmenu', onContextMenu as any, capture);
     window.addEventListener('keydown', onKey);
 
     return () => {
-      dom.removeEventListener('pointerdown', onDown, capture);
-      dom.removeEventListener('pointermove', onMove, capture);
-      dom.removeEventListener('pointerup', onUp, capture);
-      dom.removeEventListener('contextmenu', onContextMenu, capture);
+      listenTarget.removeEventListener('pointerdown', onDown as any, capture);
+      listenTarget.removeEventListener('pointermove', onMove as any, capture);
+      listenTarget.removeEventListener('pointerup', onUp as any, capture);
+      listenTarget.removeEventListener('contextmenu', onContextMenu as any, capture);
       window.removeEventListener('keydown', onKey);
       dom.style.cursor = '';
+      listenTarget.style.cursor = '';
       controlsToDisable.forEach((controls: any) => {
         controls.enabled = prevEnabled.get(controls) ?? true;
       });
       stageRef.current = null;
     };
+
     // ghost intentionally excluded — read via closure through setGhost's functional form isn't
     // needed since we always rebuild from start/current world points.
     // eslint-disable-next-line react-hooks/exhaustive-deps
