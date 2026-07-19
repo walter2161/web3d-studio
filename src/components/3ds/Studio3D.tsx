@@ -12,7 +12,7 @@ import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
 import { R3Dialog } from './r3/R3Dialog';
 import { TransformTypeInDialog } from './r3/TransformTypeInDialog';
 import { FileOperations } from './FileOperations';
-import { MainToolbar, SnapsToolbar } from './ToolbarStrip';
+import { MainToolbar } from './ToolbarStrip';
 import { StatusBar } from './StatusBar';
 import { RenderSetup } from './r3/RenderSetup';
 import { EnvironmentDialog } from './r3/EnvironmentDialog';
