@@ -192,6 +192,15 @@
     background: hsl(var(--win-face-2));
   }
 
+  .toolbar-scroll::-webkit-scrollbar { height: 6px; }
+  .toolbar-scroll::-webkit-scrollbar-track { background: hsl(var(--win-face-dark)); }
+  .toolbar-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--win-face-2));
+    border: 1px solid hsl(var(--win-face-dark));
+  }
+  .toolbar-scroll::-webkit-scrollbar-thumb:hover { background: hsl(var(--win-title-bg, var(--win-face-2))); }
+
+
   /* Command Panel section spacing: exact compact 3ds Max-style 10px inset.
      This fixes shadcn CardHeader/CardContent defaults (p-6 = 24px) inside the sidebar. */
   .r3-command-panel .bg-card.border-panel-border > div:first-child {
