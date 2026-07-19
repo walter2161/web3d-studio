@@ -927,9 +927,9 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       window.removeEventListener('keydown', onKey);
       dom.style.cursor = '';
       listenTarget.style.cursor = '';
-      controlsToDisable.forEach((controls: any) => {
-        controls.enabled = prevEnabled.get(controls) ?? true;
-      });
+      if (localControls) {
+        localControls.enabled = prevEnabled.get(localControls) ?? true;
+      }
       stageRef.current = null;
     };
 
