@@ -3170,21 +3170,17 @@ export const Studio3D = () => {
           onSelectAndLink={armLinkTool}
           onUnlinkSelection={doUnlinkSelection}
           linkToolActive={linkTool === 'link'}
-        />
-
-
-      </div>
-
-      {/* Snaps / secondary toolbar row */}
-      <div className="shrink-0">
-        <SnapsToolbar
           snapEnabled={snapEnabled}
           onToggleSnap={() => setSnapEnabled((v) => !v)}
           angleSnapEnabled={angleSnapEnabled}
           onToggleAngleSnap={() => setAngleSnapEnabled((v) => !v)}
           onOpenGridSettings={() => setSnapSettingsOpen(true)}
         />
+
+
       </div>
+
+
 
       <div className="flex flex-1 min-h-0 bg-win-face">
         {/* Left sidebar removed — Object Library is now a floating window opened from the toolbar */}
