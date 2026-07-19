@@ -662,7 +662,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         bipedRef.start = p.clone();
         bipedRef.height = 0.1;
         setGhost(buildBipedGhost(p, 0.1));
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
         return;
       }
 
@@ -749,7 +749,7 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
           lineRef.knots.push(mkKnot(p));
         }
         setGhost(buildLineGhost(lineRef.knots, false));
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
         return;
       }
 
@@ -760,13 +760,13 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
         if (!p) return;
         stageRef.current = { stage: 0, start: p.clone(), heightStartClientY: e.clientY };
         setGhost(buildGhost(armed, 0, p, p, heightAxis));
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
       } else if (s.stage >= 1) {
         // Height/secondary stages support BOTH classic 3ds Max behavior
         // (move mouse, click to confirm) and click-drag behavior (press, drag
         // upward, release to confirm). Commit is therefore delayed until up.
         stageRef.current = { ...s, heightStartClientY: e.clientY, confirming: true };
-        dom.setPointerCapture?.(e.pointerId);
+        listenTarget.setPointerCapture?.(e.pointerId);
       }
     };
 
