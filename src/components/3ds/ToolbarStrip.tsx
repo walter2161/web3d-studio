@@ -101,6 +101,12 @@ export const MainToolbar = ({
       <ToolButton title="Array" onClick={onArray}><Grid3x3 size={14} /></ToolButton>
       <ToolButton title="Align (A)" onClick={onAlign}><AlignCenter size={14} /></ToolButton>
       <Sep />
+      <ToolButton title="Snap Toggle (S)" active={!!snapEnabled} onClick={onToggleSnap}><Magnet size={14} /></ToolButton>
+      <ToolButton title="Angle Snap Toggle" active={!!angleSnapEnabled} onClick={onToggleAngleSnap}><RotateCcw size={14} /></ToolButton>
+      <ToolButton title="Percent Snap Toggle"><Percent size={14} /></ToolButton>
+      <ToolButton title="Grid and Snap Settings..." onClick={onOpenGridSettings}><Grid3x3 size={14} /></ToolButton>
+      <ToolButton title="Zoom Region"><Search size={14} /></ToolButton>
+      <Sep />
       <ToolButton title="Layer Manager" onClick={onLayerManager}><Layers size={14} /></ToolButton>
       <ToolButton title="Scene Hierarchy (List)" onClick={onOpenHierarchy}><ListTree size={14} /></ToolButton>
       <ToolButton title="Object Library" onClick={onOpenLibrary}><LibraryBig size={14} /></ToolButton>
