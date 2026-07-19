@@ -355,29 +355,22 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
   useEffect(() => {
     if (!armed) return;
     const dom = gl.domElement;
-    // Attach pointer listeners to the viewport wrapper (canvas parent) rather
-    // than the <canvas> itself. This guarantees the FIRST pointerdown in a
-    // cold Top/Front/Left viewport is caught in the same capture pass that
-    // activates it — without racing R3F's own canvas handlers, overlay divs
-    // or any per-viewport state that only settles after activation. The
-    // wrapper is the same element that owns the yellow-border "active"
-    // outline, so it exactly matches the click target the user aims at.
     const listenTarget: HTMLElement = (dom.parentElement as HTMLElement) || (dom as unknown as HTMLElement);
     dom.style.cursor = 'crosshair';
     listenTarget.style.cursor = 'crosshair';
 
-
-    // Disable this viewport's navigation controls while a creation tool is
-    // armed. The previous implementation disabled only the globally active
-    // controls, so Top/Front/Left could still pan/zoom while drawing.
+    // Disable ONLY this viewport's own OrbitControls while a creation tool is
+    // armed. Do NOT touch `window.__orbitControls` — it is shared global state
+    // pointing at the currently active viewport's controls, and stomping on
+    // its `enabled` flag from multiple viewport controllers leaves other
+    // viewports (typically the perspective) frozen after commit because a
+    // stale cleanup restores the wrong prevEnabled value.
     const localControls = (r3 as any).controls;
-    const globalControls = (window as any).__orbitControls;
-    const controlsToDisable = Array.from(new Set([localControls, globalControls].filter(Boolean)));
     const prevEnabled = new Map<any, boolean>();
-    controlsToDisable.forEach((controls: any) => {
-      prevEnabled.set(controls, controls.enabled);
-      controls.enabled = false;
-    });
+    if (localControls) {
+      prevEnabled.set(localControls, localControls.enabled);
+      localControls.enabled = false;
+    }
 
     const consume = (e: PointerEvent | MouseEvent) => {
       e.preventDefault();
@@ -934,9 +927,9 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       window.removeEventListener('keydown', onKey);
       dom.style.cursor = '';
       listenTarget.style.cursor = '';
-      controlsToDisable.forEach((controls: any) => {
-        controls.enabled = prevEnabled.get(controls) ?? true;
-      });
+      if (localControls) {
+        localControls.enabled = prevEnabled.get(localControls) ?? true;
+      }
       stageRef.current = null;
     };
 
