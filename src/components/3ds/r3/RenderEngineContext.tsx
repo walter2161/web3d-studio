@@ -9,7 +9,14 @@ import { useEnvironment, EnvironmentSettings } from './EnvironmentContext';
  *  - the scene Environment (level / tint / ambient) so the viewport
  *    itself already looks like the chosen engine.
  */
-export type RenderEngine = 'scanline' | 'vray' | 'corona' | 'arnold';
+export type RenderEngine =
+  | 'scanline'
+  | 'vray'
+  | 'corona'
+  | 'arnold'
+  | 'pathtracer_gpu'
+  | 'pathtracer_erichlof'
+  | 'pathtracer_webgpu';
 
 export interface EnginePreset {
   label: string;
