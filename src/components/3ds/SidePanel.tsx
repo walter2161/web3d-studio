@@ -680,6 +680,7 @@ export const SidePanel = ({
                       : createCategory === 'particles' ? 'particles'
                       : createCategory === 'waltgame' ? 'waltgame'
                       : createCategory === 'waltcad' ? 'waltcad'
+                      : createCategory === 'reference' ? 'reference'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
