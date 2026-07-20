@@ -412,6 +412,14 @@ export const SidePanel = ({
     { type: 'geoSphere', icon: Circle, label: 'GeoSphere' },
   ];
 
+  const referencePrimitives: Array<{ id: string; label: string; url: string; filename: string }> = [
+    { id: 'suzanne',        label: 'Suzanne',        url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/suzanne.obj',        filename: 'suzanne.obj' },
+    { id: 'stanford-bunny', label: 'Stanford Bunny', url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/stanford-bunny.obj', filename: 'stanford-bunny.obj' },
+    { id: 'xyzrgb-dragon',  label: 'Stanford Dragon',url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/xyzrgb_dragon.obj', filename: 'xyzrgb_dragon.obj' },
+    { id: '3dbenchy',       label: '3DBenchy',       url: 'https://raw.githubusercontent.com/CreativeTools/3DBenchy/master/Single-part/3DBenchy.stl',           filename: '3DBenchy.stl' },
+    { id: 'cornell-box',    label: 'Cornell Box',    url: '/models/cornell-box.obj',                                                                              filename: 'cornell-box.obj' },
+  ];
+
   const extendedPrimitives = [
     { type: 'hedra',      label: 'Hedra' },
     { type: 'chamferBox', label: 'ChamferBox' },
