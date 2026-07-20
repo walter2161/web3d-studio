@@ -122,6 +122,12 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'radius',   label: 'Radius',   kind: 'float', default: EXT_PRIM_DEFAULTS.teapot.radius, min: 0.001, step: 0.1 },
     { key: 'segments', label: 'Segments', kind: 'int',   default: EXT_PRIM_DEFAULTS.teapot.segments, min: 2 },
   ],
+  teacup: [
+    { key: 'radius',    label: 'Radius',    kind: 'float', default: EXT_PRIM_DEFAULTS.teacup.radius,    min: 0.02,  step: 0.05 },
+    { key: 'height',    label: 'Height',    kind: 'float', default: EXT_PRIM_DEFAULTS.teacup.height,    min: 0.05,  step: 0.05 },
+    { key: 'thickness', label: 'Thickness', kind: 'float', default: EXT_PRIM_DEFAULTS.teacup.thickness, min: 0.005, step: 0.005 },
+    { key: 'sides',     label: 'Sides',     kind: 'int',   default: EXT_PRIM_DEFAULTS.teacup.sides,     min: 6 },
+  ],
   tube: [
     { key: 'radius1', label: 'Outer R', kind: 'float', default: EXT_PRIM_DEFAULTS.tube.radius1, min: 0.001, step: 0.1 },
     { key: 'radius2', label: 'Inner R', kind: 'float', default: EXT_PRIM_DEFAULTS.tube.radius2, min: 0,     step: 0.1 },
@@ -400,6 +406,7 @@ export const SidePanel = ({
     { type: 'torus', icon: Torus, label: 'Torus' },
     { type: 'plane', icon: Square, label: 'Plane' },
     { type: 'teapot', icon: Circle, label: 'Teapot' },
+    { type: 'teacup', icon: Circle, label: 'Teacup' },
     { type: 'tube', icon: Cylinder, label: 'Tube' },
     { type: 'pyramid', icon: Triangle, label: 'Pyramid' },
     { type: 'geoSphere', icon: Circle, label: 'GeoSphere' },
