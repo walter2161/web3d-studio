@@ -885,7 +885,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
     }
 
     // Sprint C — Extended Primitives
-    const extPrims: ExtPrimType[] = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism', 'teapot', 'tube', 'pyramid', 'geoSphere', 'capsule', 'lExt', 'cExt', 'hose', 'foliage'];
+    const extPrims: ExtPrimType[] = ['hedra', 'chamferBox', 'chamferCyl', 'oilTank', 'spindle', 'gengon', 'torusKnot', 'ringWave', 'prism', 'teapot', 'teacup', 'tube', 'pyramid', 'geoSphere', 'capsule', 'lExt', 'cExt', 'hose', 'foliage'];
     if (extPrims.includes(type as ExtPrimType)) {
       return buildExtendedPrimitive(type as ExtPrimType, geom);
     }

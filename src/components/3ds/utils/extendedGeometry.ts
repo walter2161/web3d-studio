@@ -31,6 +31,7 @@ export type ExtPrimType =
   | 'prism'
   // Standard primitives (missing from three's built-ins in raw form)
   | 'teapot'
+  | 'teacup'
   | 'tube'
   | 'pyramid'
   | 'geoSphere'
@@ -65,6 +66,10 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   prism:      { side1: 1, side2: 1, side3: 1, height: 1 },
   // ---- Standard extras (Utah teapot / tube / pyramid / geosphere) ----
   teapot:     { radius: 0.5, segments: 10, lid: true, body: true, bottom: true, handle: true, spout: true },
+  // Walt3D signature primitive — a lathe-based teacup with a torus handle,
+  // sitting on a matching saucer. Mirrors the role the Utah Teapot plays in
+  // 3ds Max as the default "novelty" primitive of the app.
+  teacup:     { radius: 0.5, height: 0.6, thickness: 0.04, sides: 32, handle: true, saucer: true },
   tube:       { radius1: 0.5, radius2: 0.35, height: 1, sides: 24, capSegs: 1, heightSegs: 1 },
   pyramid:    { width: 1, depth: 1, height: 1 },
   geoSphere:  { radius: 0.5, segments: 2, family: 0 }, // 0=icosa 1=octa 2=tetra
@@ -569,6 +574,52 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
         !!p.bottom, !!p.lid, !!p.body, false, true
       );
       return g;
+    }
+    case 'teacup': {
+      // Lathe a cup profile: outer wall → rim → inner wall → floor.
+      const R = Math.max(0.02, p.radius);
+      const H = Math.max(0.05, p.height);
+      const T = Math.max(0.005, Math.min(p.thickness, R * 0.5));
+      const sides = Math.max(6, p.sides | 0);
+      // Slightly narrower base for a classic teacup silhouette.
+      const baseR = R * 0.72;
+      const innerR = Math.max(0.001, R - T);
+      const innerBaseR = Math.max(0.001, baseR - T);
+      const profile: THREE.Vector2[] = [
+        new THREE.Vector2(0,             0),           // center of base underside
+        new THREE.Vector2(baseR,         0),           // outer base corner
+        new THREE.Vector2(R,             H),           // outer rim
+        new THREE.Vector2(innerR,        H),           // inner rim (top wall thickness)
+        new THREE.Vector2(innerBaseR,    T),           // inner base corner (floor thickness)
+        new THREE.Vector2(0,             T),           // center of floor
+      ];
+      const cup = new THREE.LatheGeometry(profile, sides);
+      const parts: THREE.BufferGeometry[] = [cup];
+      if (p.handle) {
+        // Ring handle attached to the side, sized to the cup.
+        const handleR = H * 0.35;
+        const tubeR = T * 1.6;
+        const handle = new THREE.TorusGeometry(handleR, tubeR, 8, 24, Math.PI * 1.4);
+        handle.rotateY(Math.PI / 2);
+        handle.translate(R + tubeR * 0.4, H * 0.55, 0);
+        parts.push(handle);
+      }
+      if (p.saucer) {
+        const saucerR = R * 1.6;
+        const saucerProfile: THREE.Vector2[] = [
+          new THREE.Vector2(0,           -T * 1.2),
+          new THREE.Vector2(saucerR,     -T * 0.6),
+          new THREE.Vector2(saucerR,     -T * 0.2),
+          new THREE.Vector2(R * 0.9,      T * 0.2),
+          new THREE.Vector2(0,            T * 0.2),
+        ];
+        const saucer = new THREE.LatheGeometry(saucerProfile, sides);
+        saucer.translate(0, -T * 0.6, 0);
+        parts.push(saucer);
+      }
+      const merged = mergeGeometries(parts, false) || cup;
+      merged.computeVertexNormals();
+      return merged;
     }
     case 'tube': {
       // Two concentric cylinders + top/bottom rings via Lathe.
