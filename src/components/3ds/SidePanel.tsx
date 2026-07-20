@@ -127,8 +127,6 @@ const GEOM_SCHEMA: Record<string, ParamDef[]> = {
     { key: 'height',    label: 'Height',    kind: 'float', default: EXT_PRIM_DEFAULTS.teacup.height,    min: 0.05,  step: 0.05 },
     { key: 'thickness', label: 'Thickness', kind: 'float', default: EXT_PRIM_DEFAULTS.teacup.thickness, min: 0.005, step: 0.005 },
     { key: 'sides',     label: 'Sides',     kind: 'int',   default: EXT_PRIM_DEFAULTS.teacup.sides,     min: 6 },
-    { key: 'handle',    label: 'Handle',    kind: 'bool',  default: EXT_PRIM_DEFAULTS.teacup.handle },
-    { key: 'saucer',    label: 'Saucer',    kind: 'bool',  default: EXT_PRIM_DEFAULTS.teacup.saucer },
   ],
   tube: [
     { key: 'radius1', label: 'Outer R', kind: 'float', default: EXT_PRIM_DEFAULTS.tube.radius1, min: 0.001, step: 0.1 },
