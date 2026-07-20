@@ -350,7 +350,7 @@ export const SidePanel = ({
   const activeTab = activeTabProp ?? internalTab;
   const setActiveTab = (t: string) => { onActiveTabChange ? onActiveTabChange(t) : setInternalTab(t); };
   const [createCat, setCreateCat] = useState<'geometry' | 'shapes' | 'lights' | 'cameras' | 'helpers' | 'warps' | 'systems' | 'waltgame'>('geometry');
-  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'waltgame' | 'waltcad' | 'shapes' | 'lights' | 'cameras'>('standard');
+  const [createCategory, setCreateCategory] = useState<'standard' | 'extended' | 'aec' | 'foliage' | 'compound' | 'particles' | 'waltgame' | 'waltcad' | 'reference' | 'shapes' | 'lights' | 'cameras'>('standard');
   // 'base' selects the base object parameters; a modifier id selects that modifier.
   const [selectedStackItem, setSelectedStackItem] = useState<string>('base');
   const [expandedStackItems, setExpandedStackItems] = useState<Record<string, boolean>>({});
@@ -410,6 +410,14 @@ export const SidePanel = ({
     { type: 'tube', icon: Cylinder, label: 'Tube' },
     { type: 'pyramid', icon: Triangle, label: 'Pyramid' },
     { type: 'geoSphere', icon: Circle, label: 'GeoSphere' },
+  ];
+
+  const referencePrimitives: Array<{ id: string; label: string; url: string; filename: string }> = [
+    { id: 'suzanne',        label: 'Suzanne',        url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/suzanne.obj',        filename: 'suzanne.obj' },
+    { id: 'stanford-bunny', label: 'Stanford Bunny', url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/stanford-bunny.obj', filename: 'stanford-bunny.obj' },
+    { id: 'xyzrgb-dragon',  label: 'Stanford Dragon',url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/xyzrgb_dragon.obj', filename: 'xyzrgb_dragon.obj' },
+    { id: '3dbenchy',       label: '3DBenchy',       url: 'https://raw.githubusercontent.com/CreativeTools/3DBenchy/master/Single-part/3DBenchy.stl',           filename: '3DBenchy.stl' },
+    { id: 'cornell-box',    label: 'Cornell Box',    url: '/models/cornell-box.obj',                                                                              filename: 'cornell-box.obj' },
   ];
 
   const extendedPrimitives = [
@@ -672,6 +680,7 @@ export const SidePanel = ({
                       : createCategory === 'particles' ? 'particles'
                       : createCategory === 'waltgame' ? 'waltgame'
                       : createCategory === 'waltcad' ? 'waltcad'
+                      : createCategory === 'reference' ? 'reference'
                       : 'standard'}
                 onChange={(e) => {
                   setCreateCategory(e.target.value as any);
@@ -687,6 +696,7 @@ export const SidePanel = ({
                 <option value="particles">Particle Systems</option>
                 <option value="waltgame">WaltGame</option>
                 <option value="waltcad">WaltCad</option>
+                <option value="reference">Reference Objects</option>
               </select>
             )}
 
@@ -830,6 +840,18 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCat === 'geometry' && createCategory === 'reference' && referencePrimitives.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('walt3d:import-url', { detail: { url: r.url, filename: r.filename } }));
+                    }}
+                    title={`Import ${r.label}`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                  >
+                    {r.label}
+                  </button>
+                ))}
                 {createCat === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (

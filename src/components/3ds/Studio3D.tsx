@@ -2279,7 +2279,14 @@ export const Studio3D = () => {
   }, [saveState]);
 
 
-
+  useEffect(() => {
+    const onImport = (e: Event) => {
+      const d = (e as CustomEvent).detail as { url: string; filename: string };
+      if (d?.url && d?.filename) importFromUrl(d.url, d.filename);
+    };
+    window.addEventListener('walt3d:import-url', onImport as EventListener);
+    return () => window.removeEventListener('walt3d:import-url', onImport as EventListener);
+  }, [importFromUrl]);
 
   const handleDeleteSelected = useCallback(() => {
     const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
