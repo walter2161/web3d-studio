@@ -406,7 +406,7 @@ export const SidePanel = ({
     { type: 'torus', icon: Torus, label: 'Torus' },
     { type: 'plane', icon: Square, label: 'Plane' },
     { type: 'teapot', icon: Circle, label: 'Teapot' },
-    { type: 'teacup', icon: Circle, label: 'Teacup' },
+    { type: 'teacup', icon: Circle, label: 'Mug' },
     { type: 'tube', icon: Cylinder, label: 'Tube' },
     { type: 'pyramid', icon: Triangle, label: 'Pyramid' },
     { type: 'geoSphere', icon: Circle, label: 'GeoSphere' },
