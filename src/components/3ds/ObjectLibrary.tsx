@@ -60,7 +60,8 @@ export type LibraryCategory =
   | 'animals'
   | 'vehicles'
   | 'architecture'
-  | 'props';
+  | 'props'
+  | 'reference';
 
 const THREE_BASE = 'https://threejs.org/examples/models/';
 
