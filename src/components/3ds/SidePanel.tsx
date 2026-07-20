@@ -840,6 +840,18 @@ export const SidePanel = ({
                     </button>
                   );
                 })}
+                {createCat === 'geometry' && createCategory === 'reference' && referencePrimitives.map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('walt3d:import-url', { detail: { url: r.url, filename: r.filename } }));
+                    }}
+                    title={`Import ${r.label}`}
+                    className="h-[22px] text-[11px] text-win-text px-1 truncate bevel-raised hover:brightness-105"
+                  >
+                    {r.label}
+                  </button>
+                ))}
                 {createCat === 'shapes' && shapes.map((s) => {
                   const pressed = armedTool === s.type;
                   return (
