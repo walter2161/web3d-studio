@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Package, User, Car, Bird, Building2, Search,
+  Package, User, Car, Bird, Building2, Search, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getLibraryThumbnail } from './utils/thumbnailRenderer';
@@ -60,7 +60,8 @@ export type LibraryCategory =
   | 'animals'
   | 'vehicles'
   | 'architecture'
-  | 'props';
+  | 'props'
+  | 'reference';
 
 const THREE_BASE = 'https://threejs.org/examples/models/';
 
@@ -87,6 +88,13 @@ export const LIBRARY_ITEMS: LibraryItem[] = [
 
   // Props
   { id: 'boombox',   name: 'BoomBox',         category: 'props',      url: `${THREE_BASE}gltf/BoomBox.glb`,                             filename: 'BoomBox.glb' },
+
+  // Reference / test models
+  { id: 'suzanne',       name: 'Suzanne',           category: 'reference', url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/suzanne.obj',        filename: 'suzanne.obj' },
+  { id: 'stanford-bunny',name: 'Stanford Bunny',    category: 'reference', url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/stanford-bunny.obj', filename: 'stanford-bunny.obj' },
+  { id: 'xyzrgb-dragon', name: 'Stanford Dragon',   category: 'reference', url: 'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/xyzrgb_dragon.obj', filename: 'xyzrgb_dragon.obj' },
+  { id: '3dbenchy',      name: '3DBenchy',          category: 'reference', url: 'https://raw.githubusercontent.com/CreativeTools/3DBenchy/master/Single-part/3DBenchy.stl',            filename: '3DBenchy.stl' },
+  { id: 'cornell-box',   name: 'Cornell Box',       category: 'reference', url: '/models/cornell-box.obj',                                                                             filename: 'cornell-box.obj' },
 ];
 
 const CATEGORY_META: Record<Exclude<LibraryCategory, 'all'>, { label: string; icon: any; color: string }> = {
@@ -95,6 +103,7 @@ const CATEGORY_META: Record<Exclude<LibraryCategory, 'all'>, { label: string; ic
   vehicles:     { label: 'Vehicles',     icon: Car,        color: '#7ec9e8' },
   architecture: { label: 'Architecture', icon: Building2,  color: '#c8a2e0' },
   props:        { label: 'Props',        icon: Package,    color: '#e88a8a' },
+  reference:    { label: 'Reference',    icon: Sparkles,   color: '#9ab8d6' },
 };
 
 export const DND_MIME = 'application/x-3dsled-model';
@@ -116,7 +125,7 @@ export const ObjectLibrary = ({ onImportUrl }: Props) => {
     });
   }, [cat, query]);
 
-  const categories: LibraryCategory[] = ['all', 'characters', 'animals', 'vehicles', 'architecture', 'props'];
+  const categories: LibraryCategory[] = ['all', 'characters', 'animals', 'vehicles', 'architecture', 'props', 'reference'];
 
   return (
     <div className="flex flex-col h-full">
