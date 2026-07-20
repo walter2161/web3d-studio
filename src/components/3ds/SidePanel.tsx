@@ -695,6 +695,7 @@ export const SidePanel = ({
                 <option value="particles">Particle Systems</option>
                 <option value="waltgame">WaltGame</option>
                 <option value="waltcad">WaltCad</option>
+                <option value="reference">Reference Objects</option>
               </select>
             )}
 
