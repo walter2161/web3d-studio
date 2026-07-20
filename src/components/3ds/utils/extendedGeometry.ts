@@ -69,7 +69,10 @@ export const EXT_PRIM_DEFAULTS: Record<ExtPrimType, any> = {
   // Walt3D signature primitive — a lathe-based teacup with a torus handle,
   // sitting on a matching saucer. Mirrors the role the Utah Teapot plays in
   // 3ds Max as the default "novelty" primitive of the app.
-  teacup:     { radius: 0.5, height: 0.6, thickness: 0.04, sides: 32, handle: true, saucer: true },
+  // Walt3D signature primitive — a lathe-based coffee mug with a torus
+  // handle. Mirrors the role the Utah Teapot plays in 3ds Max as the
+  // default "novelty" primitive of the app.
+  teacup:     { radius: 0.35, height: 0.9, thickness: 0.04, sides: 32, handle: true, saucer: false },
   tube:       { radius1: 0.5, radius2: 0.35, height: 1, sides: 24, capSegs: 1, heightSegs: 1 },
   pyramid:    { width: 1, depth: 1, height: 1 },
   geoSphere:  { radius: 0.5, segments: 2, family: 0 }, // 0=icosa 1=octa 2=tetra
@@ -576,36 +579,38 @@ export function buildExtendedPrimitive(type: ExtPrimType, params: any = {}): THR
       return g;
     }
     case 'teacup': {
-      // Lathe a cup profile: outer wall → rim → inner wall → floor.
+      // Lathe a mug profile: straight outer wall → rim → inner wall → floor.
       const R = Math.max(0.02, p.radius);
       const H = Math.max(0.05, p.height);
       const T = Math.max(0.005, Math.min(p.thickness, R * 0.5));
       const sides = Math.max(6, p.sides | 0);
-      // Slightly narrower base for a classic teacup silhouette.
-      const baseR = R * 0.72;
+      // A mug has (near) straight cylindrical walls, so base and rim share R.
+      const baseR = R;
       const innerR = Math.max(0.001, R - T);
-      const innerBaseR = Math.max(0.001, baseR - T);
       const profile: THREE.Vector2[] = [
         new THREE.Vector2(0,             0),           // center of base underside
         new THREE.Vector2(baseR,         0),           // outer base corner
         new THREE.Vector2(R,             H),           // outer rim
         new THREE.Vector2(innerR,        H),           // inner rim (top wall thickness)
-        new THREE.Vector2(innerBaseR,    T),           // inner base corner (floor thickness)
+        new THREE.Vector2(innerR,        T),           // inner base corner (floor thickness)
         new THREE.Vector2(0,             T),           // center of floor
       ];
       const cup = new THREE.LatheGeometry(profile, sides);
       const parts: THREE.BufferGeometry[] = [cup];
       if (p.handle) {
-        // Ring handle attached to the side, sized to the cup.
-        const handleR = H * 0.35;
-        const tubeR = T * 1.6;
-        const handle = new THREE.TorusGeometry(handleR, tubeR, 8, 24, Math.PI * 1.4);
-        handle.rotateY(Math.PI / 2);
-        handle.translate(R + tubeR * 0.4, H * 0.55, 0);
+        // "D"-shaped handle on the +X side of the mug. Torus default lies in
+        // the XY plane (hole axis along Z), which is exactly what a mug
+        // handle needs — fingers slide through along Z.
+        const handleR = H * 0.32;
+        const tubeR = Math.max(T * 1.4, R * 0.05);
+        const handle = new THREE.TorusGeometry(handleR, tubeR, 10, 24, Math.PI * 1.4);
+        // Rotate 90° around Z so the open side of the arc faces the mug body.
+        handle.rotateZ(-Math.PI / 2);
+        handle.translate(R + tubeR * 0.3, H * 0.55, 0);
         parts.push(handle);
       }
       if (p.saucer) {
-        const saucerR = R * 1.6;
+        const saucerR = R * 1.7;
         const saucerProfile: THREE.Vector2[] = [
           new THREE.Vector2(0,           -T * 1.2),
           new THREE.Vector2(saucerR,     -T * 0.6),
