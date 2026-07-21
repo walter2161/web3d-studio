@@ -108,6 +108,7 @@ export const RenderSetup = ({
   const renderAbortRef = useRef<AbortController | null>(null);
   const [seqStats, setSeqStats] = useState<SeqStats>({ objects: 0, polygons: 0, textures: 0, lights: 0, ram: '—' });
   const [seqBackground, setSeqBackground] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState<FramePhase>('evaluate');
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
