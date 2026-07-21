@@ -230,7 +230,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl bg-panel border-panel-border">
+      <DialogContent className="max-w-3xl w-[min(48rem,calc(100vw-2rem))] bg-panel border-panel-border overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8 gap-2">
             <span>Rendered Frame Window</span>
