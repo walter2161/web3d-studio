@@ -230,7 +230,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl bg-panel border-panel-border">
+      <DialogContent className="max-w-3xl w-[min(48rem,calc(100vw-2rem))] bg-panel border-panel-border overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8 gap-2">
             <span>Rendered Frame Window</span>
@@ -266,9 +266,9 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
         </DialogHeader>
 
         {/* Engine selector */}
-        <div className="flex items-center gap-2 text-[11px]">
-          <label className="whitespace-nowrap font-semibold">Engine:</label>
-          <div className="flex bevel-inset bg-win-face">
+        <div className="flex items-center gap-2 text-[11px] min-w-0 w-full">
+          <label className="whitespace-nowrap font-semibold shrink-0">Engine:</label>
+          <div className="flex bevel-inset bg-win-face shrink-0">
             {(Object.keys(ENGINES) as RenderEngine[]).map((k) => (
               <button
                 key={k}
@@ -283,8 +283,9 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
               </button>
             ))}
           </div>
-          <span className="text-muted-foreground truncate">{currentPreset.description}</span>
+          <span className="text-muted-foreground truncate min-w-0 flex-1">{currentPreset.description}</span>
         </div>
+
 
         {mode === 'ai' && (
           <div className="flex items-center gap-2 text-[11px]">
