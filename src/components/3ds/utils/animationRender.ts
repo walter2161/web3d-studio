@@ -79,9 +79,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
 
   // Render each animation frame using the SAME WebGLRenderer that drives the
   // live viewport. This keeps shadow maps, PMREM environment maps, textures
-  // and every GPU-side resource intact when we step through frames — a fresh
-  // offscreen renderer would lose all of that and produce flat / unlit frames
-  // after switching engines mid-session.
+  // and every GPU-side resource intact — a fresh offscreen renderer would
+  // lose all of that and produce flat / unlit frames.
+  //
+  // IMPORTANT: do NOT force castShadow/receiveShadow on every mesh and light.
+  // Doing so overrides what the scene was intentionally set up with, and lights
+  // that never had their shadow cameras configured end up producing black or
+  // acne-covered shadow passes, which is why videos looked completely unlit
+  // compared to the live viewport. We render EXACTLY what the viewport shows.
   const SS = 2;
   const ssW = width * SS;
   const ssH = height * SS;
@@ -95,6 +100,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const prevExposure = gl.toneMappingExposure;
   const prevShadowsEnabled = gl.shadowMap.enabled;
   const prevShadowType = gl.shadowMap.type;
+  const prevAutoUpdate = gl.shadowMap.autoUpdate;
   const prevAutoClear = gl.autoClear;
   const prevScissorTest = gl.getScissorTest();
   const prevRT = gl.getRenderTarget();
@@ -103,110 +109,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   gl.setSize(ssW, ssH, false);
   gl.toneMapping = preset.toneMapping;
   gl.toneMappingExposure = preset.exposure;
+  // Keep whatever shadow map type the viewport is using; just make sure the
+  // shadow pipeline stays enabled and refreshes each frame so animated
+  // objects/lights get the correct cast+receive result.
   gl.shadowMap.enabled = true;
   gl.shadowMap.autoUpdate = true;
-  gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl.shadowMap.type = prevShadowType || THREE.PCFSoftShadowMap;
   gl.shadowMap.needsUpdate = true;
-  // Force every material that participates in shadowing to recompile its
-  // shader — after a previous render restored the viewport's shadow settings,
-  // three.js caches shader programs that may have been compiled with shadows
-  // disabled. Without this flag, the SECOND render through the same renderer
-  // reuses the shadow-less program and produces flat/no-shadow frames.
-  scene.traverse((obj) => {
-    const m = (obj as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
-    if (!m) return;
-    if (Array.isArray(m)) m.forEach((mm) => { mm.needsUpdate = true; });
-    else m.needsUpdate = true;
-  });
 
-  // Recording canvas at the requested output resolution.
-  const recCanvas = document.createElement('canvas');
-  recCanvas.width = width;
-  recCanvas.height = height;
-  const ctx = recCanvas.getContext('2d', { alpha: false })!;
-  (ctx as any).imageSmoothingEnabled = true;
-  (ctx as any).imageSmoothingQuality = 'high';
-
-  // Dedicated render camera when a scene camera is chosen so we don't fight
-  // OrbitControls or R3F over the viewport camera.
-  const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-
-  // Editor-only overlays (helpers, gizmos, selection wires, camera/light
-  // indicator geometry) are re-created by React every time `setFrame()`
-  // commits, so we CANNOT hide them once and be done — the references go
-  // stale and fresh overlays appear in later frames. Instead we hide them
-  // right before each offscreen.render() and restore them right after.
-
-  const hideEditorOverlays = (): THREE.Object3D[] => {
-    const hidden: THREE.Object3D[] = [];
-    scene.traverse((obj) => {
-      const ud: any = obj.userData || {};
-      const t = obj.type || '';
-      const isHelper =
-        t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
-        t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
-        t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
-        t.endsWith('Helper');
-      const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
-      // Match Quick Render's rules: hide ONLY things explicitly marked as
-      // editor overlays (grid, gizmos, selection wires, helper icons, camera
-      // frustums, light indicators, trajectory paths). Do NOT hide by
-      // "isLine/isSprite/MeshBasicMaterial" heuristics — those can catch
-      // user-created line/sprite objects, and hiding descendants of any group
-      // upstream can leak into lit meshes, producing the "no lights / no
-      // shadows" look reported by users.
-      const hidden_by_marker =
-        ud.__helper || ud.__selectionWire || isHelper || isTC;
-      if (hidden_by_marker) {
-        if (obj.visible) { hidden.push(obj); obj.visible = false; }
-      }
-    });
-    return hidden;
-  };
-
-
-
-  // Meshes + lights only need their shadow flags forced once; the underlying
-  // Three.js objects survive across React re-renders even when their wrappers
-  // don't.
-  const meshTouched: { mesh: THREE.Mesh; cast: boolean; receive: boolean }[] = [];
-  scene.traverse((obj) => {
-    if ((obj as THREE.Mesh).isMesh) {
-      const m = obj as THREE.Mesh;
-      meshTouched.push({ mesh: m, cast: m.castShadow, receive: m.receiveShadow });
-      m.castShadow = true;
-      m.receiveShadow = true;
-    }
-  });
-
-  const lightTouched: {
-    light: any;
-    cast: boolean;
-    mapW?: number;
-    mapH?: number;
-    bias?: number;
-    normalBias?: number;
-  }[] = [];
-  scene.traverse((obj) => {
-    const l = obj as any;
-    if (l.isDirectionalLight || l.isSpotLight || l.isPointLight) {
-      const touched: { light: any; cast: boolean; mapW?: number; mapH?: number; bias?: number; normalBias?: number } = {
-        light: l,
-        cast: l.castShadow,
-      };
-      if (l.shadow) {
-        touched.mapW = l.shadow.mapSize.width;
-        touched.mapH = l.shadow.mapSize.height;
-        touched.bias = l.shadow.bias;
-        touched.normalBias = l.shadow.normalBias;
-        l.shadow.mapSize.set(2048, 2048);
-        l.shadow.bias = -0.00035;
-        l.shadow.normalBias = 0.015;
-      }
-      lightTouched.push(touched);
-      l.castShadow = true;
-    }
-  });
 
 
   const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
