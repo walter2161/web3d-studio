@@ -268,18 +268,19 @@ export const AnimationTimeline = ({
 
         <div className="w-px h-5 bg-panel-border mx-1" />
 
-        {/* Auto Key */}
-        <Button size="sm" variant={autoKey ? 'default' : 'outline'}
+        {/* Track View toggle (replaces Auto Key) */}
+        <Button size="sm" variant={view === 'trackview' ? 'default' : 'outline'}
           className={cn(
             "h-7 px-2 gap-1",
-            autoKey 
-              ? "bg-destructive hover:bg-destructive/80 text-destructive-foreground" 
+            view === 'trackview'
+              ? "bg-primary hover:bg-primary/80 text-primary-foreground"
               : "bg-secondary border-panel-border hover:bg-menu-hover"
           )}
-          onClick={() => setAutoKey(!autoKey)}
+          onClick={() => setView(view === 'trackview' ? 'basic' : 'trackview')}
+          title="Toggle full Track View (bones, curves, key info)"
         >
-          <Circle className={cn("w-2 h-2", autoKey && "fill-current")} />
-          <span className="text-[10px]">Auto Key</span>
+          <Bone className="w-3 h-3" />
+          <span className="text-[10px]">Track View</span>
         </Button>
 
         <div className="w-px h-5 bg-panel-border mx-1" />
