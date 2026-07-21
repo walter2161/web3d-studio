@@ -124,6 +124,8 @@ export const RenderSetup = ({
   const [currentRenderFrame, setCurrentRenderFrame] = useState<number>(0);
   const [renderStartTs, setRenderStartTs] = useState<number>(0);
   const renderAbortRef = useRef<AbortController | null>(null);
+  const [seqStats, setSeqStats] = useState<SeqStats>({ objects: 0, polygons: 0, textures: 0, lights: 0, ram: '—' });
+  const [seqBackground, setSeqBackground] = useState(false);
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
