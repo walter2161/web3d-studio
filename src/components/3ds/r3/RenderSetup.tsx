@@ -594,7 +594,7 @@ export const RenderSetup = ({
                   <span className="text-muted-foreground">Remaining:</span>
                   <span className="font-mono">{fmtTime(remainingMs)}</span>
                   <span className="text-muted-foreground">Current:</span>
-                  <span className="font-mono truncate" title={currentPhase}>{currentPhase}</span>
+                  <span className="font-mono truncate" title={currentPhaseLabel}>{currentPhaseLabel}</span>
                 </div>
 
                 {/* Scene stats */}
