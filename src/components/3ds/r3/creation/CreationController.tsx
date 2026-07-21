@@ -758,8 +758,12 @@ export const CreationController = ({ viewportType, isActive, snapEnabled, snapGr
       } else if (s.stage >= 1) {
         // Height/secondary stages support BOTH classic 3ds Max behavior
         // (move mouse, click to confirm) and click-drag behavior (press, drag
-        // upward, release to confirm). Commit is therefore delayed until up.
-        stageRef.current = { ...s, heightStartClientY: e.clientY, confirming: true };
+        // upward, release to confirm). Commit is delayed until up.
+        // IMPORTANT: preserve the original heightStartClientY captured when
+        // stage 0 ended. Resetting it here would collapse the accumulated
+        // screen-Y offset to 0 as soon as onMove fired again during the click,
+        // producing a zero-height object on the second click.
+        stageRef.current = { ...s, confirming: true };
         listenTarget.setPointerCapture?.(e.pointerId);
       }
     };
