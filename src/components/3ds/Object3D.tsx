@@ -2674,6 +2674,15 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           intensity={directIntensity}
           castShadow={!!ld.castShadow}
           position={[0, 0, 0]}
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-bias={-0.0005}
+          shadow-camera-near={0.1}
+          shadow-camera-far={Math.max(dist * 2, 80)}
+          shadow-camera-left={-Math.max(dist, 20)}
+          shadow-camera-right={Math.max(dist, 20)}
+          shadow-camera-top={Math.max(dist, 20)}
+          shadow-camera-bottom={-Math.max(dist, 20)}
         />
         <object3D ref={directTargetRef} position={[0, 0, -1]} />
         {/* Ray helper along -Z */}
