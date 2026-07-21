@@ -85,7 +85,7 @@ export const AnimationTimeline = ({
 }: AnimationTimelineProps) => {
   const trackRef = useRef<HTMLDivElement>(null);
   const [draggingPlayhead, setDraggingPlayhead] = useState(false);
-  const [autoKey, setAutoKey] = useState(false);
+  
   const [timelineHeight, setTimelineHeight] = useState(240);
   const [isResizing, setIsResizing] = useState(false);
   const [view, setView] = useState<'basic' | 'trackview'>('basic');
@@ -268,18 +268,19 @@ export const AnimationTimeline = ({
 
         <div className="w-px h-5 bg-panel-border mx-1" />
 
-        {/* Auto Key */}
-        <Button size="sm" variant={autoKey ? 'default' : 'outline'}
+        {/* Track View toggle (replaces Auto Key) */}
+        <Button size="sm" variant={view === 'trackview' ? 'default' : 'outline'}
           className={cn(
             "h-7 px-2 gap-1",
-            autoKey 
-              ? "bg-destructive hover:bg-destructive/80 text-destructive-foreground" 
+            view === 'trackview'
+              ? "bg-primary hover:bg-primary/80 text-primary-foreground"
               : "bg-secondary border-panel-border hover:bg-menu-hover"
           )}
-          onClick={() => setAutoKey(!autoKey)}
+          onClick={() => setView(view === 'trackview' ? 'basic' : 'trackview')}
+          title="Toggle full Track View (bones, curves, key info)"
         >
-          <Circle className={cn("w-2 h-2", autoKey && "fill-current")} />
-          <span className="text-[10px]">Auto Key</span>
+          <Bone className="w-3 h-3" />
+          <span className="text-[10px]">Track View</span>
         </Button>
 
         <div className="w-px h-5 bg-panel-border mx-1" />
@@ -295,21 +296,6 @@ export const AnimationTimeline = ({
           </Button>
         )}
 
-        <div className="w-px h-5 bg-panel-border mx-1" />
-
-        {/* View mode: Basic timeline vs. 3ds Max style Track View */}
-        <div className="flex rounded overflow-hidden border border-panel-border text-[10px]">
-          <button
-            className={cn("px-2 py-1", view === 'basic' ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-menu-hover")}
-            onClick={() => setView('basic')}
-            title="Basic timeline"
-          >Basic</button>
-          <button
-            className={cn("px-2 py-1 flex items-center gap-1", view === 'trackview' ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-menu-hover")}
-            onClick={() => setView('trackview')}
-            title="3ds Max Track View (bones, curves, key info)"
-          ><Bone className="w-3 h-3" />Track View</button>
-        </div>
 
         {/* Bake clip button: appears when the selected imported model has
             AnimationClips that aren't yet baked into editable tracks. */}
