@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { getViewportHandle } from './r3/viewportRegistry';
 import { ENGINES, RenderEngine, useRenderEngine } from './r3/RenderEngineContext';
+import { cn } from '@/lib/utils';
 
 interface QuickRenderProps {
   open: boolean;
@@ -230,7 +231,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl w-[min(48rem,calc(100vw-2rem))] bg-panel border-panel-border overflow-hidden">
+      <DialogContent className="quick-render-dialog max-w-none w-[min(48rem,calc(100vw-2rem))] bg-panel border-panel-border overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8 gap-2">
             <span>Rendered Frame Window</span>
@@ -266,24 +267,29 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
         </DialogHeader>
 
         {/* Engine selector */}
-        <div className="flex items-center gap-2 text-[11px] min-w-0 w-full">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2 text-[11px] min-w-0 w-full">
           <label className="whitespace-nowrap font-semibold shrink-0">Engine:</label>
-          <div className="flex bevel-inset bg-win-face shrink-0">
-            {(Object.keys(ENGINES) as RenderEngine[]).map((k) => (
-              <button
-                key={k}
-                onClick={() => {
-                  setEngine(k);
-                  if (mode === 'standard') render(k);
-                }}
-                title={ENGINES[k].description}
-                className={`px-2 py-[2px] ${engine === k ? 'bevel-inset bg-white font-semibold' : 'bevel-raised'}`}
-              >
-                {ENGINES[k].label}
-              </button>
-            ))}
+          <div className="min-w-0">
+            <div className="flex flex-wrap bevel-inset bg-win-face w-full max-w-full">
+              {(Object.keys(ENGINES) as RenderEngine[]).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => {
+                    setEngine(k);
+                    if (mode === 'standard') render(k);
+                  }}
+                  title={ENGINES[k].description}
+                  className={cn(
+                    'px-2 py-[2px] flex-none',
+                    engine === k ? 'bevel-inset bg-white font-semibold' : 'bevel-raised',
+                  )}
+                >
+                  {ENGINES[k].label}
+                </button>
+              ))}
+            </div>
+            <div className="text-muted-foreground truncate min-w-0 w-full mt-[2px]">{currentPreset.description}</div>
           </div>
-          <span className="text-muted-foreground truncate min-w-0 flex-1">{currentPreset.description}</span>
         </div>
 
 
@@ -300,7 +306,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
           </div>
         )}
 
-        <div className="bg-black rounded border border-panel-border overflow-hidden flex items-center justify-center min-h-[400px]">
+        <div className="quick-render-preview bg-black rounded border border-panel-border overflow-hidden grid place-items-center min-h-[400px] w-full min-w-0">
           {rendering ? (
             <span className="text-muted-foreground text-sm">
               {mode === 'ai'
@@ -311,7 +317,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
             <img
               src={image}
               alt="Rendered viewport"
-              className="max-w-full max-h-[70vh]"
+              className="quick-render-image block w-auto h-auto max-w-full max-h-[70vh] mx-auto justify-self-center self-center"
               style={{ filter: currentPreset.cssFilter }}
             />
           ) : (
