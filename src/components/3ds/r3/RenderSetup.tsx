@@ -538,13 +538,9 @@ export const RenderSetup = ({
         const remainingMs = progress.done > 0 && progress.total > 0
           ? (elapsedMs / progress.done) * (progress.total - progress.done)
           : 0;
-        // Cycle the phase log so every frame walks through the pipeline
-        // visually — mimics 3ds Max Rendering Progress dialog.
-        const phaseIdx = Math.min(
-          SEQ_PHASES.length - 1,
-          Math.floor(((elapsedMs / 1000) * 2) % SEQ_PHASES.length),
-        );
-        const currentPhase = SEQ_PHASES[phaseIdx].label;
+        // Real per-frame pipeline phase from the renderer.
+        const phaseIdx = Math.max(0, FRAME_PHASES.findIndex((p) => p.key === currentPhase));
+        const currentPhaseLabel = FRAME_PHASES[phaseIdx]?.label ?? '';
         return (
           <R3Dialog open onClose={() => { /* prevent closing mid-render */ }} title={`Rendering… Frame ${currentRenderFrame} of ${progress.total || '—'}`} width={860}>
             <div className="grid gap-2 grid-cols-1 md:grid-cols-[minmax(0,1fr)_260px]">
@@ -562,15 +558,15 @@ export const RenderSetup = ({
                 )}
               </div>
 
-              {/* WaltRender Progress panel — mirrors QuickRender exactly */}
+              {/* WaltRender Progress panel */}
               <div className="bevel-inset bg-win-face p-2 text-[11px] flex flex-col gap-2 min-w-0">
                 <div className="font-semibold border-b border-panel-border pb-1">
                   WaltRender Progress — {ENGINES[engine].label}
                 </div>
 
-                {/* Phase log (per current frame) */}
-                <div className="bevel-inset bg-white h-[130px] overflow-y-auto font-mono text-[10.5px] leading-[14px] px-1.5 py-1">
-                  {SEQ_PHASES.map((p, i) => (
+                {/* Phase log (per current frame — real pipeline) */}
+                <div className="bevel-inset bg-white h-[160px] overflow-y-auto font-mono text-[10.5px] leading-[14px] px-1.5 py-1">
+                  {FRAME_PHASES.map((p, i) => (
                     <div key={p.key} className={i < phaseIdx ? 'text-foreground' : i === phaseIdx ? 'text-primary font-semibold' : 'text-muted-foreground'}>
                       {i < phaseIdx ? '✓' : i === phaseIdx ? '▶' : '·'} {p.label}
                     </div>
