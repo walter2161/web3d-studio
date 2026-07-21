@@ -2,27 +2,9 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
-import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError } from '../utils/animationRender';
+import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError, FRAME_PHASES, FramePhase } from '../utils/animationRender';
 import { getViewportHandle } from '../r3/viewportRegistry';
-import { Pause, Play, X as XIcon, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
-
-/** 3ds Max style pipeline phases (mirrors QuickRender). */
-const SEQ_PHASES: { key: string; label: string }[] = [
-  { key: 'parse', label: 'Parsing Scene...' },
-  { key: 'modifiers', label: 'Evaluating Modifier Stack...' },
-  { key: 'tri', label: 'Triangulating Meshes...' },
-  { key: 'bvh', label: 'Building BVH / Spatial Acceleration...' },
-  { key: 'materials', label: 'Preparing Materials & Textures...' },
-  { key: 'lights', label: 'Building Lights...' },
-  { key: 'shadows', label: 'Calculating Shadow Maps...' },
-  { key: 'gi', label: 'Rendering Global Illumination...' },
-  { key: 'raster', label: 'Rendering Scanlines...' },
-  { key: 'refl', label: 'Reflections / Refractions...' },
-  { key: 'aa', label: 'Applying Anti-Aliasing...' },
-  { key: 'denoise', label: 'Denoising...' },
-  { key: 'save', label: 'Saving Frame Buffer...' },
-];
 
 const fmtTime = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
