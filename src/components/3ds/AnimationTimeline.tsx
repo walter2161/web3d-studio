@@ -296,21 +296,6 @@ export const AnimationTimeline = ({
           </Button>
         )}
 
-        <div className="w-px h-5 bg-panel-border mx-1" />
-
-        {/* View mode: Basic timeline vs. 3ds Max style Track View */}
-        <div className="flex rounded overflow-hidden border border-panel-border text-[10px]">
-          <button
-            className={cn("px-2 py-1", view === 'basic' ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-menu-hover")}
-            onClick={() => setView('basic')}
-            title="Basic timeline"
-          >Basic</button>
-          <button
-            className={cn("px-2 py-1 flex items-center gap-1", view === 'trackview' ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-menu-hover")}
-            onClick={() => setView('trackview')}
-            title="3ds Max Track View (bones, curves, key info)"
-          ><Bone className="w-3 h-3" />Track View</button>
-        </div>
 
         {/* Bake clip button: appears when the selected imported model has
             AnimationClips that aren't yet baked into editable tracks. */}
