@@ -332,7 +332,7 @@ export const Viewport = ({
           fogNear={env.fogNear}
           fogFar={env.fogFar}
         />
-        <ambientLight color={env.ambient} intensity={(hasActiveSceneLights ? 0.08 : env.ambientIntensity) * env.level} />
+        <ambientLight color={env.ambient} intensity={(hasActiveSceneLights ? 0.25 : env.ambientIntensity) * env.level} />
         {!hasActiveSceneLights && (
           <>
             <directionalLight
