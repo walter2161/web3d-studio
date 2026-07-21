@@ -307,6 +307,41 @@ function applyImportedViewportMode(root: THREE.Object3D, renderMode: string) {
   });
 }
 
+function repairMaterialForViewport(mat: any) {
+  if (!mat) return;
+  const ensureTexture = (tex: any, srgb = false) => {
+    if (!tex) return;
+    if (srgb && 'colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    tex.flipY = false;
+    tex.needsUpdate = true;
+  };
+  ensureTexture(mat.map, true);
+  ensureTexture(mat.emissiveMap, true);
+  ensureTexture(mat.aoMap);
+  ensureTexture(mat.normalMap);
+  ensureTexture(mat.bumpMap);
+  ensureTexture(mat.roughnessMap);
+  ensureTexture(mat.metalnessMap);
+  ensureTexture(mat.alphaMap);
+  if ('side' in mat && mat.side == null) mat.side = THREE.FrontSide;
+  mat.needsUpdate = true;
+}
+
+function forceViewportShadowAndTexture(root: THREE.Object3D, texturedShadowMode: boolean) {
+  root.traverse((child: any) => {
+    if (!child.isMesh && !child.isSkinnedMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+    child.frustumCulled = false;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    mats.forEach(repairMaterialForViewport);
+    if (texturedShadowMode && child.geometry) {
+      child.geometry.computeVertexNormals?.();
+      if (!child.geometry.getAttribute?.('uv')) child.geometry.computeBoundingBox?.();
+    }
+  });
+}
+
 function collectBoneSegments(root: THREE.Object3D): Array<[THREE.Object3D, THREE.Object3D]> {
   const bones = new Set<THREE.Object3D>();
   root.traverse((node: any) => {
@@ -403,6 +438,10 @@ function ImportedModelViewportRoot({
   useEffect(() => {
     applyImportedViewportMode(root, renderMode);
   }, [root, renderMode]);
+
+  useFrame(() => {
+    if (renderMode === 'textured') forceViewportShadowAndTexture(root, true);
+  });
 
   useFrame(() => {
     if (!useSourceRoot) syncImportedClonePose(imported.root, root);
@@ -2199,6 +2238,9 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
 
 
   const isGhost = (object as any).__creating === true;
+  const objectProps = (object as any).properties || {};
+  const castsShadow = !isGhost && objectProps.castShadows !== false;
+  const receivesShadow = !isGhost && objectProps.receiveShadows !== false;
 
   const matPayload = (object as any).material;
   const subMats: any[] = Array.isArray(matPayload?.subMaterials) ? matPayload.subMaterials.filter(Boolean) : [];
@@ -2216,8 +2258,8 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
       position={object.position}
       rotation={object.rotation}
       scale={object.scale}
-      castShadow={!isGhost}
-      receiveShadow={!isGhost}
+      castShadow={castsShadow}
+      receiveShadow={receivesShadow}
       raycast={isGhost ? (() => null) as any : (renderMode === 'wireframe' ? (vertexOnlyRaycast as any) : undefined)}
       onClick={isGhost ? undefined : (e) => {
         e.stopPropagation();
@@ -2597,7 +2639,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           intensity={omniIntensity}
           distance={attenDistance}
           decay={decay}
-          castShadow={!!ld.castShadow}
+          castShadow={ld.castShadow !== false}
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
           shadow-bias={-0.0005}
@@ -2632,7 +2674,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           angle={spotAngleRad}
           penumbra={spotPenumbra}
           decay={decay}
-          castShadow={!!ld.castShadow}
+          castShadow={ld.castShadow !== false}
           position={[0, 0, 0]}
           map={projectorMap ?? undefined}
           shadow-mapSize-width={2048}
@@ -2672,7 +2714,7 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           ref={directLightRef}
           color={object.color}
           intensity={directIntensity}
-          castShadow={!!ld.castShadow}
+          castShadow={ld.castShadow !== false}
           position={[0, 0, 0]}
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
