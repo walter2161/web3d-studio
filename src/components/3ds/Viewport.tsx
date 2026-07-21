@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import { Scene3D } from './Scene3D';
 import {
@@ -149,10 +149,22 @@ export const Viewport = ({
   // the first frame arrives.
   const orthoZoom = 40;
   const effectiveShowGrid = showGridProp && showGridLocal;
-  const hasActiveSceneLights = useMemo(
-    () => objects.some((o) => o.visible !== false && String(o.type || '').startsWith('light_') && o.lightData?.on !== false),
-    [objects]
-  );
+  const activeLightState = useMemo(() => {
+    const active = objects.filter((o) => o.visible !== false && String(o.type || '').startsWith('light_') && o.lightData?.on !== false);
+    const standard = active.filter((o) => ['light_omni', 'light_spot', 'light_direct'].includes(String(o.type || '')));
+    return {
+      hasAny: active.length > 0,
+      hasStandard: standard.length > 0,
+      // Old scenes saved before the light fix have `castShadow` undefined.
+      // Treat that as ON, matching 3ds Max standard lights and the new default.
+      hasShadowCaster: standard.some((o) => o.lightData?.castShadow !== false),
+    };
+  }, [objects]);
+  const texturedShadowMode = renderMode === 'textured';
+  const showViewportDefaultLights = !activeLightState.hasStandard || (texturedShadowMode && !activeLightState.hasShadowCaster);
+  const viewportAmbientIntensity = texturedShadowMode
+    ? (showViewportDefaultLights ? 0.12 : 0.08) * env.level
+    : (activeLightState.hasAny ? 0.25 : env.ambientIntensity) * env.level;
 
   // F3 → toggle Wireframe, F4 → toggle Edged Faces (R3 shortcuts). Active viewport only.
   useEffect(() => {
@@ -332,13 +344,14 @@ export const Viewport = ({
           fogNear={env.fogNear}
           fogFar={env.fogFar}
         />
-        <ambientLight color={env.ambient} intensity={(hasActiveSceneLights ? 0.25 : env.ambientIntensity) * env.level} />
-        {!hasActiveSceneLights && (
+        <ShadowMapRefresh enabled={texturedShadowMode} />
+        <ambientLight color={env.ambient} intensity={viewportAmbientIntensity} />
+        {showViewportDefaultLights && (
           <>
             <directionalLight
               color={env.tint}
               position={[10, 15, 8]}
-              intensity={0.9 * env.level}
+              intensity={(texturedShadowMode ? 1.2 : 0.9) * env.level}
               castShadow
               shadow-mapSize-width={2048}
               shadow-mapSize-height={2048}
@@ -352,6 +365,17 @@ export const Viewport = ({
             />
             <directionalLight color={env.tint} position={[-10, -10, -5]} intensity={0.25 * env.level} />
           </>
+        )}
+        {texturedShadowMode && (
+          <ContactShadows
+            position={[0, 0.01, 0]}
+            scale={80}
+            far={35}
+            blur={2.5}
+            opacity={0.45}
+            resolution={1024}
+            frames={Infinity}
+          />
         )}
 
         {effectiveShowGrid && (
@@ -470,6 +494,21 @@ const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }
   useEffect(() => {
     scene.fog = fogEnabled ? new THREE.Fog(fogColor, fogNear, fogFar) : null;
   }, [fogEnabled, fogColor, fogNear, fogFar, scene]);
+  return null;
+};
+
+const ShadowMapRefresh = ({ enabled }: { enabled: boolean }) => {
+  const { scene, gl } = useThree();
+  useFrame(() => {
+    if (!enabled) return;
+    gl.shadowMap.enabled = true;
+    gl.shadowMap.autoUpdate = true;
+    gl.shadowMap.needsUpdate = true;
+    scene.traverse((obj) => {
+      const light = obj as THREE.Light & { shadow?: THREE.LightShadow };
+      if ((light as any).isLight && light.shadow) light.shadow.needsUpdate = true;
+    });
+  });
   return null;
 };
 
