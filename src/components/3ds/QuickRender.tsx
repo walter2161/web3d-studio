@@ -1,11 +1,73 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, RefreshCw, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Download, RefreshCw, Sparkles, Pause, Play, X, EyeOff } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { getViewportHandle } from './r3/viewportRegistry';
 import { ENGINES, RenderEngine, useRenderEngine } from './r3/RenderEngineContext';
 import { cn } from '@/lib/utils';
+
+/** 3ds Max style pipeline phases with weighted percentages (sum = 100). */
+const RENDER_PHASES: { key: string; label: string; weight: number }[] = [
+  { key: 'parse', label: 'Parsing Scene...', weight: 6 },
+  { key: 'modifiers', label: 'Evaluating Modifier Stack...', weight: 8 },
+  { key: 'tri', label: 'Triangulating Meshes...', weight: 6 },
+  { key: 'bvh', label: 'Building BVH / Spatial Acceleration...', weight: 10 },
+  { key: 'materials', label: 'Preparing Materials & Textures...', weight: 8 },
+  { key: 'lights', label: 'Building Lights...', weight: 6 },
+  { key: 'shadows', label: 'Calculating Shadow Maps...', weight: 12 },
+  { key: 'gi', label: 'Rendering Global Illumination...', weight: 10 },
+  { key: 'raster', label: 'Rendering Scanlines...', weight: 20 },
+  { key: 'refl', label: 'Reflections / Refractions...', weight: 6 },
+  { key: 'aa', label: 'Applying Anti-Aliasing...', weight: 5 },
+  { key: 'denoise', label: 'Denoising...', weight: 2 },
+  { key: 'save', label: 'Saving Frame Buffer...', weight: 1 },
+];
+
+const fmtTime = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+};
+
+interface SceneStats {
+  objects: number;
+  polygons: number;
+  textures: number;
+  lights: number;
+  ram: string;
+}
+
+const gatherSceneStats = (scene: THREE.Scene): SceneStats => {
+  let objects = 0;
+  let polygons = 0;
+  let lights = 0;
+  const texSet = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    if ((o as any).isMesh) {
+      objects++;
+      const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+      if (g) {
+        const idx = g.index ? g.index.count : g.attributes.position?.count ?? 0;
+        polygons += Math.floor(idx / 3);
+      }
+      const mats = ([] as THREE.Material[]).concat((o as THREE.Mesh).material as any);
+      mats.forEach((m: any) => {
+        if (!m) return;
+        ['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','bumpMap','displacementMap']
+          .forEach((k) => { if (m[k] && m[k].isTexture) texSet.add(m[k]); });
+      });
+    }
+    if ((o as any).isLight) lights++;
+  });
+  const perf = (performance as any).memory;
+  const ram = perf?.usedJSHeapSize
+    ? `${(perf.usedJSHeapSize / (1024 * 1024)).toFixed(1)} MB`
+    : '—';
+  return { objects, polygons, textures: texSet.size, lights, ram };
+};
 
 interface QuickRenderProps {
   open: boolean;
