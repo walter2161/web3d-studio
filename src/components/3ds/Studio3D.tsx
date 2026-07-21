@@ -691,7 +691,11 @@ export const Studio3D = () => {
       let position: [number, number, number] = [0, 3, 0];
       let rotation: [number, number, number] = [0, 0, 0];
       let color = '#ffffff';
-      const lightData: any = { intensity: 1, distance: 0, decay: 2, castShadow: false };
+      // Cast shadows by default — matches 3ds Max R3 (new Standard lights are
+      // created with Shadows → On). Without this, switching a viewport to
+      // "Texture + Shadow" would still render a flat scene because the only
+      // scene light emits no shadow map.
+      const lightData: any = { intensity: 1, distance: 0, decay: 2, castShadow: true };
       const viewPose = baseKind.startsWith('camera_') ? readPerspectiveViewPose(activeViewport) : null;
       const cameraData: any = {
         fov: viewPose?.fov ?? 45,
