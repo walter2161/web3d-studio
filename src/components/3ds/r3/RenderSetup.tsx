@@ -1,8 +1,63 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import * as THREE from 'three';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
 import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError } from '../utils/animationRender';
+import { getViewportHandle } from '../r3/viewportRegistry';
+import { Pause, Play, X as XIcon, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+
+/** 3ds Max style pipeline phases (mirrors QuickRender). */
+const SEQ_PHASES: { key: string; label: string }[] = [
+  { key: 'parse', label: 'Parsing Scene...' },
+  { key: 'modifiers', label: 'Evaluating Modifier Stack...' },
+  { key: 'tri', label: 'Triangulating Meshes...' },
+  { key: 'bvh', label: 'Building BVH / Spatial Acceleration...' },
+  { key: 'materials', label: 'Preparing Materials & Textures...' },
+  { key: 'lights', label: 'Building Lights...' },
+  { key: 'shadows', label: 'Calculating Shadow Maps...' },
+  { key: 'gi', label: 'Rendering Global Illumination...' },
+  { key: 'raster', label: 'Rendering Scanlines...' },
+  { key: 'refl', label: 'Reflections / Refractions...' },
+  { key: 'aa', label: 'Applying Anti-Aliasing...' },
+  { key: 'denoise', label: 'Denoising...' },
+  { key: 'save', label: 'Saving Frame Buffer...' },
+];
+
+const fmtTime = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+};
+
+interface SeqStats { objects: number; polygons: number; textures: number; lights: number; ram: string; }
+
+const gatherSceneStats = (scene: THREE.Scene): SeqStats => {
+  let objects = 0, polygons = 0, lights = 0;
+  const texSet = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    if ((o as any).isMesh) {
+      objects++;
+      const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+      if (g) {
+        const idx = g.index ? g.index.count : g.attributes.position?.count ?? 0;
+        polygons += Math.floor(idx / 3);
+      }
+      const mats = ([] as THREE.Material[]).concat((o as THREE.Mesh).material as any);
+      mats.forEach((m: any) => {
+        if (!m) return;
+        ['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','bumpMap','displacementMap']
+          .forEach((k) => { if (m[k] && m[k].isTexture) texSet.add(m[k]); });
+      });
+    }
+    if ((o as any).isLight) lights++;
+  });
+  const perf = (performance as any).memory;
+  const ram = perf?.usedJSHeapSize ? `${(perf.usedJSHeapSize / (1024 * 1024)).toFixed(1)} MB` : '—';
+  return { objects, polygons, textures: texSet.size, lights, ram };
+};
 
 interface CameraOption {
   id: string;
@@ -69,6 +124,8 @@ export const RenderSetup = ({
   const [currentRenderFrame, setCurrentRenderFrame] = useState<number>(0);
   const [renderStartTs, setRenderStartTs] = useState<number>(0);
   const renderAbortRef = useRef<AbortController | null>(null);
+  const [seqStats, setSeqStats] = useState<SeqStats>({ objects: 0, polygons: 0, textures: 0, lights: 0, ram: '—' });
+  const [seqBackground, setSeqBackground] = useState(false);
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
@@ -438,10 +495,13 @@ export const RenderSetup = ({
               }
 
               setRendering(true);
+              setSeqBackground(false);
               setProgress({ done: 0, total: 0 });
               setFramePreview(null);
               setCurrentRenderFrame(from);
               setRenderStartTs(performance.now());
+              const handleVP = getViewportHandle('perspective') ?? getViewportHandle();
+              if (handleVP) setSeqStats(gatherSceneStats(handleVP.scene));
               const abort = new AbortController();
               renderAbortRef.current = abort;
               const toastId = toast.loading('Rendering animation…');
@@ -486,89 +546,108 @@ export const RenderSetup = ({
         </div>
       </div>
 
-      {/* Frame-by-frame render progress modal (3ds Max Rendering dialog). */}
-      {rendering && (
-        <R3Dialog
-          open={rendering}
-          onClose={() => { /* prevent closing mid-render */ }}
-          title="Rendering…"
-          width={640}
-        >
-          <div className="space-y-2">
-            <div
-              className="bevel-inset bg-black flex items-center justify-center overflow-hidden"
-              style={{ height: 320 }}
-            >
-              {framePreview ? (
-                <img
-                  src={framePreview}
-                  alt={`Frame ${currentRenderFrame}`}
-                  className="max-w-full max-h-full"
-                  style={{ imageRendering: 'auto' }}
-                />
-              ) : (
-                <span className="text-white text-[11px] opacity-70">Preparing scene…</span>
-              )}
-            </div>
-
-            <GroupBox title="Progress">
-              <div className="space-y-1">
-                <div className="flex justify-between text-[11px]">
-                  <span>
-                    Frame {currentRenderFrame} · {progress.done} / {progress.total || '—'}
-                  </span>
-                  <span>
-                    {progress.total > 0
-                      ? `${Math.round((progress.done / progress.total) * 100)}%`
-                      : '0%'}
-                  </span>
-                </div>
-                <div className="bevel-inset bg-white h-[14px] overflow-hidden">
-                  <div
-                    className="h-full bg-[#000080] transition-[width] duration-100"
-                    style={{
-                      width: progress.total > 0
-                        ? `${(progress.done / progress.total) * 100}%`
-                        : '0%',
-                    }}
+      {/* Frame-by-frame Rendering Progress dialog — 3ds Max style (matches Quick Render). */}
+      {rendering && !seqBackground && (() => {
+        const nowTs = performance.now();
+        const elapsedMs = nowTs - renderStartTs;
+        const overallPct = progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
+        const remainingMs = progress.done > 0 && progress.total > 0
+          ? (elapsedMs / progress.done) * (progress.total - progress.done)
+          : 0;
+        // Cycle the phase log so every frame walks through the pipeline
+        // visually — mimics 3ds Max Rendering Progress dialog.
+        const phaseIdx = Math.min(
+          SEQ_PHASES.length - 1,
+          Math.floor(((elapsedMs / 1000) * 2) % SEQ_PHASES.length),
+        );
+        const currentPhase = SEQ_PHASES[phaseIdx].label;
+        return (
+          <R3Dialog open onClose={() => { /* prevent closing mid-render */ }} title={`Rendering… Frame ${currentRenderFrame} of ${progress.total || '—'}`} width={860}>
+            <div className="grid gap-2 grid-cols-1 md:grid-cols-[minmax(0,1fr)_260px]">
+              {/* Live frame preview */}
+              <div className="bevel-inset bg-black grid place-items-center overflow-hidden min-h-[400px]">
+                {framePreview ? (
+                  <img
+                    src={framePreview}
+                    alt={`Frame ${currentRenderFrame}`}
+                    className="block w-auto h-auto max-w-full max-h-[70vh] mx-auto"
+                    style={{ imageRendering: 'auto', filter: ENGINES[engine].cssFilter }}
                   />
+                ) : (
+                  <span className="text-white text-[11px] opacity-70">Preparing scene…</span>
+                )}
+              </div>
+
+              {/* WaltRender Progress panel — mirrors QuickRender exactly */}
+              <div className="bevel-inset bg-win-face p-2 text-[11px] flex flex-col gap-2 min-w-0">
+                <div className="font-semibold border-b border-panel-border pb-1">
+                  WaltRender Progress — {ENGINES[engine].label}
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground pt-1">
-                  <div>Resolution: {width} × {height}</div>
-                  <div>FPS: {videoFps}</div>
-                  <div>
-                    Elapsed: {((performance.now() - renderStartTs) / 1000).toFixed(1)}s
-                    {progress.done > 0 && progress.total > 0 && (
-                      <> · ETA: {(
-                        ((performance.now() - renderStartTs) / progress.done) *
-                        (progress.total - progress.done) / 1000
-                      ).toFixed(1)}s</>
-                    )}
+
+                {/* Phase log (per current frame) */}
+                <div className="bevel-inset bg-white h-[130px] overflow-y-auto font-mono text-[10.5px] leading-[14px] px-1.5 py-1">
+                  {SEQ_PHASES.map((p, i) => (
+                    <div key={p.key} className={i < phaseIdx ? 'text-foreground' : i === phaseIdx ? 'text-primary font-semibold' : 'text-muted-foreground'}>
+                      {i < phaseIdx ? '✓' : i === phaseIdx ? '▶' : '·'} {p.label}
+                    </div>
+                  ))}
+                  <div className="text-muted-foreground mt-1">
+                    Frame {currentRenderFrame} · {progress.done}/{progress.total || '—'}
                   </div>
                 </div>
-              </div>
-            </GroupBox>
 
-            <div className="text-[10px] text-muted-foreground leading-tight">
-              Each frame is rendered individually with production quality. When
-              all frames are done they will be encoded into a {videoFormat.toUpperCase()} video
-              you can preview before saving.
+                {/* Overall progress bar (frames) */}
+                <div>
+                  <div className="bevel-inset bg-white h-3 w-full overflow-hidden">
+                    <div className="h-full bg-primary transition-[width] duration-100" style={{ width: `${overallPct.toFixed(1)}%` }} />
+                  </div>
+                  <div className="flex justify-between mt-0.5">
+                    <span>{overallPct.toFixed(0)}%</span>
+                    <span className="text-muted-foreground">{width}×{height} · {videoFps}fps</span>
+                  </div>
+                </div>
+
+                {/* Time */}
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">Elapsed:</span>
+                  <span className="font-mono">{fmtTime(elapsedMs)}</span>
+                  <span className="text-muted-foreground">Remaining:</span>
+                  <span className="font-mono">{fmtTime(remainingMs)}</span>
+                  <span className="text-muted-foreground">Current:</span>
+                  <span className="font-mono truncate" title={currentPhase}>{currentPhase}</span>
+                </div>
+
+                {/* Scene stats */}
+                <div className="border-t border-panel-border pt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
+                  <span className="text-muted-foreground">Objects:</span>
+                  <span className="font-mono text-right">{seqStats.objects}</span>
+                  <span className="text-muted-foreground">Polygons:</span>
+                  <span className="font-mono text-right">{seqStats.polygons.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Textures:</span>
+                  <span className="font-mono text-right">{seqStats.textures}</span>
+                  <span className="text-muted-foreground">Lights:</span>
+                  <span className="font-mono text-right">{seqStats.lights}</span>
+                  <span className="text-muted-foreground">RAM:</span>
+                  <span className="font-mono text-right">{seqStats.ram}</span>
+                  <span className="text-muted-foreground">Format:</span>
+                  <span className="font-mono text-right">{videoFormat.toUpperCase()}</span>
+                </div>
+
+                {/* Controls */}
+                <div className="flex gap-1 mt-auto pt-1">
+                  <R3Button width={80} onClick={() => renderAbortRef.current?.abort()}>Cancel</R3Button>
+                  <R3Button width={80} onClick={() => setSeqBackground(true)}>Hide</R3Button>
+                </div>
+              </div>
             </div>
 
-            <Row>
-              <div className="flex-1" />
-              <R3Button
-                width={100}
-                onClick={() => {
-                  renderAbortRef.current?.abort();
-                }}
-              >
-                Cancel
-              </R3Button>
-            </Row>
-          </div>
-        </R3Dialog>
-      )}
+            <div className="text-[10px] text-muted-foreground leading-tight mt-2">
+              Cada frame é renderizado individualmente com qualidade de produção — iluminação, sombras, texturas e o preset do motor <b>{ENGINES[engine].label}</b>. Ao fim, os frames são codificados em {videoFormat.toUpperCase()} para preview antes de salvar.
+            </div>
+          </R3Dialog>
+        );
+      })()}
+
 
       {/* Preview dialog — the user must confirm before the file is saved. */}
 
