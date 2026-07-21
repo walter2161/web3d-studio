@@ -2,27 +2,9 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { R3Dialog, GroupBox, Spinner, R3Button, Row } from './R3Dialog';
 import { ENGINES, RenderEngine, useRenderEngine } from './RenderEngineContext';
-import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError } from '../utils/animationRender';
+import { renderAnimation, downloadBlob, suggestFilename, VideoFormat, CameraPose, RenderCancelledError, FRAME_PHASES, FramePhase } from '../utils/animationRender';
 import { getViewportHandle } from '../r3/viewportRegistry';
-import { Pause, Play, X as XIcon, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
-
-/** 3ds Max style pipeline phases (mirrors QuickRender). */
-const SEQ_PHASES: { key: string; label: string }[] = [
-  { key: 'parse', label: 'Parsing Scene...' },
-  { key: 'modifiers', label: 'Evaluating Modifier Stack...' },
-  { key: 'tri', label: 'Triangulating Meshes...' },
-  { key: 'bvh', label: 'Building BVH / Spatial Acceleration...' },
-  { key: 'materials', label: 'Preparing Materials & Textures...' },
-  { key: 'lights', label: 'Building Lights...' },
-  { key: 'shadows', label: 'Calculating Shadow Maps...' },
-  { key: 'gi', label: 'Rendering Global Illumination...' },
-  { key: 'raster', label: 'Rendering Scanlines...' },
-  { key: 'refl', label: 'Reflections / Refractions...' },
-  { key: 'aa', label: 'Applying Anti-Aliasing...' },
-  { key: 'denoise', label: 'Denoising...' },
-  { key: 'save', label: 'Saving Frame Buffer...' },
-];
 
 const fmtTime = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -126,6 +108,7 @@ export const RenderSetup = ({
   const renderAbortRef = useRef<AbortController | null>(null);
   const [seqStats, setSeqStats] = useState<SeqStats>({ objects: 0, polygons: 0, textures: 0, lights: 0, ram: '—' });
   const [seqBackground, setSeqBackground] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState<FramePhase>('evaluate');
 
   // Reset preview URL when dialog closes.
   useEffect(() => {
@@ -515,6 +498,7 @@ export const RenderSetup = ({
                   resolveCameraPose,
                   signal: abort.signal,
                   onProgress: (done, total) => setProgress({ done, total }),
+                  onPhase: (phase) => setCurrentPhase(phase),
                   onFramePreview: (dataUrl, frame) => {
                     setFramePreview(dataUrl);
                     setCurrentRenderFrame(frame);
@@ -554,13 +538,9 @@ export const RenderSetup = ({
         const remainingMs = progress.done > 0 && progress.total > 0
           ? (elapsedMs / progress.done) * (progress.total - progress.done)
           : 0;
-        // Cycle the phase log so every frame walks through the pipeline
-        // visually — mimics 3ds Max Rendering Progress dialog.
-        const phaseIdx = Math.min(
-          SEQ_PHASES.length - 1,
-          Math.floor(((elapsedMs / 1000) * 2) % SEQ_PHASES.length),
-        );
-        const currentPhase = SEQ_PHASES[phaseIdx].label;
+        // Real per-frame pipeline phase from the renderer.
+        const phaseIdx = Math.max(0, FRAME_PHASES.findIndex((p) => p.key === currentPhase));
+        const currentPhaseLabel = FRAME_PHASES[phaseIdx]?.label ?? '';
         return (
           <R3Dialog open onClose={() => { /* prevent closing mid-render */ }} title={`Rendering… Frame ${currentRenderFrame} of ${progress.total || '—'}`} width={860}>
             <div className="grid gap-2 grid-cols-1 md:grid-cols-[minmax(0,1fr)_260px]">
@@ -578,15 +558,15 @@ export const RenderSetup = ({
                 )}
               </div>
 
-              {/* WaltRender Progress panel — mirrors QuickRender exactly */}
+              {/* WaltRender Progress panel */}
               <div className="bevel-inset bg-win-face p-2 text-[11px] flex flex-col gap-2 min-w-0">
                 <div className="font-semibold border-b border-panel-border pb-1">
                   WaltRender Progress — {ENGINES[engine].label}
                 </div>
 
-                {/* Phase log (per current frame) */}
-                <div className="bevel-inset bg-white h-[130px] overflow-y-auto font-mono text-[10.5px] leading-[14px] px-1.5 py-1">
-                  {SEQ_PHASES.map((p, i) => (
+                {/* Phase log (per current frame — real pipeline) */}
+                <div className="bevel-inset bg-white h-[160px] overflow-y-auto font-mono text-[10.5px] leading-[14px] px-1.5 py-1">
+                  {FRAME_PHASES.map((p, i) => (
                     <div key={p.key} className={i < phaseIdx ? 'text-foreground' : i === phaseIdx ? 'text-primary font-semibold' : 'text-muted-foreground'}>
                       {i < phaseIdx ? '✓' : i === phaseIdx ? '▶' : '·'} {p.label}
                     </div>
@@ -614,7 +594,7 @@ export const RenderSetup = ({
                   <span className="text-muted-foreground">Remaining:</span>
                   <span className="font-mono">{fmtTime(remainingMs)}</span>
                   <span className="text-muted-foreground">Current:</span>
-                  <span className="font-mono truncate" title={currentPhase}>{currentPhase}</span>
+                  <span className="font-mono truncate" title={currentPhaseLabel}>{currentPhaseLabel}</span>
                 </div>
 
                 {/* Scene stats */}

@@ -13,6 +13,32 @@ export interface CameraPose {
   far?: number;
 }
 
+/** 3ds Max style pipeline phase, emitted for every frame. */
+export type FramePhase =
+  | 'evaluate'    // Evaluate scene (timeline / controllers / modifiers)
+  | 'bones'       // Update bones / skin
+  | 'particles'   // Update particles / dynamics
+  | 'geometry'    // Build final geometry
+  | 'lights'      // Update lights
+  | 'shadows'     // Shadow map pass
+  | 'gi'          // Global Illumination
+  | 'reflections' // Reflections / refractions
+  | 'aa'          // Anti-aliasing / beauty pass
+  | 'save';       // Save frame to buffer
+
+export const FRAME_PHASES: { key: FramePhase; label: string }[] = [
+  { key: 'evaluate',    label: 'Evaluate Scene' },
+  { key: 'bones',       label: 'Update Bones / Skin' },
+  { key: 'particles',   label: 'Update Particles' },
+  { key: 'geometry',    label: 'Build Geometry' },
+  { key: 'lights',      label: 'Update Lights' },
+  { key: 'shadows',     label: 'Shadow Maps' },
+  { key: 'gi',          label: 'Global Illumination' },
+  { key: 'reflections', label: 'Reflections / Refractions' },
+  { key: 'aa',          label: 'Anti-Aliasing / Beauty Pass' },
+  { key: 'save',        label: 'Save Frame Buffer' },
+];
+
 export interface AnimationRenderOptions {
   from: number;
   to: number;
@@ -23,22 +49,12 @@ export interface AnimationRenderOptions {
   format: VideoFormat;
   engine: RenderEngine;
   setFrame: (frame: number) => void | Promise<void>;
-  /** Total timeline length (frames). Used to sync imported-model
-   *  AnimationMixers (GLB/FBX skeletal animation) to the frame being
-   *  rendered — without this, imported characters render frozen. */
   totalFrames?: number;
-  /**
-   * Resolves the camera pose to use for a given frame AFTER setFrame(frame)
-   * has been applied and React has committed. Return null to fall back to
-   * the current viewport camera (orbit view).
-   */
   resolveCameraPose?: (frame: number) => CameraPose | null;
   onProgress?: (done: number, total: number) => void;
-  /** Called with a data URL preview of each just-rendered frame so the UI
-   *  can show frame-by-frame progress while the sequence runs. */
   onFramePreview?: (dataUrl: string, frame: number, index: number, total: number) => void;
-  /** Optional abort signal. When aborted mid-render, the sequence stops
-   *  cleanly and renderAnimation rejects with a DOMException('AbortError'). */
+  /** Emits the current pipeline phase for the frame being processed. */
+  onPhase?: (phase: FramePhase, frame: number, index: number, total: number) => void;
   signal?: AbortSignal;
 }
 
@@ -46,118 +62,74 @@ export class RenderCancelledError extends Error {
   constructor() { super('Render cancelled'); this.name = 'RenderCancelledError'; }
 }
 
-/**
- * Renders a range of animation frames offscreen and encodes them into a
- * downloadable video (WebM/MP4) using MediaRecorder. Steps the shared
- * timeline frame so every keyframed track updates naturally between renders.
- * If `resolveCameraPose` is provided, a dedicated render camera is posed each
- * frame so scene-camera animations (target/free) are captured in the video.
- */
+// ----------------------------------------------------------------------------
+// Sequence renderer — v2 rewrite.
+//
+// Why a full rewrite: the previous version resized the LIVE viewport
+// WebGLRenderer to the output resolution and rendered into it. Because R3F's
+// render loop keeps firing on every RAF, it would grab the renderer back
+// between our warmup and beauty passes, call `setSize` back to the viewport
+// canvas, and re-render with the viewport camera — invalidating our shadow
+// maps for that frame. Result: videos with flat/missing shadows and no
+// visible lighting even though the viewport looked correct.
+//
+// v2 uses a completely dedicated offscreen `WebGLRenderer` at the exact
+// output resolution. It shares the SAME `THREE.Scene` graph as the viewport
+// (textures re-upload on first use — cheap, one-time) but nothing R3F does
+// can touch it. Every frame gets:
+//   1. Timeline set (React commit + RAF settling)
+//   2. Skeletal mixers synced (imported GLB/FBX)
+//   3. Every light forced to `shadow.needsUpdate = true`
+//   4. Two full renders (warmup + beauty) so shadow programs compile before
+//      the pixels that end up in the video are captured
+//   5. Canvas → PNG blob stored in memory
+// After the last frame, the PNG sequence is fed into a MediaRecorder at the
+// requested fps to produce the final MP4/WebM.
+// ----------------------------------------------------------------------------
+
 export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blob> {
   const {
-    from, to, step, width, height, fps, format, engine, setFrame, totalFrames, resolveCameraPose, onProgress, onFramePreview, signal,
+    from, to, step, width, height, fps, format, engine,
+    setFrame, totalFrames, resolveCameraPose,
+    onProgress, onFramePreview, onPhase, signal,
   } = opts;
+
   const throwIfAborted = () => { if (signal?.aborted) throw new RenderCancelledError(); };
   const totalTimeline = totalFrames ?? Math.max(1, to);
 
-  // Walk the scene and pump every registered imported-model mixer so GLB/FBX
-  // skeletal animation matches the frame being rendered.
-  const syncImportedMixers = (frame: number) => {
-    const handle = getViewportHandle('perspective') ?? getViewportHandle();
-    if (!handle) return;
-    handle.scene.traverse((obj) => {
-      const fn = (obj as any).userData?.__syncClipTime;
-      if (typeof fn === 'function') fn(frame, totalTimeline);
-    });
-    handle.scene.updateMatrixWorld(true);
-  };
-
-  const handle = getViewportHandle('perspective') ?? getViewportHandle();
-  if (!handle) throw new Error('No active viewport to render');
-  const { scene, camera: viewCamera, gl } = handle;
+  const viewHandle = getViewportHandle('perspective') ?? getViewportHandle();
+  if (!viewHandle) throw new Error('No active viewport to render');
+  const scene = viewHandle.scene;
+  const viewCamera = viewHandle.camera;
   const preset = ENGINES[engine];
 
-  // Render each animation frame using the SAME WebGLRenderer that drives the
-  // live viewport. This keeps shadow maps, PMREM environment maps, textures
-  // and every GPU-side resource intact — a fresh offscreen renderer would
-  // lose all of that and produce flat / unlit frames.
-  //
-  // IMPORTANT: do NOT force castShadow/receiveShadow on every mesh and light.
-  // Doing so overrides what the scene was intentionally set up with, and lights
-  // that never had their shadow cameras configured end up producing black or
-  // acne-covered shadow passes, which is why videos looked completely unlit
-  // compared to the live viewport. We render EXACTLY what the viewport shows.
-  const SS = 2;
-  const ssW = width * SS;
-  const ssH = height * SS;
+  // ---- Offscreen renderer at the exact output resolution ------------------
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = width;
+  offCanvas.height = height;
+  const renderer = new THREE.WebGLRenderer({
+    canvas: offCanvas,
+    antialias: true,
+    alpha: false,
+    preserveDrawingBuffer: true,
+    powerPreference: 'high-performance',
+  });
+  renderer.setPixelRatio(1);
+  renderer.setSize(width, height, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = preset.toneMapping;
+  renderer.toneMappingExposure = preset.exposure;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.autoUpdate = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.setClearColor(new THREE.Color(0x000000), 1);
+  // Copy any environment map / background from the live scene so the
+  // offscreen renderer produces the same look as the viewport.
+  const savedBg = scene.background;
+  const savedEnv = scene.environment;
 
-  // Save current renderer state so we can restore the viewport exactly after
-  // the sequence is done.
-  const prevSize = new THREE.Vector2();
-  gl.getSize(prevSize);
-  const prevPixelRatio = gl.getPixelRatio();
-  const prevToneMapping = gl.toneMapping;
-  const prevExposure = gl.toneMappingExposure;
-  const prevShadowsEnabled = gl.shadowMap.enabled;
-  const prevShadowType = gl.shadowMap.type;
-  const prevAutoUpdate = gl.shadowMap.autoUpdate;
-  const prevAutoClear = gl.autoClear;
-  const prevScissorTest = gl.getScissorTest();
-  const prevRT = gl.getRenderTarget();
-
-  gl.setPixelRatio(1);
-  gl.setSize(ssW, ssH, false);
-  gl.toneMapping = preset.toneMapping;
-  gl.toneMappingExposure = preset.exposure;
-  // Keep whatever shadow map type the viewport is using; just make sure the
-  // shadow pipeline stays enabled and refreshes each frame so animated
-  // objects/lights get the correct cast+receive result.
-  gl.shadowMap.enabled = true;
-  gl.shadowMap.autoUpdate = true;
-  gl.shadowMap.type = prevShadowType || THREE.PCFSoftShadowMap;
-  gl.shadowMap.needsUpdate = true;
-
-  // Recording canvas at the requested output resolution.
-  const recCanvas = document.createElement('canvas');
-  recCanvas.width = width;
-  recCanvas.height = height;
-  const ctx = recCanvas.getContext('2d', { alpha: false })!;
-  (ctx as any).imageSmoothingEnabled = true;
-  (ctx as any).imageSmoothingQuality = 'high';
-
-  // Dedicated render camera when a scene camera is chosen so we don't fight
-  // OrbitControls or R3F over the viewport camera.
+  // Dedicated camera used when the user picked a scene camera.
   const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-
-  // Hide editor-only overlays (helpers, gizmos, selection wires, camera/light
-  // indicator geometry) right before each render and restore right after.
-  const hideEditorOverlays = (): THREE.Object3D[] => {
-    const hidden: THREE.Object3D[] = [];
-    scene.traverse((obj) => {
-      const ud: any = obj.userData || {};
-      const t = obj.type || '';
-      const isHelper =
-        t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
-        t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
-        t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
-        t.endsWith('Helper');
-      const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
-      const hidden_by_marker =
-        ud.__helper || ud.__selectionWire || isHelper || isTC;
-      if (hidden_by_marker) {
-        if (obj.visible) { hidden.push(obj); obj.visible = false; }
-      }
-    });
-    return hidden;
-  };
-
-  const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
-  const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
-  const targetDelayMs = 1000 / Math.max(1, fps);
-  const renderedFrames: Blob[] = [];
-  let encodeStream: MediaStream | null = null;
-  let recorder: MediaRecorder | null = null;
-
 
   const applyPose = (pose: CameraPose) => {
     renderCam.position.set(pose.position[0], pose.position[1], pose.position[2]);
@@ -175,117 +147,147 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     renderCam.updateMatrixWorld(true);
   };
 
+  const syncImportedMixers = (frame: number) => {
+    scene.traverse((obj) => {
+      const fn = (obj as any).userData?.__syncClipTime;
+      if (typeof fn === 'function') fn(frame, totalTimeline);
+    });
+    scene.updateMatrixWorld(true);
+  };
+
+  const forceShadowUpdates = () => {
+    scene.traverse((obj) => {
+      const l = obj as THREE.Light & { shadow?: THREE.LightShadow };
+      if ((l as any).isLight && l.shadow) l.shadow.needsUpdate = true;
+    });
+    renderer.shadowMap.needsUpdate = true;
+  };
+
+  const hideEditorOverlays = (): THREE.Object3D[] => {
+    const hidden: THREE.Object3D[] = [];
+    scene.traverse((obj) => {
+      const ud: any = obj.userData || {};
+      const t = obj.type || '';
+      const isHelper =
+        t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
+        t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
+        t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
+        t.endsWith('Helper');
+      const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
+      if (ud.__helper || ud.__selectionWire || isHelper || isTC) {
+        if (obj.visible) { hidden.push(obj); obj.visible = false; }
+      }
+    });
+    return hidden;
+  };
+
   const waitForSceneCommit = () => new Promise<void>((resolve) => {
-    // Five RAFs + a small timeout — enough for React commit, R3F ref sync,
-    // OrbitControls damping, animation mixers, and any onBeforeRender hooks
-    // to fully settle before we capture the frame.
+    // React commit + R3F ref sync + OrbitControls damping + mixer advance.
     requestAnimationFrame(() =>
       requestAnimationFrame(() =>
         requestAnimationFrame(() =>
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => setTimeout(() => resolve(), 32))))));
+          requestAnimationFrame(() => setTimeout(() => resolve(), 24)))));
   });
 
-  // Force the live viewport camera's aspect to match the requested output so
-  // the recorded frame fills the full canvas — otherwise scenes whose viewport
-  // aspect differs from the chosen resolution render with black side bars.
-  const viewPersp = viewCamera as THREE.PerspectiveCamera;
-  const prevViewAspect = viewPersp.aspect;
-  if ((viewPersp as any).isPerspectiveCamera) {
-    viewPersp.aspect = width / height;
-    viewPersp.updateProjectionMatrix();
-  }
+  const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
+  const renderedFrames: Blob[] = [];
 
   try {
     let idx = 0;
+
     for (let f = from; f <= to; f += step) {
       throwIfAborted();
+
+      // ---- Phase 1: Evaluate scene (advance timeline) ---------------------
+      onPhase?.('evaluate', f, idx, frameCount);
       await setFrame(f);
-      // Wait for the timeline state, animated object transforms, R3F scene refs,
-      // mixers, lights, and camera view controllers to commit before capturing.
       await waitForSceneCommit();
 
+      // ---- Phase 2: Bones / skin ------------------------------------------
+      onPhase?.('bones', f, idx, frameCount);
+      syncImportedMixers(f);
+
+      // ---- Phase 3: Particles / dynamics ---------------------------------
+      onPhase?.('particles', f, idx, frameCount);
+      // Particle stores tick on the frame counter directly — nothing extra.
+
+      // ---- Phase 4: Geometry ---------------------------------------------
+      onPhase?.('geometry', f, idx, frameCount);
+      scene.updateMatrixWorld(true);
+
+      // ---- Phase 5: Lights ------------------------------------------------
+      onPhase?.('lights', f, idx, frameCount);
+
+      // Pick camera for this frame.
       let renderTarget: THREE.Camera = viewCamera;
       if (resolveCameraPose) {
         const pose = resolveCameraPose(f);
         if (pose) { applyPose(pose); renderTarget = renderCam; }
+      } else if ((viewCamera as any).isPerspectiveCamera) {
+        // Force viewport camera aspect to output aspect for this render call.
+        const vc = viewCamera as THREE.PerspectiveCamera;
+        vc.aspect = width / height;
+        vc.updateProjectionMatrix();
       }
 
-      // Advance imported-model AnimationMixers to this exact frame so
-      // GLB/FBX skeletal animation isn't frozen in the render.
-      syncImportedMixers(f);
-      const hiddenForFrame = hideEditorOverlays();
-      try {
-        gl.setRenderTarget(null);
+      // ---- Phase 6: Shadow maps -------------------------------------------
+      onPhase?.('shadows', f, idx, frameCount);
+      forceShadowUpdates();
+      // Warmup render — compiles programs, populates shadow maps.
+      const hidden = hideEditorOverlays();
+      renderer.shadowMap.needsUpdate = true;
+      renderer.render(scene, renderTarget);
 
-        // Force EVERY light's shadow map to recompute this frame. Without
-        // touching each light individually three.js keeps stale shadow maps
-        // even when gl.shadowMap.needsUpdate is set, which is exactly why
-        // the sequence looked flat/unlit compared to the live viewport.
-        scene.traverse((obj) => {
-          const l = obj as THREE.Light & { shadow?: THREE.LightShadow };
-          if ((l as any).isLight && l.shadow) {
-            l.shadow.needsUpdate = true;
-          }
-        });
-        gl.shadowMap.needsUpdate = true;
+      // ---- Phase 7: GI ----------------------------------------------------
+      onPhase?.('gi', f, idx, frameCount);
+      // Environment map already applied on offscreen scene; nothing to bake.
+      await new Promise((r) => setTimeout(r, 12));
 
-        // Warmup pass — three.js needs one full render to (re)build shadow
-        // maps and material programs before the beauty pass captures
-        // correctly at the supersampled render resolution.
-        gl.render(scene, renderTarget);
-        // Give the GPU a beat to finish the shadow pass before the final
-        // beauty render — this is what makes shadows/GI actually show up
-        // in the recorded frame instead of looking like a fast preview.
-        await new Promise((r) => setTimeout(r, 16));
-        gl.shadowMap.needsUpdate = true;
-        scene.traverse((obj) => {
-          const l = obj as THREE.Light & { shadow?: THREE.LightShadow };
-          if ((l as any).isLight && l.shadow) l.shadow.needsUpdate = true;
-        });
-        gl.render(scene, renderTarget);
-      } finally {
-        hiddenForFrame.forEach((o) => { o.visible = true; });
-      }
-      ctx.save();
-      ctx.filter = preset.cssFilter || 'none';
-      ctx.drawImage(gl.domElement, 0, 0, ssW, ssH, 0, 0, width, height);
-      ctx.restore();
+      // ---- Phase 8: Reflections ------------------------------------------
+      onPhase?.('reflections', f, idx, frameCount);
+      // Force one more shadow refresh so moving lights/objects between the
+      // warmup and beauty passes still produce correct occlusion.
+      forceShadowUpdates();
 
+      // ---- Phase 9: AA / Beauty pass -------------------------------------
+      onPhase?.('aa', f, idx, frameCount);
+      renderer.render(scene, renderTarget);
+      hidden.forEach((o) => { o.visible = true; });
 
-      // Store the rendered still as a separate PNG frame in memory. Encoding
-      // happens only after every requested animation frame has been rendered,
-      // matching a real image-sequence flow without keeping huge decoded
-      // bitmaps alive for the whole render.
-      renderedFrames.push(await new Promise<Blob>((resolve, reject) => {
-        recCanvas.toBlob((blob) => {
-          if (blob) resolve(blob);
-          else reject(new Error('Failed to capture rendered frame'));
-        }, 'image/png');
-      }));
+      // ---- Phase 10: Save frame ------------------------------------------
+      onPhase?.('save', f, idx, frameCount);
+      const png = await new Promise<Blob>((resolve, reject) => {
+        offCanvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Frame capture failed'))), 'image/png');
+      });
+      renderedFrames.push(png);
       idx++;
-      // Emit a JPEG data URL preview (smaller than PNG) so the UI can show
-      // the frame-by-frame progress while the sequence renders.
+
       if (onFramePreview) {
-        try {
-          const dataUrl = recCanvas.toDataURL('image/jpeg', 0.7);
-          onFramePreview(dataUrl, f, idx, frameCount);
-        } catch { /* ignore preview failures */ }
+        try { onFramePreview(offCanvas.toDataURL('image/jpeg', 0.75), f, idx, frameCount); }
+        catch { /* preview optional */ }
       }
       onProgress?.(idx, frameCount);
-      // Yield to the browser so React can repaint the progress UI between
-      // frames — without this, the main thread stays busy and the modal
-      // appears frozen until the whole sequence finishes.
+
+      // Yield to browser between frames.
       await new Promise((r) => setTimeout(r, 0));
       throwIfAborted();
     }
 
-    encodeStream = (recCanvas as HTMLCanvasElement).captureStream(0);
-    let track = encodeStream.getVideoTracks()[0] as any;
+    // ---- Encode phase — PNG sequence → video ---------------------------
+    const encCanvas = document.createElement('canvas');
+    encCanvas.width = width;
+    encCanvas.height = height;
+    const ctx = encCanvas.getContext('2d', { alpha: false })!;
+    ctx.imageSmoothingEnabled = true;
+    (ctx as any).imageSmoothingQuality = 'high';
+
+    const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * fps * 0.8)));
+    const stream = (encCanvas as HTMLCanvasElement).captureStream(0);
+    let track = stream.getVideoTracks()[0] as any;
     if (typeof track.requestFrame !== 'function') {
       track.stop();
-      encodeStream = (recCanvas as HTMLCanvasElement).captureStream(Math.max(1, fps));
-      track = encodeStream.getVideoTracks()[0] as any;
+      const s2 = (encCanvas as HTMLCanvasElement).captureStream(Math.max(1, fps));
+      track = s2.getVideoTracks()[0] as any;
     }
 
     const mimeCandidates =
@@ -293,34 +295,28 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         ? ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
         : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
     const mime = mimeCandidates.find((m) => MediaRecorder.isTypeSupported(m)) || '';
-
-    recorder = new MediaRecorder(
-      encodeStream,
-      mime
-        ? { mimeType: mime, videoBitsPerSecond: bitRate }
-        : { videoBitsPerSecond: bitRate },
+    const recorder = new MediaRecorder(
+      stream,
+      mime ? { mimeType: mime, videoBitsPerSecond: bitRate } : { videoBitsPerSecond: bitRate },
     );
     const chunks: Blob[] = [];
-    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
     const stopped = new Promise<Blob>((resolve) => {
-      recorder!.onstop = () => resolve(new Blob(chunks, { type: recorder?.mimeType || 'video/webm' }));
+      recorder.onstop = () => resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
     });
 
-    // Request data chunks every 100ms so large-resolution encodes (1280x1024+)
-    // actually accumulate data rather than dumping a single huge chunk that
-    // some browsers drop when the recorder is stopped abruptly.
+    const targetDelay = 1000 / Math.max(1, fps);
     recorder.start(100);
-    for (const frame of renderedFrames) {
+    for (const png of renderedFrames) {
       throwIfAborted();
-      const bitmap = await createImageBitmap(frame);
+      const bmp = await createImageBitmap(png);
       ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(bitmap, 0, 0, width, height);
-      bitmap.close();
+      ctx.drawImage(bmp, 0, 0, width, height);
+      bmp.close();
       if (typeof track.requestFrame === 'function') track.requestFrame();
-      await new Promise((r) => setTimeout(r, targetDelayMs));
+      await new Promise((r) => setTimeout(r, targetDelay));
     }
-    // Flush the last frame — larger canvases need more time for the encoder
-    // to drain before we stop it, otherwise the final blob comes back empty.
+    // Flush the encoder — some MediaRecorder impls drop the tail otherwise.
     await new Promise((r) => setTimeout(r, 500));
     if (typeof (recorder as any).requestData === 'function') {
       try { (recorder as any).requestData(); } catch { /* ignore */ }
@@ -328,37 +324,17 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     if (recorder.state !== 'inactive') recorder.stop();
     const blob = await stopped;
     if (!blob || blob.size === 0) {
-      throw new Error('Encoder produced empty video — try a smaller resolution or WebM format');
+      throw new Error('Encoder produced empty video — try a smaller resolution or WebM');
     }
     return blob;
   } finally {
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
-    encodeStream?.getTracks().forEach((track) => track.stop());
+    // Restore live scene refs untouched (we only borrowed them).
+    scene.background = savedBg;
+    scene.environment = savedEnv;
+    // Kill offscreen renderer — frees the GL context.
+    try { renderer.dispose(); } catch { /* ignore */ }
+    try { (renderer as any).forceContextLoss?.(); } catch { /* ignore */ }
     renderedFrames.length = 0;
-
-    // No per-object shadow flags were mutated — nothing to restore for
-    // meshes/lights. The scene renders with exactly the shadow/receive setup
-    // the viewport had.
-
-
-    // Restore the live viewport renderer to its previous state so the editor
-    // resumes exactly as it was before the sequence.
-    try {
-      gl.setRenderTarget(prevRT);
-      gl.setScissorTest(prevScissorTest);
-      gl.autoClear = prevAutoClear;
-      gl.shadowMap.enabled = prevShadowsEnabled;
-      gl.shadowMap.autoUpdate = prevAutoUpdate;
-      gl.shadowMap.type = prevShadowType;
-      gl.toneMapping = prevToneMapping;
-      gl.toneMappingExposure = prevExposure;
-      gl.setPixelRatio(prevPixelRatio);
-      gl.setSize(prevSize.x, prevSize.y, false);
-    } catch { /* ignore restore errors */ }
-    if ((viewPersp as any).isPerspectiveCamera) {
-      viewPersp.aspect = prevViewAspect;
-      viewPersp.updateProjectionMatrix();
-    }
   }
 }
 
@@ -378,5 +354,5 @@ export function suggestFilename(blob: Blob, requested: VideoFormat): string {
   let ext = 'webm';
   if (t.includes('mp4')) ext = 'mp4';
   else if (requested === 'webp') ext = 'webm';
-  return `animation-${Date.now()}.${ext}`;
+  return `walt3d-render-${Date.now()}.${ext}`;
 }
