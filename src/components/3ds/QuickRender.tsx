@@ -1,11 +1,73 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, RefreshCw, Sparkles } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Download, RefreshCw, Sparkles, Pause, Play, X, EyeOff } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { getViewportHandle } from './r3/viewportRegistry';
 import { ENGINES, RenderEngine, useRenderEngine } from './r3/RenderEngineContext';
 import { cn } from '@/lib/utils';
+
+/** 3ds Max style pipeline phases with weighted percentages (sum = 100). */
+const RENDER_PHASES: { key: string; label: string; weight: number }[] = [
+  { key: 'parse', label: 'Parsing Scene...', weight: 6 },
+  { key: 'modifiers', label: 'Evaluating Modifier Stack...', weight: 8 },
+  { key: 'tri', label: 'Triangulating Meshes...', weight: 6 },
+  { key: 'bvh', label: 'Building BVH / Spatial Acceleration...', weight: 10 },
+  { key: 'materials', label: 'Preparing Materials & Textures...', weight: 8 },
+  { key: 'lights', label: 'Building Lights...', weight: 6 },
+  { key: 'shadows', label: 'Calculating Shadow Maps...', weight: 12 },
+  { key: 'gi', label: 'Rendering Global Illumination...', weight: 10 },
+  { key: 'raster', label: 'Rendering Scanlines...', weight: 20 },
+  { key: 'refl', label: 'Reflections / Refractions...', weight: 6 },
+  { key: 'aa', label: 'Applying Anti-Aliasing...', weight: 5 },
+  { key: 'denoise', label: 'Denoising...', weight: 2 },
+  { key: 'save', label: 'Saving Frame Buffer...', weight: 1 },
+];
+
+const fmtTime = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+};
+
+interface SceneStats {
+  objects: number;
+  polygons: number;
+  textures: number;
+  lights: number;
+  ram: string;
+}
+
+const gatherSceneStats = (scene: THREE.Scene): SceneStats => {
+  let objects = 0;
+  let polygons = 0;
+  let lights = 0;
+  const texSet = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    if ((o as any).isMesh) {
+      objects++;
+      const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+      if (g) {
+        const idx = g.index ? g.index.count : g.attributes.position?.count ?? 0;
+        polygons += Math.floor(idx / 3);
+      }
+      const mats = ([] as THREE.Material[]).concat((o as THREE.Mesh).material as any);
+      mats.forEach((m: any) => {
+        if (!m) return;
+        ['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap','bumpMap','displacementMap']
+          .forEach((k) => { if (m[k] && m[k].isTexture) texSet.add(m[k]); });
+      });
+    }
+    if ((o as any).isLight) lights++;
+  });
+  const perf = (performance as any).memory;
+  const ram = perf?.usedJSHeapSize
+    ? `${(perf.usedJSHeapSize / (1024 * 1024)).toFixed(1)} MB`
+    : '—';
+  return { objects, polygons, textures: texSet.size, lights, ram };
+};
 
 interface QuickRenderProps {
   open: boolean;
@@ -133,6 +195,8 @@ const doOfflineRender = async (
 
 type Mode = 'standard' | 'ai';
 
+interface PhaseLog { key: string; label: string; done: boolean; }
+
 export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderProps) => {
   const [image, setImage] = useState<string | null>(null);
   const [refRender, setRefRender] = useState<{ dataUrl: string; width: number; height: number } | null>(null);
@@ -141,12 +205,98 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
   const { engine, setEngine } = useRenderEngine();
   const [prompt, setPrompt] = useState('a modern building');
 
+  // ------ 3ds Max-style progress state ------
+  const [progress, setProgress] = useState(0);
+  const [phases, setPhases] = useState<PhaseLog[]>([]);
+  const [currentPhase, setCurrentPhase] = useState<string>('');
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [remainingMs, setRemainingMs] = useState(0);
+  const [stats, setStats] = useState<SceneStats>({ objects: 0, polygons: 0, textures: 0, lights: 0, ram: '—' });
+  const [background, setBackground] = useState(false);
+  const cancelRef = useRef(false);
+  const pausedRef = useRef(false);
+  const [paused, setPaused] = useState(false);
+  const startRef = useRef(0);
+
+  const waitWhilePaused = async () => {
+    while (pausedRef.current && !cancelRef.current) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  };
+
+  const runPipeline = async (doRender: () => Promise<any>) => {
+    cancelRef.current = false;
+    pausedRef.current = false;
+    setPaused(false);
+    setPhases(RENDER_PHASES.map((p) => ({ key: p.key, label: p.label, done: false })));
+    setCurrentPhase(RENDER_PHASES[0].label);
+    setProgress(0);
+    setElapsedMs(0);
+    setRemainingMs(0);
+    startRef.current = performance.now();
+
+    // Snapshot scene stats up front so the panel matches 3ds Max
+    const handle = getViewportHandle('perspective') ?? getViewportHandle();
+    if (handle) setStats(gatherSceneStats(handle.scene));
+
+    const totalWeight = RENDER_PHASES.reduce((a, p) => a + p.weight, 0);
+    let acc = 0;
+    let renderResult: any = null;
+
+    for (let i = 0; i < RENDER_PHASES.length; i++) {
+      if (cancelRef.current) break;
+      const phase = RENDER_PHASES[i];
+      setCurrentPhase(phase.label);
+      await waitWhilePaused();
+
+      // Do the actual render on the rasterization phase; the surrounding
+      // phases are visual instrumentation of what the pipeline is doing.
+      if (phase.key === 'raster') {
+        renderResult = await doRender();
+      } else {
+        // simulate work: a few small ticks so the bar animates smoothly
+        const ticks = 4;
+        for (let t = 0; t < ticks; t++) {
+          if (cancelRef.current) break;
+          await waitWhilePaused();
+          await new Promise((r) => setTimeout(r, 30 + Math.random() * 60));
+          const partial = acc + (phase.weight * (t + 1)) / ticks;
+          const pct = Math.min(99, (partial / totalWeight) * 100);
+          setProgress(pct);
+          const now = performance.now();
+          const el = now - startRef.current;
+          setElapsedMs(el);
+          if (pct > 1) setRemainingMs((el / pct) * (100 - pct));
+        }
+      }
+      acc += phase.weight;
+      const pct = Math.min(100, (acc / totalWeight) * 100);
+      setProgress(pct);
+      setPhases((prev) => prev.map((p) => (p.key === phase.key ? { ...p, done: true } : p)));
+      const now = performance.now();
+      const el = now - startRef.current;
+      setElapsedMs(el);
+      if (pct > 1 && pct < 100) setRemainingMs((el / pct) * (100 - pct));
+    }
+
+    if (!cancelRef.current) {
+      setProgress(100);
+      setRemainingMs(0);
+      setCurrentPhase('Done.');
+    } else {
+      setCurrentPhase('Cancelled.');
+    }
+    return renderResult;
+  };
+
   const render = async (eng: RenderEngine = engine) => {
     setRendering(true);
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const res = await doOfflineRender(eng, width, height);
-      if (res) {
+      const res = await runPipeline(async () => {
+        return await doOfflineRender(eng, width, height);
+      });
+      if (res && !cancelRef.current) {
         setRefRender(res);
         setImage(res.dataUrl);
       }
@@ -169,43 +319,47 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
     if (!prompt.trim()) return;
     setRendering(true);
     try {
-      // Always take a fresh render so the reference matches the current scene.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const ref = await doOfflineRender(engine, width, height);
-      if (!ref) throw new Error('No viewport render available');
-      setRefRender(ref);
+      const aiResult = await runPipeline(async () => {
+        const ref = await doOfflineRender(engine, width, height);
+        if (!ref) throw new Error('No viewport render available');
+        setRefRender(ref);
 
-      const refFile = await dataUrlToFile(ref.dataUrl, `viewport-${Date.now()}.png`);
-      const enginePreset = ENGINES[engine];
-      const enrichedPrompt =
-        `${prompt.trim()}, ${enginePreset.aiStyle}, highly detailed, photorealistic. ` +
-        `Use the input image as a strict compositional reference: keep object positions, proportions, ` +
-        `silhouettes, camera angle and perspective, replacing the primitive shapes with the described subject.`;
+        const refFile = await dataUrlToFile(ref.dataUrl, `viewport-${Date.now()}.png`);
+        const enginePreset = ENGINES[engine];
+        const enrichedPrompt =
+          `${prompt.trim()}, ${enginePreset.aiStyle}, highly detailed, photorealistic. ` +
+          `Use the input image as a strict compositional reference: keep object positions, proportions, ` +
+          `silhouettes, camera angle and perspective, replacing the primitive shapes with the described subject.`;
 
-      const formData = new FormData();
-      formData.append('image', refFile);
-      formData.append('prompt', enrichedPrompt);
-      formData.append('model', 'nanobanana-pro');
+        const formData = new FormData();
+        formData.append('image', refFile);
+        formData.append('prompt', enrichedPrompt);
+        formData.append('model', 'nanobanana-pro');
 
-      const resp = await fetch('https://gen.pollinations.ai/v1/images/edits', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${POLLINATIONS_API_KEY}` },
-        body: formData,
+        const resp = await fetch('https://gen.pollinations.ai/v1/images/edits', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${POLLINATIONS_API_KEY}` },
+          body: formData,
+        });
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => '');
+          throw new Error(`Pollinations ${resp.status}: ${errText}`);
+        }
+        const data = await resp.json();
+        const imgUrl: string | undefined = data?.data?.[0]?.url ?? data?.data?.[0]?.b64_json;
+        if (!imgUrl) throw new Error('Pollinations response missing image data');
+        return imgUrl;
       });
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => '');
-        throw new Error(`Pollinations ${resp.status}: ${errText}`);
-      }
-      const data = await resp.json();
-      const imgUrl: string | undefined = data?.data?.[0]?.url ?? data?.data?.[0]?.b64_json;
-      if (!imgUrl) throw new Error('Pollinations response missing image data');
-      if (imgUrl.startsWith('http')) {
-        setImage(imgUrl);
-      } else {
-        setImage(`data:image/png;base64,${imgUrl}`);
+      if (aiResult && !cancelRef.current) {
+        if (typeof aiResult === 'string') {
+          if (aiResult.startsWith('http')) setImage(aiResult);
+          else setImage(`data:image/png;base64,${aiResult}`);
+        }
       }
     } catch (e) {
       console.error('Render AI failed', e);
+      setCurrentPhase(`Error: ${(e as Error).message}`);
     } finally {
       setRendering(false);
     }
@@ -214,6 +368,7 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
   useEffect(() => {
     if (open) {
       setMode('standard');
+      setBackground(false);
       render(engine);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,14 +382,27 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
     a.click();
   };
 
+  const handleCancel = () => {
+    cancelRef.current = true;
+    pausedRef.current = false;
+    setPaused(false);
+  };
+
+  const togglePause = () => {
+    pausedRef.current = !pausedRef.current;
+    setPaused(pausedRef.current);
+    if (!pausedRef.current) setCurrentPhase((c) => c.replace(' (Paused)', ''));
+    else setCurrentPhase((c) => (c.includes('(Paused)') ? c : `${c} (Paused)`));
+  };
+
   const currentPreset = ENGINES[engine];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="quick-render-dialog max-w-none w-[min(48rem,calc(100vw-2rem))] bg-panel border-panel-border overflow-hidden">
+    <Dialog open={open && !background} onOpenChange={(o) => { if (!o) { handleCancel(); onOpenChange(false); } }}>
+      <DialogContent className="quick-render-dialog max-w-none w-[min(60rem,calc(100vw-2rem))] bg-panel border-panel-border overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between pr-8 gap-2">
-            <span>Rendered Frame Window</span>
+            <span>Rendered Frame Window — {currentPreset.label}</span>
             <div className="flex gap-2 items-center">
               <div className="flex bevel-inset bg-win-face text-[11px]">
                 <button
@@ -292,7 +460,6 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
           </div>
         </div>
 
-
         {mode === 'ai' && (
           <div className="flex items-center gap-2 text-[11px]">
             <label className="whitespace-nowrap">Prompt:</label>
@@ -306,29 +473,122 @@ export const QuickRender = ({ open, onOpenChange, width, height }: QuickRenderPr
           </div>
         )}
 
-        <div className="quick-render-preview bg-black rounded border border-panel-border overflow-hidden grid place-items-center min-h-[400px] w-full min-w-0">
-          {rendering ? (
-            <span className="text-muted-foreground text-sm">
-              {mode === 'ai'
-                ? `Generating with AI (${currentPreset.label} style)...`
-                : `Rendering with ${currentPreset.label}...`}
-            </span>
-          ) : image ? (
-            <img
-              src={image}
-              alt="Rendered viewport"
-              className="quick-render-image block w-auto h-auto max-w-full max-h-[70vh] mx-auto justify-self-center self-center"
-              style={{ filter: currentPreset.cssFilter }}
-            />
-          ) : (
-            <span className="text-muted-foreground text-sm">No render yet</span>
-          )}
+        {/* Preview + Progress side-by-side on wider screens */}
+        <div className="grid gap-2 grid-cols-1 md:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="quick-render-preview bg-black rounded border border-panel-border overflow-hidden grid place-items-center min-h-[400px] w-full min-w-0">
+            {image ? (
+              <img
+                src={image}
+                alt="Rendered viewport"
+                className="quick-render-image block w-auto h-auto max-w-full max-h-[70vh] mx-auto justify-self-center self-center"
+                style={{ filter: currentPreset.cssFilter }}
+              />
+            ) : (
+              <span className="text-muted-foreground text-sm">
+                {rendering ? 'Preparing frame buffer...' : 'No render yet'}
+              </span>
+            )}
+          </div>
+
+          {/* Rendering Progress Panel — 3ds Max style */}
+          <div className="bevel-inset bg-win-face p-2 text-[11px] flex flex-col gap-2 min-w-0">
+            <div className="font-semibold border-b border-panel-border pb-1">
+              WaltRender Progress
+            </div>
+
+            {/* Phase log */}
+            <div className="bevel-inset bg-white h-[130px] overflow-y-auto font-mono text-[10.5px] leading-[14px] px-1.5 py-1">
+              {phases.length === 0 ? (
+                <div className="text-muted-foreground">Idle.</div>
+              ) : (
+                phases.map((p) => (
+                  <div key={p.key} className={p.done ? 'text-foreground' : 'text-muted-foreground'}>
+                    {p.done ? '✓' : '·'} {p.label}
+                  </div>
+                ))
+              )}
+              {currentPhase && rendering && (
+                <div className="text-primary font-semibold mt-1">▶ {currentPhase}</div>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            <div>
+              <div className="bevel-inset bg-white h-3 w-full overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-[width] duration-100"
+                  style={{ width: `${progress.toFixed(1)}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-0.5">
+                <span>{progress.toFixed(0)}%</span>
+                <span className="text-muted-foreground">
+                  {width && height ? `${width}×${height}` : 'viewport'}
+                </span>
+              </div>
+            </div>
+
+            {/* Time */}
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              <span className="text-muted-foreground">Elapsed:</span>
+              <span className="font-mono">{fmtTime(elapsedMs)}</span>
+              <span className="text-muted-foreground">Remaining:</span>
+              <span className="font-mono">{fmtTime(remainingMs)}</span>
+            </div>
+
+            {/* Scene stats */}
+            <div className="border-t border-panel-border pt-1 grid grid-cols-2 gap-x-2 gap-y-0.5">
+              <span className="text-muted-foreground">Objects:</span>
+              <span className="font-mono text-right">{stats.objects}</span>
+              <span className="text-muted-foreground">Polygons:</span>
+              <span className="font-mono text-right">{stats.polygons.toLocaleString()}</span>
+              <span className="text-muted-foreground">Textures:</span>
+              <span className="font-mono text-right">{stats.textures}</span>
+              <span className="text-muted-foreground">Lights:</span>
+              <span className="font-mono text-right">{stats.lights}</span>
+              <span className="text-muted-foreground">RAM:</span>
+              <span className="font-mono text-right">{stats.ram}</span>
+            </div>
+
+            {/* Controls */}
+            <div className="flex gap-1 mt-auto pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-6 text-[10px] px-1"
+                onClick={togglePause}
+                disabled={!rendering}
+              >
+                {paused ? <Play className="w-3 h-3 mr-1" /> : <Pause className="w-3 h-3 mr-1" />}
+                {paused ? 'Resume' : 'Pause'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-6 text-[10px] px-1"
+                onClick={handleCancel}
+                disabled={!rendering}
+              >
+                <X className="w-3 h-3 mr-1" /> Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 h-6 text-[10px] px-1"
+                onClick={() => setBackground(true)}
+                disabled={!rendering}
+                title="Hide window — render continues in the background"
+              >
+                <EyeOff className="w-3 h-3 mr-1" /> Hide
+              </Button>
+            </div>
+          </div>
         </div>
 
         <p className="text-[10px] text-muted-foreground">
           {mode === 'ai'
             ? `Render AI uses Pollinations with the ${currentPreset.label} style guiding tone, lighting and materials; the current render is used as strict compositional reference.`
-            : `${currentPreset.label} preset: tone mapping + exposure + color response tuned to match the engine's signature look.`}
+            : `${currentPreset.label} preset: tone mapping + exposure + color response tuned to match the engine's signature look. Pipeline phases mirror the 3ds Max Rendering Progress dialog.`}
         </p>
       </DialogContent>
     </Dialog>
