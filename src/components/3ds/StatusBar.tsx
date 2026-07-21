@@ -541,29 +541,23 @@ export const StatusBar = ({
         </div>
       </div>
 
-      {/* Auto Key + Set Key */}
-      <button
-        onClick={onToggleAutoKey}
-        title="Auto Key toggle (N)"
-        className={cn(
-          'px-2 text-[11px]',
-          autoKey ? 'bevel-sunken bg-red-600 text-white' : 'bevel-raised'
-        )}
-      >
-        Auto Key
-      </button>
+      {/* Track Timeline toggle (replaces Auto Key) + Set Key */}
+      {onToggleTimeline && (
+        <button
+          onClick={onToggleTimeline}
+          title={timelineVisible ? 'Hide Track Timeline' : 'Show Track Timeline'}
+          className={cn(
+            'px-2 text-[11px] flex items-center gap-1',
+            timelineVisible ? 'bevel-sunken bg-primary text-primary-foreground' : 'bevel-raised'
+          )}
+        >
+          {timelineVisible ? <ChevronsDown size={12} /> : <ChevronsUp size={12} />}
+          Track Timeline
+        </button>
+      )}
       <Tool title="Set Key (K)" onClick={onSetKey}>
         <Key size={12} />
       </Tool>
-      {onToggleTimeline && (
-        <Tool
-          title={timelineVisible ? 'Hide Timeline' : 'Show Timeline'}
-          onClick={onToggleTimeline}
-          active={timelineVisible}
-        >
-          {timelineVisible ? <ChevronsDown size={12} /> : <ChevronsUp size={12} />}
-        </Tool>
-      )}
 
 
 
