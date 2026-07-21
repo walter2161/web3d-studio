@@ -2598,6 +2598,11 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           distance={attenDistance}
           decay={decay}
           castShadow={!!ld.castShadow}
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-bias={-0.0005}
+          shadow-camera-near={0.1}
+          shadow-camera-far={attenDistance || 50}
         />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <sphereGeometry args={[0.2, 10, 6]} />
@@ -2630,6 +2635,11 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           castShadow={!!ld.castShadow}
           position={[0, 0, 0]}
           map={projectorMap ?? undefined}
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-bias={-0.0005}
+          shadow-camera-near={0.1}
+          shadow-camera-far={Math.max(dist * 1.5, 20)}
         />
         <object3D ref={spotTargetRef} position={[0, 0, -1]} />
         {/* Falloff cone (outer, soft) */}
@@ -2664,6 +2674,15 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           intensity={directIntensity}
           castShadow={!!ld.castShadow}
           position={[0, 0, 0]}
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-bias={-0.0005}
+          shadow-camera-near={0.1}
+          shadow-camera-far={Math.max(dist * 2, 80)}
+          shadow-camera-left={-Math.max(dist, 20)}
+          shadow-camera-right={Math.max(dist, 20)}
+          shadow-camera-top={Math.max(dist, 20)}
+          shadow-camera-bottom={-Math.max(dist, 20)}
         />
         <object3D ref={directTargetRef} position={[0, 0, -1]} />
         {/* Ray helper along -Z */}

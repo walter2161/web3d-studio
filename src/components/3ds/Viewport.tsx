@@ -290,6 +290,7 @@ export const Viewport = ({
       <Canvas
         key={`${view}-${orthographic ? 'ortho' : 'persp'}`}
         ref={canvasRef}
+        shadows="soft"
         camera={{
           position: cameraPosition,
           up: cameraUp,
@@ -307,6 +308,7 @@ export const Viewport = ({
           gl.setClearColor(env.backgroundColor);
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.shadowMap.autoUpdate = true;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1;
           gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -330,7 +332,7 @@ export const Viewport = ({
           fogNear={env.fogNear}
           fogFar={env.fogFar}
         />
-        <ambientLight color={env.ambient} intensity={(hasActiveSceneLights ? 0.08 : env.ambientIntensity) * env.level} />
+        <ambientLight color={env.ambient} intensity={(hasActiveSceneLights ? 0.25 : env.ambientIntensity) * env.level} />
         {!hasActiveSceneLights && (
           <>
             <directionalLight
