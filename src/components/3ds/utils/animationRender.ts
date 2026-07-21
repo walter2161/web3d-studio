@@ -310,21 +310,10 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
     encodeStream?.getTracks().forEach((track) => track.stop());
     renderedFrames.length = 0;
 
-    // Restore scene state.
-    meshTouched.forEach(({ mesh, cast, receive }) => {
+    // No per-object shadow flags were mutated — nothing to restore for
+    // meshes/lights. The scene renders with exactly the shadow/receive setup
+    // the viewport had.
 
-      mesh.castShadow = cast;
-      mesh.receiveShadow = receive;
-    });
-    lightTouched.forEach(({ light, cast }) => {
-      light.castShadow = cast;
-    });
-    lightTouched.forEach(({ light, mapW, mapH, bias, normalBias }) => {
-      if (!light.shadow) return;
-      if (typeof mapW === 'number' && typeof mapH === 'number') light.shadow.mapSize.set(mapW, mapH);
-      if (typeof bias === 'number') light.shadow.bias = bias;
-      if (typeof normalBias === 'number') light.shadow.normalBias = normalBias;
-    });
 
     // Restore the live viewport renderer to its previous state so the editor
     // resumes exactly as it was before the sequence.
