@@ -498,6 +498,7 @@ export const RenderSetup = ({
                   resolveCameraPose,
                   signal: abort.signal,
                   onProgress: (done, total) => setProgress({ done, total }),
+                  onPhase: (phase) => setCurrentPhase(phase),
                   onFramePreview: (dataUrl, frame) => {
                     setFramePreview(dataUrl);
                     setCurrentRenderFrame(frame);
