@@ -2598,6 +2598,11 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           distance={attenDistance}
           decay={decay}
           castShadow={!!ld.castShadow}
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-bias={-0.0005}
+          shadow-camera-near={0.1}
+          shadow-camera-far={attenDistance || 50}
         />
         <mesh userData={{ __helper: true }} onClick={(e) => { e.stopPropagation(); selectFromEvent(e); }}>
           <sphereGeometry args={[0.2, 10, 6]} />
