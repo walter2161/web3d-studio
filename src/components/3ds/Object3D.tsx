@@ -975,13 +975,18 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
           geom.radialSegments || 32,
           geom.heightSegments || 1
         );
-      case 'torus':
-        return new THREE.TorusGeometry(
+      case 'torus': {
+        // 3ds Max Torus lies flat on the ground (ring in XZ plane, axis = +Y).
+        // Three's TorusGeometry lies in XY (axis = +Z), so rotate -90° around X.
+        const torusGeom = new THREE.TorusGeometry(
           geom.radius || 0.5,
           geom.tube || 0.2,
           geom.radialSegments || 16,
           geom.tubularSegments || 100
         );
+        torusGeom.rotateX(-Math.PI / 2);
+        return torusGeom;
+      }
       case 'plane': {
         const planeGeom = new THREE.PlaneGeometry(
           geom.width || 1,
