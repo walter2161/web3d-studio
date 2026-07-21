@@ -494,21 +494,51 @@ export const StatusBar = ({
 
   return (
     <div className="bevel-raised px-1 py-1 flex items-stretch gap-1 text-win-text">
-      {/* Prompt / status text (left) */}
-      <div className="bevel-sunken bg-white flex-1 min-w-[220px] px-2 flex items-center text-[11px]">
-        {prompt}
-      </div>
-
-      {/* Coordinate display X / Y / Z */}
-      <div className="bevel-sunken bg-win-face flex items-center gap-2 px-2">
-        <NumFieldStr label="X:" text={fmt(x)} />
-        <NumFieldStr label="Y:" text={fmt(y)} />
-        <NumFieldStr label="Z:" text={fmt(z)} />
-      </div>
-
-      {/* Grid readout */}
-      <div className="bevel-sunken bg-win-face flex items-center px-2 text-[11px]">
-        Grid = {gridSpacing.toFixed(1)}{suffix}
+      {/* Simplified timeline (replaces the old name/coordinates readout).
+          Transport controls + scrubber + frame counter + loop toggle. */}
+      <div className="bevel-sunken bg-win-face flex-1 min-w-[260px] flex items-center gap-1 px-1">
+        <Tool title="Go to Start" onClick={() => onFrameChange(0)}>
+          <SkipBack size={12} />
+        </Tool>
+        <Tool title="Previous Frame" onClick={() => onFrameChange(Math.max(0, currentFrame - 1))}>
+          <ChevronLeft size={12} />
+        </Tool>
+        <Tool
+          title={isPlaying ? 'Pause' : 'Play'}
+          active={isPlaying}
+          onClick={isPlaying ? onPause : onPlay}
+        >
+          {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+        </Tool>
+        <Tool title="Stop" onClick={onStop}>
+          <Square size={12} />
+        </Tool>
+        <Tool title="Next Frame" onClick={() => onFrameChange(Math.min(totalFrames, currentFrame + 1))}>
+          <ChevronRight size={12} />
+        </Tool>
+        <Tool title="Go to End" onClick={() => onFrameChange(totalFrames)}>
+          <SkipForward size={12} />
+        </Tool>
+        <Tool
+          title={loopPlayback ? 'Loop: On' : 'Loop: Off'}
+          active={loopPlayback}
+          onClick={onToggleLoopPlayback}
+        >
+          <Repeat size={12} />
+        </Tool>
+        <input
+          type="range"
+          min={0}
+          max={totalFrames}
+          step={1}
+          value={currentFrame}
+          onChange={(e) => onFrameChange(Number(e.target.value))}
+          className="flex-1 h-[14px] mx-1 accent-[hsl(var(--primary))]"
+          title="Scrub timeline"
+        />
+        <div className="bevel-sunken bg-white h-[18px] px-1 flex items-center min-w-[64px] text-[11px] font-mono text-win-text justify-end">
+          {currentFrame} / {totalFrames}
+        </div>
       </div>
 
       {/* Auto Key + Set Key */}
@@ -534,6 +564,7 @@ export const StatusBar = ({
           {timelineVisible ? <ChevronsDown size={12} /> : <ChevronsUp size={12} />}
         </Tool>
       )}
+
 
 
 
