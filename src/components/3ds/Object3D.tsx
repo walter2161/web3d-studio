@@ -2635,6 +2635,11 @@ const EntityRenderer = ({ object, isSelected, onSelect, meshRef, targetLookup, i
           castShadow={!!ld.castShadow}
           position={[0, 0, 0]}
           map={projectorMap ?? undefined}
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-bias={-0.0005}
+          shadow-camera-near={0.1}
+          shadow-camera-far={Math.max(dist * 1.5, 20)}
         />
         <object3D ref={spotTargetRef} position={[0, 0, -1]} />
         {/* Falloff cone (outer, soft) */}
