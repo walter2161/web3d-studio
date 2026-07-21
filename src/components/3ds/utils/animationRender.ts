@@ -176,7 +176,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   };
 
   const waitForSceneCommit = () => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    // Five RAFs + a small timeout — enough for React commit, R3F ref sync,
+    // OrbitControls damping, animation mixers, and any onBeforeRender hooks
+    // to fully settle before we capture the frame.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => setTimeout(() => resolve(), 32))))));
   });
 
   // Force the live viewport camera's aspect to match the requested output so
@@ -204,19 +211,38 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
         if (pose) { applyPose(pose); renderTarget = renderCam; }
       }
 
-      // Hide editor overlays freshly right before the render so any helpers
-      // React just re-mounted for this frame are also hidden, then restore
-      // immediately so the viewport stays fully usable between frames.
       // Advance imported-model AnimationMixers to this exact frame so
       // GLB/FBX skeletal animation isn't frozen in the render.
       syncImportedMixers(f);
       const hiddenForFrame = hideEditorOverlays();
       try {
         gl.setRenderTarget(null);
-        // Force shadow maps to refresh every frame so animated objects and
-        // lights get correct shadows on subsequent renders (three.js reuses
-        // cached shadow maps otherwise, leading to missing/stale shadows).
+
+        // Force EVERY light's shadow map to recompute this frame. Without
+        // touching each light individually three.js keeps stale shadow maps
+        // even when gl.shadowMap.needsUpdate is set, which is exactly why
+        // the sequence looked flat/unlit compared to the live viewport.
+        scene.traverse((obj) => {
+          const l = obj as THREE.Light & { shadow?: THREE.LightShadow };
+          if ((l as any).isLight && l.shadow) {
+            l.shadow.needsUpdate = true;
+          }
+        });
         gl.shadowMap.needsUpdate = true;
+
+        // Warmup pass — three.js needs one full render to (re)build shadow
+        // maps and material programs before the beauty pass captures
+        // correctly at the supersampled render resolution.
+        gl.render(scene, renderTarget);
+        // Give the GPU a beat to finish the shadow pass before the final
+        // beauty render — this is what makes shadows/GI actually show up
+        // in the recorded frame instead of looking like a fast preview.
+        await new Promise((r) => setTimeout(r, 16));
+        gl.shadowMap.needsUpdate = true;
+        scene.traverse((obj) => {
+          const l = obj as THREE.Light & { shadow?: THREE.LightShadow };
+          if ((l as any).isLight && l.shadow) l.shadow.needsUpdate = true;
+        });
         gl.render(scene, renderTarget);
       } finally {
         hiddenForFrame.forEach((o) => { o.visible = true; });
