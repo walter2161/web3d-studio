@@ -322,6 +322,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
       gl.setScissorTest(prevScissorTest);
       gl.autoClear = prevAutoClear;
       gl.shadowMap.enabled = prevShadowsEnabled;
+      gl.shadowMap.autoUpdate = prevAutoUpdate;
       gl.shadowMap.type = prevShadowType;
       gl.toneMapping = prevToneMapping;
       gl.toneMappingExposure = prevExposure;
