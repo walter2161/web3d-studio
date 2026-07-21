@@ -495,10 +495,13 @@ export const RenderSetup = ({
               }
 
               setRendering(true);
+              setSeqBackground(false);
               setProgress({ done: 0, total: 0 });
               setFramePreview(null);
               setCurrentRenderFrame(from);
               setRenderStartTs(performance.now());
+              const handleVP = getViewportHandle('perspective') ?? getViewportHandle();
+              if (handleVP) setSeqStats(gatherSceneStats(handleVP.scene));
               const abort = new AbortController();
               renderAbortRef.current = abort;
               const toastId = toast.loading('Rendering animation…');
