@@ -117,7 +117,39 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   gl.shadowMap.type = prevShadowType || THREE.PCFSoftShadowMap;
   gl.shadowMap.needsUpdate = true;
 
+  // Recording canvas at the requested output resolution.
+  const recCanvas = document.createElement('canvas');
+  recCanvas.width = width;
+  recCanvas.height = height;
+  const ctx = recCanvas.getContext('2d', { alpha: false })!;
+  (ctx as any).imageSmoothingEnabled = true;
+  (ctx as any).imageSmoothingQuality = 'high';
 
+  // Dedicated render camera when a scene camera is chosen so we don't fight
+  // OrbitControls or R3F over the viewport camera.
+  const renderCam = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+
+  // Hide editor-only overlays (helpers, gizmos, selection wires, camera/light
+  // indicator geometry) right before each render and restore right after.
+  const hideEditorOverlays = (): THREE.Object3D[] => {
+    const hidden: THREE.Object3D[] = [];
+    scene.traverse((obj) => {
+      const ud: any = obj.userData || {};
+      const t = obj.type || '';
+      const isHelper =
+        t === 'GridHelper' || t === 'AxesHelper' || t === 'BoxHelper' ||
+        t === 'CameraHelper' || t === 'DirectionalLightHelper' || t === 'PointLightHelper' ||
+        t === 'SpotLightHelper' || t === 'PolarGridHelper' || t === 'HemisphereLightHelper' ||
+        t.endsWith('Helper');
+      const isTC = t === 'TransformControls' || (obj as any).isTransformControls;
+      const hidden_by_marker =
+        ud.__helper || ud.__selectionWire || isHelper || isTC;
+      if (hidden_by_marker) {
+        if (obj.visible) { hidden.push(obj); obj.visible = false; }
+      }
+    });
+    return hidden;
+  };
 
   const bitRate = Math.max(16_000_000, Math.min(60_000_000, Math.floor(width * height * Math.max(1, fps) * 0.8)));
   const frameCount = Math.max(1, Math.floor((to - from) / Math.max(1, step)) + 1);
@@ -125,6 +157,7 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   const renderedFrames: Blob[] = [];
   let encodeStream: MediaStream | null = null;
   let recorder: MediaRecorder | null = null;
+
 
   const applyPose = (pose: CameraPose) => {
     renderCam.position.set(pose.position[0], pose.position[1], pose.position[2]);
