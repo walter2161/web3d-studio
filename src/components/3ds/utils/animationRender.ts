@@ -176,7 +176,14 @@ export async function renderAnimation(opts: AnimationRenderOptions): Promise<Blo
   };
 
   const waitForSceneCommit = () => new Promise<void>((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    // Five RAFs + a small timeout — enough for React commit, R3F ref sync,
+    // OrbitControls damping, animation mixers, and any onBeforeRender hooks
+    // to fully settle before we capture the frame.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => setTimeout(() => resolve(), 32))))));
   });
 
   // Force the live viewport camera's aspect to match the requested output so
