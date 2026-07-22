@@ -507,7 +507,28 @@ const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }
   return null;
 };
 
+const ShadowEnableSync = ({ enabled }: { enabled: boolean }) => {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    gl.shadowMap.enabled = enabled;
+    gl.shadowMap.autoUpdate = enabled;
+    gl.shadowMap.needsUpdate = enabled;
+    // Drop cached shadow maps when disabling to release GPU memory.
+    if (!enabled) {
+      scene.traverse((obj) => {
+        const light = obj as THREE.Light & { shadow?: THREE.LightShadow };
+        if ((light as any).isLight && light.shadow?.map) {
+          light.shadow.map.dispose();
+          (light.shadow as any).map = null;
+        }
+      });
+    }
+  }, [enabled, gl, scene]);
+  return null;
+};
+
 const ShadowMapRefresh = ({ enabled }: { enabled: boolean }) => {
+
   const { scene, gl } = useThree();
   useFrame(() => {
     if (!enabled) return;
