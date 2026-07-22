@@ -160,11 +160,18 @@ export const Viewport = ({
       hasShadowCaster: standard.some((o) => o.lightData?.castShadow !== false),
     };
   }, [objects]);
+  // Wireframe / Bounding Box modes are unshaded — skip all lighting & shadow
+  // work to save GPU/memory. Only lit modes (solid, textured, edged, semi)
+  // participate in shadow maps and default fill lights.
+  const isLitMode = renderMode === 'solid' || renderMode === 'textured' || renderMode === 'edged' || renderMode === 'semi-transparent';
   const texturedShadowMode = renderMode === 'textured';
-  const showViewportDefaultLights = !activeLightState.hasStandard || (texturedShadowMode && !activeLightState.hasShadowCaster);
-  const viewportAmbientIntensity = texturedShadowMode
+  const showViewportDefaultLights = isLitMode && (!activeLightState.hasStandard || (texturedShadowMode && !activeLightState.hasShadowCaster));
+  const viewportAmbientIntensity = !isLitMode
+    ? 1.0
+    : texturedShadowMode
     ? (showViewportDefaultLights ? 0.12 : 0.08) * env.level
     : (activeLightState.hasAny ? 0.25 : env.ambientIntensity) * env.level;
+
 
   // F3 → toggle Wireframe, F4 → toggle Edged Faces (R3 shortcuts). Active viewport only.
   useEffect(() => {
@@ -302,7 +309,7 @@ export const Viewport = ({
       <Canvas
         key={`${view}-${orthographic ? 'ortho' : 'persp'}`}
         ref={canvasRef}
-        shadows="soft"
+        shadows={isLitMode ? 'soft' : false}
         camera={{
           position: cameraPosition,
           up: cameraUp,
@@ -318,9 +325,9 @@ export const Viewport = ({
         className="w-full h-full"
         onCreated={({ gl, scene }) => {
           gl.setClearColor(env.backgroundColor);
-          gl.shadowMap.enabled = true;
+          gl.shadowMap.enabled = isLitMode;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
-          gl.shadowMap.autoUpdate = true;
+          gl.shadowMap.autoUpdate = isLitMode;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1;
           gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -344,7 +351,8 @@ export const Viewport = ({
           fogNear={env.fogNear}
           fogFar={env.fogFar}
         />
-        <ShadowMapRefresh enabled={texturedShadowMode} />
+        <ShadowEnableSync enabled={isLitMode} />
+        <ShadowMapRefresh enabled={isLitMode && texturedShadowMode} />
         <ambientLight color={env.ambient} intensity={viewportAmbientIntensity} />
         {showViewportDefaultLights && (
           <>
@@ -366,7 +374,7 @@ export const Viewport = ({
             <directionalLight color={env.tint} position={[-10, -10, -5]} intensity={0.25 * env.level} />
           </>
         )}
-        {texturedShadowMode && (
+        {isLitMode && texturedShadowMode && (
           <ContactShadows
             position={[0, 0.01, 0]}
             scale={80}
@@ -377,6 +385,8 @@ export const Viewport = ({
             frames={Infinity}
           />
         )}
+
+
 
         {effectiveShowGrid && (
           <group userData={{ __helper: true }}>
@@ -497,7 +507,28 @@ const SceneEnvSync = ({ backgroundColor, fogEnabled, fogColor, fogNear, fogFar }
   return null;
 };
 
+const ShadowEnableSync = ({ enabled }: { enabled: boolean }) => {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    gl.shadowMap.enabled = enabled;
+    gl.shadowMap.autoUpdate = enabled;
+    gl.shadowMap.needsUpdate = enabled;
+    // Drop cached shadow maps when disabling to release GPU memory.
+    if (!enabled) {
+      scene.traverse((obj) => {
+        const light = obj as THREE.Light & { shadow?: THREE.LightShadow };
+        if ((light as any).isLight && light.shadow?.map) {
+          light.shadow.map.dispose();
+          (light.shadow as any).map = null;
+        }
+      });
+    }
+  }, [enabled, gl, scene]);
+  return null;
+};
+
 const ShadowMapRefresh = ({ enabled }: { enabled: boolean }) => {
+
   const { scene, gl } = useThree();
   useFrame(() => {
     if (!enabled) return;
