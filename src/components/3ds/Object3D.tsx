@@ -289,7 +289,7 @@ function cloneImportedViewportRoot(root: THREE.Object3D): THREE.Object3D {
   return cloned;
 }
 
-function applyImportedViewportMode(root: THREE.Object3D, renderMode: string) {
+function applyImportedViewportMode(root: THREE.Object3D, renderMode: string, objectColor?: string) {
   const wire = renderMode === 'wireframe';
   root.traverse((child: any) => {
     if (!child.isMesh && !child.isSkinnedMesh) return;
@@ -297,15 +297,41 @@ function applyImportedViewportMode(root: THREE.Object3D, renderMode: string) {
     if (!child.material) {
       child.material = new THREE.MeshBasicMaterial({ color: 0x9ca3af });
     }
-    const mats = Array.isArray(child.material) ? child.material : [child.material];
-    for (const mat of mats) {
-      if (!mat) continue;
-      if ('wireframe' in mat) mat.wireframe = wire;
-      if (wire && 'side' in mat) mat.side = THREE.DoubleSide;
-      mat.needsUpdate = true;
+    // Stash the original PBR material(s) on first pass so we can restore later.
+    if (!child.userData.__origMat) {
+      child.userData.__origMat = child.material;
+    }
+    if (wire) {
+      // Replace with an unlit line material using the object's color (or the
+      // original material's color) — a lit PBR material rendered as wireframe
+      // produces near-black lines because per-pixel lighting collapses on 1px
+      // edges. This matches the primitive wireframe overlay path.
+      const origMats = Array.isArray(child.userData.__origMat) ? child.userData.__origMat : [child.userData.__origMat];
+      const firstOrig: any = origMats[0];
+      const origColor = firstOrig?.color?.getHexString ? `#${firstOrig.color.getHexString()}` : null;
+      const wireColor = objectColor || origColor || '#9ca3af';
+      const wireMat = new THREE.MeshBasicMaterial({
+        color: wireColor,
+        wireframe: true,
+        side: THREE.DoubleSide,
+        fog: true,
+      });
+      child.material = Array.isArray(child.userData.__origMat)
+        ? child.userData.__origMat.map(() => wireMat)
+        : wireMat;
+    } else {
+      // Restore the original material and clear any wireframe flag.
+      child.material = child.userData.__origMat;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const mat of mats) {
+        if (!mat) continue;
+        if ('wireframe' in mat) mat.wireframe = false;
+        mat.needsUpdate = true;
+      }
     }
   });
 }
+
 
 function repairMaterialForViewport(mat: any) {
   if (!mat) return;
