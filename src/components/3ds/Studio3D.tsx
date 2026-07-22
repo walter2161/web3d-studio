@@ -390,18 +390,35 @@ export const Studio3D = () => {
 
 
 
-  // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
+  // Autosave scene to localStorage (survives full refresh and tab close).
+  // Debounced so rapid drags don't spam the storage.
   useEffect(() => {
-    try {
-      const serializable = objects.map(({ ref, ...rest }) => rest);
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        objects: serializable,
-        animationTracks,
-        selectedObject,
-        currentFrame,
-      }));
-    } catch {}
+    const handle = window.setTimeout(() => {
+      try {
+        const serializable = objects.map(({ ref, ...rest }) => rest);
+        const payload = JSON.stringify({
+          objects: serializable,
+          animationTracks,
+          selectedObject,
+          currentFrame,
+        });
+        localStorage.setItem(STORAGE_KEY, payload);
+      } catch (err) {
+        // Quota exceeded or unavailable — fall back to sessionStorage so at
+        // least same-tab refresh still restores. Surface a console warning
+        // so the user knows persistence degraded.
+        try {
+          const serializable = objects.map(({ ref, ...rest }) => rest);
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+            objects: serializable, animationTracks, selectedObject, currentFrame,
+          }));
+        } catch {}
+        console.warn('Autosave to localStorage failed:', err);
+      }
+    }, 400);
+    return () => window.clearTimeout(handle);
   }, [objects, animationTracks, selectedObject, currentFrame]);
+
 
   // Rehydrate imported models from IndexedDB on mount.
   // Autosave restores object metadata, but the parsed scene graph lives in
