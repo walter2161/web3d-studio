@@ -2158,7 +2158,7 @@ export const Object3D = ({ object, isSelected, onSelect, renderMode, currentFram
         }}
       >
         {imported ? (
-          <ImportedModelViewportRoot imported={imported} renderMode={renderMode} useSourceRoot={isActiveViewport} />
+          <ImportedModelViewportRoot imported={imported} renderMode={renderMode} useSourceRoot={isActiveViewport} objectColor={object.color} />
         ) : (
           <mesh>
             <boxGeometry args={[1, 1, 1]} />
