@@ -170,16 +170,22 @@ const readPerspectiveViewPose = (activeViewport: string) => {
 };
 
 export const Studio3D = () => {
-  const STORAGE_KEY = '3dsled:scene:autosave:v1';
+  const STORAGE_KEY = 'walt3d:scene:autosave:v1';
+  const LEGACY_STORAGE_KEY = '3dsled:scene:autosave:v1';
 
   const loadInitial = () => {
     if (typeof window === 'undefined') return null;
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
+      // Prefer localStorage (survives tab close). Fall back to sessionStorage
+      // for scenes saved by the previous build.
+      const raw = localStorage.getItem(STORAGE_KEY)
+        || sessionStorage.getItem(STORAGE_KEY)
+        || sessionStorage.getItem(LEGACY_STORAGE_KEY);
       if (!raw) return null;
       return JSON.parse(raw);
     } catch { return null; }
   };
+
   const initial = loadInitial();
 
   const [objects, setObjects] = useState<Object3DData[]>(() =>
