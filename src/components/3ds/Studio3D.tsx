@@ -2242,13 +2242,17 @@ export const Studio3D = () => {
         // Store filename in geometry blob so rehydration knows the extension.
         geometry: { __importedFilename: file.name },
       };
-      setObjects(prev => [...prev, newObject]);
+      setObjects(prev => [...prev, newObject, ...buildExtractedLightObjects(model.extractedLights, id)]);
       setSelectedObject(id);
       toast.dismiss(loadingId);
       const animMsg = model.animations.length > 0
         ? ` (${model.animations.length} animation${model.animations.length > 1 ? 's' : ''})`
         : '';
-      toast.success(`Imported ${file.name}${animMsg}`);
+      const lightMsg = model.extractedLights?.length
+        ? ` — ${model.extractedLights.length} light${model.extractedLights.length > 1 ? 's' : ''} extraída${model.extractedLights.length > 1 ? 's' : ''}`
+        : '';
+      toast.success(`Imported ${file.name}${animMsg}${lightMsg}`);
+
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('Import failed:', err);
