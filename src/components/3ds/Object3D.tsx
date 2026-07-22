@@ -451,10 +451,12 @@ function ImportedModelViewportRoot({
   imported,
   renderMode,
   useSourceRoot,
+  objectColor,
 }: {
   imported: { root: THREE.Object3D; animations: THREE.AnimationClip[] };
   renderMode: string;
   useSourceRoot: boolean;
+  objectColor?: string;
 }) {
   const root = useMemo(
     () => (useSourceRoot ? imported.root : cloneImportedViewportRoot(imported.root)),
@@ -462,8 +464,9 @@ function ImportedModelViewportRoot({
   );
 
   useEffect(() => {
-    applyImportedViewportMode(root, renderMode);
-  }, [root, renderMode]);
+    applyImportedViewportMode(root, renderMode, objectColor);
+  }, [root, renderMode, objectColor]);
+
 
   useFrame(() => {
     if (renderMode === 'textured') forceViewportShadowAndTexture(root, true);
