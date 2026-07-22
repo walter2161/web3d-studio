@@ -7,10 +7,25 @@ import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
 
+export interface ExtractedLight {
+  kind: 'light_omni' | 'light_spot' | 'light_direct';
+  name: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  color: string;
+  intensity: number;
+  distance: number;
+  angle?: number;
+  penumbra?: number;
+  castShadow: boolean;
+}
+
 export interface ImportedModel {
   root: THREE.Object3D;
   animations: THREE.AnimationClip[];
+  extractedLights?: ExtractedLight[];
 }
+
 
 // In-memory cache — imported models must be re-imported after a full reload.
 const cache = new Map<string, ImportedModel>();
