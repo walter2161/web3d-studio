@@ -309,7 +309,7 @@ export const Viewport = ({
       <Canvas
         key={`${view}-${orthographic ? 'ortho' : 'persp'}`}
         ref={canvasRef}
-        shadows="soft"
+        shadows={isLitMode ? 'soft' : false}
         camera={{
           position: cameraPosition,
           up: cameraUp,
@@ -325,9 +325,9 @@ export const Viewport = ({
         className="w-full h-full"
         onCreated={({ gl, scene }) => {
           gl.setClearColor(env.backgroundColor);
-          gl.shadowMap.enabled = true;
+          gl.shadowMap.enabled = isLitMode;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
-          gl.shadowMap.autoUpdate = true;
+          gl.shadowMap.autoUpdate = isLitMode;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 1;
           gl.outputColorSpace = THREE.SRGBColorSpace;
@@ -351,7 +351,8 @@ export const Viewport = ({
           fogNear={env.fogNear}
           fogFar={env.fogFar}
         />
-        <ShadowMapRefresh enabled={texturedShadowMode} />
+        <ShadowEnableSync enabled={isLitMode} />
+        <ShadowMapRefresh enabled={isLitMode && texturedShadowMode} />
         <ambientLight color={env.ambient} intensity={viewportAmbientIntensity} />
         {showViewportDefaultLights && (
           <>
@@ -373,7 +374,7 @@ export const Viewport = ({
             <directionalLight color={env.tint} position={[-10, -10, -5]} intensity={0.25 * env.level} />
           </>
         )}
-        {texturedShadowMode && (
+        {isLitMode && texturedShadowMode && (
           <ContactShadows
             position={[0, 0.01, 0]}
             scale={80}
@@ -384,6 +385,8 @@ export const Viewport = ({
             frames={Infinity}
           />
         )}
+
+
 
         {effectiveShowGrid && (
           <group userData={{ __helper: true }}>
