@@ -7,10 +7,25 @@ import { ColladaLoader } from 'three/examples/jsm/loaders/ColladaLoader.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
 
+export interface ExtractedLight {
+  kind: 'light_omni' | 'light_spot' | 'light_direct';
+  name: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  color: string;
+  intensity: number;
+  distance: number;
+  angle?: number;
+  penumbra?: number;
+  castShadow: boolean;
+}
+
 export interface ImportedModel {
   root: THREE.Object3D;
   animations: THREE.AnimationClip[];
+  extractedLights?: ExtractedLight[];
 }
+
 
 // In-memory cache — imported models must be re-imported after a full reload.
 const cache = new Map<string, ImportedModel>();
@@ -139,9 +154,49 @@ export async function importFromBytes(filename: string, bytes: ArrayBuffer): Pro
       throw new Error(`Unsupported format: .${ext}`);
   }
 
+  // Extract embedded lights (GLB / FBX / DAE often ship with lights baked into
+  // the scene graph). We turn each into a scene-editable Walt3D light object
+  // and remove it from the imported subtree so it isn't rendered twice.
+  const extractedLights: ExtractedLight[] = [];
+  const toRemove: THREE.Object3D[] = [];
+  loaded.scene.updateMatrixWorld(true);
+  loaded.scene.traverse((obj: any) => {
+    if (!obj.isLight) return;
+    const worldPos = new THREE.Vector3();
+    const worldQuat = new THREE.Quaternion();
+    const worldScale = new THREE.Vector3();
+    obj.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+    const e = new THREE.Euler().setFromQuaternion(worldQuat, 'XYZ');
+    const col = (obj.color && obj.color.getHexString) ? `#${obj.color.getHexString()}` : '#ffffff';
+    const intensity = typeof obj.intensity === 'number' ? obj.intensity : 1;
+    let kind: ExtractedLight['kind'] = 'light_omni';
+    let angle: number | undefined;
+    let penumbra: number | undefined;
+    let distance = 0;
+    if (obj.isSpotLight) { kind = 'light_spot'; angle = obj.angle; penumbra = obj.penumbra; distance = obj.distance || 20; }
+    else if (obj.isDirectionalLight) { kind = 'light_direct'; distance = 30; }
+    else if (obj.isPointLight) { kind = 'light_omni'; distance = obj.distance || 0; }
+    else return; // Hemisphere/Ambient/RectArea: ignore for now
+    extractedLights.push({
+      kind,
+      name: obj.name || kind,
+      position: [worldPos.x, worldPos.y, worldPos.z],
+      rotation: [e.x, e.y, e.z],
+      color: col,
+      intensity,
+      distance,
+      angle,
+      penumbra,
+      castShadow: !!obj.castShadow,
+    });
+    toRemove.push(obj);
+  });
+  toRemove.forEach((o) => o.parent?.remove(o));
+
   const root = normalizeTransform(loaded.scene);
-  return { root, animations: loaded.animations };
+  return { root, animations: loaded.animations, extractedLights };
 }
+
 
 export async function importModelFile(file: File): Promise<{ model: ImportedModel; bytes: ArrayBuffer }> {
   const bytes = await file.arrayBuffer();

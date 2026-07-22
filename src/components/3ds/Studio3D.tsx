@@ -169,17 +169,68 @@ const readPerspectiveViewPose = (activeViewport: string) => {
   };
 };
 
+/**
+ * Turn lights extracted from an imported GLB/FBX/DAE into editable Walt3D
+ * light objects. Positions are already in world space (extracted from the
+ * imported scene's world matrix).
+ */
+function buildExtractedLightObjects(
+  extracted: Array<{
+    kind: 'light_omni' | 'light_spot' | 'light_direct';
+    name: string;
+    position: [number, number, number];
+    rotation: [number, number, number];
+    color: string;
+    intensity: number;
+    distance: number;
+    angle?: number;
+    penumbra?: number;
+    castShadow: boolean;
+  }> | undefined,
+  parentImportId: string,
+): Object3DData[] {
+  if (!extracted || extracted.length === 0) return [];
+  return extracted.map((L, i) => ({
+    id: `${parentImportId}_light_${i}_${Date.now()}`,
+    name: L.name || `${L.kind}${i + 1}`,
+    type: L.kind as any,
+    position: L.position,
+    rotation: L.rotation,
+    scale: [1, 1, 1],
+    color: L.color,
+    visible: true,
+    locked: false,
+    modifiers: [],
+    ref: { current: null } as any,
+    lightData: {
+      intensity: L.intensity,
+      distance: L.distance,
+      decay: 2,
+      angle: L.angle,
+      penumbra: L.penumbra,
+      castShadow: L.castShadow,
+    },
+  }) as Object3DData);
+}
+
 export const Studio3D = () => {
-  const STORAGE_KEY = '3dsled:scene:autosave:v1';
+
+  const STORAGE_KEY = 'walt3d:scene:autosave:v1';
+  const LEGACY_STORAGE_KEY = '3dsled:scene:autosave:v1';
 
   const loadInitial = () => {
     if (typeof window === 'undefined') return null;
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
+      // Prefer localStorage (survives tab close). Fall back to sessionStorage
+      // for scenes saved by the previous build.
+      const raw = localStorage.getItem(STORAGE_KEY)
+        || sessionStorage.getItem(STORAGE_KEY)
+        || sessionStorage.getItem(LEGACY_STORAGE_KEY);
       if (!raw) return null;
       return JSON.parse(raw);
     } catch { return null; }
   };
+
   const initial = loadInitial();
 
   const [objects, setObjects] = useState<Object3DData[]>(() =>
@@ -384,18 +435,35 @@ export const Studio3D = () => {
 
 
 
-  // Autosave scene to sessionStorage (survives HMR/refresh in same tab)
+  // Autosave scene to localStorage (survives full refresh and tab close).
+  // Debounced so rapid drags don't spam the storage.
   useEffect(() => {
-    try {
-      const serializable = objects.map(({ ref, ...rest }) => rest);
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        objects: serializable,
-        animationTracks,
-        selectedObject,
-        currentFrame,
-      }));
-    } catch {}
+    const handle = window.setTimeout(() => {
+      try {
+        const serializable = objects.map(({ ref, ...rest }) => rest);
+        const payload = JSON.stringify({
+          objects: serializable,
+          animationTracks,
+          selectedObject,
+          currentFrame,
+        });
+        localStorage.setItem(STORAGE_KEY, payload);
+      } catch (err) {
+        // Quota exceeded or unavailable — fall back to sessionStorage so at
+        // least same-tab refresh still restores. Surface a console warning
+        // so the user knows persistence degraded.
+        try {
+          const serializable = objects.map(({ ref, ...rest }) => rest);
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+            objects: serializable, animationTracks, selectedObject, currentFrame,
+          }));
+        } catch {}
+        console.warn('Autosave to localStorage failed:', err);
+      }
+    }, 400);
+    return () => window.clearTimeout(handle);
   }, [objects, animationTracks, selectedObject, currentFrame]);
+
 
   // Rehydrate imported models from IndexedDB on mount.
   // Autosave restores object metadata, but the parsed scene graph lives in
@@ -2219,13 +2287,17 @@ export const Studio3D = () => {
         // Store filename in geometry blob so rehydration knows the extension.
         geometry: { __importedFilename: file.name },
       };
-      setObjects(prev => [...prev, newObject]);
+      setObjects(prev => [...prev, newObject, ...buildExtractedLightObjects(model.extractedLights, id)]);
       setSelectedObject(id);
       toast.dismiss(loadingId);
       const animMsg = model.animations.length > 0
         ? ` (${model.animations.length} animation${model.animations.length > 1 ? 's' : ''})`
         : '';
-      toast.success(`Imported ${file.name}${animMsg}`);
+      const lightMsg = model.extractedLights?.length
+        ? ` — ${model.extractedLights.length} light${model.extractedLights.length > 1 ? 's' : ''} extraída${model.extractedLights.length > 1 ? 's' : ''}`
+        : '';
+      toast.success(`Imported ${file.name}${animMsg}${lightMsg}`);
+
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('Import failed:', err);
@@ -2271,10 +2343,14 @@ export const Studio3D = () => {
         ref: { current: null } as any,
         geometry: { __importedFilename: filename },
       };
-      setObjects((prev) => [...prev, newObject]);
+      setObjects((prev) => [...prev, newObject, ...buildExtractedLightObjects(model.extractedLights, id)]);
       setSelectedObject(id);
       toast.dismiss(loadingId);
-      toast.success(`Imported ${baseName}`);
+      const lightMsg = model.extractedLights?.length
+        ? ` — ${model.extractedLights.length} light${model.extractedLights.length > 1 ? 's' : ''} extraída${model.extractedLights.length > 1 ? 's' : ''}`
+        : '';
+      toast.success(`Imported ${baseName}${lightMsg}`);
+
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('URL import failed:', err);
