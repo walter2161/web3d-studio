@@ -2298,10 +2298,14 @@ export const Studio3D = () => {
         ref: { current: null } as any,
         geometry: { __importedFilename: filename },
       };
-      setObjects((prev) => [...prev, newObject]);
+      setObjects((prev) => [...prev, newObject, ...buildExtractedLightObjects(model.extractedLights, id)]);
       setSelectedObject(id);
       toast.dismiss(loadingId);
-      toast.success(`Imported ${baseName}`);
+      const lightMsg = model.extractedLights?.length
+        ? ` — ${model.extractedLights.length} light${model.extractedLights.length > 1 ? 's' : ''} extraída${model.extractedLights.length > 1 ? 's' : ''}`
+        : '';
+      toast.success(`Imported ${baseName}${lightMsg}`);
+
     } catch (err: any) {
       toast.dismiss(loadingId);
       console.error('URL import failed:', err);
