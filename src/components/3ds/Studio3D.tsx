@@ -169,7 +169,52 @@ const readPerspectiveViewPose = (activeViewport: string) => {
   };
 };
 
+/**
+ * Turn lights extracted from an imported GLB/FBX/DAE into editable Walt3D
+ * light objects. Positions are already in world space (extracted from the
+ * imported scene's world matrix).
+ */
+function buildExtractedLightObjects(
+  extracted: Array<{
+    kind: 'light_omni' | 'light_spot' | 'light_direct';
+    name: string;
+    position: [number, number, number];
+    rotation: [number, number, number];
+    color: string;
+    intensity: number;
+    distance: number;
+    angle?: number;
+    penumbra?: number;
+    castShadow: boolean;
+  }> | undefined,
+  parentImportId: string,
+): Object3DData[] {
+  if (!extracted || extracted.length === 0) return [];
+  return extracted.map((L, i) => ({
+    id: `${parentImportId}_light_${i}_${Date.now()}`,
+    name: L.name || `${L.kind}${i + 1}`,
+    type: L.kind as any,
+    position: L.position,
+    rotation: L.rotation,
+    scale: [1, 1, 1],
+    color: L.color,
+    visible: true,
+    locked: false,
+    modifiers: [],
+    ref: { current: null } as any,
+    lightData: {
+      intensity: L.intensity,
+      distance: L.distance,
+      decay: 2,
+      angle: L.angle,
+      penumbra: L.penumbra,
+      castShadow: L.castShadow,
+    },
+  }) as Object3DData);
+}
+
 export const Studio3D = () => {
+
   const STORAGE_KEY = 'walt3d:scene:autosave:v1';
   const LEGACY_STORAGE_KEY = '3dsled:scene:autosave:v1';
 
