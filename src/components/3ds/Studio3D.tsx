@@ -318,6 +318,8 @@ export const Studio3D = () => {
   const [maxScriptOpen, setMaxScriptOpen] = useState(false);
   const [maxScriptLog, setMaxScriptLog] = useState<string[]>(['-- Walt3D MAXScript Listener --']);
   const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onOk: () => void; title?: string }>({ open: false, message: '', onOk: () => {} });
+  const [recoveryState, setRecoveryState] = useState<{ open: boolean; payload: any | null; savedAt?: number }>({ open: false, payload: null });
+  const [rehydrateTick, setRehydrateTick] = useState(0);
   const [heldSnapshot, setHeldSnapshot] = useState<Object3DData[] | null>(null);
   const [units, setUnits] = useState(() => loadUnits());
   const [snapCfg, setSnapCfg] = useState(() => loadSnap());
