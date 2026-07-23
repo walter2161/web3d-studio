@@ -3701,26 +3701,20 @@ export const Studio3D = () => {
         width={420}
       >
         <div className="text-[11px] py-2 px-1 space-y-2">
-          <div>
-            {t('recoveryFound') || 'A backup of your previous session was found.'}
-          </div>
+          <div>Uma cópia de segurança da sua sessão anterior foi encontrada.</div>
           <div className="text-win-text opacity-75">
-            {t('recoverySavedAt') || 'Saved at'}:{' '}
+            Salva em:{' '}
             {recoveryState.savedAt
               ? new Date(recoveryState.savedAt).toLocaleString()
               : '—'}
             {' · '}
-            {(recoveryState.payload?.objects?.length ?? 0)} {t('recoveryObjects') || 'objects'}
+            {(recoveryState.payload?.objects?.length ?? 0)} objeto(s)
           </div>
-          <div>{t('recoveryPrompt') || 'Would you like to restore it?'}</div>
+          <div>Deseja restaurar a cena?</div>
         </div>
         <div className="flex justify-end gap-1 pt-1">
-          <R3Button width={90} onClick={discardRecovery}>
-            {t('recoveryDiscard') || 'Discard'}
-          </R3Button>
-          <R3Button width={90} onClick={applyRecovery}>
-            {t('recoveryRestore') || 'Restore'}
-          </R3Button>
+          <R3Button width={90} onClick={discardRecovery}>Descartar</R3Button>
+          <R3Button width={90} onClick={applyRecovery}>Restaurar</R3Button>
         </div>
       </R3Dialog>
 
