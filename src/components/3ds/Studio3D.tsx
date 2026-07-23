@@ -2892,6 +2892,13 @@ export const Studio3D = () => {
         inp.click();
       }); break;
       case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
+      case 'Export JSON':
+      case 'Export JSON...': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        if (!ids.length) { toast.error('Selecione um ou mais objetos'); break; }
+        setExportJsonOpen(true);
+        break;
+      }
       case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
       case 'Select None': setSelectedObject(null); break;
       case 'Select Invert': doSelectInvert(); break;
