@@ -85,6 +85,7 @@ const buildSections = (clickedObjectId?: string): MenuSection[] => {
       ],
     }),
     'separator',
+    item('Export JSON...', 'Export JSON', { disabled: !anySel }),
     item('Delete',            'Delete', { disabled: !anySel, danger: true, hint: 'Del' }),
   ];
 

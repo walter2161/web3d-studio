@@ -21,6 +21,7 @@ import { MaterialMapBrowser } from './r3/MaterialMapBrowser';
 import { EnvironmentProvider } from './r3/EnvironmentContext';
 import { RenderEngineProvider } from './r3/RenderEngineContext';
 import { ObjectPropertiesDialog } from './r3/ObjectPropertiesDialog';
+import { ExportJsonDialog } from './r3/ExportJsonDialog';
 import { UnitsSetup, loadUnits } from './r3/UnitsSetup';
 import { GridAndSnapSettings, loadSnap } from './r3/GridAndSnapSettings';
 import { AboutDialog } from './r3/AboutDialog';
@@ -303,6 +304,7 @@ export const Studio3D = () => {
   const [waltGameOpen, setWaltGameOpen] = useState(false);
   const [gamePreviewOpen, setGamePreviewOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
+  const [exportJsonOpen, setExportJsonOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -2890,6 +2892,13 @@ export const Studio3D = () => {
         inp.click();
       }); break;
       case 'Object Properties...': if (selectedObject) setObjectPropsOpen(true); else toast.error('Select an object'); break;
+      case 'Export JSON':
+      case 'Export JSON...': {
+        const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+        if (!ids.length) { toast.error('Selecione um ou mais objetos'); break; }
+        setExportJsonOpen(true);
+        break;
+      }
       case 'Select All': setSelectedObject(objects[0]?.id ?? null); break;
       case 'Select None': setSelectedObject(null); break;
       case 'Select Invert': doSelectInvert(); break;
@@ -3622,6 +3631,14 @@ export const Studio3D = () => {
         onOpenChange={setObjectPropsOpen}
         object={selectedObjectData ?? null}
         onSave={saveObjectProperties}
+      />
+      <ExportJsonDialog
+        open={exportJsonOpen}
+        onClose={() => setExportJsonOpen(false)}
+        objects={(() => {
+          const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+          return objects.filter((o) => ids.includes(o.id));
+        })()}
       />
       <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
       <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
