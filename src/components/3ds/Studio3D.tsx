@@ -442,12 +442,17 @@ export const Studio3D = () => {
 
 
   // Autosave scene to localStorage (survives full refresh and tab close).
-  // Debounced so rapid drags don't spam the storage.
+  // Debounced so rapid drags don't spam the storage. Gated by the recovery
+  // dialog: while a pending backup is being offered, we must NOT overwrite it
+  // with the fresh empty state.
   useEffect(() => {
+    if (recoveryState.open) return;
     const handle = window.setTimeout(() => {
       try {
         const serializable = objects.map(({ ref, ...rest }) => rest);
         const payload = JSON.stringify({
+          version: 1,
+          savedAt: Date.now(),
           objects: serializable,
           animationTracks,
           selectedObject,
@@ -455,12 +460,10 @@ export const Studio3D = () => {
         });
         localStorage.setItem(STORAGE_KEY, payload);
       } catch (err) {
-        // Quota exceeded or unavailable — fall back to sessionStorage so at
-        // least same-tab refresh still restores. Surface a console warning
-        // so the user knows persistence degraded.
         try {
           const serializable = objects.map(({ ref, ...rest }) => rest);
           sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+            version: 1, savedAt: Date.now(),
             objects: serializable, animationTracks, selectedObject, currentFrame,
           }));
         } catch {}
@@ -468,7 +471,43 @@ export const Studio3D = () => {
       }
     }, 400);
     return () => window.clearTimeout(handle);
-  }, [objects, animationTracks, selectedObject, currentFrame]);
+  }, [objects, animationTracks, selectedObject, currentFrame, recoveryState.open]);
+
+  // On mount: detect a backup from a previous session and offer to restore it
+  // (3ds Max autoback / CorelDraw / Google Drive style).
+  useEffect(() => {
+    const backup = readBackup();
+    if (backup) setRecoveryState({ open: true, payload: backup, savedAt: backup.savedAt });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const applyRecovery = () => {
+    const p = recoveryState.payload;
+    if (!p) { setRecoveryState({ open: false, payload: null }); return; }
+    const restored: Object3DData[] = (p.objects || []).map((o: any) => ({ ...o, ref: { current: null } }));
+    setObjects(restored);
+    setAnimationTracks(p.animationTracks || []);
+    setSelectedObject(p.selectedObject ?? null);
+    setSelectedObjectIds(p.selectedObject ? [p.selectedObject] : []);
+    setCurrentFrame(p.currentFrame ?? 0);
+    setRecoveryState({ open: false, payload: null });
+    // Kick the imported-model rehydration effect to re-parse GLB/OBJ bytes
+    // from IndexedDB now that objects exist again.
+    setRehydrateTick(t => t + 1);
+  };
+
+  const discardRecovery = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
+      for (const k of LEGACY_KEYS) {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      }
+    } catch {}
+    setRecoveryState({ open: false, payload: null });
+  };
+
 
 
   // Rehydrate imported models from IndexedDB on mount.
