@@ -215,29 +215,33 @@ function buildExtractedLightObjects(
 
 export const Studio3D = () => {
 
-  const STORAGE_KEY = 'walt3d:scene:autosave:v1';
-  const LEGACY_STORAGE_KEY = '3dsled:scene:autosave:v1';
+  // Autosave / crash-recovery keys. The scene is written continuously to
+  // BACKUP_KEY; on boot we DON'T auto-hydrate — instead we surface a 3ds Max
+  // style recovery dialog so the user chooses to restore or discard, similar
+  // to CorelDraw's "recover last document" and Google Drive's crash restore.
+  const STORAGE_KEY = 'walt3d:scene:backup:v1';
+  const LEGACY_KEYS = ['walt3d:scene:autosave:v1', '3dsled:scene:autosave:v1'];
 
-  const loadInitial = () => {
+  const readBackup = () => {
     if (typeof window === 'undefined') return null;
     try {
-      // Prefer localStorage (survives tab close). Fall back to sessionStorage
-      // for scenes saved by the previous build.
-      const raw = localStorage.getItem(STORAGE_KEY)
-        || sessionStorage.getItem(STORAGE_KEY)
-        || sessionStorage.getItem(LEGACY_STORAGE_KEY);
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        for (const k of LEGACY_KEYS) {
+          raw = localStorage.getItem(k) || sessionStorage.getItem(k);
+          if (raw) break;
+        }
+      }
       if (!raw) return null;
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!parsed?.objects?.length) return null;
+      return parsed;
     } catch { return null; }
   };
 
-  const initial = loadInitial();
-
-  const [objects, setObjects] = useState<Object3DData[]>(() =>
-    (initial?.objects || []).map((o: any) => ({ ...o, ref: { current: null } }))
-  );
-  const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
-  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>(() => initial?.selectedObject ? [initial.selectedObject] : []);
+  const [objects, setObjects] = useState<Object3DData[]>([]);
+  const [selectedObject, setSelectedObject] = useState<string | null>(null);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [selectedSubUuid, setSelectedSubUuid] = useState<string | null>(null);
 
   // Expose current selection to the StatusBar viewport nav (Zoom Extents Selected,
