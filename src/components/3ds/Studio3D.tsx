@@ -3693,6 +3693,39 @@ export const Studio3D = () => {
         onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
       />
 
+      {/* Crash-recovery / auto-backup dialog (3ds Max autoback style). */}
+      <R3Dialog
+        open={recoveryState.open}
+        onClose={() => { /* modal — force a choice */ }}
+        title="Backup Recovery"
+        width={420}
+      >
+        <div className="text-[11px] py-2 px-1 space-y-2">
+          <div>
+            {t('recoveryFound') || 'A backup of your previous session was found.'}
+          </div>
+          <div className="text-win-text opacity-75">
+            {t('recoverySavedAt') || 'Saved at'}:{' '}
+            {recoveryState.savedAt
+              ? new Date(recoveryState.savedAt).toLocaleString()
+              : '—'}
+            {' · '}
+            {(recoveryState.payload?.objects?.length ?? 0)} {t('recoveryObjects') || 'objects'}
+          </div>
+          <div>{t('recoveryPrompt') || 'Would you like to restore it?'}</div>
+        </div>
+        <div className="flex justify-end gap-1 pt-1">
+          <R3Button width={90} onClick={discardRecovery}>
+            {t('recoveryDiscard') || 'Discard'}
+          </R3Button>
+          <R3Button width={90} onClick={applyRecovery}>
+            {t('recoveryRestore') || 'Restore'}
+          </R3Button>
+        </div>
+      </R3Dialog>
+
+
+
       <SelectByNameDialog
         open={selectByNameOpen}
         onOpenChange={setSelectByNameOpen}
