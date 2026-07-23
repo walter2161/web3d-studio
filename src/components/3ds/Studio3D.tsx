@@ -362,7 +362,7 @@ export const Studio3D = () => {
   // mousedown via r3-transform-start; per-frame transform-many events must not.
   const dragActiveRef = useRef(false);
   const viewportContextRootRef = useRef<HTMLDivElement | null>(null);
-  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
+  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>([]);
   // Per-imported-object baked clip data (3ds Max style per-bone channel tracks).
   // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
   const [bakedClipSets, setBakedClipSets] = useState<Record<string, BakedClipSet>>({});
