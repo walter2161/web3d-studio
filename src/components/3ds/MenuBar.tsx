@@ -29,7 +29,7 @@ interface MenuBarProps {
 // R3 menu list. Underlined access-key hint via <u>.
 type MenuEntry = string | 'sep' | { label: string; sub: string[] };
 const menuItems: { label: string; access: string; items: MenuEntry[] }[] = [
-  { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'Export Cloud...', 'Import Cloud...', 'sep', 'Import...', 'Export...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
+  { label: 'File', access: 'F', items: ['New Scene', 'Reset', 'sep', 'Open...', 'Save', 'Save As...', 'sep', 'Save Cloud...', 'Open Cloud...', 'Export Cloud...', 'Import Cloud...', 'sep', 'Import...', 'Export...', 'Export JSON...', 'sep', 'Login...', 'Logout', 'Admin — Liberar usuário...', 'sep', 'Exit'] },
   { label: 'Edit', access: 'E', items: ['Undo', 'Redo', 'sep', 'Hold', 'Fetch', 'sep', 'Delete', 'Clone', 'sep', 'Select All', 'Select None', 'Select Invert', 'sep', 'Region', 'Object Properties...'] },
   { label: 'Group', access: 'G', items: ['Group', 'Ungroup', 'Open', 'Close', 'Attach', 'Detach', 'Explode'] },
   { label: 'Views', access: 'V', items: ['Perspective', 'Top', 'Front', 'Left', 'sep', { label: 'Viewport Layout', sub: ['Layout: Single', 'Layout: Quad (3 Wire + Persp)', 'Layout: 2 Cols — Top (Wire) + Persp', 'Layout: 2 Cols — Front (Wire) + Persp', 'Layout: 2 Cols — Left (Wire) + Persp', 'Layout: 2 Rows — Top (Wire) + Persp'] }, 'sep', 'Viewport Configuration...', 'Show Grid', 'Show Statistics', 'sep', 'Update During Spinner Drag'] },
