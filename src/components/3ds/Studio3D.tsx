@@ -547,9 +547,10 @@ export const Studio3D = () => {
       }
     })();
     return () => { cancelled = true; };
-    // Run once on mount; subsequent imports set the cache synchronously.
+    // Re-runs when the crash-recovery flow restores objects, so we can
+    // re-parse the GLB/OBJ bytes cached in IndexedDB.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [rehydrateTick]);
 
 
 
