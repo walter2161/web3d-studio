@@ -9,7 +9,7 @@ import { QuickRender } from './QuickRender';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { SceneHierarchy } from './SceneHierarchy';
 import { ObjectLibrary, DND_MIME } from './ObjectLibrary';
-import { R3Dialog } from './r3/R3Dialog';
+import { R3Dialog, R3Button } from './r3/R3Dialog';
 import { TransformTypeInDialog } from './r3/TransformTypeInDialog';
 import { FileOperations } from './FileOperations';
 import { MainToolbar } from './ToolbarStrip';
@@ -215,29 +215,33 @@ function buildExtractedLightObjects(
 
 export const Studio3D = () => {
 
-  const STORAGE_KEY = 'walt3d:scene:autosave:v1';
-  const LEGACY_STORAGE_KEY = '3dsled:scene:autosave:v1';
+  // Autosave / crash-recovery keys. The scene is written continuously to
+  // BACKUP_KEY; on boot we DON'T auto-hydrate — instead we surface a 3ds Max
+  // style recovery dialog so the user chooses to restore or discard, similar
+  // to CorelDraw's "recover last document" and Google Drive's crash restore.
+  const STORAGE_KEY = 'walt3d:scene:backup:v1';
+  const LEGACY_KEYS = ['walt3d:scene:autosave:v1', '3dsled:scene:autosave:v1'];
 
-  const loadInitial = () => {
+  const readBackup = () => {
     if (typeof window === 'undefined') return null;
     try {
-      // Prefer localStorage (survives tab close). Fall back to sessionStorage
-      // for scenes saved by the previous build.
-      const raw = localStorage.getItem(STORAGE_KEY)
-        || sessionStorage.getItem(STORAGE_KEY)
-        || sessionStorage.getItem(LEGACY_STORAGE_KEY);
+      let raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        for (const k of LEGACY_KEYS) {
+          raw = localStorage.getItem(k) || sessionStorage.getItem(k);
+          if (raw) break;
+        }
+      }
       if (!raw) return null;
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!parsed?.objects?.length) return null;
+      return parsed;
     } catch { return null; }
   };
 
-  const initial = loadInitial();
-
-  const [objects, setObjects] = useState<Object3DData[]>(() =>
-    (initial?.objects || []).map((o: any) => ({ ...o, ref: { current: null } }))
-  );
-  const [selectedObject, setSelectedObject] = useState<string | null>(initial?.selectedObject ?? null);
-  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>(() => initial?.selectedObject ? [initial.selectedObject] : []);
+  const [objects, setObjects] = useState<Object3DData[]>([]);
+  const [selectedObject, setSelectedObject] = useState<string | null>(null);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [selectedSubUuid, setSelectedSubUuid] = useState<string | null>(null);
 
   // Expose current selection to the StatusBar viewport nav (Zoom Extents Selected,
@@ -273,7 +277,7 @@ export const Studio3D = () => {
 
   const [activeViewport, setActiveViewport] = useState<'perspective' | 'top' | 'front' | 'left'>('perspective');
   const [transformMode, setTransformMode] = useState<'translate' | 'rotate' | 'scale'>('translate');
-  const [currentFrame, setCurrentFrame] = useState(initial?.currentFrame ?? 0);
+  const [currentFrame, setCurrentFrame] = useState(0);
   const [timelineVisible, setTimelineVisible] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [autoKey, setAutoKey] = useState(false);
@@ -314,6 +318,8 @@ export const Studio3D = () => {
   const [maxScriptOpen, setMaxScriptOpen] = useState(false);
   const [maxScriptLog, setMaxScriptLog] = useState<string[]>(['-- Walt3D MAXScript Listener --']);
   const [confirmState, setConfirmState] = useState<{ open: boolean; message: string; onOk: () => void; title?: string }>({ open: false, message: '', onOk: () => {} });
+  const [recoveryState, setRecoveryState] = useState<{ open: boolean; payload: any | null; savedAt?: number }>({ open: false, payload: null });
+  const [rehydrateTick, setRehydrateTick] = useState(0);
   const [heldSnapshot, setHeldSnapshot] = useState<Object3DData[] | null>(null);
   const [units, setUnits] = useState(() => loadUnits());
   const [snapCfg, setSnapCfg] = useState(() => loadSnap());
@@ -358,7 +364,7 @@ export const Studio3D = () => {
   // mousedown via r3-transform-start; per-frame transform-many events must not.
   const dragActiveRef = useRef(false);
   const viewportContextRootRef = useRef<HTMLDivElement | null>(null);
-  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>(initial?.animationTracks || []);
+  const [animationTracks, setAnimationTracks] = useState<AnimationTrack[]>([]);
   // Per-imported-object baked clip data (3ds Max style per-bone channel tracks).
   // Keyed by objectId. Populated by "Bake clip → tracks" in the timeline.
   const [bakedClipSets, setBakedClipSets] = useState<Record<string, BakedClipSet>>({});
@@ -436,12 +442,17 @@ export const Studio3D = () => {
 
 
   // Autosave scene to localStorage (survives full refresh and tab close).
-  // Debounced so rapid drags don't spam the storage.
+  // Debounced so rapid drags don't spam the storage. Gated by the recovery
+  // dialog: while a pending backup is being offered, we must NOT overwrite it
+  // with the fresh empty state.
   useEffect(() => {
+    if (recoveryState.open) return;
     const handle = window.setTimeout(() => {
       try {
         const serializable = objects.map(({ ref, ...rest }) => rest);
         const payload = JSON.stringify({
+          version: 1,
+          savedAt: Date.now(),
           objects: serializable,
           animationTracks,
           selectedObject,
@@ -449,12 +460,10 @@ export const Studio3D = () => {
         });
         localStorage.setItem(STORAGE_KEY, payload);
       } catch (err) {
-        // Quota exceeded or unavailable — fall back to sessionStorage so at
-        // least same-tab refresh still restores. Surface a console warning
-        // so the user knows persistence degraded.
         try {
           const serializable = objects.map(({ ref, ...rest }) => rest);
           sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+            version: 1, savedAt: Date.now(),
             objects: serializable, animationTracks, selectedObject, currentFrame,
           }));
         } catch {}
@@ -462,7 +471,43 @@ export const Studio3D = () => {
       }
     }, 400);
     return () => window.clearTimeout(handle);
-  }, [objects, animationTracks, selectedObject, currentFrame]);
+  }, [objects, animationTracks, selectedObject, currentFrame, recoveryState.open]);
+
+  // On mount: detect a backup from a previous session and offer to restore it
+  // (3ds Max autoback / CorelDraw / Google Drive style).
+  useEffect(() => {
+    const backup = readBackup();
+    if (backup) setRecoveryState({ open: true, payload: backup, savedAt: backup.savedAt });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const applyRecovery = () => {
+    const p = recoveryState.payload;
+    if (!p) { setRecoveryState({ open: false, payload: null }); return; }
+    const restored: Object3DData[] = (p.objects || []).map((o: any) => ({ ...o, ref: { current: null } }));
+    setObjects(restored);
+    setAnimationTracks(p.animationTracks || []);
+    setSelectedObject(p.selectedObject ?? null);
+    setSelectedObjectIds(p.selectedObject ? [p.selectedObject] : []);
+    setCurrentFrame(p.currentFrame ?? 0);
+    setRecoveryState({ open: false, payload: null });
+    // Kick the imported-model rehydration effect to re-parse GLB/OBJ bytes
+    // from IndexedDB now that objects exist again.
+    setRehydrateTick(t => t + 1);
+  };
+
+  const discardRecovery = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
+      for (const k of LEGACY_KEYS) {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      }
+    } catch {}
+    setRecoveryState({ open: false, payload: null });
+  };
+
 
 
   // Rehydrate imported models from IndexedDB on mount.
@@ -502,9 +547,10 @@ export const Studio3D = () => {
       }
     })();
     return () => { cancelled = true; };
-    // Run once on mount; subsequent imports set the cache synchronously.
+    // Re-runs when the crash-recovery flow restores objects, so we can
+    // re-parse the GLB/OBJ bytes cached in IndexedDB.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [rehydrateTick]);
 
 
 
@@ -3646,6 +3692,33 @@ export const Studio3D = () => {
         onConfirm={() => { confirmState.onOk(); setConfirmState((s) => ({ ...s, open: false })); }}
         onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
       />
+
+      {/* Crash-recovery / auto-backup dialog (3ds Max autoback style). */}
+      <R3Dialog
+        open={recoveryState.open}
+        onClose={() => { /* modal — force a choice */ }}
+        title="Backup Recovery"
+        width={420}
+      >
+        <div className="text-[11px] py-2 px-1 space-y-2">
+          <div>Uma cópia de segurança da sua sessão anterior foi encontrada.</div>
+          <div className="text-win-text opacity-75">
+            Salva em:{' '}
+            {recoveryState.savedAt
+              ? new Date(recoveryState.savedAt).toLocaleString()
+              : '—'}
+            {' · '}
+            {(recoveryState.payload?.objects?.length ?? 0)} objeto(s)
+          </div>
+          <div>Deseja restaurar a cena?</div>
+        </div>
+        <div className="flex justify-end gap-1 pt-1">
+          <R3Button width={90} onClick={discardRecovery}>Descartar</R3Button>
+          <R3Button width={90} onClick={applyRecovery}>Restaurar</R3Button>
+        </div>
+      </R3Dialog>
+
+
 
       <SelectByNameDialog
         open={selectByNameOpen}
