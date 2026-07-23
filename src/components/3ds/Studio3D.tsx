@@ -304,6 +304,7 @@ export const Studio3D = () => {
   const [waltGameOpen, setWaltGameOpen] = useState(false);
   const [gamePreviewOpen, setGamePreviewOpen] = useState(false);
   const [objectPropsOpen, setObjectPropsOpen] = useState(false);
+  const [exportJsonOpen, setExportJsonOpen] = useState(false);
   const [unitsOpen, setUnitsOpen] = useState(false);
   const [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
