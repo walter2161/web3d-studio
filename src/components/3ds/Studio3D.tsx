@@ -3632,6 +3632,14 @@ export const Studio3D = () => {
         object={selectedObjectData ?? null}
         onSave={saveObjectProperties}
       />
+      <ExportJsonDialog
+        open={exportJsonOpen}
+        onClose={() => setExportJsonOpen(false)}
+        objects={(() => {
+          const ids = selectedObjectIds.length ? selectedObjectIds : (selectedObject ? [selectedObject] : []);
+          return objects.filter((o) => ids.includes(o.id));
+        })()}
+      />
       <UnitsSetup open={unitsOpen} onOpenChange={setUnitsOpen} onApply={setUnits} />
       <GridAndSnapSettings open={snapSettingsOpen} onOpenChange={setSnapSettingsOpen} onApply={setSnapCfg} />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
